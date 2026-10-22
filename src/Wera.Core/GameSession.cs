@@ -11,6 +11,8 @@ public enum Screen
     Home,
     DungeonSelect,
     ShopList,
+    /// <summary>파티 설정. 내용은 아직 없다.</summary>
+    PartySetup,
     /// <summary>선택한 상점의 교환 목록.</summary>
     ShopTrades,
     Load,
@@ -50,6 +52,7 @@ public sealed class GameSession
 
     public const string DungeonEntryCode = "101";
     public const string ShopEntryCode = "102";
+    public const string PartyEntryCode = "103";
     public const string SaveEntryCode = "200";
     public const string LoadEntryCode = "300";
     public const string BackEntryCode = "999";
@@ -123,6 +126,7 @@ public sealed class GameSession
                         list.Add(new ScreenEntry(DungeonEntryCode, "던전", Screen.DungeonSelect));
                     if (AvailableShops.Count > 0)
                         list.Add(new ScreenEntry(ShopEntryCode, "상점가", Screen.ShopList));
+                    list.Add(new ScreenEntry(PartyEntryCode, "파티 설정", Screen.PartySetup));
                     list.Add(new ScreenEntry(SaveEntryCode, "세이브", Screen.Home, EntryAction.Save));
                     list.Add(new ScreenEntry(LoadEntryCode, "로드", Screen.Load));
                     return list;
@@ -139,6 +143,7 @@ public sealed class GameSession
                         .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen.ShopList))
                         .ToList();
                 case Screen.DungeonSelect:
+                case Screen.PartySetup:
                 case Screen.Load:
                     return [new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home)];
                 default:

@@ -84,10 +84,10 @@ public class ShopTests
     }
 
     [Fact]
-    public void Home_order_is_101_102_200_300()
+    public void Home_order_is_101_102_103_200_300()
     {
         var s = GameSession.NewGame(Pack(TwoShops, null, dungeons: "code\tname\n1001\t초원\n"));
-        Assert.Equal(["101", "102", "200", "300"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["101", "102", "103", "200", "300"], s.Entries.Select(e => e.Code));
     }
 
     [Fact]
