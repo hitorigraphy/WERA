@@ -20,7 +20,7 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
 | `master/shop_condition_master_v1.tsv` | (선택) `shop_code`, `group_no`, `flag_code`, `condition_type`, `condition_value` |
 | `master/item_inventory_master_v1.tsv` | (선택) `item_code`, `item_name`, `carry_limit` |
 | `master/bunch_inventory_master_v1.tsv` | (선택) `item_code`, `item_name`, `part_item_code`, `part_amount` |
-| `master/character_inventory_master_v1.tsv` | (선택) `item_code`, `item_name`, `carry_limit` |
+| `master/character_inventory_master_v1.tsv` | (선택) `character_code`, `character_name`, `carry_limit` |
 | `master/shop_trade_master_v1.tsv` | (선택) `code`, `shop_code`, `cost_item_code`, `cost_amount`, `receive_item_code`, `receive_amount` |
 | `master/shop_trade_condition_master_v1.tsv` | (선택) `trade_code`, `group_no`, `flag_code`, `condition_type`, `condition_value` |
 
@@ -28,7 +28,7 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
 - **아이템 인벤토리**(`item_inventory_master`)는 아이템 코드, 이름, 소지제한(`carry_limit`, 한 번에 소지할 수 있는 최대 수량, 1 이상의 정수)입니다.
 - **번치 인벤토리**(`bunch_inventory_master`)는 여러 아이템을 묶은 것으로, 같은 `item_code`의 행들이 하나의 번치가 됩니다(행마다 `item_name`은 같아야 함). `part_item_code`는 아이템 인벤토리의 아이템만 가리킬 수 있고, 번치에는 소지제한이 없으며, `part_amount`는 1 이상입니다.
 - 아이템 코드는 아이템 인벤토리와 번치 인벤토리에서 겹치면 안 됩니다.
-- **캐릭터 인벤토리**(`character_inventory_master`)는 아이템 인벤토리와 같은 열(`item_code`, `item_name`, `carry_limit`)을 가진 별도 마스터이고 코드 공간도 따로입니다. 아직 화면이나 세이브에서 쓰지는 않습니다.
+- **캐릭터 인벤토리**(`character_inventory_master`)는 열이 `character_code`, `character_name`, `carry_limit`인 별도 마스터이고 코드 공간도 아이템과 따로입니다. 아직 화면이나 세이브에서 쓰지는 않습니다.
 - **교환**(`shop_trade_master`)은 상점 `shop_code`에서 `cost_item_code`를 `cost_amount`개 내고 `receive_item_code`를 `receive_amount`개 받는 것입니다. 아이템 코드는 아이템/번치 인벤토리 어느 쪽이든 가능하고, 어마운트는 1 이상입니다. 상점과 아이템 코드는 해당 마스터에 있어야 합니다.
 - **교환 조건표**(`shop_trade_condition_master`)는 던전/상점 조건표와 같은 규칙(그룹 AND/OR, `None`)이고, 조건이 없으면 항상 가능합니다.
 

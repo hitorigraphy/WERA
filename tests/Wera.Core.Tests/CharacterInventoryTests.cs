@@ -4,7 +4,8 @@ namespace Wera.Core.Tests;
 
 public class CharacterInventoryTests
 {
-    const string Header = "item_code\titem_name\tcarry_limit\n";
+    const string Header = "character_code\tcharacter_name\tcarry_limit\n";
+    const string ItemHeader = "item_code\titem_name\tcarry_limit\n";
 
     static GamePack Pack(string? characters, string? items = null)
     {
@@ -40,15 +41,25 @@ public class CharacterInventoryTests
     public void Bad_character_rows_are_rejected(string rows)
         => Assert.Throws<PackFormatException>(() => Pack(Header + rows));
 
+    [Theory]
+    [InlineData("character_code\tcharacter_name\n7001\ta\n")]                // carry_limit 열 없음
+    [InlineData("item_code\titem_name\tcarry_limit\n7001\ta\t1\n")]          // 옛 열 이름은 더 이상 받지 않는다
+    [InlineData("code\tname\tcarry_limit\n7001\ta\t1\n")]
+    public void Character_inventory_header_is_checked(string tsv)
+        => Assert.Throws<PackFormatException>(() => Pack(tsv));
+
     [Fact]
-    public void Character_inventory_header_is_checked()
-        => Assert.Throws<PackFormatException>(() => Pack("item_code\titem_name\n7001\ta\n"));
+    public void Item_inventory_still_uses_item_code_and_item_name()
+    {
+        Assert.NotNull(Pack(null, ItemHeader + "1\t금화\t99999\n").ItemInventory);
+        Assert.Throws<PackFormatException>(() => Pack(null, Header + "1\t금화\t99999\n"));
+    }
 
     [Fact]
     public void Character_and_item_inventories_are_separate_code_spaces()
     {
         // 같은 코드가 양쪽에 있어도 충돌하지 않고, 아이템 이름 조회는 캐릭터를 보지 않는다.
-        var pack = Pack(Header + "1\t용사\t1\n", Header + "1\t금화\t99999\n");
+        var pack = Pack(Header + "1\t용사\t1\n", ItemHeader + "1\t금화\t99999\n");
         Assert.Equal("용사", pack.CharacterInventory![0].Name);
         Assert.Equal("금화", pack.ItemName("1"));
         Assert.Equal("77", pack.ItemName("77"));

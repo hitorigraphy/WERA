@@ -20,7 +20,7 @@ public sealed record Scene(string Id, string Text, IReadOnlyList<Choice> Choices
 ///   master/shop_condition_master_v1.tsv   (선택) shop_code, group_no, flag_code, condition_type, condition_value
 ///   master/item_inventory_master_v1.tsv      (선택) item_code, item_name, carry_limit
 ///   master/bunch_inventory_master_v1.tsv     (선택) item_code, item_name, part_item_code, part_amount
-///   master/character_inventory_master_v1.tsv (선택) item_code, item_name, carry_limit
+///   master/character_inventory_master_v1.tsv (선택) character_code, character_name, carry_limit
 ///   master/shop_trade_master_v1.tsv       (선택) code, shop_code, cost_item_code, cost_amount, receive_item_code, receive_amount
 ///   master/shop_trade_condition_master_v1.tsv (선택) trade_code, group_no, flag_code, condition_type, condition_value
 /// </summary>
@@ -118,7 +118,7 @@ public sealed class GamePack
             (r, groups) => new Shop(r[0], r[1], groups));
         var itemInventory = LoadItemInventory(zip);
         var bunchInventory = LoadBunchInventory(zip, itemInventory);
-        var characterInventory = LoadLimitedInventory(zip, CharacterInventoryMasterPath, "캐릭터",
+        var characterInventory = LoadLimitedInventory(zip, CharacterInventoryMasterPath, "캐릭터", "character_code", "character_name",
             (code, name, limit) => new CharacterEntry(code, name, limit));
         CheckItemCodesAreUnique(itemInventory, bunchInventory);
         var trades = LoadTrades(zip);
@@ -205,18 +205,18 @@ public sealed class GamePack
     }
 
     static List<ItemEntry>? LoadItemInventory(ZipArchive zip) =>
-        LoadLimitedInventory(zip, ItemInventoryMasterPath, "아이템",
+        LoadLimitedInventory(zip, ItemInventoryMasterPath, "아이템", "item_code", "item_name",
             (code, name, limit) => new ItemEntry(code, name, limit));
 
-    /// <summary>"item_code, item_name, carry_limit" 형식의 인벤토리 마스터를 읽는다. 파일이 없으면 null.</summary>
-    static List<T>? LoadLimitedInventory<T>(ZipArchive zip, string path, string noun, Func<string, string, int, T> create)
+    /// <summary>"코드, 이름, carry_limit" 3열 인벤토리 마스터를 읽는다(열 이름은 마스터마다 다름). 파일이 없으면 null.</summary>
+    static List<T>? LoadLimitedInventory<T>(ZipArchive zip, string path, string noun, string codeColumn, string nameColumn, Func<string, string, int, T> create)
     {
         var text = TryReadEntry(zip, path);
         if (text is null) return null;
 
         var items = new List<T>();
         var seen = new HashSet<string>();
-        foreach (var r in Body(path, text, "item_code", "item_name", "carry_limit"))
+        foreach (var r in Body(path, text, codeColumn, nameColumn, "carry_limit"))
         {
             if (r[0].Length == 0) throw new PackFormatException($"{path}: {noun} 코드가 비어 있습니다.");
             if (!seen.Add(r[0]))
