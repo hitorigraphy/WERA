@@ -10,17 +10,25 @@ public sealed record Choice(string Label, string Next);
 public sealed record Scene(string Id, string Text, IReadOnlyList<Choice> Choices);
 
 /// <summary>
-/// 게임팩: TSV 묶음 zip.
-///   pack.tsv    key/value 행 (id, title, start)
-///   scenes.tsv  헤더: id, text
-///   choices.tsv 헤더: scene, label, next
+/// 게임팩: TSV 묶음 zip. 첫 줄은 헤더.
+///   pack.tsv                          key/value 행 (id, title, start)
+///   scenes.tsv                        id, text
+///   choices.tsv                       scene, label, next
+///   master/dungeon_master_v1.tsv      (선택) code, name
+///   master/dungeon_flag_master_v1.tsv (선택) dungeon_code, group_no, flag_code, condition_type, condition_value
 /// </summary>
 public sealed class GamePack
 {
+    public const string DungeonMasterPath = "master/dungeon_master_v1.tsv";
+    public const string DungeonFlagMasterPath = "master/dungeon_flag_master_v1.tsv";
+
     public required string Id { get; init; }
     public required string Title { get; init; }
     public required string StartSceneId { get; init; }
     public required IReadOnlyDictionary<string, Scene> Scenes { get; init; }
+
+    /// <summary>던전 마스터가 게임팩에 없으면 null.</summary>
+    public IReadOnlyList<Dungeon>? Dungeons { get; init; }
 
     public static GamePack Load(Stream zipStream)
     {
@@ -36,14 +44,14 @@ public sealed class GamePack
                 : throw new PackFormatException($"pack.tsv에 '{key}' 항목이 없습니다.");
 
         var texts = new Dictionary<string, string>();
-        foreach (var r in Body(ReadEntry(zip, "scenes.tsv"), "id", "text"))
+        foreach (var r in Body("scenes.tsv", ReadEntry(zip, "scenes.tsv"), "id", "text"))
         {
             if (!texts.TryAdd(r[0], r[1]))
                 throw new PackFormatException($"scenes.tsv: 장면 id '{r[0]}'가 중복됩니다.");
         }
 
         var choices = texts.Keys.ToDictionary(k => k, _ => new List<Choice>());
-        foreach (var r in Body(ReadEntry(zip, "choices.tsv"), "scene", "label", "next"))
+        foreach (var r in Body("choices.tsv", ReadEntry(zip, "choices.tsv"), "scene", "label", "next"))
         {
             if (!choices.TryGetValue(r[0], out var list))
                 throw new PackFormatException($"choices.tsv: 알 수 없는 장면 '{r[0]}'.");
@@ -62,27 +70,91 @@ public sealed class GamePack
             Title = Need("title"),
             StartSceneId = start,
             Scenes = texts.ToDictionary(kv => kv.Key, kv => new Scene(kv.Key, kv.Value, choices[kv.Key])),
+            Dungeons = LoadDungeons(zip),
         };
     }
 
-    static string ReadEntry(ZipArchive zip, string name)
+    static List<Dungeon>? LoadDungeons(ZipArchive zip)
     {
-        var entry = zip.GetEntry(name) ?? throw new PackFormatException($"게임팩에 '{name}'이 없습니다.");
+        var masterText = TryReadEntry(zip, DungeonMasterPath);
+        if (masterText is null)
+        {
+            if (FindEntry(zip, DungeonFlagMasterPath) is not null)
+                throw new PackFormatException($"{DungeonFlagMasterPath}가 있으려면 {DungeonMasterPath}도 필요합니다.");
+            return null;
+        }
+
+        var names = new Dictionary<string, string>();
+        var order = new List<string>();
+        foreach (var r in Body(DungeonMasterPath, masterText, "code", "name"))
+        {
+            if (r[0].Length == 0) throw new PackFormatException($"{DungeonMasterPath}: 고유코드가 비어 있습니다.");
+            if (!names.TryAdd(r[0], r[1]))
+                throw new PackFormatException($"{DungeonMasterPath}: 던전 코드 '{r[0]}'가 중복됩니다.");
+            order.Add(r[0]);
+        }
+
+        // 던전 코드 → (그룹넘버 → 조건들)
+        var groups = names.Keys.ToDictionary(k => k, _ => new SortedDictionary<int, List<FlagCondition>>());
+        var flagText = TryReadEntry(zip, DungeonFlagMasterPath);
+        if (flagText is not null)
+        {
+            const string file = DungeonFlagMasterPath;
+            foreach (var r in Body(file, flagText, "dungeon_code", "group_no", "flag_code", "condition_type", "condition_value"))
+            {
+                if (!groups.TryGetValue(r[0], out var byGroup))
+                    throw new PackFormatException($"{file}: 알 수 없는 던전 코드 '{r[0]}'.");
+                if (!int.TryParse(r[1], out var groupNo))
+                    throw new PackFormatException($"{file}: 던전 '{r[0]}'의 그룹넘버 '{r[1]}'가 정수가 아닙니다.");
+                if (r[2].Length == 0)
+                    throw new PackFormatException($"{file}: 던전 '{r[0]}'의 플래그 코드가 비어 있습니다.");
+                // 숫자("1")도 Enum.TryParse를 통과하므로 이름 목록으로 먼저 거른다.
+                if (!Enum.GetNames<ConditionType>().Contains(r[3], StringComparer.OrdinalIgnoreCase)
+                    || !Enum.TryParse<ConditionType>(r[3], ignoreCase: true, out var type))
+                    throw new PackFormatException(
+                        $"{file}: 던전 '{r[0]}'의 컨디션 타입 '{r[3]}'을(를) 알 수 없습니다. ({string.Join(", ", Enum.GetNames<ConditionType>())})");
+                if (!int.TryParse(r[4], out var value))
+                    throw new PackFormatException($"{file}: 던전 '{r[0]}'의 컨디션 밸류 '{r[4]}'가 정수가 아닙니다.");
+
+                if (!byGroup.TryGetValue(groupNo, out var list)) byGroup[groupNo] = list = [];
+                list.Add(new FlagCondition(r[2], type, value));
+            }
+        }
+
+        return order
+            .Select(code => new Dungeon(
+                code,
+                names[code],
+                groups[code].Values.Select(l => (IReadOnlyList<FlagCondition>)l).ToList()))
+            .ToList();
+    }
+
+    // 일부 도구는 zip 안의 경로 구분자를 '\'로 저장하므로 둘 다 찾는다.
+    static ZipArchiveEntry? FindEntry(ZipArchive zip, string name) =>
+        zip.GetEntry(name) ?? zip.GetEntry(name.Replace('/', '\\'));
+
+    static string? TryReadEntry(ZipArchive zip, string name)
+    {
+        var entry = FindEntry(zip, name);
+        if (entry is null) return null;
         using var reader = new StreamReader(entry.Open(), new UTF8Encoding(false), detectEncodingFromByteOrderMarks: true);
         return reader.ReadToEnd();
     }
 
+    static string ReadEntry(ZipArchive zip, string name) =>
+        TryReadEntry(zip, name) ?? throw new PackFormatException($"게임팩에 '{name}'이 없습니다.");
+
     /// <summary>헤더를 검사하고 데이터 행만 반환한다. 열이 모자란 행은 빈 셀로 채운다.</summary>
-    static IEnumerable<string[]> Body(string tsv, params string[] header)
+    static IEnumerable<string[]> Body(string file, string tsv, params string[] header)
     {
         var rows = Tsv.Parse(tsv);
         if (rows.Count == 0 || !rows[0].Take(header.Length).SequenceEqual(header))
-            throw new PackFormatException($"헤더가 '{string.Join("\t", header)}'이어야 합니다.");
+            throw new PackFormatException($"{file}: 헤더가 '{string.Join("\\t", header)}'이어야 합니다.");
         foreach (var raw in rows.Skip(1))
         {
             var r = raw;
             if (r.Length < header.Length) Array.Resize(ref r, header.Length);
-            yield return r.Select(c => c ?? "").ToArray();
+            yield return r;
         }
     }
 }

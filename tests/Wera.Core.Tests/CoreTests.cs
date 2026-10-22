@@ -6,7 +6,7 @@ namespace Wera.Core.Tests;
 
 public class CoreTests
 {
-    static MemoryStream Zip(params (string name, string content)[] files)
+    internal static MemoryStream Zip(params (string name, string content)[] files)
     {
         var ms = new MemoryStream();
         using (var zip = new ZipArchive(ms, ZipArchiveMode.Create, leaveOpen: true))

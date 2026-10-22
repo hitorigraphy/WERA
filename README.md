@@ -14,8 +14,18 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
 | `pack.tsv` | `key`/`value` 행: `id`, `title`, `start` |
 | `scenes.tsv` | `id`, `text` |
 | `choices.tsv` | `scene`, `label`, `next` |
+| `master/dungeon_master_v1.tsv` | (선택) `code`, `name` |
+| `master/dungeon_flag_master_v1.tsv` | (선택) `dungeon_code`, `group_no`, `flag_code`, `condition_type`, `condition_value` |
 
-예시는 [`samples/sample-pack`](samples/sample-pack)과 [`samples/sample-pack.zip`](samples/sample-pack.zip)을 보세요.
+### 던전 마스터
+`master/dungeon_master_v1.tsv`가 있으면 던전 마스터로 읽습니다. 이 경우 새 게임은 홈 화면에서 시작합니다.
+
+- 던전 입장 조건은 `dungeon_flag_master_v1.tsv`에 적습니다. 같은 던전의 **같은 그룹은 AND, 그룹끼리는 OR**입니다. 조건이 없는 던전은 항상 입장할 수 있습니다.
+- `condition_type`: `Equal`, `NotEqual`, `GreaterThan`, `GreaterOrEqual`, `LessThan`, `LessOrEqual` (대소문자 무시). 값이 없는 플래그는 0입니다.
+- 홈 화면의 `[101] 던전`은 입장 가능한 던전이 하나 이상일 때만 나타납니다. 클릭하거나 `101`을 입력하면 던전 선택 화면으로 갑니다. 화면의 클릭 가능한 텍스트는 모두 `[코드]`를 입력해도 동작합니다(`[0] 돌아가기`).
+- 플래그는 세이브(`Flags`)에 저장됩니다.
+
+예시 게임팩 원본은 [`samples/sample-pack`](samples/sample-pack)이고, 배포용 zip은 `src/Wera.Web/wwwroot/sample-pack.zip`입니다(원본을 고치면 zip도 다시 만드세요). 튜토리얼을 마친 상태의 세이브 예시는 `src/Wera.Web/wwwroot/sample-tutorial-clear.sav`입니다.
 
 ## 구조
 - `src/Wera.Core` — 게임팩 로딩, 세션, 세이브 (브라우저 비의존)

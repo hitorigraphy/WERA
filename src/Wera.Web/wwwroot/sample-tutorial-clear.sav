@@ -1,0 +1,9 @@
+{
+  "Version": 2,
+  "PackId": "sample",
+  "SceneId": "start",
+  "Screen": "Home",
+  "Flags": {
+    "tutorial_clear": 1
+  }
+}

@@ -5,6 +5,18 @@
 
 <PageTitle>@(pack?.Title ?? "WERA")</PageTitle>
 
+@{
+    RenderFragment commands = @<div class="commands">
+        @foreach (var entry in session!.Entries)
+        {
+            var code = entry.Code;
+            <div><button class="textlink" @onclick="() => Activate(code)">[@entry.Code] @entry.Label</button></div>
+        }
+        <input @ref="commandInput" class="command" autocomplete="off" placeholder="코드를 입력하고 Enter"
+               @bind="command" @bind:event="oninput" @onkeydown="OnCommandKey" />
+    </div>;
+}
+
 <main>
     @if (pack is null)
     {
@@ -26,17 +38,38 @@
     }
     else
     {
-        <p class="scene">@session.Current.Text</p>
-        <ul class="choices">
-            @for (var i = 0; i < session.Current.Choices.Count; i++)
-            {
-                var index = i;
-                <li><button @onclick="() => Choose(index)">@session.Current.Choices[index].Label</button></li>
-            }
-        </ul>
-        @if (session.Current.Choices.Count == 0)
+        @switch (session.Screen)
         {
-            <p class="end">— 끝 —</p>
+            case Screen.Home:
+                <h1>@pack.Title</h1>
+                @commands
+                break;
+
+            case Screen.DungeonSelect:
+                <h2>던전 선택</h2>
+                <ul class="dungeons">
+                    @foreach (var d in session.AvailableDungeons)
+                    {
+                        <li>[@d.Code] @d.Name</li>
+                    }
+                </ul>
+                @commands
+                break;
+
+            default:
+                <p class="scene">@session.Current.Text</p>
+                <ul class="choices">
+                    @for (var i = 0; i < session.Current.Choices.Count; i++)
+                    {
+                        var index = i;
+                        <li><button @onclick="() => Choose(index)">@session.Current.Choices[index].Label</button></li>
+                    }
+                </ul>
+                @if (session.Current.Choices.Count == 0)
+                {
+                    <p class="end">— 끝 —</p>
+                }
+                break;
         }
         <footer>
             <button @onclick="SaveGame">세이브 저장</button>
@@ -57,6 +90,17 @@
     GameSession? session;
     string? error;
     bool dragging;
+    string command = "";
+    ElementReference commandInput;
+    bool focusCommand;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!focusCommand) return;
+        focusCommand = false;
+        if (session is { Entries.Count: > 0 } or { Screen: Screen.DungeonSelect })
+            await commandInput.FocusAsync();
+    }
 
     async Task OnPackSelected(InputFileChangeEventArgs e)
     {
@@ -81,16 +125,30 @@
         {
             using var reader = new StreamReader(e.File.OpenReadStream(16 * 1024 * 1024), Encoding.UTF8);
             session = GameSession.FromSaveJson(pack!, await reader.ReadToEndAsync());
+            focusCommand = true;
         }
         catch (SaveFormatException ex) { error = ex.Message; }
     }
 
-    void NewGame() { error = null; session = GameSession.NewGame(pack!); }
+    void NewGame() { error = null; session = GameSession.NewGame(pack!); focusCommand = true; }
 
     void Choose(int index) => session!.Choose(index);
+
+    void Activate(string code)
+    {
+        error = null;
+        if (!session!.Activate(code)) error = $"알 수 없는 입력: {code}";
+        command = "";
+        focusCommand = true;
+    }
+
+    void OnCommandKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") Activate(command);
+    }
 
     async Task SaveGame() =>
         await JS.InvokeVoidAsync("wera.download", $"{pack!.Id}.sav", session!.ToSaveJson());
 
-    void Quit() { pack = null; session = null; error = null; }
+    void Quit() { pack = null; session = null; error = null; command = ""; }
 }

@@ -103,3 +103,10 @@ footer { margin-top: 2rem; }
 .site-footer { max-width: 42rem; margin: 3rem auto 2rem; padding: 1rem 1rem 0; border-top: 1px solid #8884; text-align: center; }
 a.button { display: inline-block; padding: .4rem .9rem; border: 1px solid #888; border-radius: .3rem; color: inherit; text-decoration: none; }
 a.button:hover { background: #8882; }
+
+/* 버튼 모양이 아닌 클릭 가능한 텍스트 */
+.textlink { background: none; border: 0; padding: .15rem 0; font: inherit; color: #1b6ec2; cursor: pointer; text-align: left; }
+.textlink:hover, .textlink:focus-visible { text-decoration: underline; }
+.commands { margin: 1rem 0; }
+.command { margin-top: .8rem; font: inherit; padding: .3rem .5rem; width: 14rem; }
+.dungeons { list-style: none; padding: 0; }
