@@ -35,12 +35,15 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
 `master/dungeon_master_v1.tsv`가 있으면 던전 마스터로 읽습니다. 새 게임과 불러오기는 (튜토리얼이 구현될 때까지) 항상 홈 화면으로 들어갑니다. 세이브에 저장된 화면은 무시합니다.
 
 - 던전 입장 조건은 `dungeon_flag_master_v1.tsv`에 적습니다. 같은 던전의 **같은 그룹은 AND, 그룹끼리는 OR**입니다. 조건이 없는 던전은 항상 입장할 수 있습니다.
-- `condition_type`: `None`(조건 없음, 플래그 코드/밸류 생략 가능), `Equal`, `NotEqual`, `GreaterThan`, `GreaterOrEqual`, `LessThan`, `LessOrEqual` (대소문자 무시). 값이 없는 플래그는 0이고, condition_value는 long 범위의 정수입니다.
+- `condition_type`: `None`(조건 없음, 플래그 코드/밸류 생략 가능), `Equal`, `NotEqual`, `GreaterThan`, `GreaterOrEqual`, `LessThan`, `LessOrEqual` (대소문자 무시). 값이 없는 플래그는 0이고, `condition_value`는 `long` 범위의 정수입니다.
 - 홈 화면의 `[101] 던전`은 입장 가능한 던전이 하나 이상일 때만 나타납니다. 클릭하거나 `101`을 입력하면 던전 선택 화면으로 갑니다. 화면의 클릭 가능한 텍스트는 모두 `[코드]`를 입력해도 동작합니다(`[999] 돌아가기`).
 - 상점도 같은 방식입니다. 조건표(`shop_condition_master_v1.tsv`)의 그룹 규칙과 `condition_type`은 던전과 같고, 홈의 `[102] 상점가`는 열려 있는 상점이 하나 이상일 때만 나타납니다.
 - 상점가 화면에는 열린 상점이 `[상점코드] 이름`으로 나오고, 클릭하거나 코드를 입력하면 그 상점의 **교환 목록**이 나옵니다. 목록에는 조건을 만족한 교환만 `[교환코드] 코스트 ×수량 → 받을것 ×수량` 형태로 보입니다(아이템은 이름으로). 교환 목록의 `[999]`는 상점가로, 상점가의 `[999]`는 홈으로 돌아갑니다. 아직 교환을 실행하는 동작(인벤토리)은 없습니다.
 - 홈 화면에는 `[200] 세이브`(현재 상태를 `.sav`로 내려받기)와 `[300] 로드`(로드 화면에서 `.sav`를 드롭)도 항상 있습니다. 로드 화면과 던전 선택 화면의 돌아가기는 `[999]`입니다.
-- 플래그는 세이브(`Flags`)에 저장됩니다.
+- 플레이어 상태는 세이브에 두 배열로 저장됩니다(버전 3).
+  - `PlayerFlags`: 플래그 코드 → `long` 값. 던전/상점/교환 조건이 이 값을 비교합니다.
+  - `InventoryItems`: 아이템 코드 → 구조체 `{ "Amount": 수량 }`. 수량은 0 이상입니다.
+  - 버전 2 세이브의 `Flags`(정수)는 `PlayerFlags`로 옮겨 읽습니다.
 
 예시 게임팩 원본은 [`samples/sample-pack`](samples/sample-pack)이고, 배포용 zip은 `src/Wera.Web/wwwroot/sample-pack.zip`입니다(원본을 고치면 zip도 다시 만드세요). 튜토리얼을 마친 상태의 세이브 예시는 `src/Wera.Web/wwwroot/sample-tutorial-clear.sav`입니다.
 
