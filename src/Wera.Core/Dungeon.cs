@@ -14,12 +14,14 @@ public enum ConditionType
 }
 
 /// <summary>플래그 하나에 대한 조건. 값이 없는 플래그는 0으로 취급한다.</summary>
-public sealed record FlagCondition(string FlagCode, ConditionType Type, int Value)
+public sealed record FlagCondition(string FlagCode, ConditionType Type, long Value)
 {
-    public bool IsMet(IReadOnlyDictionary<string, int> flags)
-    {
-        var actual = flags.GetValueOrDefault(FlagCode);
-        return Type switch
+    public bool IsMet(IReadOnlyDictionary<string, long> playerFlags) =>
+        IsMet(playerFlags.GetValueOrDefault(FlagCode));
+
+    /// <summary>실제 값 하나를 조건과 비교한다.</summary>
+    public bool IsMet(long actual) =>
+        Type switch
         {
             ConditionType.None => true,
             ConditionType.Equal => actual == Value,
@@ -30,24 +32,23 @@ public sealed record FlagCondition(string FlagCode, ConditionType Type, int Valu
             ConditionType.LessOrEqual => actual <= Value,
             _ => false,
         };
-    }
 }
 
 /// <summary>그룹넘버 순으로 정렬된 조건 묶음의 평가. 같은 그룹 안은 AND, 그룹끼리는 OR. 조건이 없으면 항상 만족.</summary>
 public static class ConditionGroups
 {
-    public static bool IsMet(IReadOnlyList<IReadOnlyList<FlagCondition>> groups, IReadOnlyDictionary<string, int> flags) =>
-        groups.Count == 0 || groups.Any(g => g.All(c => c.IsMet(flags)));
+    public static bool IsMet(IReadOnlyList<IReadOnlyList<FlagCondition>> groups, IReadOnlyDictionary<string, long> playerFlags) =>
+        groups.Count == 0 || groups.Any(g => g.All(c => c.IsMet(playerFlags)));
 }
 
 /// <param name="Groups">그룹넘버 순으로 정렬된 조건 묶음.</param>
 public sealed record Dungeon(string Code, string Name, IReadOnlyList<IReadOnlyList<FlagCondition>> Groups)
 {
-    public bool IsAvailable(IReadOnlyDictionary<string, int> flags) => ConditionGroups.IsMet(Groups, flags);
+    public bool IsAvailable(IReadOnlyDictionary<string, long> playerFlags) => ConditionGroups.IsMet(Groups, playerFlags);
 }
 
 /// <param name="Groups">그룹넘버 순으로 정렬된 조건 묶음.</param>
 public sealed record Shop(string Code, string Name, IReadOnlyList<IReadOnlyList<FlagCondition>> Groups)
 {
-    public bool IsAvailable(IReadOnlyDictionary<string, int> flags) => ConditionGroups.IsMet(Groups, flags);
+    public bool IsAvailable(IReadOnlyDictionary<string, long> playerFlags) => ConditionGroups.IsMet(Groups, playerFlags);
 }

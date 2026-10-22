@@ -1,0 +1,118 @@
+using Wera.Core;
+
+namespace Wera.Core.Tests;
+
+public class PlayerStateTests
+{
+    static GamePack Pack() => GamePack.Load(CoreTests.Zip(
+        ("pack.tsv", "id\tdemo\ntitle\t데모\nstart\ta\n"),
+        ("scenes.tsv", "id\ttext\na\tx\n"),
+        ("choices.tsv", "scene\tlabel\tnext\n"),
+        ("master/dungeon_master_v1.tsv", "code\tname\n1001\t초원\n"),
+        ("master/dungeon_flag_master_v1.tsv",
+            "dungeon_code\tgroup_no\tflag_code\tcondition_type\tcondition_value\n1001\t1\tgold\tGreaterOrEqual\t5000000000\n")));
+
+    [Fact]
+    public void New_game_starts_with_empty_player_flags_and_inventory()
+    {
+        var s = GameSession.NewGame(Pack());
+        Assert.Empty(s.PlayerFlags);
+        Assert.Empty(s.InventoryItems);
+    }
+
+    [Fact]
+    public void Inventory_item_is_a_struct_keyed_by_item_code()
+    {
+        Assert.True(typeof(InventoryItem).IsValueType);
+        var s = GameSession.NewGame(Pack());
+        s.InventoryItems["1"] = new InventoryItem(100);
+        Assert.Equal(100, s.InventoryItems["1"].Amount);
+    }
+
+    [Fact]
+    public void Player_flags_are_long_values_and_conditions_compare_them()
+    {
+        var pack = Pack();
+        var s = GameSession.NewGame(pack);
+        Assert.Empty(s.AvailableDungeons);
+
+        s.PlayerFlags["gold"] = int.MaxValue;                // int 범위로는 부족
+        Assert.Empty(s.AvailableDungeons);
+
+        s.PlayerFlags["gold"] = 5_000_000_000L;              // int를 넘는 long 값
+        Assert.Single(s.AvailableDungeons);
+        Assert.Equal(5_000_000_000L, pack.Dungeons![0].Groups[0][0].Value);
+    }
+
+    [Fact]
+    public void Save_roundtrip_keeps_player_flags_and_inventory()
+    {
+        var pack = Pack();
+        var s = GameSession.NewGame(pack);
+        s.PlayerFlags["gold"] = 9_000_000_000L;
+        s.PlayerFlags["debt"] = -3;
+        s.InventoryItems["1"] = new InventoryItem(100);
+        s.InventoryItems["9001"] = new InventoryItem(2);
+
+        var loaded = GameSession.FromSaveJson(pack, s.ToSaveJson());
+        Assert.Equal(9_000_000_000L, loaded.PlayerFlags["gold"]);
+        Assert.Equal(-3L, loaded.PlayerFlags["debt"]);
+        Assert.Equal(new InventoryItem(100), loaded.InventoryItems["1"]);
+        Assert.Equal(new InventoryItem(2), loaded.InventoryItems["9001"]);
+    }
+
+    [Fact]
+    public void Save_json_uses_new_names_and_no_legacy_flags_field()
+    {
+        var s = GameSession.NewGame(Pack());
+        s.PlayerFlags["tutorial_clear"] = 1;
+        s.InventoryItems["1"] = new InventoryItem(7);
+        var json = s.ToSaveJson();
+
+        Assert.Contains("\"Version\": 3", json);
+        Assert.Contains("\"PlayerFlags\"", json);
+        Assert.Contains("\"InventoryItems\"", json);
+        Assert.Contains("\"Amount\": 7", json);
+        Assert.DoesNotContain("\"Flags\"", json);
+    }
+
+    [Fact]
+    public void Version2_save_with_flags_loads_into_player_flags()
+    {
+        var s = GameSession.FromSaveJson(Pack(),
+            "{\"Version\":2,\"PackId\":\"demo\",\"SceneId\":\"a\",\"Screen\":\"Home\",\"Flags\":{\"tutorial_clear\":1,\"level\":5}}");
+        Assert.Equal(1L, s.PlayerFlags["tutorial_clear"]);
+        Assert.Equal(5L, s.PlayerFlags["level"]);
+        Assert.Empty(s.InventoryItems);
+    }
+
+    [Fact]
+    public void Save_without_player_state_loads_as_empty()
+    {
+        var s = GameSession.FromSaveJson(Pack(), "{\"Version\":3,\"PackId\":\"demo\",\"SceneId\":\"a\"}");
+        Assert.Empty(s.PlayerFlags);
+        Assert.Empty(s.InventoryItems);
+    }
+
+    [Fact]
+    public void Negative_inventory_amount_in_save_is_rejected()
+        => Assert.Throws<SaveFormatException>(() => GameSession.FromSaveJson(Pack(),
+            "{\"Version\":3,\"PackId\":\"demo\",\"SceneId\":\"a\",\"InventoryItems\":{\"1\":{\"Amount\":-1}}}"));
+
+    [Fact]
+    public void Wrong_value_types_in_save_are_rejected_as_bad_json()
+    {
+        Assert.Throws<SaveFormatException>(() => GameSession.FromSaveJson(Pack(),
+            "{\"Version\":3,\"PackId\":\"demo\",\"SceneId\":\"a\",\"PlayerFlags\":{\"x\":true}}"));
+        Assert.Throws<SaveFormatException>(() => GameSession.FromSaveJson(Pack(),
+            "{\"Version\":3,\"PackId\":\"demo\",\"SceneId\":\"a\",\"InventoryItems\":{\"1\":5}}"));
+    }
+
+    [Theory]
+    [InlineData(ConditionType.Equal, 3, 3, true)]
+    [InlineData(ConditionType.GreaterThan, 3, 4, true)]
+    [InlineData(ConditionType.LessThan, 3, 3, false)]
+    [InlineData(ConditionType.NotEqual, 3, 3, false)]
+    public void Condition_compares_a_long_value_directly(ConditionType type, long value, long actual, bool expected)
+        => Assert.Equal(expected, new FlagCondition("f", type, value).IsMet(actual));
+}

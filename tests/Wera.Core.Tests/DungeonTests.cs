@@ -22,7 +22,7 @@ public class DungeonTests
 
     const string TwoDungeons = "code\tname\n1001\t초원\n1002\t동굴\n";
 
-    static Dictionary<string, int> F(params (string, int)[] kv) => kv.ToDictionary(x => x.Item1, x => x.Item2);
+    static Dictionary<string, long> F(params (string, int)[] kv) => kv.ToDictionary(x => x.Item1, x => (long)x.Item2);
 
     [Fact]
     public void Masters_are_optional()
@@ -127,7 +127,7 @@ public class DungeonTests
         Assert.Null(s.Activate("101"));
         Assert.Equal(Screen.Home, s.Screen);
 
-        s.Flags["tutorial_clear"] = 1;
+        s.PlayerFlags["tutorial_clear"] = 1;
         Assert.Contains(new ScreenEntry("101", "던전", Screen.DungeonSelect), s.Entries);
     }
 
@@ -195,7 +195,7 @@ public class DungeonTests
     {
         var pack = Pack(TwoDungeons, TutorialFlags);
         var s = GameSession.NewGame(pack);
-        s.Flags["tutorial_clear"] = 1;
+        s.PlayerFlags["tutorial_clear"] = 1;
         s.Activate("101");
 
         var json = s.ToSaveJson();
@@ -203,7 +203,7 @@ public class DungeonTests
 
         var loaded = GameSession.FromSaveJson(pack, json);
         Assert.Equal(Screen.Home, loaded.Screen);   // 저장 당시 화면과 무관하게 홈
-        Assert.Equal(1, loaded.Flags["tutorial_clear"]);
+        Assert.Equal(1L, loaded.PlayerFlags["tutorial_clear"]);
     }
 
     [Fact]
@@ -212,7 +212,7 @@ public class DungeonTests
         var pack = Pack(null, null);
         var s = GameSession.FromSaveJson(pack, "{\"Version\":1,\"PackId\":\"demo\",\"SceneId\":\"a\"}");
         Assert.Equal(Screen.Home, s.Screen);
-        Assert.Empty(s.Flags);
+        Assert.Empty(s.PlayerFlags);
     }
 
     [Fact]

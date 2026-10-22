@@ -26,5 +26,5 @@ public sealed record ShopTrade(
     int ReceiveAmount,
     IReadOnlyList<IReadOnlyList<FlagCondition>> Groups)
 {
-    public bool IsAvailable(IReadOnlyDictionary<string, int> flags) => ConditionGroups.IsMet(Groups, flags);
+    public bool IsAvailable(IReadOnlyDictionary<string, long> playerFlags) => ConditionGroups.IsMet(Groups, playerFlags);
 }

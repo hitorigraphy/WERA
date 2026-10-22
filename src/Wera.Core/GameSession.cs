@@ -27,23 +27,26 @@ public enum EntryAction
 /// <summary>화면에 나오는 클릭 가능한 텍스트. 클릭하거나 Code를 입력하면 Action을 수행한다.</summary>
 public sealed record ScreenEntry(string Code, string Label, Screen Target, EntryAction Action = EntryAction.Navigate);
 
-/// <param name="Version">1: 장면만 저장. 2: 화면과 플래그 추가.</param>
+/// <param name="Version">1: 장면만. 2: 화면과 Flags(정수) 추가. 3: Flags를 PlayerFlags로 바꾸고 InventoryItems 추가.</param>
+/// <param name="Flags">버전 2 이전 세이브를 읽기 위한 필드. PlayerFlags로 옮겨 읽는다. 저장할 때는 쓰지 않는다.</param>
 public sealed record SaveData(
     int Version,
     string PackId,
     string SceneId,
     Screen Screen = Screen.Scene,
+    Dictionary<string, long>? PlayerFlags = null,
+    Dictionary<string, InventoryItem>? InventoryItems = null,
     Dictionary<string, int>? Flags = null);
 
 [JsonSerializable(typeof(SaveData))]
-[JsonSourceGenerationOptions(WriteIndented = true)]
+[JsonSourceGenerationOptions(WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 internal sealed partial class SaveJsonContext : JsonSerializerContext;
 
 public sealed class SaveFormatException(string message) : Exception(message);
 
 public sealed class GameSession
 {
-    public const int SaveVersion = 2;
+    public const int SaveVersion = 3;
 
     public const string DungeonEntryCode = "101";
     public const string ShopEntryCode = "102";
@@ -54,22 +57,27 @@ public sealed class GameSession
     public GamePack Pack { get; }
     public Scene Current { get; private set; }
     public Screen Screen { get; private set; }
-    public Dictionary<string, int> Flags { get; }
+    /// <summary>플레이어_플래그: 플래그 코드 → long 값.</summary>
+    public Dictionary<string, long> PlayerFlags { get; }
+
+    /// <summary>인벤토리_아이템: 아이템 코드 → 구조체.</summary>
+    public Dictionary<string, InventoryItem> InventoryItems { get; }
 
     /// <summary>교환 목록 화면에서 보고 있는 상점 코드. 그 화면이 아니면 null.</summary>
     public string? CurrentShopCode { get; private set; }
 
-    GameSession(GamePack pack, Scene scene, Screen screen, Dictionary<string, int> flags)
+    GameSession(GamePack pack, Scene scene, Screen screen, Dictionary<string, long> playerFlags, Dictionary<string, InventoryItem> inventoryItems)
     {
         Pack = pack;
         Current = scene;
         Screen = screen;
-        Flags = flags;
+        PlayerFlags = playerFlags;
+        InventoryItems = inventoryItems;
     }
 
     /// <summary>튜토리얼이 구현될 때까지 새 게임은 홈 화면으로 직행한다.</summary>
     public static GameSession NewGame(GamePack pack) =>
-        new(pack, pack.Scenes[pack.StartSceneId], Screen.Home, []);
+        new(pack, pack.Scenes[pack.StartSceneId], Screen.Home, [], []);
 
     /// <summary>장면 화면으로 들어간다.</summary>
     public void EnterScene(string sceneId)
@@ -82,11 +90,11 @@ public sealed class GameSession
 
     /// <summary>입장 조건을 하나라도 만족하는 던전.</summary>
     public IReadOnlyList<Dungeon> AvailableDungeons =>
-        Pack.Dungeons?.Where(d => d.IsAvailable(Flags)).ToList() ?? [];
+        Pack.Dungeons?.Where(d => d.IsAvailable(PlayerFlags)).ToList() ?? [];
 
     /// <summary>입장 조건을 하나라도 만족하는 상점.</summary>
     public IReadOnlyList<Shop> AvailableShops =>
-        Pack.Shops?.Where(s => s.IsAvailable(Flags)).ToList() ?? [];
+        Pack.Shops?.Where(s => s.IsAvailable(PlayerFlags)).ToList() ?? [];
 
     public Shop? CurrentShop => Pack.Shops?.FirstOrDefault(s => s.Code == CurrentShopCode);
 
@@ -95,7 +103,7 @@ public sealed class GameSession
         CurrentShopCode is null
             ? []
             : Pack.Trades?
-                .Where(t => t.ShopCode == CurrentShopCode && t.IsAvailable(Flags))
+                .Where(t => t.ShopCode == CurrentShopCode && t.IsAvailable(PlayerFlags))
                 .Select(t => new TradeLine(
                     t.Code,
                     Pack.ItemName(t.CostItemCode), t.CostAmount,
@@ -161,7 +169,10 @@ public sealed class GameSession
 
     public string ToSaveJson() =>
         JsonSerializer.Serialize(
-            new SaveData(SaveVersion, Pack.Id, Current.Id, Screen, new Dictionary<string, int>(Flags)),
+            new SaveData(
+                SaveVersion, Pack.Id, Current.Id, Screen,
+                new Dictionary<string, long>(PlayerFlags),
+                new Dictionary<string, InventoryItem>(InventoryItems)),
             SaveJsonContext.Default.SaveData);
 
     public static GameSession FromSaveJson(GamePack pack, string json)
@@ -175,7 +186,14 @@ public sealed class GameSession
         if (save.PackId != pack.Id) throw new SaveFormatException($"다른 게임팩의 세이브입니다: {save.PackId}");
         if (!pack.Scenes.TryGetValue(save.SceneId ?? "", out var scene))
             throw new SaveFormatException($"세이브의 장면 '{save.SceneId}'를 게임팩에서 찾을 수 없습니다.");
+        var playerFlags = save.PlayerFlags is not null
+            ? new Dictionary<string, long>(save.PlayerFlags)
+            : save.Flags?.ToDictionary(kv => kv.Key, kv => (long)kv.Value) ?? [];   // 버전 2 이전 세이브
+        var inventory = save.InventoryItems is null ? [] : new Dictionary<string, InventoryItem>(save.InventoryItems);
+        foreach (var (code, item) in inventory)
+            if (item.Amount < 0) throw new SaveFormatException($"세이브의 인벤토리 아이템 {code}의 수량이 음수입니다: {item.Amount}");
+
         // 불러오기는 저장된 화면과 상관없이 항상 홈으로 들어간다.
-        return new GameSession(pack, scene, Screen.Home, save.Flags is null ? [] : new Dictionary<string, int>(save.Flags));
+        return new GameSession(pack, scene, Screen.Home, playerFlags, inventory);
     }
 }

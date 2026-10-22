@@ -162,12 +162,12 @@ public sealed class GamePack
                     throw new PackFormatException(
                         $"{file}: {noun} '{r[0]}'의 컨디션 타입 '{r[3]}'을(를) 알 수 없습니다. ({string.Join(", ", Enum.GetNames<ConditionType>())})");
                 // None은 조건 없음이므로 플래그 코드와 밸류를 비워 둘 수 있다.
-                var value = 0;
+                long value = 0;
                 if (type != ConditionType.None)
                 {
                     if (r[2].Length == 0)
                         throw new PackFormatException($"{file}: {noun} '{r[0]}'의 플래그 코드가 비어 있습니다.");
-                    if (!int.TryParse(r[4], out value))
+                    if (!long.TryParse(r[4], out value))
                         throw new PackFormatException($"{file}: {noun} '{r[0]}'의 컨디션 밸류 '{r[4]}'가 정수가 아닙니다.");
                 }
 

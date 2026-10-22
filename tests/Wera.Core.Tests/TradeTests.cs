@@ -28,7 +28,7 @@ public class TradeTests
         return GamePack.Load(CoreTests.Zip(files.ToArray()));
     }
 
-    static Dictionary<string, int> F(params (string, int)[] kv) => kv.ToDictionary(x => x.Item1, x => x.Item2);
+    static Dictionary<string, long> F(params (string, int)[] kv) => kv.ToDictionary(x => x.Item1, x => (long)x.Item2);
 
     [Fact]
     public void All_item_and_trade_masters_are_optional()
@@ -170,7 +170,7 @@ public class TradeTests
         s.Activate("2001");
         Assert.Equal(["5001"], s.CurrentShopTrades.Select(t => t.Code));    // 5002는 튜토리얼 필요
 
-        s.Flags["tutorial_clear"] = 1;
+        s.PlayerFlags["tutorial_clear"] = 1;
         Assert.Equal(["5001", "5002"], s.CurrentShopTrades.Select(t => t.Code));
         Assert.Equal(new TradeLine("5001", "금화", 100, "약초", 5), s.CurrentShopTrades[0]);
     }

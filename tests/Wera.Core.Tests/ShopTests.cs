@@ -22,7 +22,7 @@ public class ShopTests
         return GamePack.Load(CoreTests.Zip(files.ToArray()));
     }
 
-    static Dictionary<string, int> F(params (string, int)[] kv) => kv.ToDictionary(x => x.Item1, x => x.Item2);
+    static Dictionary<string, long> F(params (string, int)[] kv) => kv.ToDictionary(x => x.Item1, x => (long)x.Item2);
 
     [Fact]
     public void Shop_masters_are_optional_and_independent_of_dungeons()
@@ -79,7 +79,7 @@ public class ShopTests
         Assert.DoesNotContain(s.Entries, e => e.Code == "102");
         Assert.Null(s.Activate("102"));
 
-        s.Flags["tutorial_clear"] = 1;
+        s.PlayerFlags["tutorial_clear"] = 1;
         Assert.Contains(new ScreenEntry("102", "상점가", Screen.ShopList), s.Entries);
     }
 
@@ -94,7 +94,7 @@ public class ShopTests
     public void Shop_list_screen_lists_only_open_shops_and_999_goes_back()
     {
         var s = GameSession.NewGame(Pack(TwoShops, TutorialOnly));
-        s.Flags["tutorial_clear"] = 1;                       // 잡화점만 열림 (무기점은 level 필요)
+        s.PlayerFlags["tutorial_clear"] = 1;                       // 잡화점만 열림 (무기점은 level 필요)
         Assert.NotNull(s.Activate(" 102 "));
         Assert.Equal(Screen.ShopList, s.Screen);
         Assert.Equal(["2001"], s.AvailableShops.Select(x => x.Code));

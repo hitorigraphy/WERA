@@ -1,9 +1,14 @@
 {
-  "Version": 2,
+  "Version": 3,
   "PackId": "sample",
   "SceneId": "start",
   "Screen": "Home",
-  "Flags": {
+  "PlayerFlags": {
     "tutorial_clear": 1
+  },
+  "InventoryItems": {
+    "1": {
+      "Amount": 1000
+    }
   }
 }
