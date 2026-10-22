@@ -34,7 +34,7 @@ public sealed class GameSession
     public const int SaveVersion = 2;
 
     public const string DungeonEntryCode = "101";
-    public const string BackEntryCode = "100";
+    public const string BackEntryCode = "999";
 
     public GamePack Pack { get; }
     public Scene Current { get; private set; }
