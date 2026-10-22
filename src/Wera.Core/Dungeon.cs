@@ -33,10 +33,21 @@ public sealed record FlagCondition(string FlagCode, ConditionType Type, int Valu
     }
 }
 
-/// <param name="Groups">그룹넘버 순으로 정렬된 조건 묶음. 같은 그룹 안은 AND, 그룹끼리는 OR.</param>
+/// <summary>그룹넘버 순으로 정렬된 조건 묶음의 평가. 같은 그룹 안은 AND, 그룹끼리는 OR. 조건이 없으면 항상 만족.</summary>
+public static class ConditionGroups
+{
+    public static bool IsMet(IReadOnlyList<IReadOnlyList<FlagCondition>> groups, IReadOnlyDictionary<string, int> flags) =>
+        groups.Count == 0 || groups.Any(g => g.All(c => c.IsMet(flags)));
+}
+
+/// <param name="Groups">그룹넘버 순으로 정렬된 조건 묶음.</param>
 public sealed record Dungeon(string Code, string Name, IReadOnlyList<IReadOnlyList<FlagCondition>> Groups)
 {
-    /// <summary>조건이 하나도 없으면 항상 입장 가능.</summary>
-    public bool IsAvailable(IReadOnlyDictionary<string, int> flags) =>
-        Groups.Count == 0 || Groups.Any(g => g.All(c => c.IsMet(flags)));
+    public bool IsAvailable(IReadOnlyDictionary<string, int> flags) => ConditionGroups.IsMet(Groups, flags);
+}
+
+/// <param name="Groups">그룹넘버 순으로 정렬된 조건 묶음.</param>
+public sealed record Shop(string Code, string Name, IReadOnlyList<IReadOnlyList<FlagCondition>> Groups)
+{
+    public bool IsAvailable(IReadOnlyDictionary<string, int> flags) => ConditionGroups.IsMet(Groups, flags);
 }

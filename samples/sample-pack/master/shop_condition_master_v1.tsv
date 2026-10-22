@@ -1,0 +1,4 @@
+shop_code	group_no	flag_code	condition_type	condition_value
+2001	1	tutorial_clear	GreaterOrEqual	1
+2002	1	tutorial_clear	GreaterOrEqual	1
+2002	1	level	GreaterOrEqual	3

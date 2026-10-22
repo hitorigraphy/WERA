@@ -10,6 +10,7 @@ public enum Screen
     Scene,
     Home,
     DungeonSelect,
+    ShopList,
     Load,
 }
 
@@ -43,6 +44,7 @@ public sealed class GameSession
     public const int SaveVersion = 2;
 
     public const string DungeonEntryCode = "101";
+    public const string ShopEntryCode = "102";
     public const string SaveEntryCode = "200";
     public const string LoadEntryCode = "300";
     public const string BackEntryCode = "999";
@@ -77,6 +79,10 @@ public sealed class GameSession
     public IReadOnlyList<Dungeon> AvailableDungeons =>
         Pack.Dungeons?.Where(d => d.IsAvailable(Flags)).ToList() ?? [];
 
+    /// <summary>입장 조건을 하나라도 만족하는 상점.</summary>
+    public IReadOnlyList<Shop> AvailableShops =>
+        Pack.Shops?.Where(s => s.IsAvailable(Flags)).ToList() ?? [];
+
     /// <summary>현재 화면에서 클릭하거나 코드를 입력할 수 있는 텍스트들.</summary>
     public IReadOnlyList<ScreenEntry> Entries
     {
@@ -88,10 +94,13 @@ public sealed class GameSession
                     var list = new List<ScreenEntry>();
                     if (AvailableDungeons.Count > 0)
                         list.Add(new ScreenEntry(DungeonEntryCode, "던전", Screen.DungeonSelect));
+                    if (AvailableShops.Count > 0)
+                        list.Add(new ScreenEntry(ShopEntryCode, "상점가", Screen.ShopList));
                     list.Add(new ScreenEntry(SaveEntryCode, "세이브", Screen.Home, EntryAction.Save));
                     list.Add(new ScreenEntry(LoadEntryCode, "로드", Screen.Load));
                     return list;
                 case Screen.DungeonSelect:
+                case Screen.ShopList:
                 case Screen.Load:
                     return [new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home)];
                 default:

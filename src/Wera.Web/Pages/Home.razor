@@ -56,6 +56,17 @@
                 @commands
                 break;
 
+            case Screen.ShopList:
+                <h2>상점가</h2>
+                <ul class="dungeons">
+                    @foreach (var shop in session.AvailableShops)
+                    {
+                        <li>[@shop.Code] @shop.Name</li>
+                    }
+                </ul>
+                @commands
+                break;
+
             case Screen.Load:
                 <h2>로드</h2>
                 <div class="drop" @ondragenter="() => dragging = true" @ondragleave="() => dragging = false" @ondrop="() => dragging = false"
