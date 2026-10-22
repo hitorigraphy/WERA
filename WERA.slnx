@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Wera.Core/Wera.Core.csproj" />
+    <Project Path="src/Wera.Web/Wera.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Wera.Core.Tests/Wera.Core.Tests.csproj" />
+  </Folder>
+</Solution>

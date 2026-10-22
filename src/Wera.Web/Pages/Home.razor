@@ -1,0 +1,96 @@
+@page "/"
+@using System.Text
+@using Wera.Core
+@inject IJSRuntime JS
+
+<PageTitle>@(pack?.Title ?? "WERA")</PageTitle>
+
+<main>
+    @if (pack is null)
+    {
+        <div class="drop" @ondragenter="() => dragging = true" @ondragleave="() => dragging = false" @ondrop="() => dragging = false"
+             data-dragging="@dragging">
+            <p>게임팩(.zip)을 여기에 끌어다 놓으세요</p>
+            <InputFile OnChange="OnPackSelected" accept=".zip" />
+        </div>
+    }
+    else if (session is null)
+    {
+        <h1>@pack.Title</h1>
+        <button @onclick="NewGame">새 게임</button>
+        <div class="drop" @ondragenter="() => dragging = true" @ondragleave="() => dragging = false" @ondrop="() => dragging = false"
+             data-dragging="@dragging">
+            <p>세이브(.sav)를 여기에 끌어다 놓으세요</p>
+            <InputFile OnChange="OnSaveSelected" accept=".sav,.json" />
+        </div>
+    }
+    else
+    {
+        <p class="scene">@session.Current.Text</p>
+        <ul class="choices">
+            @for (var i = 0; i < session.Current.Choices.Count; i++)
+            {
+                var index = i;
+                <li><button @onclick="() => Choose(index)">@session.Current.Choices[index].Label</button></li>
+            }
+        </ul>
+        @if (session.Current.Choices.Count == 0)
+        {
+            <p class="end">— 끝 —</p>
+        }
+        <footer>
+            <button @onclick="SaveGame">세이브 저장</button>
+            <button @onclick="Quit">게임팩 다시 고르기</button>
+        </footer>
+    }
+
+    @if (error is not null)
+    {
+        <p class="error" role="alert">@error</p>
+    }
+</main>
+
+@code {
+    const long MaxBytes = 2L * 1024 * 1024 * 1024 - 1;
+
+    GamePack? pack;
+    GameSession? session;
+    string? error;
+    bool dragging;
+
+    async Task OnPackSelected(InputFileChangeEventArgs e)
+    {
+        error = null;
+        try
+        {
+            var ms = new MemoryStream();
+            await using (var s = e.File.OpenReadStream(MaxBytes)) await s.CopyToAsync(ms);
+            ms.Position = 0;
+            pack = GamePack.Load(ms);
+        }
+        catch (Exception ex) when (ex is PackFormatException or InvalidDataException)
+        {
+            error = ex is PackFormatException ? ex.Message : "zip 파일을 읽을 수 없습니다.";
+        }
+    }
+
+    async Task OnSaveSelected(InputFileChangeEventArgs e)
+    {
+        error = null;
+        try
+        {
+            using var reader = new StreamReader(e.File.OpenReadStream(16 * 1024 * 1024), Encoding.UTF8);
+            session = GameSession.FromSaveJson(pack!, await reader.ReadToEndAsync());
+        }
+        catch (SaveFormatException ex) { error = ex.Message; }
+    }
+
+    void NewGame() { error = null; session = GameSession.NewGame(pack!); }
+
+    void Choose(int index) => session!.Choose(index);
+
+    async Task SaveGame() =>
+        await JS.InvokeVoidAsync("wera.download", $"{pack!.Id}.sav", session!.ToSaveJson());
+
+    void Quit() { pack = null; session = null; error = null; }
+}

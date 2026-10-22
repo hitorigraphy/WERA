@@ -1,0 +1,5 @@
+scene	label	next
+start	왼쪽 길로 간다	left
+start	오른쪽 길로 간다	right
+left	처음으로 돌아간다	start
+right	처음으로 돌아간다	start

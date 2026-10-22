@@ -2,3 +2,8 @@
 Thumbs.db
 node_modules/
 .env
+bin/
+obj/
+publish/
+.vs/
+*.user
