@@ -27,16 +27,14 @@ public enum EntryAction
 /// <summary>화면에 나오는 클릭 가능한 텍스트. 클릭하거나 Code를 입력하면 Action을 수행한다.</summary>
 public sealed record ScreenEntry(string Code, string Label, Screen Target, EntryAction Action = EntryAction.Navigate);
 
-/// <param name="Version">1: 장면만. 2: 화면과 Flags(정수) 추가. 3: Flags를 PlayerFlags로 바꾸고 InventoryItems 추가.</param>
-/// <param name="Flags">버전 2 이전 세이브를 읽기 위한 필드. PlayerFlags로 옮겨 읽는다. 저장할 때는 쓰지 않는다.</param>
+/// <param name="Version">릴리스 전이라 1로 유지한다. 지시가 있을 때까지 올리지 않는다.</param>
 public sealed record SaveData(
     int Version,
     string PackId,
     string SceneId,
     Screen Screen = Screen.Scene,
     Dictionary<string, long>? PlayerFlags = null,
-    Dictionary<string, InventoryItem>? InventoryItems = null,
-    Dictionary<string, int>? Flags = null);
+    Dictionary<string, InventoryItem>? InventoryItems = null);
 
 [JsonSerializable(typeof(SaveData))]
 [JsonSourceGenerationOptions(WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
@@ -46,7 +44,7 @@ public sealed class SaveFormatException(string message) : Exception(message);
 
 public sealed class GameSession
 {
-    public const int SaveVersion = 3;
+    public const int SaveVersion = 1;
 
     public const string DungeonEntryCode = "101";
     public const string ShopEntryCode = "102";
@@ -186,9 +184,7 @@ public sealed class GameSession
         if (save.PackId != pack.Id) throw new SaveFormatException($"다른 게임팩의 세이브입니다: {save.PackId}");
         if (!pack.Scenes.TryGetValue(save.SceneId ?? "", out var scene))
             throw new SaveFormatException($"세이브의 장면 '{save.SceneId}'를 게임팩에서 찾을 수 없습니다.");
-        var playerFlags = save.PlayerFlags is not null
-            ? new Dictionary<string, long>(save.PlayerFlags)
-            : save.Flags?.ToDictionary(kv => kv.Key, kv => (long)kv.Value) ?? [];   // 버전 2 이전 세이브
+        var playerFlags = save.PlayerFlags is null ? [] : new Dictionary<string, long>(save.PlayerFlags);
         var inventory = save.InventoryItems is null ? [] : new Dictionary<string, InventoryItem>(save.InventoryItems);
         foreach (var (code, item) in inventory)
             if (item.Amount < 0) throw new SaveFormatException($"세이브의 인벤토리 아이템 {code}의 수량이 음수입니다: {item.Amount}");

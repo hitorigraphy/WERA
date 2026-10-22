@@ -207,7 +207,7 @@ public class DungeonTests
     }
 
     [Fact]
-    public void Version1_save_still_loads_into_home()
+    public void Minimal_save_without_player_state_loads_into_home()
     {
         var pack = Pack(null, null);
         var s = GameSession.FromSaveJson(pack, "{\"Version\":1,\"PackId\":\"demo\",\"SceneId\":\"a\"}");
@@ -218,5 +218,5 @@ public class DungeonTests
     [Fact]
     public void Scene_screen_save_loads_into_home()
         => Assert.Equal(Screen.Home, GameSession.FromSaveJson(Pack(null, null),
-            "{\"Version\":2,\"PackId\":\"demo\",\"SceneId\":\"a\",\"Screen\":\"Scene\"}").Screen);
+            "{\"Version\":1,\"PackId\":\"demo\",\"SceneId\":\"a\",\"Screen\":\"Scene\"}").Screen);
 }

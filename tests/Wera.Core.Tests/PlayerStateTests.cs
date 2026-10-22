@@ -62,34 +62,31 @@ public class PlayerStateTests
     }
 
     [Fact]
-    public void Save_json_uses_new_names_and_no_legacy_flags_field()
+    public void Save_json_uses_player_flags_and_inventory_names()
     {
         var s = GameSession.NewGame(Pack());
         s.PlayerFlags["tutorial_clear"] = 1;
         s.InventoryItems["1"] = new InventoryItem(7);
         var json = s.ToSaveJson();
 
-        Assert.Contains("\"Version\": 3", json);
+        Assert.Contains("\"Version\": 1", json);
         Assert.Contains("\"PlayerFlags\"", json);
         Assert.Contains("\"InventoryItems\"", json);
         Assert.Contains("\"Amount\": 7", json);
-        Assert.DoesNotContain("\"Flags\"", json);
     }
 
     [Fact]
-    public void Version2_save_with_flags_loads_into_player_flags()
+    public void Save_version_stays_1_until_told_otherwise()
     {
-        var s = GameSession.FromSaveJson(Pack(),
-            "{\"Version\":2,\"PackId\":\"demo\",\"SceneId\":\"a\",\"Screen\":\"Home\",\"Flags\":{\"tutorial_clear\":1,\"level\":5}}");
-        Assert.Equal(1L, s.PlayerFlags["tutorial_clear"]);
-        Assert.Equal(5L, s.PlayerFlags["level"]);
-        Assert.Empty(s.InventoryItems);
+        Assert.Equal(1, GameSession.SaveVersion);
+        Assert.Throws<SaveFormatException>(() => GameSession.FromSaveJson(Pack(),
+            "{\"Version\":2,\"PackId\":\"demo\",\"SceneId\":\"a\"}"));
     }
 
     [Fact]
     public void Save_without_player_state_loads_as_empty()
     {
-        var s = GameSession.FromSaveJson(Pack(), "{\"Version\":3,\"PackId\":\"demo\",\"SceneId\":\"a\"}");
+        var s = GameSession.FromSaveJson(Pack(), "{\"Version\":1,\"PackId\":\"demo\",\"SceneId\":\"a\"}");
         Assert.Empty(s.PlayerFlags);
         Assert.Empty(s.InventoryItems);
     }
@@ -97,15 +94,15 @@ public class PlayerStateTests
     [Fact]
     public void Negative_inventory_amount_in_save_is_rejected()
         => Assert.Throws<SaveFormatException>(() => GameSession.FromSaveJson(Pack(),
-            "{\"Version\":3,\"PackId\":\"demo\",\"SceneId\":\"a\",\"InventoryItems\":{\"1\":{\"Amount\":-1}}}"));
+            "{\"Version\":1,\"PackId\":\"demo\",\"SceneId\":\"a\",\"InventoryItems\":{\"1\":{\"Amount\":-1}}}"));
 
     [Fact]
     public void Wrong_value_types_in_save_are_rejected_as_bad_json()
     {
         Assert.Throws<SaveFormatException>(() => GameSession.FromSaveJson(Pack(),
-            "{\"Version\":3,\"PackId\":\"demo\",\"SceneId\":\"a\",\"PlayerFlags\":{\"x\":true}}"));
+            "{\"Version\":1,\"PackId\":\"demo\",\"SceneId\":\"a\",\"PlayerFlags\":{\"x\":true}}"));
         Assert.Throws<SaveFormatException>(() => GameSession.FromSaveJson(Pack(),
-            "{\"Version\":3,\"PackId\":\"demo\",\"SceneId\":\"a\",\"InventoryItems\":{\"1\":5}}"));
+            "{\"Version\":1,\"PackId\":\"demo\",\"SceneId\":\"a\",\"InventoryItems\":{\"1\":5}}"));
     }
 
     [Theory]
