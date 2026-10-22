@@ -141,13 +141,13 @@ public class DungeonTests
     }
 
     [Fact]
-    public void Activating_101_opens_dungeon_select_and_zero_goes_back()
+    public void Activating_101_opens_dungeon_select_and_100_goes_back()
     {
         var s = GameSession.NewGame(Pack(TwoDungeons, null));
         Assert.True(s.Activate(" 101 "));
         Assert.Equal(Screen.DungeonSelect, s.Screen);
         Assert.False(s.Activate("101"));   // 던전 선택 화면에는 101 항목이 없다
-        Assert.True(s.Activate("0"));
+        Assert.True(s.Activate("100"));
         Assert.Equal(Screen.Home, s.Screen);
     }
 
