@@ -98,7 +98,8 @@ public class ShopTests
         Assert.NotNull(s.Activate(" 102 "));
         Assert.Equal(Screen.ShopList, s.Screen);
         Assert.Equal(["2001"], s.AvailableShops.Select(x => x.Code));
-        Assert.Equal(["999"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["2001", "999"], s.Entries.Select(e => e.Code));   // 열린 상점 + 돌아가기
+        Assert.Null(s.Activate("2002"));                     // 닫힌 상점은 코드를 입력해도 들어갈 수 없다
         Assert.Null(s.Activate("102"));                      // 상점가 화면에는 102 항목이 없다
         Assert.NotNull(s.Activate("999"));
         Assert.Equal(Screen.Home, s.Screen);

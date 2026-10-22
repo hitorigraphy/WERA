@@ -133,6 +133,79 @@ public class TradeTests
     public void Trade_master_header_is_checked()
         => Assert.Throws<PackFormatException>(() => Pack(trades: "code\tshop_code\n5001\t2001\n"));
 
+    // ---- 교환 목록 화면 ----
+
+    static GameSession Session()
+    {
+        var pack = Pack(
+            bunch: Bunch,
+            trades: TradeHeader +
+                "5001\t2001\t1\t100\t2\t5\n" +
+                "5002\t2001\t2\t10\t1\t30\n" +
+                "5003\t2002\t3\t3\t9001\t1\n",
+            tradeConditions: CondHeader + "5002\t1\ttutorial_clear\tGreaterOrEqual\t1\n");
+        var s = GameSession.NewGame(pack);
+        s.Activate("102");
+        return s;
+    }
+
+    [Fact]
+    public void Picking_a_shop_opens_its_trade_list_with_item_names()
+    {
+        var s = Session();
+        Assert.Equal(["2001", "2002", "999"], s.Entries.Select(e => e.Code));
+
+        Assert.NotNull(s.Activate("2002"));
+        Assert.Equal(Screen.ShopTrades, s.Screen);
+        Assert.Equal("2002", s.CurrentShopCode);
+        Assert.Equal("무기점", s.CurrentShop!.Name);
+        // 번치 아이템도 이름으로 보인다.
+        Assert.Equal([new TradeLine("5003", "철광석", 3, "초보자 세트", 1)], s.CurrentShopTrades);
+    }
+
+    [Fact]
+    public void Trade_list_shows_only_trades_whose_conditions_are_met()
+    {
+        var s = Session();
+        s.Activate("2001");
+        Assert.Equal(["5001"], s.CurrentShopTrades.Select(t => t.Code));    // 5002는 튜토리얼 필요
+
+        s.Flags["tutorial_clear"] = 1;
+        Assert.Equal(["5001", "5002"], s.CurrentShopTrades.Select(t => t.Code));
+        Assert.Equal(new TradeLine("5001", "금화", 100, "약초", 5), s.CurrentShopTrades[0]);
+    }
+
+    [Fact]
+    public void Trade_list_back_goes_to_shop_list_then_home()
+    {
+        var s = Session();
+        s.Activate("2001");
+        Assert.Equal(["999"], s.Entries.Select(e => e.Code));
+
+        Assert.NotNull(s.Activate("999"));
+        Assert.Equal(Screen.ShopList, s.Screen);
+        Assert.Null(s.CurrentShopCode);
+        Assert.Empty(s.CurrentShopTrades);
+
+        Assert.NotNull(s.Activate("999"));
+        Assert.Equal(Screen.Home, s.Screen);
+    }
+
+    [Fact]
+    public void Shop_with_no_trades_shows_an_empty_list()
+    {
+        var pack = Pack(trades: TradeHeader + "5001\t2001\t1\t1\t2\t1\n");
+        var s = GameSession.NewGame(pack);
+        s.Activate("102");
+        s.Activate("2002");                                   // 2002에는 교환이 없다
+        Assert.Equal(Screen.ShopTrades, s.Screen);
+        Assert.Empty(s.CurrentShopTrades);
+    }
+
+    [Fact]
+    public void Item_name_falls_back_to_code_when_unknown()
+        => Assert.Equal("77", Pack().ItemName("77"));
+
     // ---- shop_trade_condition_master ----
 
     [Fact]

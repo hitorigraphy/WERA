@@ -58,10 +58,19 @@
 
             case Screen.ShopList:
                 <h2>상점가</h2>
+                @commands
+                break;
+
+            case Screen.ShopTrades:
+                <h2>@session.CurrentShop?.Name</h2>
+                @if (session.CurrentShopTrades.Count == 0)
+                {
+                    <p class="end">교환할 수 있는 항목이 없습니다.</p>
+                }
                 <ul class="dungeons">
-                    @foreach (var shop in session.AvailableShops)
+                    @foreach (var t in session.CurrentShopTrades)
                     {
-                        <li>[@shop.Code] @shop.Name</li>
+                        <li>[@t.Code] @t.CostItemName ×@t.CostAmount → @t.ReceiveItemName ×@t.ReceiveAmount</li>
                     }
                 </ul>
                 @commands

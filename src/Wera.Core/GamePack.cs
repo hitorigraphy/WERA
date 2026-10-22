@@ -54,6 +54,12 @@ public sealed class GamePack
     /// <summary>상점 교환 마스터가 없으면 null.</summary>
     public IReadOnlyList<ShopTrade>? Trades { get; init; }
 
+    /// <summary>일반/번치 아이템 코드의 이름. 마스터에 없으면 코드를 그대로 돌려준다.</summary>
+    public string ItemName(string itemCode) =>
+        CommonItems?.FirstOrDefault(i => i.Code == itemCode)?.Name
+        ?? BunchItems?.FirstOrDefault(b => b.Code == itemCode)?.Name
+        ?? itemCode;
+
     public static GamePack Load(Stream zipStream)
     {
         using var zip = new ZipArchive(zipStream, ZipArchiveMode.Read, leaveOpen: true);

@@ -11,6 +11,8 @@ public enum Screen
     Home,
     DungeonSelect,
     ShopList,
+    /// <summary>선택한 상점의 교환 목록.</summary>
+    ShopTrades,
     Load,
 }
 
@@ -54,6 +56,9 @@ public sealed class GameSession
     public Screen Screen { get; private set; }
     public Dictionary<string, int> Flags { get; }
 
+    /// <summary>교환 목록 화면에서 보고 있는 상점 코드. 그 화면이 아니면 null.</summary>
+    public string? CurrentShopCode { get; private set; }
+
     GameSession(GamePack pack, Scene scene, Screen screen, Dictionary<string, int> flags)
     {
         Pack = pack;
@@ -83,6 +88,20 @@ public sealed class GameSession
     public IReadOnlyList<Shop> AvailableShops =>
         Pack.Shops?.Where(s => s.IsAvailable(Flags)).ToList() ?? [];
 
+    public Shop? CurrentShop => Pack.Shops?.FirstOrDefault(s => s.Code == CurrentShopCode);
+
+    /// <summary>현재 상점에서 조건을 만족하는 교환. 아이템 코드는 이름으로 풀어 둔다.</summary>
+    public IReadOnlyList<TradeLine> CurrentShopTrades =>
+        CurrentShopCode is null
+            ? []
+            : Pack.Trades?
+                .Where(t => t.ShopCode == CurrentShopCode && t.IsAvailable(Flags))
+                .Select(t => new TradeLine(
+                    t.Code,
+                    Pack.ItemName(t.CostItemCode), t.CostAmount,
+                    Pack.ItemName(t.ReceiveItemCode), t.ReceiveAmount))
+                .ToList() ?? [];
+
     /// <summary>현재 화면에서 클릭하거나 코드를 입력할 수 있는 텍스트들.</summary>
     public IReadOnlyList<ScreenEntry> Entries
     {
@@ -99,8 +118,15 @@ public sealed class GameSession
                     list.Add(new ScreenEntry(SaveEntryCode, "세이브", Screen.Home, EntryAction.Save));
                     list.Add(new ScreenEntry(LoadEntryCode, "로드", Screen.Load));
                     return list;
-                case Screen.DungeonSelect:
                 case Screen.ShopList:
+                    // 상점 코드를 입력하거나 클릭하면 그 상점의 교환 목록으로 간다.
+                    return AvailableShops
+                        .Select(s => new ScreenEntry(s.Code, s.Name, Screen.ShopTrades))
+                        .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home))
+                        .ToList();
+                case Screen.ShopTrades:
+                    return [new ScreenEntry(BackEntryCode, "돌아가기", Screen.ShopList)];
+                case Screen.DungeonSelect:
                 case Screen.Load:
                     return [new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home)];
                 default:
@@ -117,7 +143,11 @@ public sealed class GameSession
     {
         code = code.Trim();
         var entry = Entries.FirstOrDefault(e => e.Code == code);
-        if (entry is { Action: EntryAction.Navigate }) Screen = entry.Target;
+        if (entry is { Action: EntryAction.Navigate })
+        {
+            CurrentShopCode = entry.Target == Screen.ShopTrades ? entry.Code : null;
+            Screen = entry.Target;
+        }
         return entry;
     }
 
