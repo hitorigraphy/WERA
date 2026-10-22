@@ -202,9 +202,14 @@ public sealed class GameSession
         foreach (var (item, n) in cost) net[item] = net.GetValueOrDefault(item) - n;
         foreach (var (item, n) in gain) net[item] = net.GetValueOrDefault(item) + n;
 
+        // 아이템 인벤토리 마스터의 소지제한을 넘게 되면 교환하지 않는다. 마스터에 없는 아이템은 int 한도까지.
         foreach (var (item, delta) in net)
-            if (InventoryItems.GetValueOrDefault(item).Amount + delta > int.MaxValue)
-                return $"교환 실패 - 수량 한도 초과: {Pack.ItemName(item)} [{text}]";
+        {
+            if (delta <= 0) continue;
+            var limit = Pack.ItemInventory?.FirstOrDefault(i => i.Code == item)?.CarryLimit ?? int.MaxValue;
+            if (InventoryItems.GetValueOrDefault(item).Amount + delta > limit)
+                return $"교환 실패 - 소지 한도 초과: {Pack.ItemName(item)} (한도 {limit}) [{text}]";
+        }
 
         foreach (var (item, delta) in net)
         {

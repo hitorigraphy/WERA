@@ -18,8 +18,9 @@ public sealed record Scene(string Id, string Text, IReadOnlyList<Choice> Choices
 ///   master/dungeon_flag_master_v1.tsv     (선택) dungeon_code, group_no, flag_code, condition_type, condition_value
 ///   master/shop_master_v1.tsv             (선택) code, name
 ///   master/shop_condition_master_v1.tsv   (선택) shop_code, group_no, flag_code, condition_type, condition_value
-///   master/common_item_master_v1.tsv      (선택) item_code, item_name
-///   master/bunch_item_master_v1.tsv       (선택) item_code, item_name, part_item_code, part_amount
+///   master/item_inventory_master_v1.tsv      (선택) item_code, item_name, carry_limit
+///   master/bunch_inventory_master_v1.tsv     (선택) item_code, item_name, part_item_code, part_amount
+///   master/character_inventory_master_v1.tsv (선택) item_code, item_name, carry_limit
 ///   master/shop_trade_master_v1.tsv       (선택) code, shop_code, cost_item_code, cost_amount, receive_item_code, receive_amount
 ///   master/shop_trade_condition_master_v1.tsv (선택) trade_code, group_no, flag_code, condition_type, condition_value
 /// </summary>
@@ -29,8 +30,9 @@ public sealed class GamePack
     public const string DungeonFlagMasterPath = "master/dungeon_flag_master_v1.tsv";
     public const string ShopMasterPath = "master/shop_master_v1.tsv";
     public const string ShopConditionMasterPath = "master/shop_condition_master_v1.tsv";
-    public const string CommonItemMasterPath = "master/common_item_master_v1.tsv";
-    public const string BunchItemMasterPath = "master/bunch_item_master_v1.tsv";
+    public const string ItemInventoryMasterPath = "master/item_inventory_master_v1.tsv";
+    public const string CharacterInventoryMasterPath = "master/character_inventory_master_v1.tsv";
+    public const string BunchInventoryMasterPath = "master/bunch_inventory_master_v1.tsv";
     public const string ShopTradeMasterPath = "master/shop_trade_master_v1.tsv";
     public const string ShopTradeConditionMasterPath = "master/shop_trade_condition_master_v1.tsv";
 
@@ -45,28 +47,32 @@ public sealed class GamePack
     /// <summary>상점 마스터가 게임팩에 없으면 null.</summary>
     public IReadOnlyList<Shop>? Shops { get; init; }
 
-    /// <summary>일반 아이템 마스터가 없으면 null.</summary>
-    public IReadOnlyList<CommonItem>? CommonItems { get; init; }
+    /// <summary>아이템 인벤토리 마스터가 없으면 null.</summary>
+    public IReadOnlyList<ItemEntry>? ItemInventory { get; init; }
 
-    /// <summary>번치 아이템 마스터가 없으면 null.</summary>
-    public IReadOnlyList<BunchItem>? BunchItems { get; init; }
+    /// <summary>번치 인벤토리 마스터가 없으면 null.</summary>
+    public IReadOnlyList<BunchEntry>? BunchInventory { get; init; }
+
+    /// <summary>캐릭터 인벤토리 마스터가 없으면 null.</summary>
+    public IReadOnlyList<CharacterEntry>? CharacterInventory { get; init; }
 
     /// <summary>상점 교환 마스터가 없으면 null.</summary>
     public IReadOnlyList<ShopTrade>? Trades { get; init; }
 
-    /// <summary>일반/번치 아이템 코드의 이름. 마스터에 없으면 코드를 그대로 돌려준다.</summary>
+    /// <summary>아이템/번치 인벤토리의 아이템 코드의 이름. 마스터에 없으면 코드를 그대로 돌려준다.</summary>
+    /// <remarks>캐릭터 인벤토리는 별도 마스터라 여기서 찾지 않는다.</remarks>
     public string ItemName(string itemCode) =>
-        CommonItems?.FirstOrDefault(i => i.Code == itemCode)?.Name
-        ?? BunchItems?.FirstOrDefault(b => b.Code == itemCode)?.Name
+        ItemInventory?.FirstOrDefault(i => i.Code == itemCode)?.Name
+        ?? BunchInventory?.FirstOrDefault(b => b.Code == itemCode)?.Name
         ?? itemCode;
 
     /// <summary>
-    /// 아이템 코드와 개수를 실제로 인벤토리에 오가는 일반 아이템들로 푼다.
-    /// 번치 아이템은 부품 × 부품 어마운트 × 개수로, 일반 아이템은 그대로 돌려준다.
+    /// 아이템 코드와 개수를 실제로 인벤토리에 오가는 아이템 인벤토리의 아이템들로 푼다.
+    /// 번치는 부품 × 부품 어마운트 × 개수로, 일반 아이템은 그대로 돌려준다.
     /// </summary>
     public Dictionary<string, long> Expand(string itemCode, long amount)
     {
-        var bunch = BunchItems?.FirstOrDefault(b => b.Code == itemCode);
+        var bunch = BunchInventory?.FirstOrDefault(b => b.Code == itemCode);
         return bunch is null
             ? new Dictionary<string, long> { [itemCode] = amount }
             : bunch.Parts.ToDictionary(p => p.ItemCode, p => p.Amount * amount);
@@ -110,11 +116,13 @@ public sealed class GamePack
             (r, groups) => new Dungeon(r[0], r[1], groups));
         var shops = LoadConditioned(zip, ShopMasterPath, ["code", "name"], ShopConditionMasterPath, "상점", "shop_code",
             (r, groups) => new Shop(r[0], r[1], groups));
-        var commonItems = LoadCommonItems(zip);
-        var bunchItems = LoadBunchItems(zip, commonItems);
-        CheckItemCodesAreUnique(commonItems, bunchItems);
+        var itemInventory = LoadItemInventory(zip);
+        var bunchInventory = LoadBunchInventory(zip, itemInventory);
+        var characterInventory = LoadLimitedInventory(zip, CharacterInventoryMasterPath, "캐릭터",
+            (code, name, limit) => new CharacterEntry(code, name, limit));
+        CheckItemCodesAreUnique(itemInventory, bunchInventory);
         var trades = LoadTrades(zip);
-        CheckTrades(trades, shops, commonItems, bunchItems);
+        CheckTrades(trades, shops, itemInventory, bunchInventory);
 
         return new GamePack
         {
@@ -124,8 +132,9 @@ public sealed class GamePack
             Scenes = texts.ToDictionary(kv => kv.Key, kv => new Scene(kv.Key, kv.Value, choices[kv.Key])),
             Dungeons = dungeons,
             Shops = shops,
-            CommonItems = commonItems,
-            BunchItems = bunchItems,
+            ItemInventory = itemInventory,
+            BunchInventory = bunchInventory,
+            CharacterInventory = characterInventory,
             Trades = trades,
         };
     }
@@ -195,31 +204,38 @@ public sealed class GamePack
             .ToList();
     }
 
-    static List<CommonItem>? LoadCommonItems(ZipArchive zip)
+    static List<ItemEntry>? LoadItemInventory(ZipArchive zip) =>
+        LoadLimitedInventory(zip, ItemInventoryMasterPath, "아이템",
+            (code, name, limit) => new ItemEntry(code, name, limit));
+
+    /// <summary>"item_code, item_name, carry_limit" 형식의 인벤토리 마스터를 읽는다. 파일이 없으면 null.</summary>
+    static List<T>? LoadLimitedInventory<T>(ZipArchive zip, string path, string noun, Func<string, string, int, T> create)
     {
-        var text = TryReadEntry(zip, CommonItemMasterPath);
+        var text = TryReadEntry(zip, path);
         if (text is null) return null;
 
-        var items = new List<CommonItem>();
+        var items = new List<T>();
         var seen = new HashSet<string>();
-        foreach (var r in Body(CommonItemMasterPath, text, "item_code", "item_name"))
+        foreach (var r in Body(path, text, "item_code", "item_name", "carry_limit"))
         {
-            if (r[0].Length == 0) throw new PackFormatException($"{CommonItemMasterPath}: 아이템 코드가 비어 있습니다.");
+            if (r[0].Length == 0) throw new PackFormatException($"{path}: {noun} 코드가 비어 있습니다.");
             if (!seen.Add(r[0]))
-                throw new PackFormatException($"{CommonItemMasterPath}: 아이템 코드 '{r[0]}'가 중복됩니다.");
-            items.Add(new CommonItem(r[0], r[1]));
+                throw new PackFormatException($"{path}: {noun} 코드 '{r[0]}'가 중복됩니다.");
+            if (!int.TryParse(r[2], out var limit) || limit <= 0)
+                throw new PackFormatException($"{path}: {noun} '{r[0]}'의 소지제한 '{r[2]}'가 1 이상의 정수가 아닙니다.");
+            items.Add(create(r[0], r[1], limit));
         }
         return items;
     }
 
-    /// <summary>같은 아이템 코드의 행들이 하나의 번치 아이템이 된다. 부품은 일반 아이템만 가리킬 수 있다.</summary>
-    static List<BunchItem>? LoadBunchItems(ZipArchive zip, List<CommonItem>? commonItems)
+    /// <summary>같은 아이템 코드의 행들이 하나의 번치가 된다. 부품은 아이템 인벤토리의 아이템만 가리킬 수 있다.</summary>
+    static List<BunchEntry>? LoadBunchInventory(ZipArchive zip, List<ItemEntry>? itemInventory)
     {
-        const string file = BunchItemMasterPath;
+        const string file = BunchInventoryMasterPath;
         var text = TryReadEntry(zip, file);
         if (text is null) return null;
 
-        var commonCodes = commonItems?.Select(i => i.Code).ToHashSet() ?? [];
+        var commonCodes = itemInventory?.Select(i => i.Code).ToHashSet() ?? [];
         var names = new Dictionary<string, string>();
         var parts = new Dictionary<string, List<BunchPart>>();
         var order = new List<string>();
@@ -228,7 +244,7 @@ public sealed class GamePack
             if (r[0].Length == 0) throw new PackFormatException($"{file}: 아이템 코드가 비어 있습니다.");
             if (r[2].Length == 0) throw new PackFormatException($"{file}: 번치 '{r[0]}'의 파트 아이템 코드가 비어 있습니다.");
             if (!commonCodes.Contains(r[2]))
-                throw new PackFormatException($"{file}: 번치 '{r[0]}'의 파트 '{r[2]}'가 일반 아이템 마스터에 없습니다.");
+                throw new PackFormatException($"{file}: 번치 '{r[0]}'의 파트 '{r[2]}'가 아이템 인벤토리 마스터에 없습니다.");
             if (!int.TryParse(r[3], out var amount) || amount <= 0)
                 throw new PackFormatException($"{file}: 번치 '{r[0]}'의 파트 어마운트 '{r[3]}'가 1 이상의 정수가 아닙니다.");
 
@@ -248,16 +264,16 @@ public sealed class GamePack
                 throw new PackFormatException($"{file}: 번치 '{r[0]}'에 파트 '{r[2]}'가 중복됩니다.");
             parts[r[0]].Add(new BunchPart(r[2], amount));
         }
-        return order.Select(code => new BunchItem(code, names[code], parts[code])).ToList();
+        return order.Select(code => new BunchEntry(code, names[code], parts[code])).ToList();
     }
 
-    static void CheckItemCodesAreUnique(List<CommonItem>? common, List<BunchItem>? bunch)
+    static void CheckItemCodesAreUnique(List<ItemEntry>? common, List<BunchEntry>? bunch)
     {
         if (common is null || bunch is null) return;
         var commonCodes = common.Select(i => i.Code).ToHashSet();
         foreach (var b in bunch)
             if (commonCodes.Contains(b.Code))
-                throw new PackFormatException($"아이템 코드 '{b.Code}'가 일반 아이템과 번치 아이템 마스터에 모두 있습니다.");
+                throw new PackFormatException($"아이템 코드 '{b.Code}'가 아이템 인벤토리와 번치 인벤토리 마스터에 모두 있습니다.");
     }
 
     static List<ShopTrade>? LoadTrades(ZipArchive zip) =>
@@ -278,7 +294,7 @@ public sealed class GamePack
                 return new ShopTrade(r[0], r[1], r[2], cost, r[4], receive, groups);
             });
 
-    static void CheckTrades(List<ShopTrade>? trades, List<Shop>? shops, List<CommonItem>? common, List<BunchItem>? bunch)
+    static void CheckTrades(List<ShopTrade>? trades, List<Shop>? shops, List<ItemEntry>? common, List<BunchEntry>? bunch)
     {
         if (trades is null) return;
         var shopCodes = shops?.Select(s => s.Code).ToHashSet() ?? [];
@@ -288,9 +304,9 @@ public sealed class GamePack
             if (!shopCodes.Contains(t.ShopCode))
                 throw new PackFormatException($"{ShopTradeMasterPath}: 트레이드 '{t.Code}'의 상점 '{t.ShopCode}'가 상점 마스터에 없습니다.");
             if (!itemCodes.Contains(t.CostItemCode))
-                throw new PackFormatException($"{ShopTradeMasterPath}: 트레이드 '{t.Code}'의 코스트 아이템 '{t.CostItemCode}'가 아이템 마스터에 없습니다.");
+                throw new PackFormatException($"{ShopTradeMasterPath}: 트레이드 '{t.Code}'의 코스트 아이템 '{t.CostItemCode}'가 아이템/번치 인벤토리 마스터에 없습니다.");
             if (!itemCodes.Contains(t.ReceiveItemCode))
-                throw new PackFormatException($"{ShopTradeMasterPath}: 트레이드 '{t.Code}'의 리시브 아이템 '{t.ReceiveItemCode}'가 아이템 마스터에 없습니다.");
+                throw new PackFormatException($"{ShopTradeMasterPath}: 트레이드 '{t.Code}'의 리시브 아이템 '{t.ReceiveItemCode}'가 아이템/번치 인벤토리 마스터에 없습니다.");
         }
     }
 

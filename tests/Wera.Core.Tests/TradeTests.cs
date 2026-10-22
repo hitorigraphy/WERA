@@ -5,7 +5,7 @@ namespace Wera.Core.Tests;
 public class TradeTests
 {
     const string Shops = "code\tname\n2001\t잡화점\n2002\t무기점\n";
-    const string Common = "item_code\titem_name\n1\t금화\n2\t약초\n3\t철광석\n";
+    const string Common = "item_code\titem_name\tcarry_limit\n1\t금화\t99999\n2\t약초\t99\n3\t철광석\t99\n";
     const string Bunch = "item_code\titem_name\tpart_item_code\tpart_amount\n9001\t초보자 세트\t2\t3\n9001\t초보자 세트\t3\t1\n";
     const string TradeHeader = "code\tshop_code\tcost_item_code\tcost_amount\treceive_item_code\treceive_amount\n";
     const string CondHeader = "trade_code\tgroup_no\tflag_code\tcondition_type\tcondition_value\n";
@@ -21,8 +21,8 @@ public class TradeTests
             ("choices.tsv", "scene\tlabel\tnext\n"),
         };
         if (shops is not null) files.Add(("master/shop_master_v1.tsv", shops));
-        if (common is not null) files.Add(("master/common_item_master_v1.tsv", common));
-        if (bunch is not null) files.Add(("master/bunch_item_master_v1.tsv", bunch));
+        if (common is not null) files.Add(("master/item_inventory_master_v1.tsv", common));
+        if (bunch is not null) files.Add(("master/bunch_inventory_master_v1.tsv", bunch));
         if (trades is not null) files.Add(("master/shop_trade_master_v1.tsv", trades));
         if (tradeConditions is not null) files.Add(("master/shop_trade_condition_master_v1.tsv", tradeConditions));
         return GamePack.Load(CoreTests.Zip(files.ToArray()));
@@ -34,33 +34,42 @@ public class TradeTests
     public void All_item_and_trade_masters_are_optional()
     {
         var pack = Pack(shops: null, common: null);
-        Assert.Null(pack.CommonItems);
-        Assert.Null(pack.BunchItems);
+        Assert.Null(pack.ItemInventory);
+        Assert.Null(pack.BunchInventory);
         Assert.Null(pack.Trades);
     }
 
-    // ---- common_item_master ----
+    // ---- item_inventory_master ----
 
     [Fact]
-    public void Common_items_load()
+    public void Item_inventory_loads_with_carry_limits()
     {
-        var items = Pack().CommonItems!;
-        Assert.Equal([new CommonItem("1", "금화"), new CommonItem("2", "약초"), new CommonItem("3", "철광석")], items);
+        var items = Pack().ItemInventory!;
+        Assert.Equal(
+            [new ItemEntry("1", "금화", 99999), new ItemEntry("2", "약초", 99), new ItemEntry("3", "철광석", 99)],
+            items);
     }
 
     [Theory]
-    [InlineData("item_code\titem_name\n1\ta\n1\tb\n")]   // 중복 코드
-    [InlineData("item_code\titem_name\n\ta\n")]          // 빈 코드
-    [InlineData("code\tname\n1\ta\n")]                   // 헤더 불일치
-    public void Bad_common_items_are_rejected(string common)
+    [InlineData("item_code\titem_name\tcarry_limit\n1\ta\t5\n1\tb\t5\n")]   // 중복 코드
+    [InlineData("item_code\titem_name\tcarry_limit\n\ta\t5\n")]             // 빈 코드
+    [InlineData("item_code\titem_name\n1\ta\n")]                            // carry_limit 열 없음
+    [InlineData("code\tname\tcarry_limit\n1\ta\t5\n")]                      // 헤더 불일치
+    [InlineData("item_code\titem_name\tcarry_limit\n1\ta\t0\n")]            // 소지제한 0
+    [InlineData("item_code\titem_name\tcarry_limit\n1\ta\t-1\n")]           // 음수
+    [InlineData("item_code\titem_name\tcarry_limit\n1\ta\tabc\n")]          // 정수 아님
+    [InlineData("item_code\titem_name\tcarry_limit\n1\ta\t\n")]             // 빈 소지제한
+    [InlineData("item_code\titem_name\tcarry_limit\n1\ta\t3000000000\n")]   // int 범위 초과
+    public void Bad_item_inventory_is_rejected(string common)
         => Assert.Throws<PackFormatException>(() => Pack(common: common));
 
-    // ---- bunch_item_master ----
+    // ---- bunch_inventory_master (소지제한 열 없음) ----
+
 
     [Fact]
     public void Bunch_rows_with_same_code_form_one_item_with_parts_in_order()
     {
-        var bunch = Assert.Single(Pack(bunch: Bunch).BunchItems!);
+        var bunch = Assert.Single(Pack(bunch: Bunch).BunchInventory!);
         Assert.Equal("9001", bunch.Code);
         Assert.Equal("초보자 세트", bunch.Name);
         Assert.Equal([new BunchPart("2", 3), new BunchPart("3", 1)], bunch.Parts);
@@ -341,14 +350,50 @@ public class TradeTests
     }
 
     [Fact]
-    public void Trade_that_would_overflow_the_amount_is_refused()
+    public void Trade_that_would_exceed_the_carry_limit_is_refused()
     {
-        var s = InShop("2001", ("1", 100), ("2", int.MaxValue - 2));
-        s.Activate("5001");                                  // 약초 +5 → 한도 초과
+        var s = InShop("2001", ("1", 100), ("2", 95));       // 약초 소지제한 99, +5 → 100
+        s.Activate("5001");
 
-        Assert.Contains("수량 한도 초과: 약초", s.Message);
-        Assert.Equal(100, Have(s, "1"));
-        Assert.Equal(int.MaxValue - 2, Have(s, "2"));
+        Assert.Contains("소지 한도 초과: 약초 (한도 99)", s.Message);
+        Assert.Equal(100, Have(s, "1"));                     // 아무것도 바뀌지 않는다
+        Assert.Equal(95, Have(s, "2"));
+    }
+
+    [Fact]
+    public void Trade_may_reach_exactly_the_carry_limit()
+    {
+        var s = InShop("2001", ("1", 100), ("2", 94));       // 94 + 5 = 99
+        s.Activate("5001");
+
+        Assert.StartsWith("교환 완료", s.Message);
+        Assert.Equal(99, Have(s, "2"));
+    }
+
+    [Fact]
+    public void Carry_limit_applies_to_the_parts_of_a_received_bunch_item()
+    {
+        // 초보자 세트(약초 ×3, 철광석 ×1)를 받는데 약초가 97개면 100개가 되어 거절된다.
+        var s = InShop("2002", ("3", 5), ("2", 97));
+        s.Activate("5003");
+
+        Assert.Contains("소지 한도 초과: 약초", s.Message);
+        Assert.Equal(5, Have(s, "3"));
+        Assert.Equal(97, Have(s, "2"));
+    }
+
+    [Fact]
+    public void An_item_that_only_shrinks_is_never_blocked_by_the_limit()
+    {
+        // 이미 한도를 넘게 들고 있어도(예: 마스터를 나중에 낮춘 경우) 줄이는 교환은 막지 않는다.
+        var s = InShop("2001", ("1", 100), ("2", 150));
+        s.Activate("5002");                                  // 5002는 튜토리얼 필요 → 코드로는 실행되지 않음
+        Assert.Null(s.Message);
+
+        s.PlayerFlags["tutorial_clear"] = 1;
+        s.Activate("5002");                                  // 약초 ×10 → 금화 ×30: 약초는 줄기만 한다
+        Assert.Equal(140, Have(s, "2"));
+        Assert.Equal(130, Have(s, "1"));
     }
 
     [Fact]
