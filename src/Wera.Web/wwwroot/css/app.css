@@ -110,3 +110,5 @@ a.button:hover { background: #8882; }
 .commands { margin: 1rem 0; }
 .command { margin-top: .8rem; font: inherit; padding: .3rem .5rem; width: 14rem; }
 .dungeons { list-style: none; padding: 0; }
+
+.message { margin: .6rem 0; }

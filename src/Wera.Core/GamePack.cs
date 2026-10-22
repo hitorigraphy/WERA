@@ -60,6 +60,18 @@ public sealed class GamePack
         ?? BunchItems?.FirstOrDefault(b => b.Code == itemCode)?.Name
         ?? itemCode;
 
+    /// <summary>
+    /// 아이템 코드와 개수를 실제로 인벤토리에 오가는 일반 아이템들로 푼다.
+    /// 번치 아이템은 부품 × 부품 어마운트 × 개수로, 일반 아이템은 그대로 돌려준다.
+    /// </summary>
+    public Dictionary<string, long> Expand(string itemCode, long amount)
+    {
+        var bunch = BunchItems?.FirstOrDefault(b => b.Code == itemCode);
+        return bunch is null
+            ? new Dictionary<string, long> { [itemCode] = amount }
+            : bunch.Parts.ToDictionary(p => p.ItemCode, p => p.Amount * amount);
+    }
+
     public static GamePack Load(Stream zipStream)
     {
         using var zip = new ZipArchive(zipStream, ZipArchiveMode.Read, leaveOpen: true);
