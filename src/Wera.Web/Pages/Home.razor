@@ -6,15 +6,28 @@
 <PageTitle>@(pack?.Title ?? "WERA")</PageTitle>
 
 @{
-    RenderFragment commands = @<div class="commands">
-        @foreach (var entry in session!.Entries)
+    // 클릭 가능한 텍스트 목록. 항목마다 [코드]가 붙고, 그 코드를 입력해도 같은 동작을 한다.
+    RenderFragment<IEnumerable<ScreenEntry>> entryList = entries => @<div class="entries">
+        @foreach (var entry in entries)
         {
             var code = entry.Code;
             <div><button class="textlink" @onclick="() => Activate(code)">[@entry.Code] @entry.Label</button></div>
         }
-        <input @ref="commandInput" class="command" autocomplete="off" placeholder="코드를 입력하고 Enter"
-               @bind="command" @bind:event="oninput" @onkeydown="OnCommandKey" />
     </div>;
+
+    RenderFragment commandBox = @<input @ref="commandInput" class="command" autocomplete="off" placeholder="@CommandPlaceholder"
+                                        @bind="command" @bind:event="oninput" @onkeydown="OnCommandKey" />;
+
+    RenderFragment commands = @<div class="commands">
+        @entryList(session!.Entries)
+        @commandBox
+    </div>;
+
+    // 캐릭터 이미지 리소스가 없을 때(지금은 항상) 쓰는 기본 이미지.
+    RenderFragment noImage = @<svg class="no-image" viewBox="0 0 100 100" role="img" aria-label="No Image">
+        <rect x="1" y="1" width="98" height="98" fill="#000" stroke="#666" stroke-width="2" />
+        <text x="50" y="55" text-anchor="middle" font-size="15" fill="#999" font-family="monospace">No Image</text>
+    </svg>;
 }
 
 <main>
@@ -58,7 +71,50 @@
 
             case Screen.PartySetup:
                 <h2>파티 설정</h2>
-                @commands
+                @* 위 줄이 전위, 가운데 줄이 중위, 아래 줄이 후위. 이름이나 아이콘을 누르면 그 슬롯에 배치할 캐릭터 목록으로 간다. *@
+                <div class="party-grid">
+                    @foreach (var slot in session.PartySlotViews)
+                    {
+                        var slotCode = (slot.Slot + 1).ToString();
+                        <div class="slot" data-slot="@slotCode">
+                            <button class="slot-icon" title="@slot.Name" @onclick="() => Activate(slotCode)">@noImage</button>
+                            <div class="slot-info">
+                                <button class="slot-name" @onclick="() => Activate(slotCode)">
+                                    <span class="slot-level">@slot.LevelText</span><span class="slot-char">@slot.Name</span>
+                                </button>
+                                <div class="gauge-line">HP : <span class="gauge gauge-@slot.Hp.Color.ToString().ToLowerInvariant()">@slot.Hp.Text</span></div>
+                                <div class="gauge-line">XP : <span class="gauge gauge-@slot.Xp.Color.ToString().ToLowerInvariant()">@slot.Xp.Text</span></div>
+                                <div class="icon-line"></div>
+                            </div>
+                        </div>
+                    }
+                </div>
+                @entryList(session.Entries.Where(e => e.Code == GameSession.BackEntryCode))
+                @commandBox
+                break;
+
+            case Screen.CharacterSelect:
+                <h2>@((session.CurrentSlot ?? 0) + 1)번 슬롯에 배치할 캐릭터</h2>
+                @* 흰색: 배치 가능, 회색: 배치 불가, 하늘색: 이 슬롯의 캐릭터, 초록: 이미 배치된 파티원(고르면 위치 교환) *@
+                <ul class="character-list">
+                    @foreach (var c in session.CharacterList)
+                    {
+                        var charCode = c.Code;
+                        var colorClass = "char-" + c.Color.ToString().ToLowerInvariant();
+                        <li>
+                            @if (c.Selectable)
+                            {
+                                <button class="textlink @colorClass" @onclick="() => Activate(charCode)">[@c.Code] @c.Name</button>
+                            }
+                            else
+                            {
+                                <span class="@colorClass">[@c.Code] @c.Name</span>
+                            }
+                        </li>
+                    }
+                </ul>
+                @entryList(session.Entries.Where(e => e.Code == GameSession.BackEntryCode))
+                @commandBox
                 break;
 
             case Screen.ShopList:
@@ -126,6 +182,12 @@
     string command = "";
     ElementReference commandInput;
     bool focusCommand;
+
+    string CommandPlaceholder => session?.Screen switch
+    {
+        Screen.PartySetup => "슬롯 번호 1~9(왼쪽 위부터)를 입력하고 Enter",
+        _ => "코드를 입력하고 Enter",
+    };
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

@@ -112,3 +112,46 @@ a.button:hover { background: #8882; }
 .dungeons { list-style: none; padding: 0; }
 
 .message { margin: .6rem 0; }
+
+/* ---- 게임 테마: 검은 바탕, 흰 글자, 등폭 폰트 ---- */
+:root { --lh: 1.5em; color-scheme: dark; }
+html, body { background: #000; color: #fff; }
+body { font-family: ui-monospace, "Cascadia Mono", "D2Coding", "Noto Sans Mono CJK KR", Consolas, "Courier New", monospace; }
+button { background: #111; color: #fff; border: 1px solid #666; font: inherit; cursor: pointer; }
+input.command { background: #111; color: #fff; border: 1px solid #666; }
+.textlink { color: #7ab7ff; background: none; border: 0; }
+.error { color: #ff6b6b; }
+.end { opacity: 1; color: #aaa; }
+.site-footer { border-top-color: #444; }
+a.button { border-color: #666; }
+
+/* ---- 파티 설정: 3×3 슬롯 ---- */
+.party-grid { display: grid; grid-template-columns: repeat(3, max-content); gap: .9rem 1.5rem; margin: 1rem 0; overflow-x: auto; }
+.slot { display: flex; gap: .5rem; align-items: flex-start; }
+/* 아이콘은 오른쪽 4줄(이름, HP, XP, 아이콘 줄)의 세로 높이와 같은 정사각형 */
+.slot-icon { flex: none; width: calc(4 * var(--lh)); height: calc(4 * var(--lh)); padding: 0; border: 0; background: none; }
+.slot-icon svg, .no-image { display: block; width: 100%; height: 100%; }
+/* 한 줄 폭 18칸 = "HP : "(5칸) + 게이지(13칸) */
+.slot-info { width: 18ch; line-height: var(--lh); }
+.slot-info > * { height: var(--lh); }
+.slot-name { display: flex; justify-content: space-between; gap: 1ch; width: 100%; padding: 0; border: 0; background: none; text-align: left; line-height: var(--lh); }
+.slot-name:hover .slot-char, .slot-name:focus-visible .slot-char { text-decoration: underline; }
+.slot-level { flex: none; text-align: left; }
+.slot-char { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
+.gauge-line { white-space: pre; }
+.gauge-white { color: #fff; }
+.gauge-yellow { color: #ffe600; }
+.gauge-red { color: #ff5555; }
+.gauge-gray { color: #888; }
+
+/* ---- 캐릭터 선택 목록 ---- */
+.character-list { list-style: none; padding: 0; }
+.character-list li { margin: .3rem 0; }
+.char-white { color: #fff; }
+.char-gray { color: #888; }
+.char-skyblue { color: #87ceeb; }
+.char-green { color: #4ade80; }
+
+/* 파티 슬롯 3열이 한 화면에 들어가도록 본문 폭을 넓힌다 */
+main { max-width: 60rem; }
+input.command { width: min(100%, 26rem); }
