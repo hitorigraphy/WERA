@@ -71,6 +71,21 @@ public class DungeonTests
     }
 
     [Fact]
+    public void None_is_always_met_and_may_leave_flag_and_value_empty()
+    {
+        var pack = Pack(TwoDungeons, Header + "1001\t1\t\tNone\t\n");
+        Assert.True(pack.Dungeons![0].IsAvailable(F()));
+        Assert.Equal(ConditionType.None, pack.Dungeons[0].Groups[0][0].Type);
+        Assert.Equal(0, (int)ConditionType.None);
+    }
+
+    [Fact]
+    public void None_in_one_group_makes_the_dungeon_available_regardless_of_other_groups()
+    {
+        var pack = Pack(TwoDungeons, Header + "1001\t1\tvip\tEqual\t1\n1001\t2\t\tNone\t\n");
+        Assert.True(pack.Dungeons![0].IsAvailable(F()));
+    }
+    [Fact]
     public void Missing_flag_counts_as_zero()
     {
         var pack = Pack(TwoDungeons, Header + "1001\t1\tf\tEqual\t0\n");

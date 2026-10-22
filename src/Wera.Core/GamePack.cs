@@ -106,15 +106,20 @@ public sealed class GamePack
                     throw new PackFormatException($"{file}: 알 수 없는 던전 코드 '{r[0]}'.");
                 if (!int.TryParse(r[1], out var groupNo))
                     throw new PackFormatException($"{file}: 던전 '{r[0]}'의 그룹넘버 '{r[1]}'가 정수가 아닙니다.");
-                if (r[2].Length == 0)
-                    throw new PackFormatException($"{file}: 던전 '{r[0]}'의 플래그 코드가 비어 있습니다.");
                 // 숫자("1")도 Enum.TryParse를 통과하므로 이름 목록으로 먼저 거른다.
                 if (!Enum.GetNames<ConditionType>().Contains(r[3], StringComparer.OrdinalIgnoreCase)
                     || !Enum.TryParse<ConditionType>(r[3], ignoreCase: true, out var type))
                     throw new PackFormatException(
                         $"{file}: 던전 '{r[0]}'의 컨디션 타입 '{r[3]}'을(를) 알 수 없습니다. ({string.Join(", ", Enum.GetNames<ConditionType>())})");
-                if (!int.TryParse(r[4], out var value))
-                    throw new PackFormatException($"{file}: 던전 '{r[0]}'의 컨디션 밸류 '{r[4]}'가 정수가 아닙니다.");
+                // None은 조건 없음이므로 플래그 코드와 밸류를 비워 둘 수 있다.
+                var value = 0;
+                if (type != ConditionType.None)
+                {
+                    if (r[2].Length == 0)
+                        throw new PackFormatException($"{file}: 던전 '{r[0]}'의 플래그 코드가 비어 있습니다.");
+                    if (!int.TryParse(r[4], out value))
+                        throw new PackFormatException($"{file}: 던전 '{r[0]}'의 컨디션 밸류 '{r[4]}'가 정수가 아닙니다.");
+                }
 
                 if (!byGroup.TryGetValue(groupNo, out var list)) byGroup[groupNo] = list = [];
                 list.Add(new FlagCondition(r[2], type, value));

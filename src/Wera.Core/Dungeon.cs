@@ -3,6 +3,8 @@ namespace Wera.Core;
 /// <summary>플래그 조건 비교 방식. TSV에는 이름(대소문자 무시)으로 적는다.</summary>
 public enum ConditionType
 {
+    /// <summary>조건 없음. 항상 만족한다.</summary>
+    None = 0,
     Equal,
     NotEqual,
     GreaterThan,
@@ -19,6 +21,7 @@ public sealed record FlagCondition(string FlagCode, ConditionType Type, int Valu
         var actual = flags.GetValueOrDefault(FlagCode);
         return Type switch
         {
+            ConditionType.None => true,
             ConditionType.Equal => actual == Value,
             ConditionType.NotEqual => actual != Value,
             ConditionType.GreaterThan => actual > Value,
