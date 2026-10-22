@@ -63,9 +63,11 @@ public class CoreTests
     {
         var pack = GamePack.Load(SamplePack());
         var s = GameSession.NewGame(pack);
+        s.EnterScene("a");
         s.Choose(0);
         var loaded = GameSession.FromSaveJson(pack, s.ToSaveJson());
         Assert.Equal("b", loaded.Current.Id);
+        Assert.Equal(Screen.Home, loaded.Screen);
     }
 
     [Fact]

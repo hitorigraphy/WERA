@@ -49,9 +49,18 @@ public sealed class GameSession
         Flags = flags;
     }
 
-    /// <summary>던전 마스터가 있는 게임팩은 홈 화면에서, 없으면 시작 장면에서 시작한다.</summary>
+    /// <summary>튜토리얼이 구현될 때까지 새 게임은 홈 화면으로 직행한다.</summary>
     public static GameSession NewGame(GamePack pack) =>
-        new(pack, pack.Scenes[pack.StartSceneId], pack.Dungeons is null ? Screen.Scene : Screen.Home, []);
+        new(pack, pack.Scenes[pack.StartSceneId], Screen.Home, []);
+
+    /// <summary>장면 화면으로 들어간다.</summary>
+    public void EnterScene(string sceneId)
+    {
+        Current = Pack.Scenes.TryGetValue(sceneId, out var scene)
+            ? scene
+            : throw new ArgumentException($"알 수 없는 장면: {sceneId}", nameof(sceneId));
+        Screen = Screen.Scene;
+    }
 
     /// <summary>입장 조건을 하나라도 만족하는 던전.</summary>
     public IReadOnlyList<Dungeon> AvailableDungeons =>
@@ -111,9 +120,7 @@ public sealed class GameSession
         if (save.PackId != pack.Id) throw new SaveFormatException($"다른 게임팩의 세이브입니다: {save.PackId}");
         if (!pack.Scenes.TryGetValue(save.SceneId ?? "", out var scene))
             throw new SaveFormatException($"세이브의 장면 '{save.SceneId}'를 게임팩에서 찾을 수 없습니다.");
-        if (save.Screen != Screen.Scene && pack.Dungeons is null)
-            throw new SaveFormatException("이 게임팩에는 던전 마스터가 없어 홈 화면 세이브를 쓸 수 없습니다.");
-
-        return new GameSession(pack, scene, save.Screen, save.Flags is null ? [] : new Dictionary<string, int>(save.Flags));
+        // 불러오기는 저장된 화면과 상관없이 항상 홈으로 들어간다.
+        return new GameSession(pack, scene, Screen.Home, save.Flags is null ? [] : new Dictionary<string, int>(save.Flags));
     }
 }

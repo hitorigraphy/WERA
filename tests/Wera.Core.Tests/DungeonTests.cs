@@ -152,15 +152,15 @@ public class DungeonTests
     }
 
     [Fact]
-    public void Without_master_new_game_starts_in_scene_screen()
+    public void New_game_goes_straight_to_home_even_without_master()
     {
         var s = GameSession.NewGame(Pack(null, null));
-        Assert.Equal(Screen.Scene, s.Screen);
+        Assert.Equal(Screen.Home, s.Screen);
         Assert.Empty(s.Entries);
     }
 
     [Fact]
-    public void Save_roundtrip_keeps_screen_and_flags()
+    public void Load_always_enters_home_and_keeps_flags()
     {
         var pack = Pack(TwoDungeons, TutorialFlags);
         var s = GameSession.NewGame(pack);
@@ -171,21 +171,21 @@ public class DungeonTests
         Assert.Contains("\"DungeonSelect\"", json);
 
         var loaded = GameSession.FromSaveJson(pack, json);
-        Assert.Equal(Screen.DungeonSelect, loaded.Screen);
+        Assert.Equal(Screen.Home, loaded.Screen);   // 저장 당시 화면과 무관하게 홈
         Assert.Equal(1, loaded.Flags["tutorial_clear"]);
     }
 
     [Fact]
-    public void Version1_save_still_loads()
+    public void Version1_save_still_loads_into_home()
     {
         var pack = Pack(null, null);
         var s = GameSession.FromSaveJson(pack, "{\"Version\":1,\"PackId\":\"demo\",\"SceneId\":\"a\"}");
-        Assert.Equal(Screen.Scene, s.Screen);
+        Assert.Equal(Screen.Home, s.Screen);
         Assert.Empty(s.Flags);
     }
 
     [Fact]
-    public void Home_save_is_rejected_for_pack_without_master()
-        => Assert.Throws<SaveFormatException>(() => GameSession.FromSaveJson(Pack(null, null),
-            "{\"Version\":2,\"PackId\":\"demo\",\"SceneId\":\"a\",\"Screen\":\"Home\"}"));
+    public void Scene_screen_save_loads_into_home()
+        => Assert.Equal(Screen.Home, GameSession.FromSaveJson(Pack(null, null),
+            "{\"Version\":2,\"PackId\":\"demo\",\"SceneId\":\"a\",\"Screen\":\"Scene\"}").Screen);
 }
