@@ -16,4 +16,9 @@
     <ProjectReference Include="..\Wera.Core\Wera.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- 기본 게임팩은 samples/ 한 곳에서만 관리하고 배포 시 사이트 루트에 포함한다 -->
+    <Content Include="../../samples/sample-pack.zip" Link="wwwroot/sample-pack.zip" />
+  </ItemGroup>
+
 </Project>
