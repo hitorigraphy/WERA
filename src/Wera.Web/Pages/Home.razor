@@ -56,6 +56,16 @@
                 @commands
                 break;
 
+            case Screen.Load:
+                <h2>로드</h2>
+                <div class="drop" @ondragenter="() => dragging = true" @ondragleave="() => dragging = false" @ondrop="() => dragging = false"
+                     data-dragging="@dragging">
+                    <p>세이브(.sav)를 여기에 끌어다 놓으세요</p>
+                    <InputFile OnChange="OnSaveSelected" accept=".sav,.json" />
+                </div>
+                @commands
+                break;
+
             default:
                 <p class="scene">@session.Current.Text</p>
                 <ul class="choices">
@@ -134,17 +144,19 @@
 
     void Choose(int index) => session!.Choose(index);
 
-    void Activate(string code)
+    async Task Activate(string code)
     {
         error = null;
-        if (!session!.Activate(code)) error = $"알 수 없는 입력: {code}";
+        var entry = session!.Activate(code);
+        if (entry is null) error = $"알 수 없는 입력: {code}";
+        else if (entry.Action == EntryAction.Save) await SaveGame();
         command = "";
         focusCommand = true;
     }
 
-    void OnCommandKey(KeyboardEventArgs e)
+    async Task OnCommandKey(KeyboardEventArgs e)
     {
-        if (e.Key == "Enter") Activate(command);
+        if (e.Key == "Enter") await Activate(command);
     }
 
     async Task SaveGame() =>

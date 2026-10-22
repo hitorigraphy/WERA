@@ -123,12 +123,12 @@ public class DungeonTests
         var s = GameSession.NewGame(pack);
 
         Assert.Equal(Screen.Home, s.Screen);
-        Assert.Empty(s.Entries);
-        Assert.False(s.Activate("101"));
+        Assert.DoesNotContain(s.Entries, e => e.Code == "101");
+        Assert.Null(s.Activate("101"));
         Assert.Equal(Screen.Home, s.Screen);
 
         s.Flags["tutorial_clear"] = 1;
-        Assert.Equal([new ScreenEntry("101", "던전", Screen.DungeonSelect)], s.Entries);
+        Assert.Contains(new ScreenEntry("101", "던전", Screen.DungeonSelect), s.Entries);
     }
 
     [Fact]
@@ -136,7 +136,7 @@ public class DungeonTests
     {
         // 1001은 튜토리얼 필요, 1002는 조건 없음 → 처음부터 버튼이 보인다.
         var s = GameSession.NewGame(Pack(TwoDungeons, TutorialFlags));
-        Assert.Single(s.Entries);
+        Assert.Contains(s.Entries, e => e.Code == "101");
         Assert.Equal(["1002"], s.AvailableDungeons.Select(d => d.Code));
     }
 
@@ -144,10 +144,10 @@ public class DungeonTests
     public void Activating_101_opens_dungeon_select_and_999_goes_back()
     {
         var s = GameSession.NewGame(Pack(TwoDungeons, null));
-        Assert.True(s.Activate(" 101 "));
+        Assert.NotNull(s.Activate(" 101 "));
         Assert.Equal(Screen.DungeonSelect, s.Screen);
-        Assert.False(s.Activate("101"));   // 던전 선택 화면에는 101 항목이 없다
-        Assert.True(s.Activate("999"));
+        Assert.Null(s.Activate("101"));   // 던전 선택 화면에는 101 항목이 없다
+        Assert.NotNull(s.Activate("999"));
         Assert.Equal(Screen.Home, s.Screen);
     }
 
@@ -156,7 +156,38 @@ public class DungeonTests
     {
         var s = GameSession.NewGame(Pack(null, null));
         Assert.Equal(Screen.Home, s.Screen);
-        Assert.Empty(s.Entries);
+        Assert.DoesNotContain(s.Entries, e => e.Code == "101");
+    }
+
+    [Fact]
+    public void Home_always_has_save_200_and_load_300_in_order()
+    {
+        // 던전이 없어도 세이브/로드는 항상 있고, 던전이 있으면 101이 맨 앞.
+        Assert.Equal(["200", "300"], GameSession.NewGame(Pack(null, null)).Entries.Select(e => e.Code));
+        var s = GameSession.NewGame(Pack(TwoDungeons, null));
+        Assert.Equal(["101", "200", "300"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["세이브", "로드"], s.Entries.Skip(1).Select(e => e.Label));
+    }
+
+    [Fact]
+    public void Save_200_does_not_change_screen_and_reports_save_action()
+    {
+        var s = GameSession.NewGame(Pack(TwoDungeons, null));
+        var entry = s.Activate("200");
+        Assert.Equal(EntryAction.Save, entry!.Action);
+        Assert.Equal(Screen.Home, s.Screen);
+    }
+
+    [Fact]
+    public void Load_300_opens_load_screen_and_999_goes_back()
+    {
+        var s = GameSession.NewGame(Pack(null, null));
+        Assert.NotNull(s.Activate("300"));
+        Assert.Equal(Screen.Load, s.Screen);
+        Assert.Equal(["999"], s.Entries.Select(e => e.Code));
+        Assert.Null(s.Activate("200"));   // 로드 화면에는 세이브 항목이 없다
+        Assert.NotNull(s.Activate("999"));
+        Assert.Equal(Screen.Home, s.Screen);
     }
 
     [Fact]

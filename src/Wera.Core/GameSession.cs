@@ -10,10 +10,19 @@ public enum Screen
     Scene,
     Home,
     DungeonSelect,
+    Load,
 }
 
-/// <summary>화면에 나오는 클릭 가능한 텍스트. 클릭하거나 Code를 입력하면 Target 화면으로 이동한다.</summary>
-public sealed record ScreenEntry(string Code, string Label, Screen Target);
+public enum EntryAction
+{
+    /// <summary>Target 화면으로 이동한다.</summary>
+    Navigate,
+    /// <summary>현재 상태를 세이브 파일로 내보낸다. 파일 저장은 UI가 맡고 화면은 바뀌지 않는다.</summary>
+    Save,
+}
+
+/// <summary>화면에 나오는 클릭 가능한 텍스트. 클릭하거나 Code를 입력하면 Action을 수행한다.</summary>
+public sealed record ScreenEntry(string Code, string Label, Screen Target, EntryAction Action = EntryAction.Navigate);
 
 /// <param name="Version">1: 장면만 저장. 2: 화면과 플래그 추가.</param>
 public sealed record SaveData(
@@ -34,6 +43,8 @@ public sealed class GameSession
     public const int SaveVersion = 2;
 
     public const string DungeonEntryCode = "101";
+    public const string SaveEntryCode = "200";
+    public const string LoadEntryCode = "300";
     public const string BackEntryCode = "999";
 
     public GamePack Pack { get; }
@@ -77,8 +88,11 @@ public sealed class GameSession
                     var list = new List<ScreenEntry>();
                     if (AvailableDungeons.Count > 0)
                         list.Add(new ScreenEntry(DungeonEntryCode, "던전", Screen.DungeonSelect));
+                    list.Add(new ScreenEntry(SaveEntryCode, "세이브", Screen.Home, EntryAction.Save));
+                    list.Add(new ScreenEntry(LoadEntryCode, "로드", Screen.Load));
                     return list;
                 case Screen.DungeonSelect:
+                case Screen.Load:
                     return [new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home)];
                 default:
                     return [];
@@ -86,14 +100,16 @@ public sealed class GameSession
         }
     }
 
-    /// <summary>코드(공백 무시)에 해당하는 항목으로 이동한다. 없으면 false.</summary>
-    public bool Activate(string code)
+    /// <summary>
+    /// 코드(공백 무시)에 해당하는 항목을 수행하고 그 항목을 돌려준다. 없으면 null.
+    /// 이동 항목은 화면을 바꾸고, 세이브 항목은 호출한 쪽(UI)이 파일로 내보낸다.
+    /// </summary>
+    public ScreenEntry? Activate(string code)
     {
         code = code.Trim();
         var entry = Entries.FirstOrDefault(e => e.Code == code);
-        if (entry is null) return false;
-        Screen = entry.Target;
-        return true;
+        if (entry is { Action: EntryAction.Navigate }) Screen = entry.Target;
+        return entry;
     }
 
     public void Choose(int index)
