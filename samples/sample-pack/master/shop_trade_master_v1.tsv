@@ -1,0 +1,4 @@
+code	shop_code	cost_item_code	cost_amount	receive_item_code	receive_amount
+5001	2001	1	100	2	5
+5002	2001	2	10	1	30
+5003	2002	3	3	9001	1

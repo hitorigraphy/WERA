@@ -19,6 +19,18 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
 | `master/shop_master_v1.tsv` | (선택) `code`, `name` |
 | `master/shop_condition_master_v1.tsv` | (선택) `shop_code`, `group_no`, `flag_code`, `condition_type`, `condition_value` |
 
+| `master/common_item_master_v1.tsv` | (선택) `item_code`, `item_name` |
+| `master/bunch_item_master_v1.tsv` | (선택) `item_code`, `item_name`, `part_item_code`, `part_amount` |
+| `master/shop_trade_master_v1.tsv` | (선택) `code`, `shop_code`, `cost_item_code`, `cost_amount`, `receive_item_code`, `receive_amount` |
+| `master/shop_trade_condition_master_v1.tsv` | (선택) `trade_code`, `group_no`, `flag_code`, `condition_type`, `condition_value` |
+
+### 아이템과 상점 교환
+- **일반 아이템**(`common_item_master`)은 아이템 코드와 이름입니다.
+- **번치 아이템**(`bunch_item_master`)은 여러 일반 아이템을 묶은 것으로, 같은 `item_code`의 행들이 하나의 번치가 됩니다(행마다 `item_name`은 같아야 함). `part_item_code`는 일반 아이템만 가리킬 수 있고, `part_amount`는 1 이상입니다.
+- 아이템 코드는 일반 아이템과 번치 아이템에서 겹치면 안 됩니다.
+- **교환**(`shop_trade_master`)은 상점 `shop_code`에서 `cost_item_code`를 `cost_amount`개 내고 `receive_item_code`를 `receive_amount`개 받는 것입니다. 아이템 코드는 일반/번치 어느 쪽이든 가능하고, 어마운트는 1 이상입니다. 상점과 아이템 코드는 해당 마스터에 있어야 합니다.
+- **교환 조건표**(`shop_trade_condition_master`)는 던전/상점 조건표와 같은 규칙(그룹 AND/OR, `None`)이고, 조건이 없으면 항상 가능합니다.
+
 ### 던전 마스터
 `master/dungeon_master_v1.tsv`가 있으면 던전 마스터로 읽습니다. 새 게임과 불러오기는 (튜토리얼이 구현될 때까지) 항상 홈 화면으로 들어갑니다. 세이브에 저장된 화면은 무시합니다.
 
