@@ -17,6 +17,8 @@ public sealed class PackFormatException(string message) : Exception(message);
 ///   master/bunch_inventory_master_v1.tsv     (선택) item_code, item_name, part_item_code, part_amount
 ///   master/character_inventory_master_v1.tsv (선택) character_code, character_name, carry_limit, advantage_attribute_code, disadvantage_attribute_code
 ///   master/attribute_master_v1.tsv        (선택) attribute_code, attribute_name  (캐릭터 마스터가 있으면 필수)
+///   master/status_effect_master_v1.tsv    (선택) status_effect_code, status_effect_name
+///   master/status_effect_effect_master_v1.tsv (선택, 상태이상 마스터 필요) status_effect_code, trigger_type, priority, effect_code, effect_value_1, effect_value_2, effect_value_3
 ///   master/shop_trade_master_v1.tsv       (선택) code, shop_code, cost_item_code, cost_amount, receive_item_code, receive_amount
 ///   master/shop_trade_condition_master_v1.tsv (선택) trade_code, group_no, flag_code, condition_type, condition_value
 /// </summary>
@@ -29,6 +31,8 @@ public sealed class GamePack
     public const string ItemInventoryMasterPath = "master/item_inventory_master_v1.tsv";
     public const string CharacterInventoryMasterPath = "master/character_inventory_master_v1.tsv";
     public const string AttributeMasterPath = "master/attribute_master_v1.tsv";
+    public const string StatusEffectMasterPath = "master/status_effect_master_v1.tsv";
+    public const string StatusEffectEffectMasterPath = "master/status_effect_effect_master_v1.tsv";
     public const string BunchInventoryMasterPath = "master/bunch_inventory_master_v1.tsv";
     public const string ShopTradeMasterPath = "master/shop_trade_master_v1.tsv";
     public const string ShopTradeConditionMasterPath = "master/shop_trade_condition_master_v1.tsv";
@@ -54,6 +58,15 @@ public sealed class GamePack
     /// <summary>속성 마스터가 없으면 null.</summary>
     public IReadOnlyList<AttributeEntry>? Attributes { get; init; }
 
+    /// <summary>상태이상 마스터가 없으면 null.</summary>
+    public IReadOnlyList<StatusEffectEntry>? StatusEffects { get; init; }
+
+    /// <summary>상태이상 이펙트 마스터가 없으면 null. 게임팩에 적힌 순서 그대로다.</summary>
+    public IReadOnlyList<StatusEffectEffect>? StatusEffectEffects { get; init; }
+
+    /// <summary>이 게임팩을 읽을 때 쓴 임베디드 이펙트 마스터(구동기에 하드코딩된 이펙트들).</summary>
+    public EmbeddedEffectMaster EmbeddedEffects { get; init; } = EmbeddedEffectMaster.Default;
+
     /// <summary>상점 교환 마스터가 없으면 null.</summary>
     public IReadOnlyList<ShopTrade>? Trades { get; init; }
 
@@ -77,8 +90,10 @@ public sealed class GamePack
             : bunch.Parts.ToDictionary(p => p.ItemCode, p => checked(p.Amount * amount));
     }
 
-    public static GamePack Load(Stream zipStream)
+    /// <param name="embeddedEffects">상태이상 이펙트가 가리킬 수 있는 임베디드 이펙트들. 생략하면 구동기의 기본 마스터.</param>
+    public static GamePack Load(Stream zipStream, EmbeddedEffectMaster? embeddedEffects = null)
     {
+        embeddedEffects ??= EmbeddedEffectMaster.Default;
         using var zip = new ZipArchive(zipStream, ZipArchiveMode.Read, leaveOpen: true);
 
         var meta = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -101,6 +116,8 @@ public sealed class GamePack
         CheckItemCodesAreUnique(itemInventory, bunchInventory);
         var trades = LoadTrades(zip);
         CheckTrades(trades, shops, itemInventory, bunchInventory);
+        var statusEffects = LoadStatusEffects(zip);
+        var statusEffectEffects = LoadStatusEffectEffects(zip, statusEffects, embeddedEffects);
 
         return new GamePack
         {
@@ -113,6 +130,9 @@ public sealed class GamePack
             CharacterInventory = characterInventory,
             Attributes = attributes,
             Trades = trades,
+            StatusEffects = statusEffects,
+            StatusEffectEffects = statusEffectEffects,
+            EmbeddedEffects = embeddedEffects,
         };
     }
 
@@ -213,6 +233,71 @@ public sealed class GamePack
         }
         return attributes;
     }
+
+    static List<StatusEffectEntry>? LoadStatusEffects(ZipArchive zip)
+    {
+        const string file = StatusEffectMasterPath;
+        var text = TryReadEntry(zip, file);
+        if (text is null) return null;
+
+        var statusEffects = new List<StatusEffectEntry>();
+        var seen = new HashSet<long>();
+        foreach (var r in Body(file, text, "status_effect_code", "status_effect_name"))
+        {
+            var code = ParseLong(file, "상태이상 코드", r[0]);
+            if (!seen.Add(code))
+                throw new PackFormatException($"{file}: 상태이상 코드 '{code}'가 중복됩니다.");
+            statusEffects.Add(new StatusEffectEntry(code, r[1]));
+        }
+        return statusEffects;
+    }
+
+    /// <summary>
+    /// 상태이상 이펙트 마스터: 상태이상 코드는 상태이상 마스터에, 이펙트 코드는 임베디드 이펙트 마스터에 있어야 한다.
+    /// 이펙트 밸류 1~3은 비워 두면 0이다.
+    /// </summary>
+    static List<StatusEffectEffect>? LoadStatusEffectEffects(
+        ZipArchive zip, List<StatusEffectEntry>? statusEffects, EmbeddedEffectMaster embeddedEffects)
+    {
+        const string file = StatusEffectEffectMasterPath;
+        var text = TryReadEntry(zip, file);
+        if (text is null) return null;
+        if (statusEffects is null)
+            throw new PackFormatException($"{file}가 있으려면 {StatusEffectMasterPath}도 필요합니다.");
+
+        var statusCodes = statusEffects.Select(s => s.Code).ToHashSet();
+        var rows = new List<StatusEffectEffect>();
+        foreach (var r in Body(file, text, "status_effect_code", "trigger_type", "priority", "effect_code",
+                     "effect_value_1", "effect_value_2", "effect_value_3"))
+        {
+            var statusCode = ParseLong(file, "상태이상 코드", r[0]);
+            if (!statusCodes.Contains(statusCode))
+                throw new PackFormatException($"{file}: 알 수 없는 상태이상 코드 '{statusCode}'.");
+            var who = $"상태이상 '{statusCode}'의";
+
+            // 숫자("0")도 Enum.TryParse를 통과하므로 이름 목록으로 먼저 거른다.
+            if (!Enum.GetNames<TriggerType>().Contains(r[1], StringComparer.OrdinalIgnoreCase)
+                || !Enum.TryParse<TriggerType>(r[1], ignoreCase: true, out var trigger))
+                throw new PackFormatException(
+                    $"{file}: {who} 트리거 타입 '{r[1]}'을(를) 알 수 없습니다. ({string.Join(", ", Enum.GetNames<TriggerType>())})");
+
+            var priority = ParseLong(file, $"{who} 우선도", r[2]);
+            var effectCode = ParseLong(file, $"{who} 이펙트 코드", r[3]);
+            if (!embeddedEffects.Contains(effectCode))
+                throw new PackFormatException($"{file}: {who} 이펙트 코드 '{effectCode}'가 임베디드 이펙트 마스터에 없습니다.");
+
+            rows.Add(new StatusEffectEffect(
+                statusCode, trigger, priority, effectCode,
+                OptionalLong(file, $"{who} 이펙트 밸류 1", r[4]),
+                OptionalLong(file, $"{who} 이펙트 밸류 2", r[5]),
+                OptionalLong(file, $"{who} 이펙트 밸류 3", r[6])));
+        }
+        return rows;
+    }
+
+    /// <summary>비어 있으면 0, 아니면 정수(long).</summary>
+    static long OptionalLong(string file, string what, string value) =>
+        value.Length == 0 ? 0 : ParseLong(file, what, value);
 
     static List<ItemEntry>? LoadItemInventory(ZipArchive zip) =>
         LoadLimitedInventory(zip, ItemInventoryMasterPath, "아이템", ["item_code", "item_name", "carry_limit"],

@@ -232,6 +232,22 @@ public sealed class GameSession
         }
     }
 
+    /// <summary>
+    /// 임베디드 이펙트를 보유 캐릭터에게 실행한다. 이펙트가 바꾼 상태는 세이브가 받아들이는 범위로 보정해 저장한다.
+    /// 이펙트 코드나 캐릭터를 찾을 수 없으면(보유하지 않았거나 마스터에 없음) 아무것도 하지 않고 false.
+    /// </summary>
+    public bool ApplyEffect(long effectCode, long targetCharacterCode, long value1 = 0, long value2 = 0, long value3 = 0)
+    {
+        var effect = Pack.EmbeddedEffects.Find(effectCode);
+        var entry = Pack.CharacterInventory?.FirstOrDefault(c => c.Code == targetCharacterCode);
+        if (effect is null || entry is null || !Characters.TryGetValue(targetCharacterCode, out var state)) return false;
+
+        var target = new Character(entry, state);
+        effect.Execute(target, value1, value2, value3);
+        Characters[targetCharacterCode] = target.State.Clamped();
+        return true;
+    }
+
     /// <summary>직전 Activate의 결과 안내(교환 성공/실패 등). 없으면 null. Activate마다 지워진다.</summary>
     public string? Message { get; private set; }
 

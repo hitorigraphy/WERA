@@ -1,0 +1,282 @@
+using Wera.Core;
+
+namespace Wera.Core.Tests;
+
+public class EffectTests
+{
+    // ---- 테스트용 임베디드 이펙트 (구동기의 하드코딩 이펙트와 같은 방식으로 클래스를 상속해 만든다) ----
+
+    /// <summary>1: HP를 value1만큼 늘린다(음수면 줄인다).</summary>
+    sealed class HealEffect : EmbeddedEffect
+    {
+        public override long EffectCode => 1;
+        public override void Execute(Character target, long value1, long value2, long value3)
+            => target.State = target.State with { Hp = target.State.Hp + value1 };
+    }
+
+    /// <summary>2: XP를 value1, 레벨을 value2, 최대 HP를 value3만큼 늘린다.</summary>
+    sealed class GrowEffect : EmbeddedEffect
+    {
+        public override long EffectCode => 2;
+        public override void Execute(Character target, long value1, long value2, long value3)
+            => target.State = target.State with
+            {
+                Xp = target.State.Xp + value1,
+                Level = target.State.Level + value2,
+                MaxHp = target.State.MaxHp + value3,
+            };
+    }
+
+    /// <summary>3: 받은 인자를 그대로 기록한다.</summary>
+    sealed class RecordingEffect : EmbeddedEffect
+    {
+        public List<(long Code, string Name, long V1, long V2, long V3)> Calls { get; } = [];
+        public override long EffectCode => 3;
+        public override void Execute(Character target, long value1, long value2, long value3)
+            => Calls.Add((target.Code, target.Name, value1, value2, value3));
+    }
+
+    static EmbeddedEffectMaster Master(RecordingEffect? recorder = null)
+        => new([new HealEffect(), new GrowEffect(), recorder ?? new RecordingEffect()]);
+
+    // ---- 임베디드 이펙트 마스터 ----
+
+    [Fact]
+    public void Embedded_effect_is_abstract_with_effect_code_and_execute()
+    {
+        Assert.True(typeof(EmbeddedEffect).IsAbstract);
+        Assert.NotNull(typeof(EmbeddedEffect).GetProperty(nameof(EmbeddedEffect.EffectCode)));
+        var execute = typeof(EmbeddedEffect).GetMethod(nameof(EmbeddedEffect.Execute))!;
+        Assert.True(execute.IsAbstract);
+        Assert.Equal([typeof(Character), typeof(long), typeof(long), typeof(long)], execute.GetParameters().Select(p => p.ParameterType));
+    }
+
+    [Fact]
+    public void Master_finds_effects_by_code()
+    {
+        var master = Master();
+        Assert.True(master.Contains(1));
+        Assert.IsType<GrowEffect>(master.Find(2));
+        Assert.False(master.Contains(99));
+        Assert.Null(master.Find(99));
+        Assert.Equal(3, master.All.Count);
+    }
+
+    [Fact]
+    public void Master_rejects_duplicate_effect_codes()
+        => Assert.Throws<ArgumentException>(() => new EmbeddedEffectMaster([new HealEffect(), new HealEffect()]));
+
+    [Fact]
+    public void Default_master_is_hardcoded_in_the_engine_and_has_unique_codes()
+    {
+        var codes = EmbeddedEffectMaster.Default.All.Select(e => e.EffectCode).ToList();
+        Assert.Equal(codes.Count, codes.Distinct().Count());
+        Assert.Same(EmbeddedEffectMaster.Default, EmbeddedEffectMaster.Default);
+    }
+
+    [Fact]
+    public void Execute_receives_the_target_character_and_the_three_values()
+    {
+        var recorder = new RecordingEffect();
+        var target = new Character(new CharacterEntry(7001, "용사", 1, 4, 5), new CharacterState(5, 36, 40, 3, 30));
+
+        Master(recorder).Find(3)!.Execute(target, 10, -20, long.MaxValue);
+
+        Assert.Equal([(7001L, "용사", 10L, -20L, long.MaxValue)], recorder.Calls);
+        Assert.Equal(7001, target.Code);
+        Assert.Equal("용사", target.Name);
+    }
+
+    [Fact]
+    public void Execute_can_change_the_target_state()
+    {
+        var target = new Character(new CharacterEntry(7001, "용사", 1, 4, 5), new CharacterState(5, 30, 40, 3, 30));
+        Master().Find(1)!.Execute(target, 8, 0, 0);
+        Assert.Equal(38, target.State.Hp);
+    }
+
+    // ---- 게임팩: 상태이상 마스터, 상태이상 이펙트 마스터 ----
+
+    const string StatusHeader = "status_effect_code\tstatus_effect_name\n";
+    const string EffectHeader =
+        "status_effect_code\ttrigger_type\tpriority\teffect_code\teffect_value_1\teffect_value_2\teffect_value_3\n";
+    const string Statuses = StatusHeader + "1\t독\n2\t화상\n3\t재생\n";
+
+    static GamePack Pack(
+        string? statuses = Statuses, string? effects = null, EmbeddedEffectMaster? embedded = null,
+        bool withCharacters = false)
+    {
+        var files = new List<(string, string)> { ("pack.tsv", "id\tdemo\ntitle\t데모\n") };
+        if (statuses is not null) files.Add(("master/status_effect_master_v1.tsv", statuses));
+        if (effects is not null) files.Add(("master/status_effect_effect_master_v1.tsv", effects));
+        if (withCharacters)
+        {
+            files.Add(("master/attribute_master_v1.tsv", "attribute_code\tattribute_name\n1\t불\n2\t물\n"));
+            files.Add(("master/character_inventory_master_v1.tsv",
+                "character_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n" +
+                "7001\t용사\t1\t1\t2\n7002\t마법사\t1\t2\t1\n"));
+        }
+        return GamePack.Load(CoreTests.Zip(files.ToArray()), embedded);
+    }
+
+    [Fact]
+    public void Status_effect_masters_are_optional()
+    {
+        var pack = Pack(null);
+        Assert.Null(pack.StatusEffects);
+        Assert.Null(pack.StatusEffectEffects);
+    }
+
+    [Fact]
+    public void Status_effect_master_loads_code_and_name_in_order()
+        => Assert.Equal(
+            [new StatusEffectEntry(1, "독"), new StatusEffectEntry(2, "화상"), new StatusEffectEntry(3, "재생")],
+            Pack().StatusEffects);
+
+    [Theory]
+    [InlineData("1\ta\n1\tb\n")]       // 중복 코드
+    [InlineData("\ta\n")]               // 빈 코드
+    [InlineData("abc\ta\n")]            // 정수 아님
+    public void Bad_status_effect_rows_are_rejected(string rows)
+        => Assert.Throws<PackFormatException>(() => Pack(StatusHeader + rows));
+
+    [Theory]
+    [InlineData("code\tname\n1\ta\n")]
+    [InlineData("status_effect_code\n1\n")]
+    public void Status_effect_master_header_is_checked(string tsv)
+        => Assert.Throws<PackFormatException>(() => Pack(tsv));
+
+    [Fact]
+    public void Status_effect_effects_load_all_columns_in_file_order()
+    {
+        var pack = Pack(effects: EffectHeader +
+            "1\tNone\t10\t1\t5\t6\t7\n" +
+            "1\tnone\t-3\t2\t\t\t\n" +                    // 트리거는 대소문자 무시, 밸류 비우면 0, 우선도 음수 허용
+            "2\tNone\t5000000000\t3\t9000000000000\t-1\t0\n", embedded: Master());
+
+        Assert.Equal(
+            [
+                new StatusEffectEffect(1, TriggerType.None, 10, 1, 5, 6, 7),
+                new StatusEffectEffect(1, TriggerType.None, -3, 2, 0, 0, 0),
+                new StatusEffectEffect(2, TriggerType.None, 5000000000, 3, 9000000000000, -1, 0),
+            ],
+            pack.StatusEffectEffects);
+    }
+
+    [Fact]
+    public void Effect_codes_are_checked_against_the_embedded_effect_master_given_to_load()
+    {
+        var master = Master();
+        var pack = Pack(effects: EffectHeader + "1\tNone\t1\t1\t5\t0\t0\n", embedded: master);
+        Assert.Same(master, pack.EmbeddedEffects);
+
+        // 기본(하드코딩) 마스터에는 코드 1이 없으므로 같은 게임팩이 거부된다.
+        Assert.Throws<PackFormatException>(() => Pack(effects: EffectHeader + "1\tNone\t1\t99\t0\t0\t0\n", embedded: master));
+        Assert.Same(EmbeddedEffectMaster.Default, Pack().EmbeddedEffects);
+    }
+
+    [Fact]
+    public void Status_effect_effects_need_the_status_effect_master()
+        => Assert.Throws<PackFormatException>(() =>
+            Pack(statuses: null, effects: EffectHeader + "1\tNone\t1\t1\t0\t0\t0\n", embedded: Master()));
+
+    [Theory]
+    [InlineData("9\tNone\t1\t1\t0\t0\t0\n")]       // 상태이상 마스터에 없는 코드
+    [InlineData("abc\tNone\t1\t1\t0\t0\t0\n")]     // 상태이상 코드가 정수 아님
+    [InlineData("1\tBogus\t1\t1\t0\t0\t0\n")]      // 모르는 트리거 타입
+    [InlineData("1\t0\t1\t1\t0\t0\t0\n")]          // 트리거 타입에 숫자는 불가
+    [InlineData("1\t\t1\t1\t0\t0\t0\n")]           // 트리거 타입 비어 있음
+    [InlineData("1\tNone\t\t1\t0\t0\t0\n")]        // 우선도 비어 있음
+    [InlineData("1\tNone\tx\t1\t0\t0\t0\n")]       // 우선도가 정수 아님
+    [InlineData("1\tNone\t1.5\t1\t0\t0\t0\n")]     // 우선도가 소수
+    [InlineData("1\tNone\t1\t\t0\t0\t0\n")]        // 이펙트 코드 비어 있음
+    [InlineData("1\tNone\t1\tx\t0\t0\t0\n")]       // 이펙트 코드가 정수 아님
+    [InlineData("1\tNone\t1\t99\t0\t0\t0\n")]      // 임베디드 이펙트 마스터에 없는 코드
+    [InlineData("1\tNone\t1\t1\tx\t0\t0\n")]       // 밸류 1이 정수 아님
+    [InlineData("1\tNone\t1\t1\t0\ty\t0\n")]       // 밸류 2가 정수 아님
+    [InlineData("1\tNone\t1\t1\t0\t0\t1.5\n")]     // 밸류 3이 정수 아님
+    public void Bad_status_effect_effect_rows_are_rejected(string row)
+        => Assert.Throws<PackFormatException>(() => Pack(effects: EffectHeader + row, embedded: Master()));
+
+    [Theory]
+    [InlineData("status_effect_code\ttrigger_type\tpriority\teffect_code\n1\tNone\t1\t1\n")]
+    [InlineData("code\ttrigger\tpriority\teffect_code\teffect_value_1\teffect_value_2\teffect_value_3\n1\tNone\t1\t1\t0\t0\t0\n")]
+    public void Status_effect_effect_header_is_checked(string tsv)
+        => Assert.Throws<PackFormatException>(() => Pack(effects: tsv, embedded: Master()));
+
+    [Fact]
+    public void Trigger_type_has_none_as_zero_and_nothing_else_yet()
+    {
+        Assert.Equal(0, (int)TriggerType.None);
+        Assert.Equal(["None"], Enum.GetNames<TriggerType>());
+    }
+
+    // ---- 세션: 보유 캐릭터에게 이펙트 실행 ----
+
+    static GameSession Session(RecordingEffect? recorder = null)
+    {
+        var pack = Pack(withCharacters: true, embedded: Master(recorder));
+        var s = GameSession.NewGame(pack);
+        s.Characters[7001] = new CharacterState(5, 30, 40, 3, 30);
+        return s;
+    }
+
+    [Fact]
+    public void Applying_an_effect_changes_the_owned_character()
+    {
+        var s = Session();
+        Assert.True(s.ApplyEffect(1, 7001, 6));
+        Assert.Equal(36, s.Characters[7001].Hp);
+    }
+
+    [Fact]
+    public void Applied_state_is_clamped_to_what_a_save_accepts()
+    {
+        var s = Session();
+        s.ApplyEffect(1, 7001, 1000);                          // 회복이 최대 HP를 넘으면 최대 HP까지
+        Assert.Equal(40, s.Characters[7001].Hp);
+
+        s.ApplyEffect(1, 7001, -1000);                         // 음수 HP는 0(사망)
+        Assert.Equal(0, s.Characters[7001].Hp);
+        Assert.True(s.Characters[7001].IsDead);
+
+        s.ApplyEffect(2, 7001, 100, -100, -100);               // XP 넘침, 레벨 1 미만, 최대 HP 0 미만
+        var c = s.Characters[7001];
+        Assert.Equal(30, c.Xp);                                // 필요 XP 30까지
+        Assert.Equal(1, c.Level);
+        Assert.Equal(0, c.MaxHp);
+    }
+
+    [Fact]
+    public void Values_reach_the_effect_unchanged()
+    {
+        var recorder = new RecordingEffect();
+        var s = Session(recorder);
+        s.ApplyEffect(3, 7001, 1, 2, 3);
+        Assert.Equal([(7001L, "용사", 1L, 2L, 3L)], recorder.Calls);
+    }
+
+    [Fact]
+    public void Unknown_effect_or_unowned_or_unknown_character_does_nothing()
+    {
+        var recorder = new RecordingEffect();
+        var s = Session(recorder);
+        Assert.False(s.ApplyEffect(99, 7001, 5));              // 없는 이펙트
+        Assert.False(s.ApplyEffect(1, 7002, 5));               // 마스터에 있지만 보유하지 않음
+        Assert.False(s.ApplyEffect(1, 9999, 5));               // 마스터에 없는 캐릭터
+        Assert.False(s.ApplyEffect(3, 7002, 5));
+        Assert.Empty(recorder.Calls);
+        Assert.Equal(30, s.Characters[7001].Hp);
+    }
+
+    [Fact]
+    public void State_after_an_effect_still_saves_and_loads()
+    {
+        var s = Session();
+        s.ApplyEffect(1, 7001, 500);
+        s.ApplyEffect(2, 7001, 500, 3, 10);
+
+        var loaded = GameSession.FromSaveJson(s.Pack, s.ToSaveJson());
+        Assert.Equal(s.Characters[7001], loaded.Characters[7001]);
+    }
+}

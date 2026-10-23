@@ -4,6 +4,14 @@ namespace Wera.Core;
 public readonly record struct CharacterState(long Level, long Hp, long MaxHp, long Xp, long XpMax)
 {
     public bool IsDead => Hp <= 0;
+
+    /// <summary>세이브가 받아들이는 범위로 맞춘다: 레벨 1 이상, HP 0~최대 HP, XP 0~필요 XP.</summary>
+    public CharacterState Clamped()
+    {
+        var maxHp = Math.Max(0, MaxHp);
+        var xpMax = Math.Max(0, XpMax);
+        return new CharacterState(Math.Max(1, Level), Math.Clamp(Hp, 0, maxHp), maxHp, Math.Clamp(Xp, 0, xpMax), xpMax);
+    }
 }
 
 public enum GaugeColor
