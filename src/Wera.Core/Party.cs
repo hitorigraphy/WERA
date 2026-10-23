@@ -79,6 +79,11 @@ public sealed record PartySlotView(
     IReadOnlyList<AttributeBadge> Badges, IReadOnlyList<StatusBadge> StatusBadges)
 {
     public const string EmptyName = "빈 슬롯";
+
+    /// <summary>줄 이름: 위 줄(슬롯 0~2) 전위, 가운데 줄(3~5) 중위, 아래 줄(6~8) 후위.</summary>
+    public static IReadOnlyList<string> RowNames { get; } = ["전위", "중위", "후위"];
+
+    public string RowName => RowNames[Slot / 3];
     public bool IsEmpty => CharacterCode is null;
 }
 

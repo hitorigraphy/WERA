@@ -133,6 +133,25 @@ public class PartyTests
     }
 
     [Fact]
+    public void Rows_are_front_middle_and_back_from_top_to_bottom()
+    {
+        Assert.Equal(["전위", "중위", "후위"], PartySlotView.RowNames);
+
+        var views = Session().PartySlotViews;
+        Assert.Equal(["전위", "전위", "전위", "중위", "중위", "중위", "후위", "후위", "후위"], views.Select(v => v.RowName));
+        Assert.Equal(["전위", "중위", "후위"], views.Where(v => v.Slot % 3 == 0).Select(v => v.RowName));   // 줄의 첫 슬롯마다 한 번
+    }
+
+    [Fact]
+    public void Row_name_does_not_depend_on_whether_the_slot_is_filled()
+    {
+        var s = Session();
+        s.Party[4] = 7002;
+        Assert.Equal("중위", s.PartySlotViews[4].RowName);      // 채워진 슬롯
+        Assert.Equal("중위", s.PartySlotViews[3].RowName);      // 빈 슬롯
+    }
+
+    [Fact]
     public void Filled_slot_shows_level_name_hp_and_xp_gauges()
     {
         var s = Session();

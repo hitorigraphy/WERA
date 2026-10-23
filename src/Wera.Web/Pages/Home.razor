@@ -81,6 +81,10 @@
                     @foreach (var slot in session.PartySlotViews)
                     {
                         var slotCode = (slot.Slot + 1).ToString();
+                        @if (slot.Slot % 3 == 0)
+                        {
+                            <div class="row-label">@slot.RowName</div>
+                        }
                         <div class="slot" data-slot="@slotCode">
                             <button class="slot-icon" title="@slot.Name" @onclick="() => Activate(slotCode)">@noImage</button>
                             <div class="slot-info">

@@ -159,3 +159,7 @@ input.command { width: min(100%, 26rem); }
 .badge-icon { width: var(--lh); height: var(--lh); display: block; flex: none; }
 .badge-marker { line-height: var(--lh); }
 .icon-line { overflow: hidden; }
+
+/* 줄 이름(전위/중위/후위): 각 줄의 슬롯 위에 한 줄로 나온다 */
+.row-label { grid-column: 1 / -1; margin-top: .3rem; padding-bottom: .15rem; border-bottom: 1px solid #444; color: #aaa; }
+.row-label:first-child { margin-top: 0; }
