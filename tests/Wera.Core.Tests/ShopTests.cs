@@ -13,8 +13,6 @@ public class ShopTests
         var files = new List<(string, string)>
         {
             ("pack.tsv", "id\tdemo\ntitle\t데모\nstart\ta\n"),
-            ("scenes.tsv", "id\ttext\na\tx\n"),
-            ("choices.tsv", "scene\tlabel\tnext\n"),
         };
         if (shops is not null) files.Add(("master/shop_master_v1.tsv", shops));
         if (conditions is not null) files.Add(("master/shop_condition_master_v1.tsv", conditions));

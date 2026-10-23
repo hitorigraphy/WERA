@@ -6,8 +6,6 @@ public class PlayerStateTests
 {
     static GamePack Pack() => GamePack.Load(CoreTests.Zip(
         ("pack.tsv", "id\tdemo\ntitle\t데모\nstart\ta\n"),
-        ("scenes.tsv", "id\ttext\na\tx\n"),
-        ("choices.tsv", "scene\tlabel\tnext\n"),
         ("master/dungeon_master_v1.tsv", "code\tname\n1001\t초원\n"),
         ("master/dungeon_flag_master_v1.tsv",
             "dungeon_code\tgroup_no\tflag_code\tcondition_type\tcondition_value\n1001\t1\t1004\tGreaterOrEqual\t5000000000\n")));
@@ -80,13 +78,13 @@ public class PlayerStateTests
     {
         Assert.Equal(1, GameSession.SaveVersion);
         Assert.Throws<SaveFormatException>(() => GameSession.FromSaveJson(Pack(),
-            "{\"Version\":2,\"PackId\":\"demo\",\"SceneId\":\"a\"}"));
+            "{\"Version\":2,\"PackId\":\"demo\"}"));
     }
 
     [Fact]
     public void Save_without_player_state_loads_as_empty()
     {
-        var s = GameSession.FromSaveJson(Pack(), "{\"Version\":1,\"PackId\":\"demo\",\"SceneId\":\"a\"}");
+        var s = GameSession.FromSaveJson(Pack(), "{\"Version\":1,\"PackId\":\"demo\"}");
         Assert.Empty(s.PlayerFlags);
         Assert.Empty(s.InventoryItems);
     }
@@ -94,24 +92,24 @@ public class PlayerStateTests
     [Fact]
     public void Negative_inventory_amount_in_save_is_rejected()
         => Assert.Throws<SaveFormatException>(() => GameSession.FromSaveJson(Pack(),
-            "{\"Version\":1,\"PackId\":\"demo\",\"SceneId\":\"a\",\"InventoryItems\":{\"1\":{\"Amount\":-1}}}"));
+            "{\"Version\":1,\"PackId\":\"demo\",\"InventoryItems\":{\"1\":{\"Amount\":-1}}}"));
 
     [Fact]
     public void Wrong_value_types_in_save_are_rejected_as_bad_json()
     {
         Assert.Throws<SaveFormatException>(() => GameSession.FromSaveJson(Pack(),
-            "{\"Version\":1,\"PackId\":\"demo\",\"SceneId\":\"a\",\"PlayerFlags\":{\"1\":true}}"));
+            "{\"Version\":1,\"PackId\":\"demo\",\"PlayerFlags\":{\"1\":true}}"));
         Assert.Throws<SaveFormatException>(() => GameSession.FromSaveJson(Pack(),
-            "{\"Version\":1,\"PackId\":\"demo\",\"SceneId\":\"a\",\"InventoryItems\":{\"1\":5}}"));
+            "{\"Version\":1,\"PackId\":\"demo\",\"InventoryItems\":{\"1\":5}}"));
     }
 
     [Fact]
     public void Non_numeric_flag_or_item_keys_in_a_save_are_rejected()
     {
         Assert.Throws<SaveFormatException>(() => GameSession.FromSaveJson(Pack(),
-            "{\"Version\":1,\"PackId\":\"demo\",\"SceneId\":\"a\",\"PlayerFlags\":{\"tutorial_clear\":1}}"));
+            "{\"Version\":1,\"PackId\":\"demo\",\"PlayerFlags\":{\"tutorial_clear\":1}}"));
         Assert.Throws<SaveFormatException>(() => GameSession.FromSaveJson(Pack(),
-            "{\"Version\":1,\"PackId\":\"demo\",\"SceneId\":\"a\",\"InventoryItems\":{\"gold\":{\"Amount\":1}}}"));
+            "{\"Version\":1,\"PackId\":\"demo\",\"InventoryItems\":{\"gold\":{\"Amount\":1}}}"));
     }
 
     [Fact]

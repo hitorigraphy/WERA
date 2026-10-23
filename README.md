@@ -9,13 +9,11 @@ GitHub Pages에서 동작하는 텍스트 게임 구동기입니다. C# / Blazor
 ## 게임팩 형식 (잠정)
 TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
 
-**값의 타입:** 모든 코드(던전, 상점, 아이템, 캐릭터, 교환, 플래그 코드 등), 수량(어마운트, 소지제한), 캐릭터 수치(레벨, HP, XP 등), 플래그 값은 `long` 정수입니다. 그룹넘버(`group_no`)만 `int`입니다. 코드를 숫자가 아닌 이름으로 쓸 수 없습니다(예: 플래그 코드 `1001`). 장면의 `id`와 게임팩 `id`는 문자열입니다.
+**값의 타입:** 모든 코드(던전, 상점, 아이템, 캐릭터, 교환, 플래그 코드 등), 수량(어마운트, 소지제한), 캐릭터 수치(레벨, HP, XP 등), 플래그 값은 `long` 정수입니다. 그룹넘버(`group_no`)만 `int`입니다. 코드를 숫자가 아닌 이름으로 쓸 수 없습니다(예: 플래그 코드 `1001`). 게임팩 `id`는 문자열입니다.
 
 | 파일 | 내용 |
 |---|---|
-| `pack.tsv` | `key`/`value` 행: `id`, `title`, `start` |
-| `scenes.tsv` | `id`, `text` |
-| `choices.tsv` | `scene`, `label`, `next` |
+| `pack.tsv` | `key`/`value` 행: `id`, `title` |
 | `master/dungeon_master_v1.tsv` | (선택) `code`, `name` |
 | `master/dungeon_flag_master_v1.tsv` | (선택) `dungeon_code`, `group_no`, `flag_code`, `condition_type`, `condition_value` |
 | `master/shop_master_v1.tsv` | (선택) `code`, `name` |

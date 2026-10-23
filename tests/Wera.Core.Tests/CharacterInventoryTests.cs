@@ -12,8 +12,6 @@ public class CharacterInventoryTests
         var files = new List<(string, string)>
         {
             ("pack.tsv", "id\tdemo\ntitle\t데모\nstart\ta\n"),
-            ("scenes.tsv", "id\ttext\na\tx\n"),
-            ("choices.tsv", "scene\tlabel\tnext\n"),
         };
         if (characters is not null) files.Add(("master/character_inventory_master_v1.tsv", characters));
         if (items is not null) files.Add(("master/item_inventory_master_v1.tsv", items));

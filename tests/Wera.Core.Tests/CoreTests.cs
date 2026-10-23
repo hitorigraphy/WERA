@@ -19,10 +19,7 @@ public class CoreTests
         return ms;
     }
 
-    static MemoryStream SamplePack() => Zip(
-        ("pack.tsv", "id\tdemo\ntitle\t데모\nstart\ta\n"),
-        ("scenes.tsv", "id\ttext\na\t\"첫째 줄\n둘째 줄\"\nb\t끝\n"),
-        ("choices.tsv", "scene\tlabel\tnext\na\t간다\tb\n"));
+    static MemoryStream SamplePack() => Zip(("pack.tsv", "id\tdemo\ntitle\t데모\n"));
 
     [Fact]
     public void Tsv_handles_quotes_newlines_bom_and_crlf()
@@ -35,47 +32,51 @@ public class CoreTests
     }
 
     [Fact]
-    public void Pack_loads_scenes_and_choices()
+    public void Pack_needs_only_pack_tsv_with_id_and_title()
     {
         var pack = GamePack.Load(SamplePack());
+        Assert.Equal("demo", pack.Id);
         Assert.Equal("데모", pack.Title);
-        Assert.Equal("첫째 줄\n둘째 줄", pack.Scenes["a"].Text);
-        Assert.Equal("b", pack.Scenes["a"].Choices[0].Next);
-        Assert.Empty(pack.Scenes["b"].Choices);
+        Assert.Null(pack.Dungeons);
+        Assert.Null(pack.Shops);
     }
 
     [Fact]
-    public void Pack_rejects_dangling_choice_target()
+    public void Pack_rejects_missing_pack_tsv_or_missing_id_or_title()
     {
-        var zip = Zip(
-            ("pack.tsv", "id\td\ntitle\tt\nstart\ta\n"),
+        Assert.Throws<PackFormatException>(() => GamePack.Load(Zip(("other.tsv", "a\tb\n"))));
+        Assert.Throws<PackFormatException>(() => GamePack.Load(Zip(("pack.tsv", "title\tt\n"))));
+        Assert.Throws<PackFormatException>(() => GamePack.Load(Zip(("pack.tsv", "id\tx\n"))));
+    }
+
+    [Fact]
+    public void Leftover_scene_files_from_older_packs_are_ignored()
+    {
+        var pack = GamePack.Load(Zip(
+            ("pack.tsv", "id\tdemo\ntitle\t데모\nstart\ta\n"),
             ("scenes.tsv", "id\ttext\na\tx\n"),
-            ("choices.tsv", "scene\tlabel\tnext\na\tgo\tzzz\n"));
-        Assert.Throws<PackFormatException>(() => GamePack.Load(zip));
-    }
-
-    [Fact]
-    public void Pack_rejects_missing_file()
-        => Assert.Throws<PackFormatException>(() => GamePack.Load(Zip(("pack.tsv", "id\tx\n"))));
-
-    [Fact]
-    public void Session_save_roundtrip()
-    {
-        var pack = GamePack.Load(SamplePack());
-        var s = GameSession.NewGame(pack);
-        s.EnterScene("a");
-        s.Choose(0);
-        var loaded = GameSession.FromSaveJson(pack, s.ToSaveJson());
-        Assert.Equal("b", loaded.Current.Id);
-        Assert.Equal(Screen.Home, loaded.Screen);
+            ("choices.tsv", "scene\tlabel\tnext\n")));
+        Assert.Equal("demo", pack.Id);
     }
 
     [Fact]
     public void Save_from_other_pack_or_garbage_is_rejected()
     {
         var pack = GamePack.Load(SamplePack());
-        Assert.Throws<SaveFormatException>(() => GameSession.FromSaveJson(pack, "{\"Version\":1,\"PackId\":\"other\",\"SceneId\":\"a\"}"));
+        Assert.Throws<SaveFormatException>(() => GameSession.FromSaveJson(pack, "{\"Version\":1,\"PackId\":\"other\"}"));
         Assert.Throws<SaveFormatException>(() => GameSession.FromSaveJson(pack, "not json"));
-        Assert.Throws<SaveFormatException>(() => GameSession.FromSaveJson(pack, "{\"Version\":1,\"PackId\":\"demo\",\"SceneId\":\"nope\"}"));
+        Assert.Throws<SaveFormatException>(() => GameSession.FromSaveJson(pack, "null"));
+    }
+
+    [Fact]
+    public void Save_roundtrip_has_no_scene_fields_and_ignores_them_when_present()
+    {
+        var pack = GamePack.Load(SamplePack());
+        var json = GameSession.NewGame(pack).ToSaveJson();
+        Assert.DoesNotContain("SceneId", json);
+
+        // 장면 방식을 쓰던 옛 세이브의 SceneId는 무시하고 그대로 불러온다.
+        var loaded = GameSession.FromSaveJson(pack, "{\"Version\":1,\"PackId\":\"demo\",\"SceneId\":\"a\"}");
+        Assert.Equal(Screen.Home, loaded.Screen);
     }
 }

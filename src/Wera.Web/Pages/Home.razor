@@ -144,21 +144,6 @@
                 </div>
                 @commands
                 break;
-
-            default:
-                <p class="scene">@session.Current.Text</p>
-                <ul class="choices">
-                    @for (var i = 0; i < session.Current.Choices.Count; i++)
-                    {
-                        var index = i;
-                        <li><button @onclick="() => Choose(index)">@session.Current.Choices[index].Label</button></li>
-                    }
-                </ul>
-                @if (session.Current.Choices.Count == 0)
-                {
-                    <p class="end">— 끝 —</p>
-                }
-                break;
         }
         <footer>
             <button @onclick="SaveGame">세이브 저장</button>
@@ -226,8 +211,6 @@
     }
 
     void NewGame() { error = null; session = GameSession.NewGame(pack!); focusCommand = true; }
-
-    void Choose(int index) => session!.Choose(index);
 
     async Task Activate(string code)
     {

@@ -6,15 +6,9 @@ namespace Wera.Core;
 
 public sealed class PackFormatException(string message) : Exception(message);
 
-public sealed record Choice(string Label, string Next);
-
-public sealed record Scene(string Id, string Text, IReadOnlyList<Choice> Choices);
-
 /// <summary>
 /// 게임팩: TSV 묶음 zip. 첫 줄은 헤더. 모든 코드와 수량은 long 정수, 그룹넘버(group_no)는 int.
-///   pack.tsv                              key/value 행 (id, title, start)
-///   scenes.tsv                            id, text
-///   choices.tsv                           scene, label, next
+///   pack.tsv                              key/value 행 (id, title)
 ///   master/dungeon_master_v1.tsv          (선택) code, name
 ///   master/dungeon_flag_master_v1.tsv     (선택) dungeon_code, group_no, flag_code, condition_type, condition_value
 ///   master/shop_master_v1.tsv             (선택) code, name
@@ -39,8 +33,6 @@ public sealed class GamePack
 
     public required string Id { get; init; }
     public required string Title { get; init; }
-    public required string StartSceneId { get; init; }
-    public required IReadOnlyDictionary<string, Scene> Scenes { get; init; }
 
     /// <summary>던전 마스터가 게임팩에 없으면 null.</summary>
     public IReadOnlyList<Dungeon>? Dungeons { get; init; }
@@ -93,27 +85,6 @@ public sealed class GamePack
                 ? v
                 : throw new PackFormatException($"pack.tsv에 '{key}' 항목이 없습니다.");
 
-        var texts = new Dictionary<string, string>();
-        foreach (var r in Body("scenes.tsv", ReadEntry(zip, "scenes.tsv"), "id", "text"))
-        {
-            if (!texts.TryAdd(r[0], r[1]))
-                throw new PackFormatException($"scenes.tsv: 장면 id '{r[0]}'가 중복됩니다.");
-        }
-
-        var choices = texts.Keys.ToDictionary(k => k, _ => new List<Choice>());
-        foreach (var r in Body("choices.tsv", ReadEntry(zip, "choices.tsv"), "scene", "label", "next"))
-        {
-            if (!choices.TryGetValue(r[0], out var list))
-                throw new PackFormatException($"choices.tsv: 알 수 없는 장면 '{r[0]}'.");
-            if (!texts.ContainsKey(r[2]))
-                throw new PackFormatException($"choices.tsv: '{r[0]}'의 이동 대상 '{r[2]}'가 없습니다.");
-            list.Add(new Choice(r[1], r[2]));
-        }
-
-        var start = Need("start");
-        if (!texts.ContainsKey(start))
-            throw new PackFormatException($"시작 장면 '{start}'가 scenes.tsv에 없습니다.");
-
         var dungeons = LoadConditioned(zip, DungeonMasterPath, ["code", "name"], DungeonFlagMasterPath, "던전", "dungeon_code",
             (code, r, groups) => new Dungeon(code, r[1], groups));
         var shops = LoadConditioned(zip, ShopMasterPath, ["code", "name"], ShopConditionMasterPath, "상점", "shop_code",
@@ -130,8 +101,6 @@ public sealed class GamePack
         {
             Id = Need("id"),
             Title = Need("title"),
-            StartSceneId = start,
-            Scenes = texts.ToDictionary(kv => kv.Key, kv => new Scene(kv.Key, kv.Value, choices[kv.Key])),
             Dungeons = dungeons,
             Shops = shops,
             ItemInventory = itemInventory,

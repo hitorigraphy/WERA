@@ -11,8 +11,6 @@ public class DungeonTests
         var files = new List<(string, string)>
         {
             ("pack.tsv", "id\tdemo\ntitle\t데모\nstart\ta\n"),
-            ("scenes.tsv", "id\ttext\na\tx\n"),
-            ("choices.tsv", "scene\tlabel\tnext\n"),
         };
         var sep = backslashPaths ? '\\' : '/';
         if (dungeons is not null) files.Add(($"master{sep}dungeon_master_v1.tsv", dungeons));
@@ -213,13 +211,8 @@ public class DungeonTests
     public void Minimal_save_without_player_state_loads_into_home()
     {
         var pack = Pack(null, null);
-        var s = GameSession.FromSaveJson(pack, "{\"Version\":1,\"PackId\":\"demo\",\"SceneId\":\"a\"}");
+        var s = GameSession.FromSaveJson(pack, "{\"Version\":1,\"PackId\":\"demo\"}");
         Assert.Equal(Screen.Home, s.Screen);
         Assert.Empty(s.PlayerFlags);
     }
-
-    [Fact]
-    public void Scene_screen_save_loads_into_home()
-        => Assert.Equal(Screen.Home, GameSession.FromSaveJson(Pack(null, null),
-            "{\"Version\":1,\"PackId\":\"demo\",\"SceneId\":\"a\",\"Screen\":\"Scene\"}").Screen);
 }

@@ -7,8 +7,6 @@ namespace Wera.Core;
 [JsonConverter(typeof(JsonStringEnumConverter<Screen>))]
 public enum Screen
 {
-    /// <summary>scenes.tsv 기반 장면 진행.</summary>
-    Scene,
     Home,
     DungeonSelect,
     ShopList,
@@ -42,8 +40,7 @@ public sealed record ScreenEntry(
 public sealed record SaveData(
     int Version,
     string PackId,
-    string SceneId,
-    Screen Screen = Screen.Scene,
+    Screen Screen = Screen.Home,
     Dictionary<long, long>? PlayerFlags = null,
     Dictionary<long, InventoryItem>? InventoryItems = null,
     Dictionary<long, CharacterState>? Characters = null,
@@ -70,7 +67,6 @@ public sealed class GameSession
     public const int PartySlotCount = 9;
 
     public GamePack Pack { get; }
-    public Scene Current { get; private set; }
     public Screen Screen { get; private set; }
     /// <summary>플레이어_플래그: 플래그 코드 → long 값.</summary>
     public Dictionary<long, long> PlayerFlags { get; }
@@ -91,11 +87,10 @@ public sealed class GameSession
     public int? CurrentSlot { get; private set; }
 
     GameSession(
-        GamePack pack, Scene scene, Screen screen, Dictionary<long, long> playerFlags,
+        GamePack pack, Screen screen, Dictionary<long, long> playerFlags,
         Dictionary<long, InventoryItem> inventoryItems, Dictionary<long, CharacterState> characters, long?[] party)
     {
         Pack = pack;
-        Current = scene;
         Screen = screen;
         PlayerFlags = playerFlags;
         InventoryItems = inventoryItems;
@@ -105,16 +100,7 @@ public sealed class GameSession
 
     /// <summary>튜토리얼이 구현될 때까지 새 게임은 홈 화면으로 직행한다.</summary>
     public static GameSession NewGame(GamePack pack) =>
-        new(pack, pack.Scenes[pack.StartSceneId], Screen.Home, [], [], [], new long?[PartySlotCount]);
-
-    /// <summary>장면 화면으로 들어간다.</summary>
-    public void EnterScene(string sceneId)
-    {
-        Current = Pack.Scenes.TryGetValue(sceneId, out var scene)
-            ? scene
-            : throw new ArgumentException($"알 수 없는 장면: {sceneId}", nameof(sceneId));
-        Screen = Screen.Scene;
-    }
+        new(pack, Screen.Home, [], [], [], new long?[PartySlotCount]);
 
     /// <summary>입장 조건을 하나라도 만족하는 던전.</summary>
     public IReadOnlyList<Dungeon> AvailableDungeons =>
@@ -342,18 +328,10 @@ public sealed class GameSession
         return $"교환 완료: {text}";
     }
 
-    public void Choose(int index)
-    {
-        if (Screen != Screen.Scene) throw new InvalidOperationException("장면 화면이 아닙니다.");
-        if (index < 0 || index >= Current.Choices.Count)
-            throw new ArgumentOutOfRangeException(nameof(index));
-        Current = Pack.Scenes[Current.Choices[index].Next];
-    }
-
     public string ToSaveJson() =>
         JsonSerializer.Serialize(
             new SaveData(
-                SaveVersion, Pack.Id, Current.Id, Screen,
+                SaveVersion, Pack.Id, Screen,
                 new Dictionary<long, long>(PlayerFlags),
                 new Dictionary<long, InventoryItem>(InventoryItems),
                 new Dictionary<long, CharacterState>(Characters),
@@ -369,8 +347,6 @@ public sealed class GameSession
         if (save is null) throw new SaveFormatException("세이브 파일이 비어 있습니다.");
         if (save.Version is < 1 or > SaveVersion) throw new SaveFormatException($"지원하지 않는 세이브 버전입니다: {save.Version}");
         if (save.PackId != pack.Id) throw new SaveFormatException($"다른 게임팩의 세이브입니다: {save.PackId}");
-        if (!pack.Scenes.TryGetValue(save.SceneId ?? "", out var scene))
-            throw new SaveFormatException($"세이브의 장면 '{save.SceneId}'를 게임팩에서 찾을 수 없습니다.");
         var playerFlags = save.PlayerFlags is null ? [] : new Dictionary<long, long>(save.PlayerFlags);
         var inventory = save.InventoryItems is null ? [] : new Dictionary<long, InventoryItem>(save.InventoryItems);
         foreach (var (code, item) in inventory)
@@ -400,6 +376,6 @@ public sealed class GameSession
             throw new SaveFormatException("세이브의 파티에 같은 캐릭터가 두 번 이상 있습니다.");
 
         // 불러오기는 저장된 화면과 상관없이 항상 홈으로 들어간다.
-        return new GameSession(pack, scene, Screen.Home, playerFlags, inventory, characters, party);
+        return new GameSession(pack, Screen.Home, playerFlags, inventory, characters, party);
     }
 }

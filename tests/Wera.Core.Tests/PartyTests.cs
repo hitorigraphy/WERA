@@ -13,8 +13,6 @@ public class PartyTests
         var files = new List<(string, string)>
         {
             ("pack.tsv", "id\tdemo\ntitle\t데모\nstart\ta\n"),
-            ("scenes.tsv", "id\ttext\na\tx\n"),
-            ("choices.tsv", "scene\tlabel\tnext\n"),
         };
         if (characters is not null) files.Add(("master/character_inventory_master_v1.tsv", characters));
         return GamePack.Load(CoreTests.Zip(files.ToArray()));
@@ -318,7 +316,7 @@ public class PartyTests
     [Fact]
     public void Save_without_characters_or_party_loads_as_empty()
     {
-        var s = GameSession.FromSaveJson(Pack(), "{\"Version\":1,\"PackId\":\"demo\",\"SceneId\":\"a\"}");
+        var s = GameSession.FromSaveJson(Pack(), "{\"Version\":1,\"PackId\":\"demo\"}");
         Assert.Empty(s.Characters);
         Assert.Equal(GameSession.PartySlotCount, s.Party.Length);
         Assert.All(s.Party, p => Assert.Null(p));
@@ -328,7 +326,7 @@ public class PartyTests
     public void Short_party_array_is_padded_and_null_means_an_empty_slot()
     {
         var s = GameSession.FromSaveJson(Pack(),
-            "{\"Version\":1,\"PackId\":\"demo\",\"SceneId\":\"a\"," +
+            "{\"Version\":1,\"PackId\":\"demo\"," +
             "\"Characters\":{\"7001\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xp\":0,\"XpMax\":10}}," +
             "\"Party\":[null,7001]}");
         Assert.Equal(9, s.Party.Length);
@@ -336,7 +334,7 @@ public class PartyTests
         Assert.Equal(7001L, s.Party[1]);
     }
 
-    const string Header = "{\"Version\":1,\"PackId\":\"demo\",\"SceneId\":\"a\",";
+    const string Header = "{\"Version\":1,\"PackId\":\"demo\",";
     const string Owned7001 = "\"Characters\":{\"7001\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xp\":0,\"XpMax\":10}}";
 
     [Theory]
