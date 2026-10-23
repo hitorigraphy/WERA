@@ -158,3 +158,4 @@ input.command { width: min(100%, 26rem); }
 .badge { display: inline-flex; align-items: center; gap: .3ch; height: var(--lh); }
 .badge-icon { width: var(--lh); height: var(--lh); display: block; flex: none; }
 .badge-marker { line-height: var(--lh); }
+.icon-line { overflow: hidden; }

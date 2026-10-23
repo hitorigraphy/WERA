@@ -15,5 +15,23 @@
     "7002": { "Level": 3, "Hp": 10, "MaxHp": 25, "Xp": 12, "XpMax": 30 },
     "7003": { "Level": 8, "Hp": 0, "MaxHp": 50, "Xp": 40, "XpMax": 80 }
   },
-  "Party": [ 7001, null, null, null, 7002, null, null, null, 7003 ]
+  "Party": [ 7001, null, null, null, 7002, null, null, null, 7003 ],
+  "StatusEffects": {
+    "7001": [
+      {
+        "StatusEffectCode": 1,
+        "Effects": [
+          { "Trigger": "AfterTurnEnd", "Priority": 1, "EffectCode": 1, "Value1": -3, "Value2": 3, "Value3": 0, "Counter": 1, "IsValid": true }
+        ]
+      }
+    ],
+    "7002": [
+      {
+        "StatusEffectCode": 3,
+        "Effects": [
+          { "Trigger": "AfterTurnStart", "Priority": 1, "EffectCode": 1, "Value1": 5, "Value2": 5, "Value3": 0, "Counter": 0, "IsValid": true }
+        ]
+      }
+    ]
+  }
 }

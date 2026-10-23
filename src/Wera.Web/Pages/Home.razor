@@ -94,6 +94,10 @@
                                     {
                                         <span class="badge" title="@badge.Name (@(badge.Advantage ? "유리속성" : "불리속성"))">@noImageSmall<span class="badge-marker">@badge.Marker</span></span>
                                     }
+                                    @foreach (var status in slot.StatusBadges)
+                                    {
+                                        <span class="badge" title="@status.Name (상태이상)">@noImageSmall</span>
+                                    }
                                 </div>
                             </div>
                         </div>

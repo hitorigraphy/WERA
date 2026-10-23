@@ -44,7 +44,8 @@ public sealed record SaveData(
     Dictionary<long, long>? PlayerFlags = null,
     Dictionary<long, InventoryItem>? InventoryItems = null,
     Dictionary<long, CharacterState>? Characters = null,
-    long?[]? Party = null);
+    long?[]? Party = null,
+    Dictionary<long, List<ActiveStatusEffect>>? StatusEffects = null);
 
 [JsonSerializable(typeof(SaveData))]
 [JsonSourceGenerationOptions(WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
@@ -80,6 +81,12 @@ public sealed class GameSession
     /// <summary>파티 배치: 길이 9, 칸 번호 0~2 전위, 3~5 중위, 6~8 후위. 빈 칸은 null.</summary>
     public long?[] Party { get; }
 
+    /// <summary>
+    /// 캐릭터에 걸려 있는 상태이상: 캐릭터 코드 → 상태이상 목록. 각 이펙트의 시점, 우선도, 이펙트 코드, 밸류 1~3, 카운터, 유효 플래그를
+    /// 그대로 들고 있어 세이브에서 복구할 수 있다. 비어 있는 캐릭터는 키가 없다.
+    /// </summary>
+    public Dictionary<long, List<ActiveStatusEffect>> CharacterStatusEffects { get; }
+
     /// <summary>교환 목록 화면에서 보고 있는 상점 코드. 그 화면이 아니면 null.</summary>
     public long? CurrentShopCode { get; private set; }
 
@@ -88,7 +95,8 @@ public sealed class GameSession
 
     GameSession(
         GamePack pack, Screen screen, Dictionary<long, long> playerFlags,
-        Dictionary<long, InventoryItem> inventoryItems, Dictionary<long, CharacterState> characters, long?[] party)
+        Dictionary<long, InventoryItem> inventoryItems, Dictionary<long, CharacterState> characters, long?[] party,
+        Dictionary<long, List<ActiveStatusEffect>> statusEffects)
     {
         Pack = pack;
         Screen = screen;
@@ -96,11 +104,12 @@ public sealed class GameSession
         InventoryItems = inventoryItems;
         Characters = characters;
         Party = party;
+        CharacterStatusEffects = statusEffects;
     }
 
     /// <summary>튜토리얼이 구현될 때까지 새 게임은 홈 화면으로 직행한다.</summary>
     public static GameSession NewGame(GamePack pack) =>
-        new(pack, Screen.Home, [], [], [], new long?[PartySlotCount]);
+        new(pack, Screen.Home, [], [], [], new long?[PartySlotCount], []);
 
     /// <summary>입장 조건을 하나라도 만족하는 던전.</summary>
     public IReadOnlyList<Dungeon> AvailableDungeons =>
@@ -136,16 +145,26 @@ public sealed class GameSession
         if (Party[slot] is not { } code || !Characters.TryGetValue(code, out var state))
         {
             var empty = Gauge.Render(0, 0, gray: true);
-            return new PartySlotView(slot, null, "", PartySlotView.EmptyName, empty, empty, []);
+            return new PartySlotView(slot, null, "", PartySlotView.EmptyName, empty, empty, [], []);
         }
         return new PartySlotView(
             slot, code, $"Lv.{state.Level}", CharacterName(code),
             Gauge.Render(state.Hp, state.MaxHp, gray: state.IsDead),
             Gauge.Render(state.Xp, state.XpMax, gray: state.IsDead),
-            AttributeBadges(code));
+            AttributeBadges(code),
+            StatusBadges(code));
     }
 
-    /// <summary>캐릭터의 유리속성(⭕), 불리속성(❌) 순서의 배지. 상태이상 아이콘은 아직 데이터가 없다.</summary>
+    /// <summary>캐릭터에 걸려 있는 상태이상의 배지(걸린 순서). 이름은 상태이상 마스터에서 찾는다.</summary>
+    IReadOnlyList<StatusBadge> StatusBadges(long characterCode) =>
+        StatusEffectsOf(characterCode)
+            .Select(s => new StatusBadge(
+                s.StatusEffectCode,
+                Pack.StatusEffects?.FirstOrDefault(e => e.Code == s.StatusEffectCode)?.Name
+                    ?? s.StatusEffectCode.ToString(CultureInfo.InvariantCulture)))
+            .ToList();
+
+    /// <summary>캐릭터의 유리속성(⭕), 불리속성(❌) 순서의 배지.</summary>
     IReadOnlyList<AttributeBadge> AttributeBadges(long characterCode)
     {
         var character = Pack.CharacterInventory?.FirstOrDefault(c => c.Code == characterCode);
@@ -363,6 +382,88 @@ public sealed class GameSession
         return $"교환 완료: {text}";
     }
 
+    // ---- 상태이상 ----
+
+    /// <summary>캐릭터에 걸려 있는 상태이상들. 없으면 빈 목록.</summary>
+    public IReadOnlyList<ActiveStatusEffect> StatusEffectsOf(long characterCode) =>
+        CharacterStatusEffects.GetValueOrDefault(characterCode) ?? [];
+
+    /// <summary>
+    /// 보유 캐릭터에게 상태이상을 건다. 상태이상 이펙트 마스터의 값(시점, 우선도, 이펙트 코드, 밸류 1~3)을 복사해 두므로
+    /// 카운터 0, 유효 상태로 시작하고, 이후 게임팩 마스터가 바뀌어도 걸린 값은 그대로다.
+    /// 이미 같은 상태이상이 걸려 있으면 새로 걸어 갱신한다. 캐릭터를 보유하지 않았거나 상태이상 코드가 없으면 false.
+    /// </summary>
+    public bool ApplyStatusEffect(long characterCode, long statusEffectCode)
+    {
+        if (!Characters.ContainsKey(characterCode)) return false;
+        if (Pack.StatusEffects?.Any(s => s.Code == statusEffectCode) != true) return false;
+
+        var effects = (Pack.StatusEffectEffects ?? [])
+            .Where(r => r.StatusEffectCode == statusEffectCode)
+            .Select(ActiveEffect.From)
+            .ToList();
+        if (!CharacterStatusEffects.TryGetValue(characterCode, out var list))
+            CharacterStatusEffects[characterCode] = list = [];
+        list.RemoveAll(s => s.StatusEffectCode == statusEffectCode);
+        list.Add(new ActiveStatusEffect(statusEffectCode, effects));
+        return true;
+    }
+
+    /// <summary>걸려 있는 상태이상을 푼다. 걸려 있지 않았으면 false.</summary>
+    public bool RemoveStatusEffect(long characterCode, long statusEffectCode)
+    {
+        if (!CharacterStatusEffects.TryGetValue(characterCode, out var list)) return false;
+        var removed = list.RemoveAll(s => s.StatusEffectCode == statusEffectCode) > 0;
+        if (list.Count == 0) CharacterStatusEffects.Remove(characterCode);
+        return removed;
+    }
+
+    /// <summary>저장용 복사본(이펙트 목록도 새로 만든다). 비어 있는 캐릭터는 뺀다.</summary>
+    static Dictionary<long, List<ActiveStatusEffect>> CopyStatusEffects(Dictionary<long, List<ActiveStatusEffect>> source) =>
+        source.Where(kv => kv.Value.Count > 0).ToDictionary(
+            kv => kv.Key,
+            kv => kv.Value.Select(s => new ActiveStatusEffect(s.StatusEffectCode, s.EffectList.ToList())).ToList());
+
+    /// <summary>세이브의 상태이상을 검증하고 복사한다. 보유 캐릭터, 상태이상 마스터, 임베디드 이펙트에 없는 것은 오류.</summary>
+    static Dictionary<long, List<ActiveStatusEffect>> ValidateStatusEffects(
+        GamePack pack, Dictionary<long, CharacterState> characters, Dictionary<long, List<ActiveStatusEffect>>? saved)
+    {
+        var result = new Dictionary<long, List<ActiveStatusEffect>>();
+        foreach (var (characterCode, list) in saved ?? [])
+        {
+            if (!characters.ContainsKey(characterCode))
+                throw new SaveFormatException($"세이브의 상태이상이 보유하지 않은 캐릭터 '{characterCode}'에 걸려 있습니다.");
+
+            var seen = new HashSet<long>();
+            var copy = new List<ActiveStatusEffect>();
+            foreach (var status in list ?? [])
+            {
+                if (status is null) throw new SaveFormatException($"세이브의 캐릭터 '{characterCode}'의 상태이상 목록에 빈 항목이 있습니다.");
+                if (pack.StatusEffects?.Any(s => s.Code == status.StatusEffectCode) != true)
+                    throw new SaveFormatException($"세이브의 상태이상 '{status.StatusEffectCode}'가 상태이상 마스터에 없습니다.");
+                if (!seen.Add(status.StatusEffectCode))
+                    throw new SaveFormatException(
+                        $"세이브의 캐릭터 '{characterCode}'에 상태이상 '{status.StatusEffectCode}'가 두 번 이상 있습니다.");
+
+                foreach (var effect in status.EffectList)
+                {
+                    if (effect is null)
+                        throw new SaveFormatException($"세이브의 상태이상 '{status.StatusEffectCode}'에 빈 이펙트 항목이 있습니다.");
+                    if (!Enum.IsDefined(effect.Trigger))
+                        throw new SaveFormatException($"세이브의 상태이상 '{status.StatusEffectCode}'의 트리거 타입이 올바르지 않습니다: {effect.Trigger}");
+                    if (!pack.EmbeddedEffects.Contains(effect.EffectCode))
+                        throw new SaveFormatException(
+                            $"세이브의 상태이상 '{status.StatusEffectCode}'의 이펙트 코드 '{effect.EffectCode}'가 임베디드 이펙트에 없습니다.");
+                    if (effect.Counter < 0)
+                        throw new SaveFormatException($"세이브의 상태이상 '{status.StatusEffectCode}'의 카운터가 음수입니다: {effect.Counter}");
+                }
+                copy.Add(new ActiveStatusEffect(status.StatusEffectCode, status.EffectList.ToList()));
+            }
+            if (copy.Count > 0) result[characterCode] = copy;
+        }
+        return result;
+    }
+
     public string ToSaveJson() =>
         JsonSerializer.Serialize(
             new SaveData(
@@ -370,7 +471,8 @@ public sealed class GameSession
                 new Dictionary<long, long>(PlayerFlags),
                 new Dictionary<long, InventoryItem>(InventoryItems),
                 new Dictionary<long, CharacterState>(Characters),
-                (long?[])Party.Clone()),
+                (long?[])Party.Clone(),
+                CopyStatusEffects(CharacterStatusEffects)),
             SaveJsonContext.Default.SaveData);
 
     public static GameSession FromSaveJson(GamePack pack, string json)
@@ -410,7 +512,9 @@ public sealed class GameSession
         if (party.OfType<long>().GroupBy(c => c).Any(g => g.Count() > 1))
             throw new SaveFormatException("세이브의 파티에 같은 캐릭터가 두 번 이상 있습니다.");
 
+        var statusEffects = ValidateStatusEffects(pack, characters, save.StatusEffects);
+
         // 불러오기는 저장된 화면과 상관없이 항상 홈으로 들어간다.
-        return new GameSession(pack, Screen.Home, playerFlags, inventory, characters, party);
+        return new GameSession(pack, Screen.Home, playerFlags, inventory, characters, party, statusEffects);
     }
 }

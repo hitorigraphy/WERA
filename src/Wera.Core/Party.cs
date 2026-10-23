@@ -67,10 +67,16 @@ public sealed record AttributeBadge(long AttributeCode, string Name, bool Advant
     public string Marker => Advantage ? "⭕" : "❌";
 }
 
-/// <summary>파티 설정 화면의 슬롯 하나. 슬롯 0~2가 전위, 3~5가 중위, 6~8이 후위. Badges는 4번째(아이콘) 줄.</summary>
+/// <summary>슬롯 4번째 줄의 상태이상 표시: 상태이상 아이콘(지금은 No Image)만 나온다.</summary>
+public sealed record StatusBadge(long StatusEffectCode, string Name);
+
+/// <summary>
+/// 파티 설정 화면의 슬롯 하나. 슬롯 0~2가 전위, 3~5가 중위, 6~8이 후위.
+/// Badges(속성)와 StatusBadges(상태이상)가 4번째(아이콘) 줄을 이룬다.
+/// </summary>
 public sealed record PartySlotView(
     int Slot, long? CharacterCode, string LevelText, string Name, GaugeView Hp, GaugeView Xp,
-    IReadOnlyList<AttributeBadge> Badges)
+    IReadOnlyList<AttributeBadge> Badges, IReadOnlyList<StatusBadge> StatusBadges)
 {
     public const string EmptyName = "빈 슬롯";
     public bool IsEmpty => CharacterCode is null;
