@@ -4,17 +4,25 @@ namespace Wera.Core.Tests;
 
 public class PartyTests
 {
-    // 7001 용사, 7002 마법사, 7003 전사, 7004 도적(보유하지 않음)
+    // 속성: 1 불, 2 물, 3 풀, 4 빛, 5 어둠
+    const string Attributes = "attribute_code\tattribute_name\n1\t불\n2\t물\n3\t풀\n4\t빛\n5\t어둠\n";
+
+    // 7001 용사(유리 빛, 불리 어둠), 7002 마법사(불/물), 7003 전사(풀/불), 7004 도적(보유하지 않음)
     const string Characters =
-        "character_code\tcharacter_name\tcarry_limit\n7001\t용사\t1\n7002\t마법사\t1\n7003\t전사\t1\n7004\t도적\t1\n";
+        "character_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n" +
+        "7001\t용사\t1\t4\t5\n7002\t마법사\t1\t1\t2\n7003\t전사\t1\t3\t1\n7004\t도적\t1\t5\t4\n";
 
     static GamePack Pack(string? characters = Characters)
     {
         var files = new List<(string, string)>
         {
-            ("pack.tsv", "id\tdemo\ntitle\t데모\nstart\ta\n"),
+            ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
         };
-        if (characters is not null) files.Add(("master/character_inventory_master_v1.tsv", characters));
+        if (characters is not null)
+        {
+            files.Add(("master/character_inventory_master_v1.tsv", characters));
+            files.Add(("master/attribute_master_v1.tsv", Attributes));
+        }
         return GamePack.Load(CoreTests.Zip(files.ToArray()));
     }
 
@@ -137,6 +145,36 @@ public class PartyTests
         Assert.Equal(new GaugeView("****36/40***-", GaugeColor.White), v.Hp);   // 90%
         Assert.Equal(new GaugeView("*----3/30----", GaugeColor.Red), v.Xp);     // 10%
         Assert.True(s.PartySlotViews[1].IsEmpty);
+    }
+
+    [Fact]
+    public void Slot_icon_line_shows_advantage_then_disadvantage_attribute()
+    {
+        var s = Session();
+        s.Party[0] = 7001;
+        var badges = s.PartySlotViews[0].Badges;
+
+        Assert.Equal(
+            [new AttributeBadge(4, "빛", Advantage: true), new AttributeBadge(5, "어둠", Advantage: false)],
+            badges);
+        Assert.Equal(["⭕", "❌"], badges.Select(b => b.Marker));
+    }
+
+    [Fact]
+    public void Each_character_shows_its_own_attributes_and_dead_ones_too()
+    {
+        var s = Session();
+        s.Party[4] = 7002;                                   // 마법사: 유리 불, 불리 물
+        s.Party[8] = 7003;                                   // 전사(사망): 유리 풀, 불리 불
+        Assert.Equal(["불", "물"], s.PartySlotViews[4].Badges.Select(b => b.Name));
+        Assert.Equal(["풀", "불"], s.PartySlotViews[8].Badges.Select(b => b.Name));
+    }
+
+    [Fact]
+    public void Empty_slot_has_no_icon_line_content()
+    {
+        var s = Session();
+        Assert.All(s.PartySlotViews, v => Assert.Empty(v.Badges));
     }
 
     [Fact]

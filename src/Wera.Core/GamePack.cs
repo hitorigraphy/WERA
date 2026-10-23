@@ -15,7 +15,8 @@ public sealed class PackFormatException(string message) : Exception(message);
 ///   master/shop_condition_master_v1.tsv   (선택) shop_code, group_no, flag_code, condition_type, condition_value
 ///   master/item_inventory_master_v1.tsv      (선택) item_code, item_name, carry_limit
 ///   master/bunch_inventory_master_v1.tsv     (선택) item_code, item_name, part_item_code, part_amount
-///   master/character_inventory_master_v1.tsv (선택) character_code, character_name, carry_limit
+///   master/character_inventory_master_v1.tsv (선택) character_code, character_name, carry_limit, advantage_attribute_code, disadvantage_attribute_code
+///   master/attribute_master_v1.tsv        (선택) attribute_code, attribute_name  (캐릭터 마스터가 있으면 필수)
 ///   master/shop_trade_master_v1.tsv       (선택) code, shop_code, cost_item_code, cost_amount, receive_item_code, receive_amount
 ///   master/shop_trade_condition_master_v1.tsv (선택) trade_code, group_no, flag_code, condition_type, condition_value
 /// </summary>
@@ -27,6 +28,7 @@ public sealed class GamePack
     public const string ShopConditionMasterPath = "master/shop_condition_master_v1.tsv";
     public const string ItemInventoryMasterPath = "master/item_inventory_master_v1.tsv";
     public const string CharacterInventoryMasterPath = "master/character_inventory_master_v1.tsv";
+    public const string AttributeMasterPath = "master/attribute_master_v1.tsv";
     public const string BunchInventoryMasterPath = "master/bunch_inventory_master_v1.tsv";
     public const string ShopTradeMasterPath = "master/shop_trade_master_v1.tsv";
     public const string ShopTradeConditionMasterPath = "master/shop_trade_condition_master_v1.tsv";
@@ -48,6 +50,9 @@ public sealed class GamePack
 
     /// <summary>캐릭터 인벤토리 마스터가 없으면 null.</summary>
     public IReadOnlyList<CharacterEntry>? CharacterInventory { get; init; }
+
+    /// <summary>속성 마스터가 없으면 null.</summary>
+    public IReadOnlyList<AttributeEntry>? Attributes { get; init; }
 
     /// <summary>상점 교환 마스터가 없으면 null.</summary>
     public IReadOnlyList<ShopTrade>? Trades { get; init; }
@@ -91,8 +96,8 @@ public sealed class GamePack
             (code, r, groups) => new Shop(code, r[1], groups));
         var itemInventory = LoadItemInventory(zip);
         var bunchInventory = LoadBunchInventory(zip, itemInventory);
-        var characterInventory = LoadLimitedInventory(zip, CharacterInventoryMasterPath, "캐릭터", "character_code", "character_name",
-            (code, name, limit) => new CharacterEntry(code, name, limit));
+        var attributes = LoadAttributes(zip);
+        var characterInventory = LoadCharacterInventory(zip, attributes);
         CheckItemCodesAreUnique(itemInventory, bunchInventory);
         var trades = LoadTrades(zip);
         CheckTrades(trades, shops, itemInventory, bunchInventory);
@@ -106,6 +111,7 @@ public sealed class GamePack
             ItemInventory = itemInventory,
             BunchInventory = bunchInventory,
             CharacterInventory = characterInventory,
+            Attributes = attributes,
             Trades = trades,
         };
     }
@@ -190,26 +196,67 @@ public sealed class GamePack
             .ToList();
     }
 
-    static List<ItemEntry>? LoadItemInventory(ZipArchive zip) =>
-        LoadLimitedInventory(zip, ItemInventoryMasterPath, "아이템", "item_code", "item_name",
-            (code, name, limit) => new ItemEntry(code, name, limit));
+    static List<AttributeEntry>? LoadAttributes(ZipArchive zip)
+    {
+        const string file = AttributeMasterPath;
+        var text = TryReadEntry(zip, file);
+        if (text is null) return null;
 
-    /// <summary>"코드, 이름, carry_limit" 3열 인벤토리 마스터를 읽는다(열 이름은 마스터마다 다름). 파일이 없으면 null.</summary>
+        var attributes = new List<AttributeEntry>();
+        var seen = new HashSet<long>();
+        foreach (var r in Body(file, text, "attribute_code", "attribute_name"))
+        {
+            var code = ParseLong(file, "속성 코드", r[0]);
+            if (!seen.Add(code))
+                throw new PackFormatException($"{file}: 속성 코드 '{code}'가 중복됩니다.");
+            attributes.Add(new AttributeEntry(code, r[1]));
+        }
+        return attributes;
+    }
+
+    static List<ItemEntry>? LoadItemInventory(ZipArchive zip) =>
+        LoadLimitedInventory(zip, ItemInventoryMasterPath, "아이템", ["item_code", "item_name", "carry_limit"],
+            (code, r, limit) => new ItemEntry(code, r[1], limit));
+
+    /// <summary>캐릭터마다 유리속성과 불리속성이 있어야 하고, 둘 다 속성 마스터에 있어야 하며 서로 달라야 한다.</summary>
+    static List<CharacterEntry>? LoadCharacterInventory(ZipArchive zip, List<AttributeEntry>? attributes)
+    {
+        const string file = CharacterInventoryMasterPath;
+        var attributeCodes = attributes?.Select(a => a.Code).ToHashSet() ?? [];
+        return LoadLimitedInventory(zip, file, "캐릭터",
+            ["character_code", "character_name", "carry_limit", "advantage_attribute_code", "disadvantage_attribute_code"],
+            (code, r, limit) =>
+            {
+                var advantage = ParseLong(file, $"캐릭터 '{code}'의 유리속성 코드", r[3]);
+                var disadvantage = ParseLong(file, $"캐릭터 '{code}'의 불리속성 코드", r[4]);
+                foreach (var (what, attribute) in new[] { ("유리속성", advantage), ("불리속성", disadvantage) })
+                    if (!attributeCodes.Contains(attribute))
+                        throw new PackFormatException($"{file}: 캐릭터 '{code}'의 {what} '{attribute}'가 속성 마스터에 없습니다.");
+                if (advantage == disadvantage)
+                    throw new PackFormatException($"{file}: 캐릭터 '{code}'의 유리속성과 불리속성이 같습니다 ({advantage}).");
+                return new CharacterEntry(code, r[1], limit, advantage, disadvantage);
+            });
+    }
+
+    /// <summary>
+    /// "코드, 이름, carry_limit, ..." 인벤토리 마스터를 읽는다(열 이름과 추가 열은 마스터마다 다름). 파일이 없으면 null.
+    /// 첫 열은 코드, 세 번째 열은 소지제한(1 이상)이고, 나머지 열의 해석은 create가 맡는다.
+    /// </summary>
     static List<T>? LoadLimitedInventory<T>(
-        ZipArchive zip, string path, string noun, string codeColumn, string nameColumn, Func<long, string, long, T> create)
+        ZipArchive zip, string path, string noun, string[] header, Func<long, string[], long, T> create)
     {
         var text = TryReadEntry(zip, path);
         if (text is null) return null;
 
         var items = new List<T>();
         var seen = new HashSet<long>();
-        foreach (var r in Body(path, text, codeColumn, nameColumn, "carry_limit"))
+        foreach (var r in Body(path, text, header))
         {
             var code = ParseLong(path, $"{noun} 코드", r[0]);
             if (!seen.Add(code))
                 throw new PackFormatException($"{path}: {noun} 코드 '{code}'가 중복됩니다.");
             var limit = ParsePositive(path, $"{noun} '{code}'의 소지제한", r[2]);
-            items.Add(create(code, r[1], limit));
+            items.Add(create(code, r, limit));
         }
         return items;
     }

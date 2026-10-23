@@ -20,7 +20,8 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
 | `master/shop_condition_master_v1.tsv` | (선택) `shop_code`, `group_no`, `flag_code`, `condition_type`, `condition_value` |
 | `master/item_inventory_master_v1.tsv` | (선택) `item_code`, `item_name`, `carry_limit` |
 | `master/bunch_inventory_master_v1.tsv` | (선택) `item_code`, `item_name`, `part_item_code`, `part_amount` |
-| `master/character_inventory_master_v1.tsv` | (선택) `character_code`, `character_name`, `carry_limit` |
+| `master/character_inventory_master_v1.tsv` | (선택) `character_code`, `character_name`, `carry_limit`, `advantage_attribute_code`, `disadvantage_attribute_code` |
+| `master/attribute_master_v1.tsv` | (선택, 캐릭터 인벤토리가 있으면 필수) `attribute_code`, `attribute_name` |
 | `master/shop_trade_master_v1.tsv` | (선택) `code`, `shop_code`, `cost_item_code`, `cost_amount`, `receive_item_code`, `receive_amount` |
 | `master/shop_trade_condition_master_v1.tsv` | (선택) `trade_code`, `group_no`, `flag_code`, `condition_type`, `condition_value` |
 
@@ -28,7 +29,9 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
 - **아이템 인벤토리**(`item_inventory_master`)는 아이템 코드, 이름, 소지제한(`carry_limit`, 한 번에 소지할 수 있는 최대 수량, 1 이상의 정수)입니다.
 - **번치 인벤토리**(`bunch_inventory_master`)는 여러 아이템을 묶은 것으로, 같은 `item_code`의 행들이 하나의 번치가 됩니다(행마다 `item_name`은 같아야 함). `part_item_code`는 아이템 인벤토리의 아이템만 가리킬 수 있고, 번치에는 소지제한이 없으며, `part_amount`는 1 이상입니다.
 - 아이템 코드는 아이템 인벤토리와 번치 인벤토리에서 겹치면 안 됩니다.
-- **캐릭터 인벤토리**(`character_inventory_master`)는 열이 `character_code`, `character_name`, `carry_limit`인 별도 마스터이고 코드 공간도 아이템과 따로입니다. 아직 화면이나 세이브에서 쓰지는 않습니다.
+- **캐릭터 인벤토리**(`character_inventory_master`)는 열이 `character_code`, `character_name`, `carry_limit`, `advantage_attribute_code`, `disadvantage_attribute_code`인 별도 마스터이고 코드 공간도 아이템과 따로입니다. 모든 캐릭터는 **유리속성**과 **불리속성**을 하나씩 가져야 하고, 둘 다 속성 마스터에 있어야 하며 서로 달라야 합니다.
+- **속성**(`attribute_master`)은 속성 코드와 이름입니다. 속성 아이콘 이미지는 아직 경로 규칙이 없어 `No Image`로 표시합니다.
+- **속성 전투 규칙**(전투 시스템이 생기면 적용, 아직 코드에는 없음): 유리속성으로 공격하면 데미지와 명중률이 ×1.5, 불리속성으로 공격하면 ×0.5입니다. 피격 쪽은 공격 속성이 자신의 유리속성이면 ×0.5, 불리속성이면 ×1.5입니다. 두 보정은 곱하므로 유리속성 공격자가 불리속성 피격자를 치면 ×2.25입니다.
 - **교환**(`shop_trade_master`)은 상점 `shop_code`에서 `cost_item_code`를 `cost_amount`개 내고 `receive_item_code`를 `receive_amount`개 받는 것입니다. 아이템 코드는 아이템/번치 인벤토리 어느 쪽이든 가능하고, 어마운트는 1 이상입니다. 상점과 아이템 코드는 해당 마스터에 있어야 합니다.
 - **교환 조건표**(`shop_trade_condition_master`)는 던전/상점 조건표와 같은 규칙(그룹 AND/OR, `None`)이고, 조건이 없으면 항상 가능합니다.
 
@@ -53,7 +56,7 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
   1. `Lv.5` (왼쪽 정렬) … `용사` (오른쪽 정렬)
   2. `HP : ****36/40***-`
   3. `XP : *----3/30----`
-  4. 아이콘 줄(속성/상태이상 아이콘). 아직 표시할 데이터가 없어 비어 있습니다.
+  4. 아이콘 줄: `[속성 아이콘 ⭕] [속성 아이콘 ❌]`. ⭕는 캐릭터의 유리속성, ❌는 불리속성입니다. 아이콘은 1줄 높이의 정사각형이고, 마우스를 올리면 속성 이름이 보입니다. 상태이상 아이콘은 아직 데이터가 없어 나오지 않습니다. 빈 슬롯은 공란입니다.
 - 게이지는 13칸이고, 채운 칸은 `*`, 빈 칸은 `-`이며 가운데에 `현재/최대`를 겹쳐 씁니다. 색은 50% 이상 흰색, 25% 이상 노랑, 그 아래 빨강이고 사망한 캐릭터는 회색입니다.
 - 비어 있는 슬롯은 `빈 슬롯`, 회색 `0/0`입니다. 아이콘은 `No Image` 기본 이미지이고, 캐릭터 이미지 리소스가 없을 때도 이 이미지를 씁니다(지금은 항상).
 - 슬롯의 이름이나 아이콘을 클릭하거나 슬롯 번호(1~9)를 입력하면 그 슬롯에 배치할 **캐릭터 목록**으로 갑니다. 흰색은 배치 가능, 회색은 배치 불가(보유하지 않음), 하늘색은 이 슬롯에 있는 자신, 초록은 이미 다른 슬롯에 배치된 파티원입니다.

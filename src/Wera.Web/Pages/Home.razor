@@ -23,6 +23,11 @@
         @commandBox
     </div>;
 
+    // 속성 아이콘 이미지 리소스가 없을 때(지금은 항상) 쓰는 1줄 높이의 작은 기본 이미지.
+    RenderFragment noImageSmall = @<svg class="badge-icon" viewBox="0 0 10 10" role="img" aria-label="No Image">
+        <rect x="0.5" y="0.5" width="9" height="9" fill="#000" stroke="#666" />
+    </svg>;
+
     // 캐릭터 이미지 리소스가 없을 때(지금은 항상) 쓰는 기본 이미지.
     RenderFragment noImage = @<svg class="no-image" viewBox="0 0 100 100" role="img" aria-label="No Image">
         <rect x="1" y="1" width="98" height="98" fill="#000" stroke="#666" stroke-width="2" />
@@ -84,7 +89,12 @@
                                 </button>
                                 <div class="gauge-line">HP : <span class="gauge gauge-@slot.Hp.Color.ToString().ToLowerInvariant()">@slot.Hp.Text</span></div>
                                 <div class="gauge-line">XP : <span class="gauge gauge-@slot.Xp.Color.ToString().ToLowerInvariant()">@slot.Xp.Text</span></div>
-                                <div class="icon-line"></div>
+                                <div class="icon-line">
+                                    @foreach (var badge in slot.Badges)
+                                    {
+                                        <span class="badge" title="@badge.Name (@(badge.Advantage ? "유리속성" : "불리속성"))">@noImageSmall<span class="badge-marker">@badge.Marker</span></span>
+                                    }
+                                </div>
                             </div>
                         </div>
                     }

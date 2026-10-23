@@ -3,8 +3,12 @@ namespace Wera.Core;
 /// <summary>아이템 인벤토리 마스터의 한 행. CarryLimit은 한 번에 소지할 수 있는 최대 수량.</summary>
 public sealed record ItemEntry(long Code, string Name, long CarryLimit);
 
-/// <summary>캐릭터 인벤토리 마스터의 한 행. CarryLimit은 한 번에 소지할 수 있는 최대 수량.</summary>
-public sealed record CharacterEntry(long Code, string Name, long CarryLimit);
+/// <summary>
+/// 캐릭터 인벤토리 마스터의 한 행. CarryLimit은 한 번에 소지할 수 있는 최대 수량.
+/// 모든 캐릭터는 유리속성과 불리속성(속성 마스터의 코드)을 하나씩 가진다.
+/// </summary>
+public sealed record CharacterEntry(
+    long Code, string Name, long CarryLimit, long AdvantageAttributeCode, long DisadvantageAttributeCode);
 
 /// <summary>번치 인벤토리의 부품. ItemCode는 아이템 인벤토리 마스터의 아이템 코드.</summary>
 public sealed record BunchPart(long ItemCode, long Amount);

@@ -50,9 +50,19 @@ public static class Gauge
     }
 }
 
-/// <summary>파티 설정 화면의 슬롯 하나. 슬롯 0~2가 전위, 3~5가 중위, 6~8이 후위.</summary>
+/// <summary>
+/// 슬롯 4번째 줄의 속성 표시: 속성 아이콘 옆에 유리속성이면 ⭕, 불리속성이면 ❌.
+/// 속성 아이콘 이미지는 아직 경로 규칙이 없어 화면에서는 No Image로 그린다.
+/// </summary>
+public sealed record AttributeBadge(long AttributeCode, string Name, bool Advantage)
+{
+    public string Marker => Advantage ? "⭕" : "❌";
+}
+
+/// <summary>파티 설정 화면의 슬롯 하나. 슬롯 0~2가 전위, 3~5가 중위, 6~8이 후위. Badges는 4번째(아이콘) 줄.</summary>
 public sealed record PartySlotView(
-    int Slot, long? CharacterCode, string LevelText, string Name, GaugeView Hp, GaugeView Xp)
+    int Slot, long? CharacterCode, string LevelText, string Name, GaugeView Hp, GaugeView Xp,
+    IReadOnlyList<AttributeBadge> Badges)
 {
     public const string EmptyName = "빈 슬롯";
     public bool IsEmpty => CharacterCode is null;

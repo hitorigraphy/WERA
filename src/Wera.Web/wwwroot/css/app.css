@@ -152,3 +152,9 @@ a.button { border-color: #666; }
 /* 파티 슬롯 3열이 한 화면에 들어가도록 본문 폭을 넓힌다 */
 main { max-width: 60rem; }
 input.command { width: min(100%, 26rem); }
+
+/* 슬롯 4번째 줄: [속성 아이콘 ⭕] [속성 아이콘 ❌]. 아이콘은 1줄 높이의 정사각형 */
+.icon-line { display: flex; align-items: center; gap: 1.2ch; white-space: nowrap; }
+.badge { display: inline-flex; align-items: center; gap: .3ch; height: var(--lh); }
+.badge-icon { width: var(--lh); height: var(--lh); display: block; flex: none; }
+.badge-marker { line-height: var(--lh); }

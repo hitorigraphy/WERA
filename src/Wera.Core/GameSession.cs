@@ -136,12 +136,27 @@ public sealed class GameSession
         if (Party[slot] is not { } code || !Characters.TryGetValue(code, out var state))
         {
             var empty = Gauge.Render(0, 0, gray: true);
-            return new PartySlotView(slot, null, "", PartySlotView.EmptyName, empty, empty);
+            return new PartySlotView(slot, null, "", PartySlotView.EmptyName, empty, empty, []);
         }
         return new PartySlotView(
             slot, code, $"Lv.{state.Level}", CharacterName(code),
             Gauge.Render(state.Hp, state.MaxHp, gray: state.IsDead),
-            Gauge.Render(state.Xp, state.XpMax, gray: state.IsDead));
+            Gauge.Render(state.Xp, state.XpMax, gray: state.IsDead),
+            AttributeBadges(code));
+    }
+
+    /// <summary>캐릭터의 유리속성(⭕), 불리속성(❌) 순서의 배지. 상태이상 아이콘은 아직 데이터가 없다.</summary>
+    IReadOnlyList<AttributeBadge> AttributeBadges(long characterCode)
+    {
+        var character = Pack.CharacterInventory?.FirstOrDefault(c => c.Code == characterCode);
+        if (character is null) return [];
+        string NameOf(long attribute) =>
+            Pack.Attributes?.FirstOrDefault(a => a.Code == attribute)?.Name ?? attribute.ToString(CultureInfo.InvariantCulture);
+        return
+        [
+            new AttributeBadge(character.AdvantageAttributeCode, NameOf(character.AdvantageAttributeCode), Advantage: true),
+            new AttributeBadge(character.DisadvantageAttributeCode, NameOf(character.DisadvantageAttributeCode), Advantage: false),
+        ];
     }
 
     /// <summary>
