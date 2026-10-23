@@ -15,7 +15,7 @@ public sealed class Character(CharacterEntry entry, CharacterState state)
 /// <summary>
 /// 임베디드 이펙트: 구동기에 하드코딩된 효과. 데이터(TSV)로 정의하지 않고 이 클래스를 상속해서 코드로 만든다.
 /// 생성자에서 타겟 캐릭터와 이펙트 밸류 1~3을 받아 저장해 두고, <see cref="Execute"/>는 파라미터 없이 실행만 한다.
-/// 밸류의 의미는 이펙트마다 정한다.
+/// 밸류의 의미는 이펙트마다 정하지만, 밸류 2는 모든 이펙트에서 "최대 실행 횟수"로 쓴다(<see cref="EffectExecutor"/>).
 /// </summary>
 public abstract class EmbeddedEffect(Character target, long value1, long value2, long value3)
 {
@@ -23,6 +23,15 @@ public abstract class EmbeddedEffect(Character target, long value1, long value2,
     public long Value1 { get; } = value1;
     public long Value2 { get; } = value2;
     public long Value3 { get; } = value3;
+
+    /// <summary>내부 카운터: 익스큐터가 이 이펙트를 실행할 때마다 1씩 올린다.</summary>
+    public long Counter { get; internal set; }
+
+    /// <summary>
+    /// 유효 플래그. 처음엔 유효하고, 카운터가 밸류 2 이상이 되면 익스큐터가 무효로 바꾼다.
+    /// 무효인 이펙트는 다시 실행되지 않고 익스큐터에서 폐기된다.
+    /// </summary>
+    public bool IsValid { get; internal set; } = true;
 
     /// <summary>이 이펙트의 코드. 임베디드 이펙트 등록부에 등록한 코드와 같아야 한다.</summary>
     public abstract long EffectCode { get; }
@@ -73,6 +82,38 @@ public sealed class EmbeddedEffectRegistry
     /// <summary>구동기에 하드코딩된 임베디드 이펙트들. 새 이펙트는 클래스를 만들고 여기에 등록한다.</summary>
     public static EmbeddedEffectRegistry Default { get; } = new(
     [
-        // 아직 정의된 이펙트가 없다. 예: new(1, (t, a, b, c) => new HealEffect(t, a, b, c)),
+        new(HealEffect.Code, (t, a, b, c) => new HealEffect(t, a, b, c)),
     ]);
+}
+
+/// <summary>
+/// 익스큐터: 이펙트들을 순서대로 실행한다. 한 번 실행할 때마다 이펙트의 카운터를 올리고,
+/// 카운터가 밸류 2 이상이 되면 그 이펙트를 무효로 만든다. 무효가 된 이펙트는 다음 실행부터 돌지 않고 목록에서 폐기된다.
+/// 이펙트의 실행 순서는 추가한 순서 그대로다(우선도 정렬은 하지 않는다).
+/// </summary>
+public sealed class EffectExecutor
+{
+    readonly List<EmbeddedEffect> effects = [];
+
+    /// <summary>아직 폐기되지 않은 이펙트들.</summary>
+    public IReadOnlyList<EmbeddedEffect> Effects => effects;
+
+    public void Add(EmbeddedEffect effect) => effects.Add(effect);
+
+    /// <summary>
+    /// 유효한 이펙트를 한 번씩 실행한다. 실행한 이펙트는 카운터가 1 오르고, 밸류 2 이상이 되면 무효가 된다.
+    /// 이미 무효인 이펙트는 실행하지 않는다. 실행이 끝나면 무효인 이펙트를 모두 폐기한다.
+    /// 실행 중에 추가한 이펙트는 다음 실행부터 돈다.
+    /// </summary>
+    public void Run()
+    {
+        foreach (var effect in effects.ToArray())
+        {
+            if (!effect.IsValid) continue;
+            effect.Execute();
+            effect.Counter++;
+            if (effect.Counter >= effect.Value2) effect.IsValid = false;
+        }
+        effects.RemoveAll(e => !e.IsValid);
+    }
 }

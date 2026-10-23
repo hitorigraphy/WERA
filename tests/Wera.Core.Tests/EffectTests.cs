@@ -6,12 +6,7 @@ public class EffectTests
 {
     // ---- 테스트용 임베디드 이펙트 (구동기의 하드코딩 이펙트와 같은 방식: 생성자에서 타겟과 밸류를 받고, Execute()는 파라미터 없음) ----
 
-    /// <summary>1: HP를 Value1만큼 늘린다(음수면 줄인다).</summary>
-    sealed class HealEffect(Character target, long v1, long v2, long v3) : EmbeddedEffect(target, v1, v2, v3)
-    {
-        public override long EffectCode => 1;
-        public override void Execute() => Target.State = Target.State with { Hp = Target.State.Hp + Value1 };
-    }
+    // 1번은 구동기의 실제 HealEffect를 쓴다.
 
     /// <summary>2: XP를 Value1, 레벨을 Value2, 최대 HP를 Value3만큼 늘린다.</summary>
     sealed class GrowEffect(Character target, long v1, long v2, long v3) : EmbeddedEffect(target, v1, v2, v3)

@@ -40,7 +40,10 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
   - `abstract void Execute()`: **파라미터 없이**, 저장해 둔 타겟과 밸류로 실행만 합니다.
   - 등록부에는 인스턴스가 아니라 `(이펙트 코드, 만드는 방법)`을 등록합니다. 예: `new(1, (t, a, b, c) => new HealEffect(t, a, b, c))`. `Create(코드, 타겟, 밸류 1~3)`로 이펙트를 만들면(실행하지 않음) 그 이펙트의 `Execute()`를 부릅니다. 만들어진 이펙트의 `EffectCode`가 등록한 코드와 다르면 오류입니다.
   - `Character`는 마스터 정의(`Entry`)와 바꿀 수 있는 현재 상태(`State`)를 함께 가집니다.
-  - 지금은 정의된 이펙트가 없습니다.
+  - **내부 카운터와 유효 플래그:** 이펙트는 `Counter`(처음 0)와 `IsValid`(처음 true)를 가집니다. 이 둘은 익스큐터(`EffectExecutor`)만 바꿉니다.
+  - **익스큐터:** `Run()`은 유효한 이펙트를 추가한 순서대로 한 번씩 `Execute()`하고, 실행할 때마다 카운터를 1 올립니다. 카운터가 **`Value2` 이상**이 되면 그 이펙트는 무효(`IsValid = false`)가 되어 다음 `Run()`부터 돌지 않고, 실행이 끝날 때 목록에서 폐기됩니다. 즉 **`Value2`는 최대 실행 횟수**입니다(0 이하여도 한 번은 실행됨). `Execute()`를 직접 부르면 카운터는 올라가지 않습니다.
+  - **정의된 이펙트:**
+    - `1` `HealEffect`: 타겟의 HP를 `Value1`만큼 늘립니다(음수면 줄임). HP는 0~최대 HP 안에 머뭅니다. `Value2`는 최대 실행 횟수, `Value3`은 쓰지 않습니다. 죽은 캐릭터도 같은 규칙으로 HP가 바뀝니다.
 - **상태이상 이펙트**(`status_effect_effect_master`)는 "상태이상(`status_effect_code`)이 `trigger_type` 시점에 임베디드 이펙트(`effect_code`)를 `effect_value_1~3`으로 실행한다"를 적습니다. 상태이상 코드는 상태이상 마스터에, 이펙트 코드는 임베디드 이펙트에 등록되어 있어야 하고 밸류는 비워 두면 0입니다. `priority`는 `long` 값이며 정렬 방향은 사용하는 쪽이 정합니다. `trigger_type`은 이름으로 적습니다(대소문자 무시, 숫자 불가).
   - `None`(조건 없음/시점 없음), `BeforeAttack`(공격하기 전), `AfterAttack`(공격한 후), `BeforeAttacked`(공격을 받기 전), `AfterAttacked`(공격을 받은 후), `AfterTurnStart`(턴 개시 후), `AfterTurnEnd`(턴 종료 후), `AfterBattleStart`(배틀 개시 후), `AfterBattleEnd`(배틀 종료 후), `AfterMove`(이동 후)
 - `GameSession.ApplyEffect(이펙트 코드, 캐릭터 코드, 밸류 1~3)`은 이펙트를 만들어(타겟과 밸류 저장) `Execute()`로 보유 캐릭터에게 실행하고, 바뀐 상태를 세이브가 받아들이는 범위(레벨 1 이상, HP 0~최대 HP, XP 0~필요 XP)로 보정해 저장합니다.
