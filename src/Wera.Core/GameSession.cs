@@ -238,12 +238,16 @@ public sealed class GameSession
     /// </summary>
     public bool ApplyEffect(long effectCode, long targetCharacterCode, long value1 = 0, long value2 = 0, long value3 = 0)
     {
-        var effect = Pack.EmbeddedEffects.Find(effectCode);
         var entry = Pack.CharacterInventory?.FirstOrDefault(c => c.Code == targetCharacterCode);
-        if (effect is null || entry is null || !Characters.TryGetValue(targetCharacterCode, out var state)) return false;
+        if (!Pack.EmbeddedEffects.Contains(effectCode)
+            || entry is null
+            || !Characters.TryGetValue(targetCharacterCode, out var state))
+            return false;
 
+        // 타겟과 밸류를 넘겨 이펙트를 만들고(저장), 파라미터 없이 실행한다.
         var target = new Character(entry, state);
-        effect.Execute(target, value1, value2, value3);
+        var effect = Pack.EmbeddedEffects.Create(effectCode, target, value1, value2, value3)!;
+        effect.Execute();
         Characters[targetCharacterCode] = target.State.Clamped();
         return true;
     }

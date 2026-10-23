@@ -4,95 +4,172 @@ namespace Wera.Core.Tests;
 
 public class EffectTests
 {
-    // ---- 테스트용 임베디드 이펙트 (구동기의 하드코딩 이펙트와 같은 방식으로 클래스를 상속해 만든다) ----
+    // ---- 테스트용 임베디드 이펙트 (구동기의 하드코딩 이펙트와 같은 방식: 생성자에서 타겟과 밸류를 받고, Execute()는 파라미터 없음) ----
 
-    /// <summary>1: HP를 value1만큼 늘린다(음수면 줄인다).</summary>
-    sealed class HealEffect : EmbeddedEffect
+    /// <summary>1: HP를 Value1만큼 늘린다(음수면 줄인다).</summary>
+    sealed class HealEffect(Character target, long v1, long v2, long v3) : EmbeddedEffect(target, v1, v2, v3)
     {
         public override long EffectCode => 1;
-        public override void Execute(Character target, long value1, long value2, long value3)
-            => target.State = target.State with { Hp = target.State.Hp + value1 };
+        public override void Execute() => Target.State = Target.State with { Hp = Target.State.Hp + Value1 };
     }
 
-    /// <summary>2: XP를 value1, 레벨을 value2, 최대 HP를 value3만큼 늘린다.</summary>
-    sealed class GrowEffect : EmbeddedEffect
+    /// <summary>2: XP를 Value1, 레벨을 Value2, 최대 HP를 Value3만큼 늘린다.</summary>
+    sealed class GrowEffect(Character target, long v1, long v2, long v3) : EmbeddedEffect(target, v1, v2, v3)
     {
         public override long EffectCode => 2;
-        public override void Execute(Character target, long value1, long value2, long value3)
-            => target.State = target.State with
-            {
-                Xp = target.State.Xp + value1,
-                Level = target.State.Level + value2,
-                MaxHp = target.State.MaxHp + value3,
-            };
+        public override void Execute() => Target.State = Target.State with
+        {
+            Xp = Target.State.Xp + Value1,
+            Level = Target.State.Level + Value2,
+            MaxHp = Target.State.MaxHp + Value3,
+        };
     }
 
-    /// <summary>3: 받은 인자를 그대로 기록한다.</summary>
-    sealed class RecordingEffect : EmbeddedEffect
+    /// <summary>3: 실행될 때 저장해 둔 값을 기록한다.</summary>
+    sealed class RecordingEffect(Character target, long v1, long v2, long v3, List<(long, string, long, long, long)> log)
+        : EmbeddedEffect(target, v1, v2, v3)
     {
-        public List<(long Code, string Name, long V1, long V2, long V3)> Calls { get; } = [];
         public override long EffectCode => 3;
-        public override void Execute(Character target, long value1, long value2, long value3)
-            => Calls.Add((target.Code, target.Name, value1, value2, value3));
+        public override void Execute() => log.Add((Target.Code, Target.Name, Value1, Value2, Value3));
     }
 
-    static EmbeddedEffectMaster Master(RecordingEffect? recorder = null)
-        => new([new HealEffect(), new GrowEffect(), recorder ?? new RecordingEffect()]);
+    /// <summary>등록한 코드와 다른 EffectCode를 돌려주는 잘못된 이펙트.</summary>
+    sealed class MismatchedEffect(Character target, long v1, long v2, long v3) : EmbeddedEffect(target, v1, v2, v3)
+    {
+        public override long EffectCode => 12345;
+        public override void Execute() { }
+    }
+
+    static EmbeddedEffectMaster Master(List<(long, string, long, long, long)>? log = null)
+    {
+        log ??= [];
+        return new EmbeddedEffectMaster(
+        [
+            new(1, (t, a, b, c) => new HealEffect(t, a, b, c)),
+            new(2, (t, a, b, c) => new GrowEffect(t, a, b, c)),
+            new(3, (t, a, b, c) => new RecordingEffect(t, a, b, c, log)),
+        ]);
+    }
+
+    static Character Hero(long hp = 30) =>
+        new(new CharacterEntry(7001, "용사", 1, 4, 5), new CharacterState(5, hp, 40, 3, 30));
+
+    // ---- 임베디드 이펙트 (추상 클래스) ----
+
+    [Fact]
+    public void Embedded_effect_is_abstract_with_a_constructor_taking_target_and_values()
+    {
+        Assert.True(typeof(EmbeddedEffect).IsAbstract);
+        Assert.NotNull(typeof(EmbeddedEffect).GetProperty(nameof(EmbeddedEffect.EffectCode)));
+
+        var constructor = typeof(EmbeddedEffect).GetConstructors(
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic).Single();
+        Assert.Equal([typeof(Character), typeof(long), typeof(long), typeof(long)], constructor.GetParameters().Select(p => p.ParameterType));
+    }
+
+    [Fact]
+    public void Execute_takes_no_parameters()
+    {
+        var execute = typeof(EmbeddedEffect).GetMethod(nameof(EmbeddedEffect.Execute))!;
+        Assert.True(execute.IsAbstract);
+        Assert.Empty(execute.GetParameters());
+    }
+
+    [Fact]
+    public void Constructor_stores_the_target_and_values_without_executing()
+    {
+        var log = new List<(long, string, long, long, long)>();
+        var target = Hero();
+
+        var effect = Master(log).Create(3, target, 10, -20, long.MaxValue)!;
+
+        Assert.Same(target, effect.Target);
+        Assert.Equal(10, effect.Value1);
+        Assert.Equal(-20, effect.Value2);
+        Assert.Equal(long.MaxValue, effect.Value3);
+        Assert.Empty(log);                                    // 만들기만 했고 아직 실행하지 않았다
+    }
+
+    [Fact]
+    public void Execute_runs_with_the_stored_target_and_values()
+    {
+        var log = new List<(long, string, long, long, long)>();
+        var effect = Master(log).Create(3, Hero(), 1, 2, 3)!;
+
+        effect.Execute();
+
+        Assert.Equal([(7001L, "용사", 1L, 2L, 3L)], log);
+    }
+
+    [Fact]
+    public void Execute_can_change_the_target_state_and_can_run_more_than_once()
+    {
+        var target = Hero(hp: 10);
+        var effect = Master().Create(1, target, 8)!;
+
+        effect.Execute();
+        Assert.Equal(18, target.State.Hp);
+        effect.Execute();
+        Assert.Equal(26, target.State.Hp);
+    }
+
+    [Fact]
+    public void Character_exposes_entry_name_and_code()
+    {
+        var c = Hero();
+        Assert.Equal(7001, c.Code);
+        Assert.Equal("용사", c.Name);
+        Assert.Equal(4, c.Entry.AdvantageAttributeCode);
+    }
 
     // ---- 임베디드 이펙트 마스터 ----
 
     [Fact]
-    public void Embedded_effect_is_abstract_with_effect_code_and_execute()
-    {
-        Assert.True(typeof(EmbeddedEffect).IsAbstract);
-        Assert.NotNull(typeof(EmbeddedEffect).GetProperty(nameof(EmbeddedEffect.EffectCode)));
-        var execute = typeof(EmbeddedEffect).GetMethod(nameof(EmbeddedEffect.Execute))!;
-        Assert.True(execute.IsAbstract);
-        Assert.Equal([typeof(Character), typeof(long), typeof(long), typeof(long)], execute.GetParameters().Select(p => p.ParameterType));
-    }
-
-    [Fact]
-    public void Master_finds_effects_by_code()
+    public void Master_creates_effects_by_code_and_knows_which_codes_exist()
     {
         var master = Master();
         Assert.True(master.Contains(1));
-        Assert.IsType<GrowEffect>(master.Find(2));
+        Assert.IsType<GrowEffect>(master.Create(2, Hero()));
         Assert.False(master.Contains(99));
-        Assert.Null(master.Find(99));
+        Assert.Null(master.Create(99, Hero()));
         Assert.Equal(3, master.All.Count);
     }
 
     [Fact]
-    public void Master_rejects_duplicate_effect_codes()
-        => Assert.Throws<ArgumentException>(() => new EmbeddedEffectMaster([new HealEffect(), new HealEffect()]));
+    public void Each_create_makes_a_new_independent_effect()
+    {
+        var master = Master();
+        var a = master.Create(1, Hero(), 1)!;
+        var b = master.Create(1, Hero(), 2)!;
+        Assert.NotSame(a, b);
+        Assert.Equal(1, a.Value1);
+        Assert.Equal(2, b.Value1);
+    }
 
     [Fact]
-    public void Default_master_is_hardcoded_in_the_engine_and_has_unique_codes()
+    public void Master_rejects_duplicate_effect_codes()
+        => Assert.Throws<ArgumentException>(() => new EmbeddedEffectMaster(
+        [
+            new(1, (t, a, b, c) => new HealEffect(t, a, b, c)),
+            new(1, (t, a, b, c) => new HealEffect(t, a, b, c)),
+        ]));
+
+    [Fact]
+    public void Effect_whose_code_differs_from_its_registration_is_reported()
     {
-        var codes = EmbeddedEffectMaster.Default.All.Select(e => e.EffectCode).ToList();
+        var master = new EmbeddedEffectMaster([new(7, (t, a, b, c) => new MismatchedEffect(t, a, b, c))]);
+        var error = Assert.Throws<InvalidOperationException>(() => master.Create(7, Hero()));
+        Assert.Contains("12345", error.Message);
+    }
+
+    [Fact]
+    public void Default_master_is_hardcoded_in_the_engine_and_each_definition_matches_its_class()
+    {
+        var codes = EmbeddedEffectMaster.Default.All.Select(d => d.EffectCode).ToList();
         Assert.Equal(codes.Count, codes.Distinct().Count());
         Assert.Same(EmbeddedEffectMaster.Default, EmbeddedEffectMaster.Default);
-    }
-
-    [Fact]
-    public void Execute_receives_the_target_character_and_the_three_values()
-    {
-        var recorder = new RecordingEffect();
-        var target = new Character(new CharacterEntry(7001, "용사", 1, 4, 5), new CharacterState(5, 36, 40, 3, 30));
-
-        Master(recorder).Find(3)!.Execute(target, 10, -20, long.MaxValue);
-
-        Assert.Equal([(7001L, "용사", 10L, -20L, long.MaxValue)], recorder.Calls);
-        Assert.Equal(7001, target.Code);
-        Assert.Equal("용사", target.Name);
-    }
-
-    [Fact]
-    public void Execute_can_change_the_target_state()
-    {
-        var target = new Character(new CharacterEntry(7001, "용사", 1, 4, 5), new CharacterState(5, 30, 40, 3, 30));
-        Master().Find(1)!.Execute(target, 8, 0, 0);
-        Assert.Equal(38, target.State.Hp);
+        foreach (var code in codes)                           // 등록한 코드와 클래스의 EffectCode가 같아야 한다
+            Assert.Equal(code, EmbeddedEffectMaster.Default.Create(code, Hero())!.EffectCode);
     }
 
     // ---- 게임팩: 상태이상 마스터, 상태이상 이펙트 마스터 ----
@@ -245,9 +322,9 @@ public class EffectTests
 
     // ---- 세션: 보유 캐릭터에게 이펙트 실행 ----
 
-    static GameSession Session(RecordingEffect? recorder = null)
+    static GameSession Session(List<(long, string, long, long, long)>? log = null)
     {
-        var pack = Pack(withCharacters: true, embedded: Master(recorder));
+        var pack = Pack(withCharacters: true, embedded: Master(log));
         var s = GameSession.NewGame(pack);
         s.Characters[7001] = new CharacterState(5, 30, 40, 3, 30);
         return s;
@@ -282,22 +359,22 @@ public class EffectTests
     [Fact]
     public void Values_reach_the_effect_unchanged()
     {
-        var recorder = new RecordingEffect();
-        var s = Session(recorder);
+        var log = new List<(long, string, long, long, long)>();
+        var s = Session(log);
         s.ApplyEffect(3, 7001, 1, 2, 3);
-        Assert.Equal([(7001L, "용사", 1L, 2L, 3L)], recorder.Calls);
+        Assert.Equal([(7001L, "용사", 1L, 2L, 3L)], log);
     }
 
     [Fact]
     public void Unknown_effect_or_unowned_or_unknown_character_does_nothing()
     {
-        var recorder = new RecordingEffect();
-        var s = Session(recorder);
+        var log = new List<(long, string, long, long, long)>();
+        var s = Session(log);
         Assert.False(s.ApplyEffect(99, 7001, 5));              // 없는 이펙트
         Assert.False(s.ApplyEffect(1, 7002, 5));               // 마스터에 있지만 보유하지 않음
         Assert.False(s.ApplyEffect(1, 9999, 5));               // 마스터에 없는 캐릭터
         Assert.False(s.ApplyEffect(3, 7002, 5));
-        Assert.Empty(recorder.Calls);
+        Assert.Empty(log);
         Assert.Equal(30, s.Characters[7001].Hp);
     }
 

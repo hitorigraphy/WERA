@@ -34,13 +34,16 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
 - **캐릭터 인벤토리**(`character_inventory_master`)는 열이 `character_code`, `character_name`, `carry_limit`, `advantage_attribute_code`, `disadvantage_attribute_code`인 별도 마스터이고 코드 공간도 아이템과 따로입니다. 모든 캐릭터는 **유리속성**과 **불리속성**을 하나씩 가져야 하고, 둘 다 속성 마스터에 있어야 하며 서로 달라야 합니다.
 - **속성**(`attribute_master`)은 속성 코드와 이름입니다. 속성 아이콘 이미지는 아직 경로 규칙이 없어 `No Image`로 표시합니다.
 - **상태이상**(`status_effect_master`)은 상태이상 코드와 이름입니다. 상태이상 아이콘은 아직 화면에 나오지 않습니다(캐릭터가 어떤 상태이상에 걸려 있는지 저장하는 데이터가 아직 없음).
-- **임베디드 이펙트**는 TSV가 아니라 **구동기에 하드코딩된 마스터**입니다. `EmbeddedEffect`를 상속한 클래스로 만들고 `EmbeddedEffectMaster.Default`의 목록에 추가합니다.
-  - `abstract long EffectCode`: 이펙트 코드(마스터 안에서 유일).
-  - `abstract void Execute(Character target, long value1, long value2, long value3)`: 타겟 캐릭터에게 실행. `Character`는 마스터 정의(`Entry`)와 바꿀 수 있는 현재 상태(`State`)를 함께 가집니다.
+- **임베디드 이펙트**는 TSV가 아니라 **구동기에 하드코딩된 마스터**입니다. `EmbeddedEffect`(추상 클래스)를 상속한 클래스로 만들고 `EmbeddedEffectMaster.Default`에 등록합니다.
+  - **생성자**가 `(Character target, long value1, long value2, long value3)`를 받아 `Target`, `Value1~3`에 **저장**합니다.
+  - `abstract long EffectCode`: 이펙트 코드.
+  - `abstract void Execute()`: **파라미터 없이**, 저장해 둔 타겟과 밸류로 실행만 합니다.
+  - 마스터에는 인스턴스가 아니라 `(이펙트 코드, 만드는 방법)`을 등록합니다. 예: `new(1, (t, a, b, c) => new HealEffect(t, a, b, c))`. `Create(코드, 타겟, 밸류 1~3)`로 이펙트를 만들면(실행하지 않음) 그 이펙트의 `Execute()`를 부릅니다. 만들어진 이펙트의 `EffectCode`가 등록한 코드와 다르면 오류입니다.
+  - `Character`는 마스터 정의(`Entry`)와 바꿀 수 있는 현재 상태(`State`)를 함께 가집니다.
   - 지금은 정의된 이펙트가 없습니다.
 - **상태이상 이펙트**(`status_effect_effect_master`)는 "상태이상(`status_effect_code`)이 `trigger_type` 시점에 임베디드 이펙트(`effect_code`)를 `effect_value_1~3`으로 실행한다"를 적습니다. 상태이상 코드는 상태이상 마스터에, 이펙트 코드는 임베디드 이펙트 마스터에 있어야 하고 밸류는 비워 두면 0입니다. `priority`는 `long` 값이며 정렬 방향은 사용하는 쪽이 정합니다. `trigger_type`은 이름으로 적습니다(대소문자 무시, 숫자 불가).
   - `None`(조건 없음/시점 없음), `BeforeAttack`(공격하기 전), `AfterAttack`(공격한 후), `BeforeAttacked`(공격을 받기 전), `AfterAttacked`(공격을 받은 후), `AfterTurnStart`(턴 개시 후), `AfterTurnEnd`(턴 종료 후), `AfterBattleStart`(배틀 개시 후), `AfterBattleEnd`(배틀 종료 후), `AfterMove`(이동 후)
-- `GameSession.ApplyEffect(이펙트 코드, 캐릭터 코드, 밸류 1~3)`은 임베디드 이펙트를 보유 캐릭터에게 실행하고, 바뀐 상태를 세이브가 받아들이는 범위(레벨 1 이상, HP 0~최대 HP, XP 0~필요 XP)로 보정해 저장합니다.
+- `GameSession.ApplyEffect(이펙트 코드, 캐릭터 코드, 밸류 1~3)`은 이펙트를 만들어(타겟과 밸류 저장) `Execute()`로 보유 캐릭터에게 실행하고, 바뀐 상태를 세이브가 받아들이는 범위(레벨 1 이상, HP 0~최대 HP, XP 0~필요 XP)로 보정해 저장합니다.
 - **속성 전투 규칙**(전투 시스템이 생기면 적용, 아직 코드에는 없음): 유리속성으로 공격하면 데미지와 명중률이 ×1.5, 불리속성으로 공격하면 ×0.5입니다. 피격 쪽은 공격 속성이 자신의 유리속성이면 ×0.5, 불리속성이면 ×1.5입니다. 두 보정은 곱하므로 유리속성 공격자가 불리속성 피격자를 치면 ×2.25입니다.
 - **교환**(`shop_trade_master`)은 상점 `shop_code`에서 `cost_item_code`를 `cost_amount`개 내고 `receive_item_code`를 `receive_amount`개 받는 것입니다. 아이템 코드는 아이템/번치 인벤토리 어느 쪽이든 가능하고, 어마운트는 1 이상입니다. 상점과 아이템 코드는 해당 마스터에 있어야 합니다.
 - **교환 조건표**(`shop_trade_condition_master`)는 던전/상점 조건표와 같은 규칙(그룹 AND/OR, `None`)이고, 조건이 없으면 항상 가능합니다.
