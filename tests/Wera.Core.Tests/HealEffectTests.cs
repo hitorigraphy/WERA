@@ -65,13 +65,76 @@ public class HealEffectTests
         Assert.Equal(before with { Hp = 15 }, target.State);
     }
 
-    [Fact]
-    public void A_dead_character_is_healed_by_the_same_rule()
+    [Theory]
+    [InlineData(8)]       // 회복도
+    [InlineData(-8)]      // 감소도
+    [InlineData(0)]
+    public void A_dead_target_is_left_unchanged_and_the_effect_invalidates_itself_at_once(long value1)
     {
         var dead = Hero(hp: 0);
-        new HealEffect(dead, 8, 0, 0).Execute();
-        Assert.Equal(8, dead.State.Hp);
-        Assert.False(dead.State.IsDead);
+        var before = dead.State;
+        var effect = new HealEffect(dead, value1, 5, 0);
+
+        effect.Execute();
+
+        Assert.Equal(before, dead.State);                        // 되살아나지 않는다
+        Assert.True(dead.State.IsDead);
+        Assert.False(effect.IsValid);                            // 바로 무효
+    }
+
+    [Fact]
+    public void A_living_target_keeps_the_effect_valid()
+    {
+        var effect = new HealEffect(Hero(hp: 10), 5, 5, 0);
+        effect.Execute();
+        Assert.True(effect.IsValid);
+    }
+
+    [Fact]
+    public void Killing_the_target_ends_that_run_normally_and_the_next_run_invalidates_the_effect()
+    {
+        var target = Hero(hp: 4);
+        var effect = new HealEffect(target, -10, 5, 0);          // 한 번에 죽는 피해
+
+        effect.Execute();
+        Assert.Equal(0, target.State.Hp);
+        Assert.True(effect.IsValid);                             // 이번 실행으로는 아직 유효
+
+        effect.Execute();                                        // 다음 실행: 사망 → 무효
+        Assert.False(effect.IsValid);
+        Assert.Equal(0, target.State.Hp);
+    }
+
+    [Fact]
+    public void Executor_discards_the_effect_of_a_dead_target_without_waiting_for_value2()
+    {
+        var target = Hero(hp: 0);
+        var effect = new HealEffect(target, 5, 10, 0);           // 밸류 2는 10번이지만
+        var executor = new EffectExecutor();
+        executor.Add(effect);
+
+        executor.Run();
+
+        Assert.False(effect.IsValid);
+        Assert.Empty(executor.Effects);                          // 첫 실행 뒤 바로 폐기
+        Assert.Equal(0, target.State.Hp);
+    }
+
+    [Fact]
+    public void Poison_that_kills_the_target_stops_on_the_following_run()
+    {
+        var target = Hero(hp: 5);
+        var executor = new EffectExecutor();
+        executor.Add(new HealEffect(target, -3, 10, 0));
+
+        executor.Run();                                          // 5 → 2
+        executor.Run();                                          // 2 → 0 (사망)
+        Assert.Equal(0, target.State.Hp);
+        Assert.Single(executor.Effects);                         // 아직 유효
+
+        executor.Run();                                          // 사망 확인 → 무효, 폐기
+        Assert.Empty(executor.Effects);
+        Assert.Equal(0, target.State.Hp);
     }
 
     // ---- 카운터와 유효 플래그 ----
