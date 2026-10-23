@@ -64,8 +64,8 @@ public sealed class GamePack
     /// <summary>상태이상 이펙트 마스터가 없으면 null. 게임팩에 적힌 순서 그대로다.</summary>
     public IReadOnlyList<StatusEffectEffect>? StatusEffectEffects { get; init; }
 
-    /// <summary>이 게임팩을 읽을 때 쓴 임베디드 이펙트 마스터(구동기에 하드코딩된 이펙트들).</summary>
-    public EmbeddedEffectMaster EmbeddedEffects { get; init; } = EmbeddedEffectMaster.Default;
+    /// <summary>이 게임팩을 읽을 때 쓴 임베디드 이펙트 등록부(구동기에 하드코딩된 이펙트들).</summary>
+    public EmbeddedEffectRegistry EmbeddedEffects { get; init; } = EmbeddedEffectRegistry.Default;
 
     /// <summary>상점 교환 마스터가 없으면 null.</summary>
     public IReadOnlyList<ShopTrade>? Trades { get; init; }
@@ -91,9 +91,9 @@ public sealed class GamePack
     }
 
     /// <param name="embeddedEffects">상태이상 이펙트가 가리킬 수 있는 임베디드 이펙트들. 생략하면 구동기의 기본 마스터.</param>
-    public static GamePack Load(Stream zipStream, EmbeddedEffectMaster? embeddedEffects = null)
+    public static GamePack Load(Stream zipStream, EmbeddedEffectRegistry? embeddedEffects = null)
     {
-        embeddedEffects ??= EmbeddedEffectMaster.Default;
+        embeddedEffects ??= EmbeddedEffectRegistry.Default;
         using var zip = new ZipArchive(zipStream, ZipArchiveMode.Read, leaveOpen: true);
 
         var meta = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -253,11 +253,11 @@ public sealed class GamePack
     }
 
     /// <summary>
-    /// 상태이상 이펙트 마스터: 상태이상 코드는 상태이상 마스터에, 이펙트 코드는 임베디드 이펙트 마스터에 있어야 한다.
+    /// 상태이상 이펙트 마스터: 상태이상 코드는 상태이상 마스터에, 이펙트 코드는 임베디드 이펙트에 있어야 한다.
     /// 이펙트 밸류 1~3은 비워 두면 0이다.
     /// </summary>
     static List<StatusEffectEffect>? LoadStatusEffectEffects(
-        ZipArchive zip, List<StatusEffectEntry>? statusEffects, EmbeddedEffectMaster embeddedEffects)
+        ZipArchive zip, List<StatusEffectEntry>? statusEffects, EmbeddedEffectRegistry embeddedEffects)
     {
         const string file = StatusEffectEffectMasterPath;
         var text = TryReadEntry(zip, file);
@@ -284,7 +284,7 @@ public sealed class GamePack
             var priority = ParseLong(file, $"{who} 우선도", r[2]);
             var effectCode = ParseLong(file, $"{who} 이펙트 코드", r[3]);
             if (!embeddedEffects.Contains(effectCode))
-                throw new PackFormatException($"{file}: {who} 이펙트 코드 '{effectCode}'가 임베디드 이펙트 마스터에 없습니다.");
+                throw new PackFormatException($"{file}: {who} 이펙트 코드 '{effectCode}'가 임베디드 이펙트에 없습니다.");
 
             rows.Add(new StatusEffectEffect(
                 statusCode, trigger, priority, effectCode,

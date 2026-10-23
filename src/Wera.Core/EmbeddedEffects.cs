@@ -24,7 +24,7 @@ public abstract class EmbeddedEffect(Character target, long value1, long value2,
     public long Value2 { get; } = value2;
     public long Value3 { get; } = value3;
 
-    /// <summary>이 이펙트의 코드. 임베디드 이펙트 마스터에 등록한 코드와 같아야 한다.</summary>
+    /// <summary>이 이펙트의 코드. 임베디드 이펙트 등록부에 등록한 코드와 같아야 한다.</summary>
     public abstract long EffectCode { get; }
 
     /// <summary>저장해 둔 타겟과 밸류로 이펙트를 실행한다.</summary>
@@ -34,18 +34,18 @@ public abstract class EmbeddedEffect(Character target, long value1, long value2,
 /// <summary>저장할 타겟과 밸류로 이펙트 인스턴스를 만드는 방법. 보통 <c>(t, a, b, c) => new MyEffect(t, a, b, c)</c>.</summary>
 public delegate EmbeddedEffect EmbeddedEffectFactory(Character target, long value1, long value2, long value3);
 
-/// <summary>임베디드 이펙트 마스터의 한 항목: 이펙트 코드와 그 이펙트를 만드는 방법.</summary>
+/// <summary>임베디드 이펙트 등록부의 한 항목: 이펙트 코드와 그 이펙트를 만드는 방법.</summary>
 public sealed record EmbeddedEffectDefinition(long EffectCode, EmbeddedEffectFactory Create);
 
 /// <summary>
-/// 임베디드 이펙트 마스터: 이펙트 코드 → 이펙트를 만드는 방법. 기본 마스터(<see cref="Default"/>)는 구동기에 하드코딩된 목록이다.
+/// 임베디드 이펙트 등록부: 이펙트 코드 → 이펙트를 만드는 방법. 기본 등록부(<see cref="Default"/>)는 구동기에 하드코딩된 목록이다.
 /// 게임팩을 읽을 때 상태이상 이펙트 마스터의 이펙트 코드가 여기에 있는지 검증한다.
 /// </summary>
-public sealed class EmbeddedEffectMaster
+public sealed class EmbeddedEffectRegistry
 {
     readonly Dictionary<long, EmbeddedEffectDefinition> byCode = [];
 
-    public EmbeddedEffectMaster(IEnumerable<EmbeddedEffectDefinition> definitions)
+    public EmbeddedEffectRegistry(IEnumerable<EmbeddedEffectDefinition> definitions)
     {
         foreach (var definition in definitions)
             if (!byCode.TryAdd(definition.EffectCode, definition))
@@ -71,7 +71,7 @@ public sealed class EmbeddedEffectMaster
     }
 
     /// <summary>구동기에 하드코딩된 임베디드 이펙트들. 새 이펙트는 클래스를 만들고 여기에 등록한다.</summary>
-    public static EmbeddedEffectMaster Default { get; } = new(
+    public static EmbeddedEffectRegistry Default { get; } = new(
     [
         // 아직 정의된 이펙트가 없다. 예: new(1, (t, a, b, c) => new HealEffect(t, a, b, c)),
     ]);
