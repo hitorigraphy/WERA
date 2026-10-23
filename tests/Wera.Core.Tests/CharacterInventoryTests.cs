@@ -28,7 +28,7 @@ public class CharacterInventoryTests
     public void Character_inventory_loads_code_name_and_carry_limit()
     {
         var pack = Pack(Header + "7001\t용사\t1\n7002\t마법사\t3\n");
-        Assert.Equal([new CharacterEntry("7001", "용사", 1), new CharacterEntry("7002", "마법사", 3)], pack.CharacterInventory);
+        Assert.Equal([new CharacterEntry(7001, "용사", 1), new CharacterEntry(7002, "마법사", 3)], pack.CharacterInventory);
     }
 
     [Theory]
@@ -61,8 +61,8 @@ public class CharacterInventoryTests
         // 같은 코드가 양쪽에 있어도 충돌하지 않고, 아이템 이름 조회는 캐릭터를 보지 않는다.
         var pack = Pack(Header + "1\t용사\t1\n", ItemHeader + "1\t금화\t99999\n");
         Assert.Equal("용사", pack.CharacterInventory![0].Name);
-        Assert.Equal("금화", pack.ItemName("1"));
-        Assert.Equal("77", pack.ItemName("77"));
+        Assert.Equal("금화", pack.ItemName(1));
+        Assert.Equal("77", pack.ItemName(77));
     }
 
     [Fact]

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -43,10 +44,10 @@ public sealed record SaveData(
     string PackId,
     string SceneId,
     Screen Screen = Screen.Scene,
-    Dictionary<string, long>? PlayerFlags = null,
-    Dictionary<string, InventoryItem>? InventoryItems = null,
-    Dictionary<string, CharacterState>? Characters = null,
-    string?[]? Party = null);
+    Dictionary<long, long>? PlayerFlags = null,
+    Dictionary<long, InventoryItem>? InventoryItems = null,
+    Dictionary<long, CharacterState>? Characters = null,
+    long?[]? Party = null);
 
 [JsonSerializable(typeof(SaveData))]
 [JsonSourceGenerationOptions(WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
@@ -72,26 +73,26 @@ public sealed class GameSession
     public Scene Current { get; private set; }
     public Screen Screen { get; private set; }
     /// <summary>플레이어_플래그: 플래그 코드 → long 값.</summary>
-    public Dictionary<string, long> PlayerFlags { get; }
+    public Dictionary<long, long> PlayerFlags { get; }
 
     /// <summary>인벤토리_아이템: 아이템 코드 → 구조체.</summary>
-    public Dictionary<string, InventoryItem> InventoryItems { get; }
+    public Dictionary<long, InventoryItem> InventoryItems { get; }
 
     /// <summary>보유 캐릭터: 캐릭터 코드 → 현재 상태. 코드는 캐릭터 인벤토리 마스터에 있어야 한다.</summary>
-    public Dictionary<string, CharacterState> Characters { get; }
+    public Dictionary<long, CharacterState> Characters { get; }
 
     /// <summary>파티 배치: 길이 9, 칸 번호 0~2 전위, 3~5 중위, 6~8 후위. 빈 칸은 null.</summary>
-    public string?[] Party { get; }
+    public long?[] Party { get; }
 
     /// <summary>교환 목록 화면에서 보고 있는 상점 코드. 그 화면이 아니면 null.</summary>
-    public string? CurrentShopCode { get; private set; }
+    public long? CurrentShopCode { get; private set; }
 
     /// <summary>캐릭터 선택 화면에서 배치 중인 슬롯(0~8). 그 화면이 아니면 null.</summary>
     public int? CurrentSlot { get; private set; }
 
     GameSession(
-        GamePack pack, Scene scene, Screen screen, Dictionary<string, long> playerFlags,
-        Dictionary<string, InventoryItem> inventoryItems, Dictionary<string, CharacterState> characters, string?[] party)
+        GamePack pack, Scene scene, Screen screen, Dictionary<long, long> playerFlags,
+        Dictionary<long, InventoryItem> inventoryItems, Dictionary<long, CharacterState> characters, long?[] party)
     {
         Pack = pack;
         Current = scene;
@@ -104,7 +105,7 @@ public sealed class GameSession
 
     /// <summary>튜토리얼이 구현될 때까지 새 게임은 홈 화면으로 직행한다.</summary>
     public static GameSession NewGame(GamePack pack) =>
-        new(pack, pack.Scenes[pack.StartSceneId], Screen.Home, [], [], [], new string?[PartySlotCount]);
+        new(pack, pack.Scenes[pack.StartSceneId], Screen.Home, [], [], [], new long?[PartySlotCount]);
 
     /// <summary>장면 화면으로 들어간다.</summary>
     public void EnterScene(string sceneId)
@@ -137,8 +138,8 @@ public sealed class GameSession
                     Pack.ItemName(t.ReceiveItemCode), t.ReceiveAmount))
                 .ToList() ?? [];
 
-    string CharacterName(string code) =>
-        Pack.CharacterInventory?.FirstOrDefault(c => c.Code == code)?.Name ?? code;
+    string CharacterName(long code) =>
+        Pack.CharacterInventory?.FirstOrDefault(c => c.Code == code)?.Name ?? code.ToString(CultureInfo.InvariantCulture);
 
     /// <summary>파티 설정 화면의 9개 슬롯. 비었거나 상태를 알 수 없으면 "빈 슬롯"(회색 0/0).</summary>
     public IReadOnlyList<PartySlotView> PartySlotViews =>
@@ -146,8 +147,7 @@ public sealed class GameSession
 
     PartySlotView SlotView(int slot)
     {
-        var code = Party[slot];
-        if (code is null || !Characters.TryGetValue(code, out var state))
+        if (Party[slot] is not { } code || !Characters.TryGetValue(code, out var state))
         {
             var empty = Gauge.Render(0, 0, gray: true);
             return new PartySlotView(slot, null, "", PartySlotView.EmptyName, empty, empty);
@@ -169,7 +169,7 @@ public sealed class GameSession
             if (Screen != Screen.CharacterSelect || CurrentSlot is not { } slot) return [];
             return (Pack.CharacterInventory ?? []).Select(c =>
             {
-                var placedAt = Array.IndexOf(Party, c.Code);
+                var placedAt = Array.IndexOf(Party, (long?)c.Code);
                 var color = !Characters.ContainsKey(c.Code) ? CharacterListColor.Gray
                     : placedAt == slot ? CharacterListColor.SkyBlue
                     : placedAt >= 0 ? CharacterListColor.Green
@@ -199,13 +199,13 @@ public sealed class GameSession
                 case Screen.ShopList:
                     // 상점 코드를 입력하거나 클릭하면 그 상점의 교환 목록으로 간다.
                     return AvailableShops
-                        .Select(s => new ScreenEntry(s.Code, s.Name, Screen.ShopTrades))
+                        .Select(s => new ScreenEntry(Text(s.Code), s.Name, Screen.ShopTrades))
                         .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home))
                         .ToList();
                 case Screen.ShopTrades:
                     // 교환 코드를 입력하거나 클릭하면 그 교환을 실행한다.
                     return CurrentShopTrades
-                        .Select(t => new ScreenEntry(t.Code, t.Text, Screen.ShopTrades, EntryAction.Trade))
+                        .Select(t => new ScreenEntry(Text(t.Code), t.Text, Screen.ShopTrades, EntryAction.Trade))
                         .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen.ShopList))
                         .ToList();
                 case Screen.PartySetup:
@@ -219,7 +219,7 @@ public sealed class GameSession
                     // 고를 수 있는 캐릭터(회색 제외)의 코드를 입력하거나 클릭하면 배치한다.
                     return CharacterList
                         .Where(c => c.Selectable)
-                        .Select(c => new ScreenEntry(c.Code, c.Name, Screen.PartySetup, EntryAction.PlaceCharacter))
+                        .Select(c => new ScreenEntry(Text(c.Code), c.Name, Screen.PartySetup, EntryAction.PlaceCharacter))
                         .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen.PartySetup))
                         .ToList();
                 case Screen.DungeonSelect:
@@ -241,20 +241,20 @@ public sealed class GameSession
     public ScreenEntry? Activate(string code)
     {
         Message = null;
-        code = code.Trim();
+        code = Normalize(code);
         var entry = Entries.FirstOrDefault(e => e.Code == code);
         switch (entry?.Action)
         {
             case EntryAction.Navigate:
-                CurrentShopCode = entry.Target == Screen.ShopTrades ? entry.Code : null;
-                CurrentSlot = entry.Target == Screen.CharacterSelect ? int.Parse(entry.Arg!) : null;
+                CurrentShopCode = entry.Target == Screen.ShopTrades ? CodeOf(entry) : null;
+                CurrentSlot = entry.Target == Screen.CharacterSelect ? int.Parse(entry.Arg!, CultureInfo.InvariantCulture) : null;
                 Screen = entry.Target;
                 break;
             case EntryAction.Trade:
-                Message = ExecuteTrade(entry.Code);
+                Message = ExecuteTrade(CodeOf(entry));
                 break;
             case EntryAction.PlaceCharacter:
-                PlaceCharacter(entry.Code);
+                PlaceCharacter(CodeOf(entry));
                 CurrentSlot = null;
                 Screen = entry.Target;
                 break;
@@ -262,14 +262,25 @@ public sealed class GameSession
         return entry;
     }
 
+    static string Text(long code) => code.ToString(CultureInfo.InvariantCulture);
+
+    static long CodeOf(ScreenEntry entry) => long.Parse(entry.Code, CultureInfo.InvariantCulture);
+
+    /// <summary>입력을 다듬는다. 앞뒤 공백을 없애고, 숫자면 앞자리 0을 없앤다("007001" → "7001").</summary>
+    static string Normalize(string typed)
+    {
+        typed = typed.Trim();
+        return long.TryParse(typed, NumberStyles.None, CultureInfo.InvariantCulture, out var n) ? Text(n) : typed;
+    }
+
     /// <summary>
     /// 선택한 슬롯에 캐릭터를 둔다. 이미 다른 슬롯에 있으면 그 슬롯과 이 슬롯의 내용을 맞바꾸고(빈 슬롯이면 이동),
     /// 어디에도 없으면 이 슬롯에 두며 원래 있던 캐릭터는 파티에서 빠진다. 이 슬롯의 캐릭터를 다시 고르면 그대로다.
     /// </summary>
-    void PlaceCharacter(string code)
+    void PlaceCharacter(long code)
     {
         var slot = CurrentSlot!.Value;
-        var at = Array.IndexOf(Party, code);
+        var at = Array.IndexOf(Party, (long?)code);
         if (at == slot) return;
         if (at >= 0) (Party[at], Party[slot]) = (Party[slot], Party[at]);
         else Party[slot] = code;
@@ -277,15 +288,27 @@ public sealed class GameSession
 
     /// <summary>
     /// 코스트를 인벤토리에서 내고 리시브를 받는다. 번치 아이템은 부품으로 풀어서 처리한다.
-    /// 코스트가 모자라거나 수량이 int 한도를 넘으면 아무것도 바꾸지 않고 사유를 돌려준다.
+    /// 코스트가 모자라거나 소지제한을 넘거나 수량이 long 범위를 넘으면 아무것도 바꾸지 않고 사유를 돌려준다.
     /// </summary>
-    string ExecuteTrade(string tradeCode)
+    string ExecuteTrade(long tradeCode)
     {
         var trade = Pack.Trades!.First(t => t.Code == tradeCode);
         var text = new TradeLine(
             trade.Code, Pack.ItemName(trade.CostItemCode), trade.CostAmount,
             Pack.ItemName(trade.ReceiveItemCode), trade.ReceiveAmount).Text;
 
+        try
+        {
+            return ExecuteTrade(trade, text);
+        }
+        catch (OverflowException)
+        {
+            return $"교환 실패 - 수량이 너무 커서 계산할 수 없습니다. [{text}]";
+        }
+    }
+
+    string ExecuteTrade(ShopTrade trade, string text)
+    {
         var cost = Pack.Expand(trade.CostItemCode, trade.CostAmount);
         var gain = Pack.Expand(trade.ReceiveItemCode, trade.ReceiveAmount);
 
@@ -296,16 +319,17 @@ public sealed class GameSession
             if (have < need) return $"교환 실패 - 부족: {Pack.ItemName(item)} (보유 {have} / 필요 {need}) [{text}]";
         }
 
-        var net = new Dictionary<string, long>();
-        foreach (var (item, n) in cost) net[item] = net.GetValueOrDefault(item) - n;
-        foreach (var (item, n) in gain) net[item] = net.GetValueOrDefault(item) + n;
+        // 합산은 checked라 long 범위를 넘으면 OverflowException이 난다(바깥에서 실패로 처리).
+        var net = new Dictionary<long, long>();
+        foreach (var (item, n) in cost) net[item] = checked(net.GetValueOrDefault(item) - n);
+        foreach (var (item, n) in gain) net[item] = checked(net.GetValueOrDefault(item) + n);
 
-        // 아이템 인벤토리 마스터의 소지제한을 넘게 되면 교환하지 않는다. 마스터에 없는 아이템은 int 한도까지.
+        // 아이템 인벤토리 마스터의 소지제한을 넘게 되면 교환하지 않는다. 마스터에 없는 아이템은 long 한도까지.
         foreach (var (item, delta) in net)
         {
             if (delta <= 0) continue;
-            var limit = Pack.ItemInventory?.FirstOrDefault(i => i.Code == item)?.CarryLimit ?? int.MaxValue;
-            if (InventoryItems.GetValueOrDefault(item).Amount + delta > limit)
+            var limit = Pack.ItemInventory?.FirstOrDefault(i => i.Code == item)?.CarryLimit ?? long.MaxValue;
+            if (checked(InventoryItems.GetValueOrDefault(item).Amount + delta) > limit)
                 return $"교환 실패 - 소지 한도 초과: {Pack.ItemName(item)} (한도 {limit}) [{text}]";
         }
 
@@ -313,7 +337,7 @@ public sealed class GameSession
         {
             var after = InventoryItems.GetValueOrDefault(item).Amount + delta;
             if (after == 0) InventoryItems.Remove(item);
-            else InventoryItems[item] = new InventoryItem((int)after);
+            else InventoryItems[item] = new InventoryItem(after);
         }
         return $"교환 완료: {text}";
     }
@@ -330,10 +354,10 @@ public sealed class GameSession
         JsonSerializer.Serialize(
             new SaveData(
                 SaveVersion, Pack.Id, Current.Id, Screen,
-                new Dictionary<string, long>(PlayerFlags),
-                new Dictionary<string, InventoryItem>(InventoryItems),
-                new Dictionary<string, CharacterState>(Characters),
-                (string?[])Party.Clone()),
+                new Dictionary<long, long>(PlayerFlags),
+                new Dictionary<long, InventoryItem>(InventoryItems),
+                new Dictionary<long, CharacterState>(Characters),
+                (long?[])Party.Clone()),
             SaveJsonContext.Default.SaveData);
 
     public static GameSession FromSaveJson(GamePack pack, string json)
@@ -347,12 +371,12 @@ public sealed class GameSession
         if (save.PackId != pack.Id) throw new SaveFormatException($"다른 게임팩의 세이브입니다: {save.PackId}");
         if (!pack.Scenes.TryGetValue(save.SceneId ?? "", out var scene))
             throw new SaveFormatException($"세이브의 장면 '{save.SceneId}'를 게임팩에서 찾을 수 없습니다.");
-        var playerFlags = save.PlayerFlags is null ? [] : new Dictionary<string, long>(save.PlayerFlags);
-        var inventory = save.InventoryItems is null ? [] : new Dictionary<string, InventoryItem>(save.InventoryItems);
+        var playerFlags = save.PlayerFlags is null ? [] : new Dictionary<long, long>(save.PlayerFlags);
+        var inventory = save.InventoryItems is null ? [] : new Dictionary<long, InventoryItem>(save.InventoryItems);
         foreach (var (code, item) in inventory)
             if (item.Amount < 0) throw new SaveFormatException($"세이브의 인벤토리 아이템 {code}의 수량이 음수입니다: {item.Amount}");
 
-        var characters = save.Characters is null ? [] : new Dictionary<string, CharacterState>(save.Characters);
+        var characters = save.Characters is null ? [] : new Dictionary<long, CharacterState>(save.Characters);
         foreach (var (code, s) in characters)
         {
             if (pack.CharacterInventory?.Any(c => c.Code == code) != true)
@@ -362,17 +386,17 @@ public sealed class GameSession
                     $"세이브의 캐릭터 '{code}' 상태가 올바르지 않습니다 (Lv {s.Level}, HP {s.Hp}/{s.MaxHp}, XP {s.Xp}/{s.XpMax}).");
         }
 
-        var party = new string?[PartySlotCount];
+        var party = new long?[PartySlotCount];
         if (save.Party is { } saved)
         {
             if (saved.Length > PartySlotCount)
                 throw new SaveFormatException($"세이브의 파티 슬롯이 {PartySlotCount}칸보다 많습니다: {saved.Length}");
-            for (var i = 0; i < saved.Length; i++) party[i] = string.IsNullOrEmpty(saved[i]) ? null : saved[i];
+            for (var i = 0; i < saved.Length; i++) party[i] = saved[i];
         }
-        foreach (var code in party.OfType<string>())
+        foreach (var code in party.OfType<long>())
             if (!characters.ContainsKey(code))
                 throw new SaveFormatException($"세이브의 파티 캐릭터 '{code}'가 보유 캐릭터에 없습니다.");
-        if (party.OfType<string>().GroupBy(c => c).Any(g => g.Count() > 1))
+        if (party.OfType<long>().GroupBy(c => c).Any(g => g.Count() > 1))
             throw new SaveFormatException("세이브의 파티에 같은 캐릭터가 두 번 이상 있습니다.");
 
         // 불러오기는 저장된 화면과 상관없이 항상 홈으로 들어간다.

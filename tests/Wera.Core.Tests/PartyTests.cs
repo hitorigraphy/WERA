@@ -24,9 +24,9 @@ public class PartyTests
     static GameSession Session()
     {
         var s = GameSession.NewGame(Pack());
-        s.Characters["7001"] = new CharacterState(5, 36, 40, 3, 30);
-        s.Characters["7002"] = new CharacterState(3, 10, 25, 12, 30);
-        s.Characters["7003"] = new CharacterState(8, 0, 50, 40, 80);
+        s.Characters[7001] = new CharacterState(5, 36, 40, 3, 30);
+        s.Characters[7002] = new CharacterState(3, 10, 25, 12, 30);
+        s.Characters[7003] = new CharacterState(8, 0, 50, 40, 80);
         return s;
     }
 
@@ -130,7 +130,7 @@ public class PartyTests
     public void Filled_slot_shows_level_name_hp_and_xp_gauges()
     {
         var s = Session();
-        s.Party[0] = "7001";
+        s.Party[0] = 7001;
         var v = s.PartySlotViews[0];
 
         Assert.False(v.IsEmpty);
@@ -145,7 +145,7 @@ public class PartyTests
     public void Dead_character_gauges_are_gray()
     {
         var s = Session();
-        s.Party[8] = "7003";
+        s.Party[8] = 7003;
         var v = s.PartySlotViews[8];
         Assert.Equal(GaugeColor.Gray, v.Hp.Color);
         Assert.Equal(GaugeColor.Gray, v.Xp.Color);
@@ -156,7 +156,7 @@ public class PartyTests
     public void Party_slot_with_unknown_state_is_shown_as_empty()
     {
         var s = Session();
-        s.Party[2] = "7004";                                   // 보유하지 않은 캐릭터 코드
+        s.Party[2] = 7004;                                   // 보유하지 않은 캐릭터 코드
         Assert.True(s.PartySlotViews[2].IsEmpty);
     }
 
@@ -177,18 +177,18 @@ public class PartyTests
     public void Character_list_colors()
     {
         var s = Session();
-        s.Party[4] = "7001";                                   // 이 슬롯(5번)에 용사
-        s.Party[0] = "7002";                                   // 다른 슬롯에 마법사
+        s.Party[4] = 7001;                                   // 이 슬롯(5번)에 용사
+        s.Party[0] = 7002;                                   // 다른 슬롯에 마법사
         s.Activate("103");
         s.Activate("5");
 
         var colors = s.CharacterList.ToDictionary(c => c.Code, c => c.Color);
-        Assert.Equal(CharacterListColor.SkyBlue, colors["7001"]);   // 이미 이 슬롯에 있는 자신
-        Assert.Equal(CharacterListColor.Green, colors["7002"]);     // 다른 슬롯의 파티원
-        Assert.Equal(CharacterListColor.White, colors["7003"]);     // 배치 가능
-        Assert.Equal(CharacterListColor.Gray, colors["7004"]);      // 보유하지 않음 → 배치 불가
-        Assert.Equal(["7001", "7002", "7003", "7004"], s.CharacterList.Select(c => c.Code));
-        Assert.False(s.CharacterList.Single(c => c.Code == "7004").Selectable);
+        Assert.Equal(CharacterListColor.SkyBlue, colors[7001]);   // 이미 이 슬롯에 있는 자신
+        Assert.Equal(CharacterListColor.Green, colors[7002]);     // 다른 슬롯의 파티원
+        Assert.Equal(CharacterListColor.White, colors[7003]);     // 배치 가능
+        Assert.Equal(CharacterListColor.Gray, colors[7004]);      // 보유하지 않음 → 배치 불가
+        Assert.Equal([7001L, 7002L, 7003L, 7004L], s.CharacterList.Select(c => c.Code));
+        Assert.False(s.CharacterList.Single(c => c.Code == 7004).Selectable);
     }
 
     [Fact]
@@ -212,7 +212,7 @@ public class PartyTests
 
         Assert.Equal(Screen.PartySetup, s.Screen);
         Assert.Null(s.CurrentSlot);
-        Assert.Equal("7001", s.Party[0]);
+        Assert.Equal(7001L, s.Party[0]);
         Assert.Equal("용사", s.PartySlotViews[0].Name);
     }
 
@@ -220,54 +220,54 @@ public class PartyTests
     public void Choosing_a_free_character_replaces_the_slot_occupant_who_leaves_the_party()
     {
         var s = Session();
-        s.Party[0] = "7001";
+        s.Party[0] = 7001;
         s.Activate("103");
         s.Activate("1");
         s.Activate("7002");
 
-        Assert.Equal("7002", s.Party[0]);
-        Assert.DoesNotContain("7001", s.Party);
+        Assert.Equal(7002L, s.Party[0]);
+        Assert.DoesNotContain((long?)7001, s.Party);
     }
 
     [Fact]
     public void Choosing_the_character_already_in_this_slot_changes_nothing()
     {
         var s = Session();
-        s.Party[3] = "7001";
+        s.Party[3] = 7001;
         s.Activate("103");
         s.Activate("4");
         Assert.NotNull(s.Activate("7001"));
         Assert.Equal(Screen.PartySetup, s.Screen);
-        Assert.Equal("7001", s.Party[3]);
-        Assert.Single(s.Party.OfType<string>());
+        Assert.Equal(7001L, s.Party[3]);
+        Assert.Single(s.Party.OfType<long>());
     }
 
     [Fact]
     public void Choosing_a_placed_party_member_swaps_positions()
     {
         var s = Session();
-        s.Party[0] = "7001";
-        s.Party[5] = "7002";
+        s.Party[0] = 7001;
+        s.Party[5] = 7002;
         s.Activate("103");
         s.Activate("1");                                       // 슬롯 1(전위 첫 칸)에 마법사를 고른다
         s.Activate("7002");
 
-        Assert.Equal("7002", s.Party[0]);
-        Assert.Equal("7001", s.Party[5]);                      // 용사는 마법사가 있던 칸으로
+        Assert.Equal(7002L, s.Party[0]);
+        Assert.Equal(7001L, s.Party[5]);                      // 용사는 마법사가 있던 칸으로
     }
 
     [Fact]
     public void Choosing_a_placed_party_member_for_an_empty_slot_moves_it()
     {
         var s = Session();
-        s.Party[5] = "7002";
+        s.Party[5] = 7002;
         s.Activate("103");
         s.Activate("1");
         s.Activate("7002");
 
-        Assert.Equal("7002", s.Party[0]);
+        Assert.Equal(7002L, s.Party[0]);
         Assert.Null(s.Party[5]);                               // 원래 칸은 비게 된다
-        Assert.Single(s.Party.OfType<string>());
+        Assert.Single(s.Party.OfType<long>());
     }
 
     [Fact]
@@ -299,8 +299,8 @@ public class PartyTests
     {
         var pack = Pack();
         var s = Session();
-        s.Party[0] = "7001";
-        s.Party[4] = "7002";
+        s.Party[0] = 7001;
+        s.Party[4] = 7002;
         s.Activate("103");
 
         var json = s.ToSaveJson();
@@ -309,9 +309,9 @@ public class PartyTests
 
         var loaded = GameSession.FromSaveJson(pack, json);
         Assert.Equal(Screen.Home, loaded.Screen);
-        Assert.Equal(new CharacterState(5, 36, 40, 3, 30), loaded.Characters["7001"]);
-        Assert.Equal(new CharacterState(8, 0, 50, 40, 80), loaded.Characters["7003"]);
-        string?[] expectedParty = ["7001", null, null, null, "7002", null, null, null, null];
+        Assert.Equal(new CharacterState(5, 36, 40, 3, 30), loaded.Characters[7001]);
+        Assert.Equal(new CharacterState(8, 0, 50, 40, 80), loaded.Characters[7003]);
+        long?[] expectedParty = [7001, null, null, null, 7002, null, null, null, null];
         Assert.True(expectedParty.SequenceEqual(loaded.Party));
     }
 
@@ -325,15 +325,15 @@ public class PartyTests
     }
 
     [Fact]
-    public void Short_party_array_is_padded_and_empty_strings_mean_empty_slots()
+    public void Short_party_array_is_padded_and_null_means_an_empty_slot()
     {
         var s = GameSession.FromSaveJson(Pack(),
             "{\"Version\":1,\"PackId\":\"demo\",\"SceneId\":\"a\"," +
             "\"Characters\":{\"7001\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xp\":0,\"XpMax\":10}}," +
-            "\"Party\":[\"\",\"7001\"]}");
+            "\"Party\":[null,7001]}");
         Assert.Equal(9, s.Party.Length);
         Assert.Null(s.Party[0]);
-        Assert.Equal("7001", s.Party[1]);
+        Assert.Equal(7001L, s.Party[1]);
     }
 
     const string Header = "{\"Version\":1,\"PackId\":\"demo\",\"SceneId\":\"a\",";
@@ -346,9 +346,9 @@ public class PartyTests
     [InlineData("\"Characters\":{\"7001\":{\"Level\":1,\"Hp\":-1,\"MaxHp\":5,\"Xp\":0,\"XpMax\":10}}")]  // HP 음수
     [InlineData("\"Characters\":{\"7001\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xp\":11,\"XpMax\":10}}")]  // XP > XpMax
     [InlineData("\"Characters\":{\"7001\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xp\":-1,\"XpMax\":10}}")]  // XP 음수
-    [InlineData(Owned7001 + ",\"Party\":[\"7002\"]")]                                                    // 보유하지 않은 캐릭터를 배치
-    [InlineData(Owned7001 + ",\"Party\":[\"7001\",\"7001\"]")]                                           // 같은 캐릭터 중복 배치
-    [InlineData(Owned7001 + ",\"Party\":[\"7001\",null,null,null,null,null,null,null,null,null]")]     // 10칸
+    [InlineData(Owned7001 + ",\"Party\":[7002]")]                                                    // 보유하지 않은 캐릭터를 배치
+    [InlineData(Owned7001 + ",\"Party\":[7001,7001]")]                                           // 같은 캐릭터 중복 배치
+    [InlineData(Owned7001 + ",\"Party\":[7001,null,null,null,null,null,null,null,null,null]")]     // 10칸
     public void Invalid_character_or_party_data_in_a_save_is_rejected(string body)
         => Assert.Throws<SaveFormatException>(() => GameSession.FromSaveJson(Pack(), Header + body + "}"));
 

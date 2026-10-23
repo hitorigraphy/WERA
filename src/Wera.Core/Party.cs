@@ -1,7 +1,7 @@
 namespace Wera.Core;
 
 /// <summary>보유 캐릭터의 현재 상태. XpMax는 다음 레벨까지 필요한 경험치.</summary>
-public readonly record struct CharacterState(int Level, int Hp, int MaxHp, int Xp, int XpMax)
+public readonly record struct CharacterState(long Level, long Hp, long MaxHp, long Xp, long XpMax)
 {
     public bool IsDead => Hp <= 0;
 }
@@ -27,7 +27,7 @@ public static class Gauge
     /// 예: 36/40 → "****36/40***-", 3/30 → "*----3/30----".
     /// 색은 50% 이상 흰색, 25% 이상 노랑, 그 아래는 빨강이고, <paramref name="gray"/>(사망, 빈 슬롯)면 회색이다.
     /// </summary>
-    public static GaugeView Render(int current, int max, bool gray, int width = Width)
+    public static GaugeView Render(long current, long max, bool gray, int width = Width)
     {
         current = Math.Max(0, current);
         max = Math.Max(0, max);
@@ -52,7 +52,7 @@ public static class Gauge
 
 /// <summary>파티 설정 화면의 슬롯 하나. 슬롯 0~2가 전위, 3~5가 중위, 6~8이 후위.</summary>
 public sealed record PartySlotView(
-    int Slot, string? CharacterCode, string LevelText, string Name, GaugeView Hp, GaugeView Xp)
+    int Slot, long? CharacterCode, string LevelText, string Name, GaugeView Hp, GaugeView Xp)
 {
     public const string EmptyName = "빈 슬롯";
     public bool IsEmpty => CharacterCode is null;
@@ -70,7 +70,7 @@ public enum CharacterListColor
     Green,
 }
 
-public sealed record CharacterListItem(string Code, string Name, CharacterListColor Color)
+public sealed record CharacterListItem(long Code, string Name, CharacterListColor Color)
 {
     public bool Selectable => Color != CharacterListColor.Gray;
 }

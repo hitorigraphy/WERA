@@ -99,7 +99,7 @@
                 <ul class="character-list">
                     @foreach (var c in session.CharacterList)
                     {
-                        var charCode = c.Code;
+                        var charCode = c.Code.ToString();
                         var colorClass = "char-" + c.Color.ToString().ToLowerInvariant();
                         <li>
                             @if (c.Selectable)

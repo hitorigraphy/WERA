@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO.Compression;
 using System.Text;
 
@@ -10,7 +11,7 @@ public sealed record Choice(string Label, string Next);
 public sealed record Scene(string Id, string Text, IReadOnlyList<Choice> Choices);
 
 /// <summary>
-/// 게임팩: TSV 묶음 zip. 첫 줄은 헤더.
+/// 게임팩: TSV 묶음 zip. 첫 줄은 헤더. 모든 코드와 수량은 long 정수, 그룹넘버(group_no)는 int.
 ///   pack.tsv                              key/value 행 (id, title, start)
 ///   scenes.tsv                            id, text
 ///   choices.tsv                           scene, label, next
@@ -59,23 +60,24 @@ public sealed class GamePack
     /// <summary>상점 교환 마스터가 없으면 null.</summary>
     public IReadOnlyList<ShopTrade>? Trades { get; init; }
 
-    /// <summary>아이템/번치 인벤토리의 아이템 코드의 이름. 마스터에 없으면 코드를 그대로 돌려준다.</summary>
+    /// <summary>아이템/번치 인벤토리의 아이템 코드의 이름. 마스터에 없으면 코드를 그대로 문자열로 돌려준다.</summary>
     /// <remarks>캐릭터 인벤토리는 별도 마스터라 여기서 찾지 않는다.</remarks>
-    public string ItemName(string itemCode) =>
+    public string ItemName(long itemCode) =>
         ItemInventory?.FirstOrDefault(i => i.Code == itemCode)?.Name
         ?? BunchInventory?.FirstOrDefault(b => b.Code == itemCode)?.Name
-        ?? itemCode;
+        ?? itemCode.ToString(CultureInfo.InvariantCulture);
 
     /// <summary>
     /// 아이템 코드와 개수를 실제로 인벤토리에 오가는 아이템 인벤토리의 아이템들로 푼다.
     /// 번치는 부품 × 부품 어마운트 × 개수로, 일반 아이템은 그대로 돌려준다.
     /// </summary>
-    public Dictionary<string, long> Expand(string itemCode, long amount)
+    /// <exception cref="OverflowException">곱이 long 범위를 넘을 때.</exception>
+    public Dictionary<long, long> Expand(long itemCode, long amount)
     {
         var bunch = BunchInventory?.FirstOrDefault(b => b.Code == itemCode);
         return bunch is null
-            ? new Dictionary<string, long> { [itemCode] = amount }
-            : bunch.Parts.ToDictionary(p => p.ItemCode, p => p.Amount * amount);
+            ? new Dictionary<long, long> { [itemCode] = amount }
+            : bunch.Parts.ToDictionary(p => p.ItemCode, p => checked(p.Amount * amount));
     }
 
     public static GamePack Load(Stream zipStream)
@@ -113,9 +115,9 @@ public sealed class GamePack
             throw new PackFormatException($"시작 장면 '{start}'가 scenes.tsv에 없습니다.");
 
         var dungeons = LoadConditioned(zip, DungeonMasterPath, ["code", "name"], DungeonFlagMasterPath, "던전", "dungeon_code",
-            (r, groups) => new Dungeon(r[0], r[1], groups));
+            (code, r, groups) => new Dungeon(code, r[1], groups));
         var shops = LoadConditioned(zip, ShopMasterPath, ["code", "name"], ShopConditionMasterPath, "상점", "shop_code",
-            (r, groups) => new Shop(r[0], r[1], groups));
+            (code, r, groups) => new Shop(code, r[1], groups));
         var itemInventory = LoadItemInventory(zip);
         var bunchInventory = LoadBunchInventory(zip, itemInventory);
         var characterInventory = LoadLimitedInventory(zip, CharacterInventoryMasterPath, "캐릭터", "character_code", "character_name",
@@ -139,13 +141,28 @@ public sealed class GamePack
         };
     }
 
+    /// <summary>정수(long) 칸을 읽는다. 비었거나 정수가 아니면 어디의 무엇인지 알려 주는 오류를 낸다.</summary>
+    static long ParseLong(string file, string what, string value)
+    {
+        if (value.Length == 0) throw new PackFormatException($"{file}: {what}이(가) 비어 있습니다.");
+        return long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n)
+            ? n
+            : throw new PackFormatException($"{file}: {what} '{value}'이(가) 정수가 아닙니다.");
+    }
+
+    static long ParsePositive(string file, string what, string value)
+    {
+        var n = ParseLong(file, what, value);
+        return n > 0 ? n : throw new PackFormatException($"{file}: {what} '{value}'이(가) 1 이상의 정수가 아닙니다.");
+    }
+
     /// <summary>
     /// 마스터(첫 열이 고유코드)와 조건표(같은 형식의 5열)를 읽는다. 마스터 파일이 없으면 null.
     /// 조건표가 없으면 모든 항목이 조건 없이 열린다. 행 값 검증은 create가 맡는다.
     /// </summary>
     static List<T>? LoadConditioned<T>(
         ZipArchive zip, string masterPath, string[] masterHeader, string conditionPath, string noun, string codeColumn,
-        Func<string[], IReadOnlyList<IReadOnlyList<FlagCondition>>, T> create)
+        Func<long, string[], IReadOnlyList<IReadOnlyList<FlagCondition>>, T> create)
     {
         var masterText = TryReadEntry(zip, masterPath);
         if (masterText is null)
@@ -155,14 +172,14 @@ public sealed class GamePack
             return null;
         }
 
-        var rows = new Dictionary<string, string[]>();
-        var order = new List<string>();
+        var rows = new Dictionary<long, string[]>();
+        var order = new List<long>();
         foreach (var r in Body(masterPath, masterText, masterHeader))
         {
-            if (r[0].Length == 0) throw new PackFormatException($"{masterPath}: 고유코드가 비어 있습니다.");
-            if (!rows.TryAdd(r[0], r))
-                throw new PackFormatException($"{masterPath}: {noun} 코드 '{r[0]}'가 중복됩니다.");
-            order.Add(r[0]);
+            var code = ParseLong(masterPath, $"{noun} 코드", r[0]);
+            if (!rows.TryAdd(code, r))
+                throw new PackFormatException($"{masterPath}: {noun} 코드 '{code}'가 중복됩니다.");
+            order.Add(code);
         }
 
         // 코드 → (그룹넘버 → 조건들)
@@ -173,32 +190,32 @@ public sealed class GamePack
             var file = conditionPath;
             foreach (var r in Body(file, conditionText, codeColumn, "group_no", "flag_code", "condition_type", "condition_value"))
             {
-                if (!groups.TryGetValue(r[0], out var byGroup))
-                    throw new PackFormatException($"{file}: 알 수 없는 {noun} 코드 '{r[0]}'.");
-                if (!int.TryParse(r[1], out var groupNo))
-                    throw new PackFormatException($"{file}: {noun} '{r[0]}'의 그룹넘버 '{r[1]}'가 정수가 아닙니다.");
+                var code = ParseLong(file, $"{noun} 코드", r[0]);
+                if (!groups.TryGetValue(code, out var byGroup))
+                    throw new PackFormatException($"{file}: 알 수 없는 {noun} 코드 '{code}'.");
+                if (!int.TryParse(r[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var groupNo))
+                    throw new PackFormatException($"{file}: {noun} '{code}'의 그룹넘버 '{r[1]}'이(가) 정수가 아닙니다.");
                 // 숫자("1")도 Enum.TryParse를 통과하므로 이름 목록으로 먼저 거른다.
                 if (!Enum.GetNames<ConditionType>().Contains(r[3], StringComparer.OrdinalIgnoreCase)
                     || !Enum.TryParse<ConditionType>(r[3], ignoreCase: true, out var type))
                     throw new PackFormatException(
-                        $"{file}: {noun} '{r[0]}'의 컨디션 타입 '{r[3]}'을(를) 알 수 없습니다. ({string.Join(", ", Enum.GetNames<ConditionType>())})");
+                        $"{file}: {noun} '{code}'의 컨디션 타입 '{r[3]}'을(를) 알 수 없습니다. ({string.Join(", ", Enum.GetNames<ConditionType>())})");
                 // None은 조건 없음이므로 플래그 코드와 밸류를 비워 둘 수 있다.
-                long value = 0;
+                long flagCode = 0, value = 0;
                 if (type != ConditionType.None)
                 {
-                    if (r[2].Length == 0)
-                        throw new PackFormatException($"{file}: {noun} '{r[0]}'의 플래그 코드가 비어 있습니다.");
-                    if (!long.TryParse(r[4], out value))
-                        throw new PackFormatException($"{file}: {noun} '{r[0]}'의 컨디션 밸류 '{r[4]}'가 정수가 아닙니다.");
+                    flagCode = ParseLong(file, $"{noun} '{code}'의 플래그 코드", r[2]);
+                    value = ParseLong(file, $"{noun} '{code}'의 컨디션 밸류", r[4]);
                 }
 
                 if (!byGroup.TryGetValue(groupNo, out var list)) byGroup[groupNo] = list = [];
-                list.Add(new FlagCondition(r[2], type, value));
+                list.Add(new FlagCondition(flagCode, type, value));
             }
         }
 
         return order
             .Select(code => create(
+                code,
                 rows[code],
                 groups[code].Values.Select(l => (IReadOnlyList<FlagCondition>)l).ToList()))
             .ToList();
@@ -209,21 +226,21 @@ public sealed class GamePack
             (code, name, limit) => new ItemEntry(code, name, limit));
 
     /// <summary>"코드, 이름, carry_limit" 3열 인벤토리 마스터를 읽는다(열 이름은 마스터마다 다름). 파일이 없으면 null.</summary>
-    static List<T>? LoadLimitedInventory<T>(ZipArchive zip, string path, string noun, string codeColumn, string nameColumn, Func<string, string, int, T> create)
+    static List<T>? LoadLimitedInventory<T>(
+        ZipArchive zip, string path, string noun, string codeColumn, string nameColumn, Func<long, string, long, T> create)
     {
         var text = TryReadEntry(zip, path);
         if (text is null) return null;
 
         var items = new List<T>();
-        var seen = new HashSet<string>();
+        var seen = new HashSet<long>();
         foreach (var r in Body(path, text, codeColumn, nameColumn, "carry_limit"))
         {
-            if (r[0].Length == 0) throw new PackFormatException($"{path}: {noun} 코드가 비어 있습니다.");
-            if (!seen.Add(r[0]))
-                throw new PackFormatException($"{path}: {noun} 코드 '{r[0]}'가 중복됩니다.");
-            if (!int.TryParse(r[2], out var limit) || limit <= 0)
-                throw new PackFormatException($"{path}: {noun} '{r[0]}'의 소지제한 '{r[2]}'가 1 이상의 정수가 아닙니다.");
-            items.Add(create(r[0], r[1], limit));
+            var code = ParseLong(path, $"{noun} 코드", r[0]);
+            if (!seen.Add(code))
+                throw new PackFormatException($"{path}: {noun} 코드 '{code}'가 중복됩니다.");
+            var limit = ParsePositive(path, $"{noun} '{code}'의 소지제한", r[2]);
+            items.Add(create(code, r[1], limit));
         }
         return items;
     }
@@ -235,34 +252,33 @@ public sealed class GamePack
         var text = TryReadEntry(zip, file);
         if (text is null) return null;
 
-        var commonCodes = itemInventory?.Select(i => i.Code).ToHashSet() ?? [];
-        var names = new Dictionary<string, string>();
-        var parts = new Dictionary<string, List<BunchPart>>();
-        var order = new List<string>();
+        var itemCodes = itemInventory?.Select(i => i.Code).ToHashSet() ?? [];
+        var names = new Dictionary<long, string>();
+        var parts = new Dictionary<long, List<BunchPart>>();
+        var order = new List<long>();
         foreach (var r in Body(file, text, "item_code", "item_name", "part_item_code", "part_amount"))
         {
-            if (r[0].Length == 0) throw new PackFormatException($"{file}: 아이템 코드가 비어 있습니다.");
-            if (r[2].Length == 0) throw new PackFormatException($"{file}: 번치 '{r[0]}'의 파트 아이템 코드가 비어 있습니다.");
-            if (!commonCodes.Contains(r[2]))
-                throw new PackFormatException($"{file}: 번치 '{r[0]}'의 파트 '{r[2]}'가 아이템 인벤토리 마스터에 없습니다.");
-            if (!int.TryParse(r[3], out var amount) || amount <= 0)
-                throw new PackFormatException($"{file}: 번치 '{r[0]}'의 파트 어마운트 '{r[3]}'가 1 이상의 정수가 아닙니다.");
+            var code = ParseLong(file, "번치 아이템 코드", r[0]);
+            var partCode = ParseLong(file, $"번치 '{code}'의 파트 아이템 코드", r[2]);
+            if (!itemCodes.Contains(partCode))
+                throw new PackFormatException($"{file}: 번치 '{code}'의 파트 '{partCode}'가 아이템 인벤토리 마스터에 없습니다.");
+            var amount = ParsePositive(file, $"번치 '{code}'의 파트 어마운트", r[3]);
 
-            if (names.TryGetValue(r[0], out var name))
+            if (names.TryGetValue(code, out var name))
             {
                 if (name != r[1])
-                    throw new PackFormatException($"{file}: 번치 '{r[0]}'의 아이템 이름이 행마다 다릅니다 ('{name}', '{r[1]}').");
+                    throw new PackFormatException($"{file}: 번치 '{code}'의 아이템 이름이 행마다 다릅니다 ('{name}', '{r[1]}').");
             }
             else
             {
-                names[r[0]] = r[1];
-                parts[r[0]] = [];
-                order.Add(r[0]);
+                names[code] = r[1];
+                parts[code] = [];
+                order.Add(code);
             }
 
-            if (parts[r[0]].Any(p => p.ItemCode == r[2]))
-                throw new PackFormatException($"{file}: 번치 '{r[0]}'에 파트 '{r[2]}'가 중복됩니다.");
-            parts[r[0]].Add(new BunchPart(r[2], amount));
+            if (parts[code].Any(p => p.ItemCode == partCode))
+                throw new PackFormatException($"{file}: 번치 '{code}'에 파트 '{partCode}'가 중복됩니다.");
+            parts[code].Add(new BunchPart(partCode, amount));
         }
         return order.Select(code => new BunchEntry(code, names[code], parts[code])).ToList();
     }
@@ -281,17 +297,18 @@ public sealed class GamePack
             zip, ShopTradeMasterPath,
             ["code", "shop_code", "cost_item_code", "cost_amount", "receive_item_code", "receive_amount"],
             ShopTradeConditionMasterPath, "트레이드", "trade_code",
-            (r, groups) =>
+            (code, r, groups) =>
             {
                 const string file = ShopTradeMasterPath;
-                foreach (var (index, column) in new[] { (1, "shop_code"), (2, "cost_item_code"), (4, "receive_item_code") })
-                    if (r[index].Length == 0)
-                        throw new PackFormatException($"{file}: 트레이드 '{r[0]}'의 {column}가 비어 있습니다.");
-                if (!int.TryParse(r[3], out var cost) || cost <= 0)
-                    throw new PackFormatException($"{file}: 트레이드 '{r[0]}'의 코스트 어마운트 '{r[3]}'가 1 이상의 정수가 아닙니다.");
-                if (!int.TryParse(r[5], out var receive) || receive <= 0)
-                    throw new PackFormatException($"{file}: 트레이드 '{r[0]}'의 리시브 어마운트 '{r[5]}'가 1 이상의 정수가 아닙니다.");
-                return new ShopTrade(r[0], r[1], r[2], cost, r[4], receive, groups);
+                var who = $"트레이드 '{code}'의";
+                return new ShopTrade(
+                    code,
+                    ParseLong(file, $"{who} 상점 코드", r[1]),
+                    ParseLong(file, $"{who} 코스트 아이템 코드", r[2]),
+                    ParsePositive(file, $"{who} 코스트 어마운트", r[3]),
+                    ParseLong(file, $"{who} 리시브 아이템 코드", r[4]),
+                    ParsePositive(file, $"{who} 리시브 어마운트", r[5]),
+                    groups);
             });
 
     static void CheckTrades(List<ShopTrade>? trades, List<Shop>? shops, List<ItemEntry>? common, List<BunchEntry>? bunch)

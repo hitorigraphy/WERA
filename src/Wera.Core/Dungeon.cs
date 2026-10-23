@@ -14,9 +14,9 @@ public enum ConditionType
 }
 
 /// <summary>플래그 하나에 대한 조건. 값이 없는 플래그는 0으로 취급한다.</summary>
-public sealed record FlagCondition(string FlagCode, ConditionType Type, long Value)
+public sealed record FlagCondition(long FlagCode, ConditionType Type, long Value)
 {
-    public bool IsMet(IReadOnlyDictionary<string, long> playerFlags) =>
+    public bool IsMet(IReadOnlyDictionary<long, long> playerFlags) =>
         IsMet(playerFlags.GetValueOrDefault(FlagCode));
 
     /// <summary>실제 값 하나를 조건과 비교한다.</summary>
@@ -37,18 +37,18 @@ public sealed record FlagCondition(string FlagCode, ConditionType Type, long Val
 /// <summary>그룹넘버 순으로 정렬된 조건 묶음의 평가. 같은 그룹 안은 AND, 그룹끼리는 OR. 조건이 없으면 항상 만족.</summary>
 public static class ConditionGroups
 {
-    public static bool IsMet(IReadOnlyList<IReadOnlyList<FlagCondition>> groups, IReadOnlyDictionary<string, long> playerFlags) =>
+    public static bool IsMet(IReadOnlyList<IReadOnlyList<FlagCondition>> groups, IReadOnlyDictionary<long, long> playerFlags) =>
         groups.Count == 0 || groups.Any(g => g.All(c => c.IsMet(playerFlags)));
 }
 
 /// <param name="Groups">그룹넘버 순으로 정렬된 조건 묶음.</param>
-public sealed record Dungeon(string Code, string Name, IReadOnlyList<IReadOnlyList<FlagCondition>> Groups)
+public sealed record Dungeon(long Code, string Name, IReadOnlyList<IReadOnlyList<FlagCondition>> Groups)
 {
-    public bool IsAvailable(IReadOnlyDictionary<string, long> playerFlags) => ConditionGroups.IsMet(Groups, playerFlags);
+    public bool IsAvailable(IReadOnlyDictionary<long, long> playerFlags) => ConditionGroups.IsMet(Groups, playerFlags);
 }
 
 /// <param name="Groups">그룹넘버 순으로 정렬된 조건 묶음.</param>
-public sealed record Shop(string Code, string Name, IReadOnlyList<IReadOnlyList<FlagCondition>> Groups)
+public sealed record Shop(long Code, string Name, IReadOnlyList<IReadOnlyList<FlagCondition>> Groups)
 {
-    public bool IsAvailable(IReadOnlyDictionary<string, long> playerFlags) => ConditionGroups.IsMet(Groups, playerFlags);
+    public bool IsAvailable(IReadOnlyDictionary<long, long> playerFlags) => ConditionGroups.IsMet(Groups, playerFlags);
 }

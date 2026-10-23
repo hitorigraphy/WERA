@@ -1,2 +1,2 @@
 trade_code	group_no	flag_code	condition_type	condition_value
-5002	1	tutorial_clear	GreaterOrEqual	1
+5002	1	1001	GreaterOrEqual	1

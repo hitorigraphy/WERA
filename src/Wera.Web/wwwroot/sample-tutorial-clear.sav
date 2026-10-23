@@ -4,7 +4,7 @@
   "SceneId": "start",
   "Screen": "Home",
   "PlayerFlags": {
-    "tutorial_clear": 1
+    "1001": 1
   },
   "InventoryItems": {
     "1": {
@@ -16,5 +16,5 @@
     "7002": { "Level": 3, "Hp": 10, "MaxHp": 25, "Xp": 12, "XpMax": 30 },
     "7003": { "Level": 8, "Hp": 0, "MaxHp": 50, "Xp": 40, "XpMax": 80 }
   },
-  "Party": [ "7001", null, null, null, "7002", null, null, null, "7003" ]
+  "Party": [ 7001, null, null, null, 7002, null, null, null, 7003 ]
 }

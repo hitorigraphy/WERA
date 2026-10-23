@@ -22,13 +22,13 @@ public class DungeonTests
 
     const string TwoDungeons = "code\tname\n1001\t초원\n1002\t동굴\n";
 
-    static Dictionary<string, long> F(params (string, int)[] kv) => kv.ToDictionary(x => x.Item1, x => (long)x.Item2);
+    static Dictionary<long, long> F(params (long, long)[] kv) => kv.ToDictionary(x => x.Item1, x => x.Item2);
 
     [Fact]
     public void Masters_are_optional()
     {
         Assert.Null(Pack(null, null).Dungeons);
-        Assert.Equal(["1001", "1002"], Pack(TwoDungeons, null).Dungeons!.Select(d => d.Code));
+        Assert.Equal([1001L, 1002L], Pack(TwoDungeons, null).Dungeons!.Select(d => d.Code));
     }
 
     [Fact]
@@ -43,15 +43,15 @@ public class DungeonTests
     {
         var pack = Pack(TwoDungeons,
             Header +
-            "1001\t1\ttutorial\tGreaterOrEqual\t1\n" +
-            "1001\t1\tlevel\tGreaterOrEqual\t5\n" +
-            "1001\t2\tvip\tEqual\t1\n");
+            "1001\t1\t1001\tGreaterOrEqual\t1\n" +
+            "1001\t1\t1002\tGreaterOrEqual\t5\n" +
+            "1001\t2\t1003\tEqual\t1\n");
         var d = pack.Dungeons![0];
 
         Assert.False(d.IsAvailable(F()));
-        Assert.False(d.IsAvailable(F(("tutorial", 1))));              // 그룹1은 AND라 level 부족
-        Assert.True(d.IsAvailable(F(("tutorial", 1), ("level", 5)))); // 그룹1 만족
-        Assert.True(d.IsAvailable(F(("vip", 1))));                    // 그룹2 만족
+        Assert.False(d.IsAvailable(F((1001, 1))));              // 그룹1은 AND라 level 부족
+        Assert.True(d.IsAvailable(F((1001, 1), (1002, 5)))); // 그룹1 만족
+        Assert.True(d.IsAvailable(F((1003, 1))));                    // 그룹2 만족
     }
 
     [Theory]
@@ -66,8 +66,8 @@ public class DungeonTests
     [InlineData("LessOrEqual", 3, 3, true)]
     public void Condition_types(string type, int value, int actual, bool expected)
     {
-        var pack = Pack(TwoDungeons, Header + $"1001\t1\tf\t{type}\t{value}\n");
-        Assert.Equal(expected, pack.Dungeons![0].IsAvailable(F(("f", actual))));
+        var pack = Pack(TwoDungeons, Header + $"1001\t1\t9\t{type}\t{value}\n");
+        Assert.Equal(expected, pack.Dungeons![0].IsAvailable(F((9, actual))));
     }
 
     [Fact]
@@ -82,13 +82,13 @@ public class DungeonTests
     [Fact]
     public void None_in_one_group_makes_the_dungeon_available_regardless_of_other_groups()
     {
-        var pack = Pack(TwoDungeons, Header + "1001\t1\tvip\tEqual\t1\n1001\t2\t\tNone\t\n");
+        var pack = Pack(TwoDungeons, Header + "1001\t1\t1003\tEqual\t1\n1001\t2\t\tNone\t\n");
         Assert.True(pack.Dungeons![0].IsAvailable(F()));
     }
     [Fact]
     public void Missing_flag_counts_as_zero()
     {
-        var pack = Pack(TwoDungeons, Header + "1001\t1\tf\tEqual\t0\n");
+        var pack = Pack(TwoDungeons, Header + "1001\t1\t9\tEqual\t0\n");
         Assert.True(pack.Dungeons![0].IsAvailable(F()));
     }
 
@@ -97,12 +97,15 @@ public class DungeonTests
         => Assert.NotNull(Pack(TwoDungeons, null, backslashPaths: true).Dungeons);
 
     [Theory]
-    [InlineData("1001\t1\tf\tBogus\t1\n")]      // 모르는 컨디션 타입
-    [InlineData("1001\t1\tf\t1\t1\n")]          // 숫자는 enum 이름이 아님
-    [InlineData("9999\t1\tf\tEqual\t1\n")]      // 모르는 던전 코드
-    [InlineData("1001\tx\tf\tEqual\t1\n")]      // 그룹넘버가 정수 아님
-    [InlineData("1001\t1\tf\tEqual\tabc\n")]    // 밸류가 정수 아님
+    [InlineData("1001\t1\t9\tBogus\t1\n")]      // 모르는 컨디션 타입
+    [InlineData("1001\t1\t9\t1\t1\n")]          // 숫자는 enum 이름이 아님
+    [InlineData("9999\t1\t9\tEqual\t1\n")]      // 모르는 던전 코드
+    [InlineData("abc\t1\t9\tEqual\t1\n")]       // 던전 코드가 정수 아님
+    [InlineData("1001\tx\t9\tEqual\t1\n")]      // 그룹넘버가 정수 아님
+    [InlineData("1001\t1.5\t9\tEqual\t1\n")]    // 그룹넘버는 int: 소수 불가
+    [InlineData("1001\t1\t9\tEqual\tabc\n")]    // 밸류가 정수 아님
     [InlineData("1001\t1\t\tEqual\t1\n")]       // 플래그 코드 비어 있음
+    [InlineData("1001\t1\tabc\tEqual\t1\n")]    // 플래그 코드가 정수 아님
     public void Bad_flag_rows_are_rejected(string row)
         => Assert.Throws<PackFormatException>(() => Pack(TwoDungeons, Header + row));
 
@@ -114,7 +117,7 @@ public class DungeonTests
         Assert.Throws<PackFormatException>(() => Pack(null, Header));                    // 던전 마스터 없이 플래그 마스터만
     }
 
-    const string TutorialFlags = Header + "1001\t1\ttutorial_clear\tGreaterOrEqual\t1\n";
+    const string TutorialFlags = Header + "1001\t1\t1001\tGreaterOrEqual\t1\n";
 
     [Fact]
     public void Dungeon_button_hidden_until_a_dungeon_is_available()
@@ -127,7 +130,7 @@ public class DungeonTests
         Assert.Null(s.Activate("101"));
         Assert.Equal(Screen.Home, s.Screen);
 
-        s.PlayerFlags["tutorial_clear"] = 1;
+        s.PlayerFlags[1001] = 1;
         Assert.Contains(new ScreenEntry("101", "던전", Screen.DungeonSelect), s.Entries);
     }
 
@@ -137,7 +140,7 @@ public class DungeonTests
         // 1001은 튜토리얼 필요, 1002는 조건 없음 → 처음부터 버튼이 보인다.
         var s = GameSession.NewGame(Pack(TwoDungeons, TutorialFlags));
         Assert.Contains(s.Entries, e => e.Code == "101");
-        Assert.Equal(["1002"], s.AvailableDungeons.Select(d => d.Code));
+        Assert.Equal([1002L], s.AvailableDungeons.Select(d => d.Code));
     }
 
     [Fact]
@@ -195,7 +198,7 @@ public class DungeonTests
     {
         var pack = Pack(TwoDungeons, TutorialFlags);
         var s = GameSession.NewGame(pack);
-        s.PlayerFlags["tutorial_clear"] = 1;
+        s.PlayerFlags[1001] = 1;
         s.Activate("101");
 
         var json = s.ToSaveJson();
@@ -203,7 +206,7 @@ public class DungeonTests
 
         var loaded = GameSession.FromSaveJson(pack, json);
         Assert.Equal(Screen.Home, loaded.Screen);   // 저장 당시 화면과 무관하게 홈
-        Assert.Equal(1L, loaded.PlayerFlags["tutorial_clear"]);
+        Assert.Equal(1L, loaded.PlayerFlags[1001]);
     }
 
     [Fact]

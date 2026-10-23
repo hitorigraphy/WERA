@@ -6,7 +6,7 @@ public class ShopTests
 {
     const string Header = "shop_code\tgroup_no\tflag_code\tcondition_type\tcondition_value\n";
     const string TwoShops = "code\tname\n2001\t잡화점\n2002\t무기점\n";
-    const string TutorialOnly = Header + "2001\t1\ttutorial_clear\tGreaterOrEqual\t1\n2002\t1\ttutorial_clear\tGreaterOrEqual\t1\n2002\t1\tlevel\tGreaterOrEqual\t3\n";
+    const string TutorialOnly = Header + "2001\t1\t1001\tGreaterOrEqual\t1\n2002\t1\t1001\tGreaterOrEqual\t1\n2002\t1\t1002\tGreaterOrEqual\t3\n";
 
     static GamePack Pack(string? shops, string? conditions, string? dungeons = null)
     {
@@ -22,14 +22,14 @@ public class ShopTests
         return GamePack.Load(CoreTests.Zip(files.ToArray()));
     }
 
-    static Dictionary<string, long> F(params (string, int)[] kv) => kv.ToDictionary(x => x.Item1, x => (long)x.Item2);
+    static Dictionary<long, long> F(params (long, long)[] kv) => kv.ToDictionary(x => x.Item1, x => x.Item2);
 
     [Fact]
     public void Shop_masters_are_optional_and_independent_of_dungeons()
     {
         Assert.Null(Pack(null, null).Shops);
         var pack = Pack(TwoShops, null);
-        Assert.Equal(["2001", "2002"], pack.Shops!.Select(s => s.Code));
+        Assert.Equal([2001L, 2002L], pack.Shops!.Select(s => s.Code));
         Assert.Null(pack.Dungeons);
     }
 
@@ -40,22 +40,22 @@ public class ShopTests
     [Fact]
     public void Same_group_is_and_different_groups_are_or_and_none_is_always_met()
     {
-        var pack = Pack(TwoShops, TutorialOnly + "2002\t2\tvip\tEqual\t1\n");
+        var pack = Pack(TwoShops, TutorialOnly + "2002\t2\t1003\tEqual\t1\n");
         var weapon = pack.Shops![1];
-        Assert.False(weapon.IsAvailable(F(("tutorial_clear", 1))));                // 그룹1은 AND라 level 부족
-        Assert.True(weapon.IsAvailable(F(("tutorial_clear", 1), ("level", 3))));
-        Assert.True(weapon.IsAvailable(F(("vip", 1))));                            // 그룹2
+        Assert.False(weapon.IsAvailable(F((1001, 1))));                // 그룹1은 AND라 level(1002) 부족
+        Assert.True(weapon.IsAvailable(F((1001, 1), (1002, 3))));
+        Assert.True(weapon.IsAvailable(F((1003, 1))));                            // 그룹2
 
         var none = Pack(TwoShops, Header + "2001\t1\t\tNone\t\n");
         Assert.True(none.Shops![0].IsAvailable(F()));
     }
 
     [Theory]
-    [InlineData("2001\t1\tf\tBogus\t1\n")]     // 모르는 컨디션 타입
-    [InlineData("2001\t1\tf\t1\t1\n")]         // 숫자는 enum 이름이 아님
-    [InlineData("9999\t1\tf\tEqual\t1\n")]     // 모르는 상점 코드
-    [InlineData("2001\tx\tf\tEqual\t1\n")]     // 그룹넘버가 정수 아님
-    [InlineData("2001\t1\tf\tEqual\tabc\n")]   // 밸류가 정수 아님
+    [InlineData("2001\t1\t9\tBogus\t1\n")]     // 모르는 컨디션 타입
+    [InlineData("2001\t1\t9\t1\t1\n")]         // 숫자는 enum 이름이 아님
+    [InlineData("9999\t1\t9\tEqual\t1\n")]     // 모르는 상점 코드
+    [InlineData("2001\tx\t9\tEqual\t1\n")]     // 그룹넘버가 정수 아님
+    [InlineData("2001\t1\t9\tEqual\tabc\n")]   // 밸류가 정수 아님
     [InlineData("2001\t1\t\tEqual\t1\n")]      // 플래그 코드 비어 있음
     public void Bad_condition_rows_are_rejected(string row)
         => Assert.Throws<PackFormatException>(() => Pack(TwoShops, Header + row));
@@ -75,11 +75,11 @@ public class ShopTests
     {
         var s = GameSession.NewGame(Pack(
             "code\tname\n2001\t잡화점\n",
-            Header + "2001\t1\ttutorial_clear\tGreaterOrEqual\t1\n"));
+            Header + "2001\t1\t1001\tGreaterOrEqual\t1\n"));
         Assert.DoesNotContain(s.Entries, e => e.Code == "102");
         Assert.Null(s.Activate("102"));
 
-        s.PlayerFlags["tutorial_clear"] = 1;
+        s.PlayerFlags[1001] = 1;
         Assert.Contains(new ScreenEntry("102", "상점가", Screen.ShopList), s.Entries);
     }
 
@@ -94,10 +94,10 @@ public class ShopTests
     public void Shop_list_screen_lists_only_open_shops_and_999_goes_back()
     {
         var s = GameSession.NewGame(Pack(TwoShops, TutorialOnly));
-        s.PlayerFlags["tutorial_clear"] = 1;                       // 잡화점만 열림 (무기점은 level 필요)
+        s.PlayerFlags[1001] = 1;                       // 잡화점만 열림 (무기점은 level(1002) 필요)
         Assert.NotNull(s.Activate(" 102 "));
         Assert.Equal(Screen.ShopList, s.Screen);
-        Assert.Equal(["2001"], s.AvailableShops.Select(x => x.Code));
+        Assert.Equal([2001L], s.AvailableShops.Select(x => x.Code));
         Assert.Equal(["2001", "999"], s.Entries.Select(e => e.Code));   // 열린 상점 + 돌아가기
         Assert.Null(s.Activate("2002"));                     // 닫힌 상점은 코드를 입력해도 들어갈 수 없다
         Assert.Null(s.Activate("102"));                      // 상점가 화면에는 102 항목이 없다
