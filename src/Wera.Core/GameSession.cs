@@ -29,6 +29,8 @@ public enum EntryAction
     Trade,
     /// <summary>항목의 코드에 해당하는 캐릭터를 선택한 슬롯에 배치한다(이미 배치된 캐릭터면 위치 교환).</summary>
     PlaceCharacter,
+    /// <summary>선택한 슬롯의 캐릭터를 파티에서 뺀다(슬롯이 빈다).</summary>
+    ClearSlot,
 }
 
 /// <summary>화면에 나오는 클릭 가능한 텍스트. 클릭하거나 Code를 입력하면 Action을 수행한다.</summary>
@@ -63,6 +65,9 @@ public sealed class GameSession
     public const string SaveEntryCode = "200";
     public const string LoadEntryCode = "300";
     public const string BackEntryCode = "999";
+
+    /// <summary>캐릭터 선택 화면의 "[0] 비우기": 선택한 슬롯에 캐릭터가 있을 때만 나온다.</summary>
+    public const string ClearEntryCode = "0";
 
     /// <summary>파티 슬롯 수: 전위/중위/후위 3줄 × 3칸.</summary>
     public const int PartySlotCount = 9;
@@ -236,10 +241,11 @@ public sealed class GameSession
                         .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home))
                         .ToList();
                 case Screen.CharacterSelect:
-                    // 고를 수 있는 캐릭터(회색 제외)의 코드를 입력하거나 클릭하면 배치한다.
-                    return CharacterList
-                        .Where(c => c.Selectable)
-                        .Select(c => new ScreenEntry(Text(c.Code), c.Name, Screen.PartySetup, EntryAction.PlaceCharacter))
+                    // 맨 위에 "[0] 비우기"(이 슬롯에 캐릭터가 있을 때만), 그다음 고를 수 있는 캐릭터(회색 제외)를 코드로 입력하거나 클릭하면 배치한다.
+                    return ClearEntries()
+                        .Concat(CharacterList
+                            .Where(c => c.Selectable)
+                            .Select(c => new ScreenEntry(Text(c.Code), c.Name, Screen.PartySetup, EntryAction.PlaceCharacter)))
                         .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen.PartySetup))
                         .ToList();
                 case Screen.DungeonSelect:
@@ -298,9 +304,20 @@ public sealed class GameSession
                 CurrentSlot = null;
                 Screen = entry.Target;
                 break;
+            case EntryAction.ClearSlot:
+                Party[CurrentSlot!.Value] = null;
+                CurrentSlot = null;
+                Screen = entry.Target;
+                break;
         }
         return entry;
     }
+
+    /// <summary>현재 선택한 슬롯에 캐릭터가 있으면 "[0] 비우기" 항목 하나, 없으면 없음.</summary>
+    IEnumerable<ScreenEntry> ClearEntries() =>
+        CurrentSlot is { } slot && Party[slot] is not null
+            ? [new ScreenEntry(ClearEntryCode, "비우기", Screen.PartySetup, EntryAction.ClearSlot)]
+            : [];
 
     static string Text(long code) => code.ToString(CultureInfo.InvariantCulture);
 

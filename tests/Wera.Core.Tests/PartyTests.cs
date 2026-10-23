@@ -306,6 +306,96 @@ public class PartyTests
         Assert.Single(s.Party.OfType<long>());
     }
 
+    // ---- [0] 비우기 ----
+
+    [Fact]
+    public void Clear_entry_is_on_top_of_the_list_only_when_the_slot_has_a_character()
+    {
+        var s = Session();
+        s.Party[0] = 7001;
+        s.Activate("103");
+
+        s.Activate("1");                                       // 용사가 있는 슬롯
+        Assert.Equal(["0", "7001", "7002", "7003", "999"], s.Entries.Select(e => e.Code));
+        Assert.Equal(new ScreenEntry("0", "비우기", Screen.PartySetup, EntryAction.ClearSlot), s.Entries[0]);
+        s.Activate("999");
+
+        s.Activate("2");                                       // 빈 슬롯
+        Assert.Equal(["7001", "7002", "7003", "999"], s.Entries.Select(e => e.Code));
+        Assert.Null(s.Activate("0"));                          // 빈 슬롯에서는 비울 것이 없다
+        Assert.Equal(Screen.CharacterSelect, s.Screen);
+    }
+
+    [Fact]
+    public void Clearing_a_slot_removes_the_character_from_the_party_and_returns_to_party_setup()
+    {
+        var s = Session();
+        s.Party[4] = 7002;
+        s.Party[0] = 7001;
+        s.Activate("103");
+        s.Activate("5");
+
+        var entry = s.Activate("0");
+
+        Assert.Equal(EntryAction.ClearSlot, entry!.Action);
+        Assert.Equal(Screen.PartySetup, s.Screen);
+        Assert.Null(s.CurrentSlot);
+        Assert.Null(s.Party[4]);                               // 그 슬롯만 비었고
+        Assert.Equal(7001, s.Party[0]);                        // 다른 슬롯은 그대로
+        Assert.True(s.PartySlotViews[4].IsEmpty);
+        Assert.Equal("빈 슬롯", s.PartySlotViews[4].Name);
+        Assert.Contains(s.Characters.Keys, k => k == 7002);    // 캐릭터를 잃은 것이 아니다(여전히 보유)
+    }
+
+    [Fact]
+    public void A_cleared_character_can_be_placed_again_and_is_white_in_the_list()
+    {
+        var s = Session();
+        s.Party[4] = 7002;
+        s.Activate("103");
+        s.Activate("5");
+        s.Activate("0");
+
+        s.Activate("1");                                       // 다른 슬롯에서 목록을 열면
+        Assert.Equal(CharacterListColor.White, s.CharacterList.Single(c => c.Code == 7002).Color);
+        s.Activate("7002");
+        Assert.Equal(7002, s.Party[0]);
+    }
+
+    [Fact]
+    public void Clear_slot_works_for_the_first_and_last_slot_too()
+    {
+        var s = Session();
+        s.Party[0] = 7001;
+        s.Party[8] = 7003;
+        s.Activate("103");
+        s.Activate("1"); s.Activate("0");
+        s.Activate("9"); s.Activate("0");
+        Assert.All(s.Party, p => Assert.Null(p));
+    }
+
+    [Fact]
+    public void Clearing_by_typing_zero_with_spaces_or_leading_zeros_also_works()
+    {
+        var s = Session();
+        s.Party[2] = 7001;
+        s.Activate("103");
+        s.Activate("3");
+        Assert.NotNull(s.Activate(" 000 "));
+        Assert.Null(s.Party[2]);
+    }
+
+    [Fact]
+    public void Clear_entry_does_not_exist_outside_the_character_select_screen()
+    {
+        var s = Session();
+        s.Party[0] = 7001;
+        Assert.Null(s.Activate("0"));                          // 홈
+        s.Activate("103");
+        Assert.Null(s.Activate("0"));                          // 파티 설정 (슬롯 번호는 1~9)
+        Assert.Equal(7001, s.Party[0]);
+    }
+
     [Fact]
     public void Back_from_the_character_list_returns_to_party_setup_without_changes()
     {
