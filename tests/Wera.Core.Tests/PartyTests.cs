@@ -104,12 +104,12 @@ public class PartyTests
     }
 
     [Fact]
-    public void Party_setup_has_nine_slot_entries_plus_back()
+    public void Party_setup_has_nine_slot_entries_the_two_mode_buttons_and_back()
     {
         var s = Session();
         s.Activate("103");
         Assert.Equal(Screen.PartySetup, s.Screen);
-        Assert.Equal(["1", "2", "3", "4", "5", "6", "7", "8", "9", "999"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "999"], s.Entries.Select(e => e.Code));
         Assert.Null(s.Activate("103"));
         Assert.NotNull(s.Activate("999"));
         Assert.Equal(Screen.Home, s.Screen);

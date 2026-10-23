@@ -33,6 +33,41 @@
         <rect x="1" y="1" width="98" height="98" fill="#000" stroke="#666" stroke-width="2" />
         <text x="50" y="55" text-anchor="middle" font-size="15" fill="#999" font-family="monospace">No Image</text>
     </svg>;
+
+    // 파티 슬롯 3×3. 위 줄이 전위, 가운데 줄이 중위, 아래 줄이 후위. 이름이나 아이콘을 누르면(또는 슬롯 번호를 입력하면)
+    // 캐릭터 배치 모드에서는 배치할 캐릭터 목록으로, 장비 착용 모드에서는 그 캐릭터의 장비 목록으로 간다.
+    // 장비 착용 모드에서는 빈 슬롯을 누를 수 없다.
+    RenderFragment<bool> partyGrid = equipmentMode => @<div class="party-grid">
+        @foreach (var slot in session!.PartySlotViews)
+        {
+            var slotCode = (slot.Slot + 1).ToString();
+            var enabled = !equipmentMode || !slot.IsEmpty;
+            @if (slot.Slot % 3 == 0)
+            {
+                <div class="row-label">@slot.RowName</div>
+            }
+            <div class="slot" data-slot="@slotCode">
+                <button class="slot-icon" title="@slot.Name" disabled="@(!enabled)" @onclick="() => Activate(slotCode)">@noImage</button>
+                <div class="slot-info">
+                    <button class="slot-name" disabled="@(!enabled)" @onclick="() => Activate(slotCode)">
+                        <span class="slot-level">@slot.LevelText</span><span class="slot-char">@slot.Name</span>
+                    </button>
+                    <div class="gauge-line">HP : <span class="gauge gauge-@slot.Hp.Color.ToString().ToLowerInvariant()">@slot.Hp.Text</span></div>
+                    <div class="gauge-line">XP : <span class="gauge gauge-@slot.Xp.Color.ToString().ToLowerInvariant()">@slot.Xp.Text</span></div>
+                    <div class="icon-line">
+                        @foreach (var badge in slot.Badges)
+                        {
+                            <span class="badge" title="@badge.Name (@(badge.Advantage ? "유리속성" : "불리속성"))">@noImageSmall<span class="badge-marker">@badge.Marker</span></span>
+                        }
+                        @foreach (var status in slot.StatusBadges)
+                        {
+                            <span class="badge" title="@status.Name (상태이상)">@noImageSmall</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>;
 }
 
 <main>
@@ -75,39 +110,24 @@
                 break;
 
             case Screen.PartySetup:
-                <h2>파티 설정</h2>
-                @* 위 줄이 전위, 가운데 줄이 중위, 아래 줄이 후위. 이름이나 아이콘을 누르면 그 슬롯에 배치할 캐릭터 목록으로 간다. *@
-                <div class="party-grid">
-                    @foreach (var slot in session.PartySlotViews)
-                    {
-                        var slotCode = (slot.Slot + 1).ToString();
-                        @if (slot.Slot % 3 == 0)
-                        {
-                            <div class="row-label">@slot.RowName</div>
-                        }
-                        <div class="slot" data-slot="@slotCode">
-                            <button class="slot-icon" title="@slot.Name" @onclick="() => Activate(slotCode)">@noImage</button>
-                            <div class="slot-info">
-                                <button class="slot-name" @onclick="() => Activate(slotCode)">
-                                    <span class="slot-level">@slot.LevelText</span><span class="slot-char">@slot.Name</span>
-                                </button>
-                                <div class="gauge-line">HP : <span class="gauge gauge-@slot.Hp.Color.ToString().ToLowerInvariant()">@slot.Hp.Text</span></div>
-                                <div class="gauge-line">XP : <span class="gauge gauge-@slot.Xp.Color.ToString().ToLowerInvariant()">@slot.Xp.Text</span></div>
-                                <div class="icon-line">
-                                    @foreach (var badge in slot.Badges)
-                                    {
-                                        <span class="badge" title="@badge.Name (@(badge.Advantage ? "유리속성" : "불리속성"))">@noImageSmall<span class="badge-marker">@badge.Marker</span></span>
-                                    }
-                                    @foreach (var status in slot.StatusBadges)
-                                    {
-                                        <span class="badge" title="@status.Name (상태이상)">@noImageSmall</span>
-                                    }
-                                </div>
-                            </div>
-                        </div>
-                    }
-                </div>
-                @entryList(session.Entries.Where(e => e.Code == GameSession.BackEntryCode))
+                <h2>파티 설정 · 캐릭터 배치</h2>
+                @partyGrid(false)
+                @* 슬롯 아래: [10] 캐릭터 배치, [11] 장비 착용, [999] 돌아가기 *@
+                @entryList(session.Entries.Where(e => e.Arg is null))
+                @commandBox
+                break;
+
+            case Screen.EquipmentSetup:
+                <h2>파티 설정 · 장비 착용</h2>
+                @partyGrid(true)
+                @entryList(session.Entries.Where(e => e.Arg is null))
+                @commandBox
+                break;
+
+            case Screen.EquipmentList:
+                <h2>@(session.CurrentSlotCharacterName)의 장비</h2>
+                <p class="end">표시할 장비가 없습니다.</p>
+                @entryList(session.Entries)
                 @commandBox
                 break;
 

@@ -10,8 +10,12 @@ public enum Screen
     Home,
     DungeonSelect,
     ShopList,
-    /// <summary>파티 설정: 3×3 슬롯.</summary>
+    /// <summary>파티 설정(캐릭터 배치): 3×3 슬롯. 슬롯을 고르면 그 슬롯에 배치할 캐릭터 목록으로 간다.</summary>
     PartySetup,
+    /// <summary>파티 설정(장비 착용): 같은 3×3 슬롯. 슬롯을 고르면 그 캐릭터의 장비 목록으로 간다. 돌아가기는 홈.</summary>
+    EquipmentSetup,
+    /// <summary>선택한 슬롯 캐릭터의 장비 목록. 돌아가기는 장비 착용 화면.</summary>
+    EquipmentList,
     /// <summary>선택한 슬롯에 배치할 캐릭터 목록.</summary>
     CharacterSelect,
     /// <summary>선택한 상점의 교환 목록.</summary>
@@ -69,6 +73,10 @@ public sealed class GameSession
     /// <summary>캐릭터 선택 화면의 "[0] 비우기": 선택한 슬롯에 캐릭터가 있을 때만 나온다.</summary>
     public const string ClearEntryCode = "0";
 
+    /// <summary>파티 설정 화면 아래의 텍스트 버튼: 캐릭터 배치 화면 / 장비 착용 화면으로 바꾼다.</summary>
+    public const string PlacementModeCode = "10";
+    public const string EquipmentModeCode = "11";
+
     /// <summary>파티 슬롯 수: 전위/중위/후위 3줄 × 3칸.</summary>
     public const int PartySlotCount = 9;
 
@@ -97,6 +105,9 @@ public sealed class GameSession
 
     /// <summary>캐릭터 선택 화면에서 배치 중인 슬롯(0~8). 그 화면이 아니면 null.</summary>
     public int? CurrentSlot { get; private set; }
+
+    /// <summary>선택한 슬롯(<see cref="CurrentSlot"/>)에 있는 캐릭터의 이름. 슬롯이 없으면 null, 빈 슬롯이면 "빈 슬롯".</summary>
+    public string? CurrentSlotCharacterName => CurrentSlot is { } slot ? PartySlotViews[slot].Name : null;
 
     GameSession(
         GamePack pack, Screen screen, Dictionary<long, long> playerFlags,
@@ -238,8 +249,20 @@ public sealed class GameSession
                     return PartySlotViews
                         .Select(v => new ScreenEntry(
                             (v.Slot + 1).ToString(), v.Name, Screen.CharacterSelect, Arg: v.Slot.ToString()))
+                        .Concat(ModeEntries())
                         .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home))
                         .ToList();
+                case Screen.EquipmentSetup:
+                    // 캐릭터가 있는 슬롯만 고를 수 있다. 이 화면에서 돌아가면 파티 설정이 아니라 홈으로 간다.
+                    return PartySlotViews
+                        .Where(v => !v.IsEmpty)
+                        .Select(v => new ScreenEntry(
+                            (v.Slot + 1).ToString(), v.Name, Screen.EquipmentList, Arg: v.Slot.ToString()))
+                        .Concat(ModeEntries())
+                        .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home))
+                        .ToList();
+                case Screen.EquipmentList:
+                    return [new ScreenEntry(BackEntryCode, "돌아가기", Screen.EquipmentSetup)];
                 case Screen.CharacterSelect:
                     // 맨 위에 "[0] 비우기"(이 슬롯에 캐릭터가 있을 때만), 그다음 고를 수 있는 캐릭터(회색 제외)를 코드로 입력하거나 클릭하면 배치한다.
                     return ClearEntries()
@@ -293,7 +316,7 @@ public sealed class GameSession
         {
             case EntryAction.Navigate:
                 CurrentShopCode = entry.Target == Screen.ShopTrades ? CodeOf(entry) : null;
-                CurrentSlot = entry.Target == Screen.CharacterSelect ? int.Parse(entry.Arg!, CultureInfo.InvariantCulture) : null;
+                CurrentSlot = entry.Target is Screen.CharacterSelect or Screen.EquipmentList ? int.Parse(entry.Arg!, CultureInfo.InvariantCulture) : null;
                 Screen = entry.Target;
                 break;
             case EntryAction.Trade:
@@ -318,6 +341,13 @@ public sealed class GameSession
         CurrentSlot is { } slot && Party[slot] is not null
             ? [new ScreenEntry(ClearEntryCode, "비우기", Screen.PartySetup, EntryAction.ClearSlot)]
             : [];
+
+    /// <summary>파티 설정 화면 아래의 모드 버튼들: [10] 캐릭터 배치, [11] 장비 착용.</summary>
+    static IEnumerable<ScreenEntry> ModeEntries() =>
+    [
+        new ScreenEntry(PlacementModeCode, "캐릭터 배치", Screen.PartySetup),
+        new ScreenEntry(EquipmentModeCode, "장비 착용", Screen.EquipmentSetup),
+    ];
 
     static string Text(long code) => code.ToString(CultureInfo.InvariantCulture);
 
