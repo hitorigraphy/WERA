@@ -205,11 +205,43 @@ public class EffectTests
         => Assert.Throws<PackFormatException>(() => Pack(effects: tsv, embedded: Master()));
 
     [Fact]
-    public void Trigger_type_has_none_as_zero_and_nothing_else_yet()
+    public void Trigger_types_are_the_agreed_list_with_none_as_zero()
     {
         Assert.Equal(0, (int)TriggerType.None);
-        Assert.Equal(["None"], Enum.GetNames<TriggerType>());
+        Assert.Equal(
+            [
+                "None", "BeforeAttack", "AfterAttack", "BeforeAttacked", "AfterAttacked",
+                "AfterTurnStart", "AfterTurnEnd", "AfterBattleStart", "AfterBattleEnd", "AfterMove",
+            ],
+            Enum.GetNames<TriggerType>());
     }
+
+    [Theory]
+    [InlineData("None", TriggerType.None)]
+    [InlineData("BeforeAttack", TriggerType.BeforeAttack)]
+    [InlineData("AfterAttack", TriggerType.AfterAttack)]
+    [InlineData("BeforeAttacked", TriggerType.BeforeAttacked)]
+    [InlineData("AfterAttacked", TriggerType.AfterAttacked)]
+    [InlineData("AfterTurnStart", TriggerType.AfterTurnStart)]
+    [InlineData("AfterTurnEnd", TriggerType.AfterTurnEnd)]
+    [InlineData("AfterBattleStart", TriggerType.AfterBattleStart)]
+    [InlineData("AfterBattleEnd", TriggerType.AfterBattleEnd)]
+    [InlineData("AfterMove", TriggerType.AfterMove)]
+    [InlineData("afterturnend", TriggerType.AfterTurnEnd)]        // 대소문자 무시
+    public void Every_trigger_type_can_be_written_by_name_in_the_tsv(string name, TriggerType expected)
+    {
+        var pack = Pack(effects: EffectHeader + $"1\t{name}\t1\t1\t0\t0\t0\n", embedded: Master());
+        Assert.Equal(expected, Assert.Single(pack.StatusEffectEffects!).Trigger);
+    }
+
+    [Theory]
+    [InlineData("BeforeTurnStart")]       // 개시 전은 만들지 않았다
+    [InlineData("BeforeBattleStart")]
+    [InlineData("BeforeMove")]
+    [InlineData("1")]                      // 숫자는 불가
+    public void Trigger_types_outside_the_list_are_rejected(string name)
+        => Assert.Throws<PackFormatException>(() =>
+            Pack(effects: EffectHeader + $"1\t{name}\t1\t1\t0\t0\t0\n", embedded: Master()));
 
     // ---- 세션: 보유 캐릭터에게 이펙트 실행 ----
 
