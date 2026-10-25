@@ -2,6 +2,9 @@
 @using System.Text
 @using Wera.Core
 @inject IJSRuntime JS
+@inject HttpClient Http
+@inject Wera.Web.SampleLauncher Launcher
+@implements IDisposable
 
 <PageTitle>@(pack?.Title ?? "WERA")</PageTitle>
 
@@ -237,6 +240,27 @@
         focusCommand = false;
         if (session is { Entries.Count: > 0 } or { Screen: Screen.DungeonSelect })
             await commandInput.FocusAsync();
+    }
+
+    protected override void OnInitialized() => Launcher.RunRequested += RunSamplePack;
+
+    public void Dispose() => Launcher.RunRequested -= RunSamplePack;
+
+    /// <summary>푸터의 "기본 게임팩 실행": 기본 게임팩을 내려받아 올린다(하던 게임은 닫힌다).</summary>
+    async Task RunSamplePack()
+    {
+        error = null;
+        try
+        {
+            var bytes = await Http.GetByteArrayAsync("sample-pack.zip");
+            pack = GamePack.Load(new MemoryStream(bytes));
+            session = null;
+        }
+        catch (Exception ex) when (ex is PackFormatException or InvalidDataException or HttpRequestException)
+        {
+            error = ex is PackFormatException ? ex.Message : "기본 게임팩을 불러올 수 없습니다.";
+        }
+        await InvokeAsync(StateHasChanged);
     }
 
     async Task OnPackSelected(InputFileChangeEventArgs e)
