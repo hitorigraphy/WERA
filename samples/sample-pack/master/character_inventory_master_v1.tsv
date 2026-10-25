@@ -1,4 +1,5 @@
 character_code	character_name	carry_limit	advantage_attribute_code	disadvantage_attribute_code
+1	당신	1	1	2
 7001	용사	1	4	5
 7002	마법사	1	1	2
 7003	전사	1	3	1

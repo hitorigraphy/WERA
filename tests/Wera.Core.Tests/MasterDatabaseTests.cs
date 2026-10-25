@@ -12,7 +12,7 @@ public class MasterDatabaseTests
         ("master/attribute_master_v1.tsv", "attribute_code\tattribute_name\n3\t풀\n1\t불\n2\t물\n"),
         ("master/character_inventory_master_v1.tsv",
             "character_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n" +
-            "7003\t도적\t1\t3\t1\n7001\t용사\t1\t1\t2\n7002\t마법사\t2\t2\t3\n"),
+            "1\t당신\t1\t1\t2\n7003\t도적\t1\t3\t1\n7001\t용사\t1\t1\t2\n7002\t마법사\t2\t2\t3\n"),
         ("master/dungeon_master_v1.tsv", "code\tname\n1002\t동굴\n1001\t초원\n"),
         ("master/dungeon_flag_master_v1.tsv",
             "dungeon_code\tgroup_number\tflag_code\tcondition_type\tcondition_value\n" +
@@ -34,6 +34,7 @@ public class MasterDatabaseTests
             "1\tAfterTurnEnd\t2\t1\t-3\t3\t0\n3\tAfterTurnStart\t1\t1\t5\t5\t0\n1\tBeforeAttack\t1\t1\t-1\t2\t9\n"),
         ("master/equipment_slot_master_v1.tsv", "equipment_slot_code\tequipment_slot_name\n2\t방어구\n1\t무기\n"),
         ("master/tag_master_v1.tsv", "tag_code\ttag_name\n1\t플레이어\n2\t리더\n6\t마법\n3\t검\n5\t중량\n4\t갑옷\n"),
+        ("master/character_tag_master_v1.tsv", "character_code\ttag_code\n1\t1\n"),
         ("master/unique_item_inventory_master_v1.tsv", "item_code\titem_name\n9003\t지팡이\n9001\t철검\n9002\t대검\n"),
         ("master/unique_item_tag_master_v1.tsv", "item_code\ttag_code\n9002\t5\n9001\t3\n9002\t3\n9003\t6\n"),
         ("master/equipment_slot_tag_master_v1.tsv",
@@ -99,12 +100,12 @@ public class MasterDatabaseTests
     public void Lists_keep_the_file_order_while_tables_are_sorted_by_key()
     {
         var pack = FullPack();
-        Assert.Equal([7003L, 7001L, 7002L], pack.CharacterInventory!.Select(c => c.Code));       // 파일 순서
+        Assert.Equal([1L, 7003L, 7001L, 7002L], pack.CharacterInventory!.Select(c => c.Code));       // 파일 순서
         Assert.Equal([3L, 1L, 2L], pack.ItemInventory!.Select(i => i.Code));
         Assert.Equal([1002L, 1001L], pack.Dungeons!.Select(d => d.Code));
 
         // 테이블은 기본키(코드) 순서다. 파일 순서는 따로 기억하지 않는다.
-        Assert.Equal([7001L, 7002L, 7003L], pack.Masters.CharacterInventoryRowTable.All.Select(r => r.Code));
+        Assert.Equal([1L, 7001L, 7002L, 7003L], pack.Masters.CharacterInventoryRowTable.All.Select(r => r.Code));
     }
 
     // ---- 키로 찾기 ----
@@ -241,9 +242,10 @@ public class MasterDatabaseTests
             ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
             ("master/attribute_master_v1.tsv", "attribute_code\tattribute_name\n1\t불\n2\t물\n"),
             ("master/character_inventory_master_v1.tsv",
-                "character_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n7001\t용사\t1\t1\t2\n"),
+                "character_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n1\t당신\t1\t1\t2\n7001\t용사\t1\t1\t2\n"),
             ("master/equipment_slot_master_v1.tsv", "equipment_slot_code\tequipment_slot_name\n1\t무기\n"),
             ("master/tag_master_v1.tsv", "tag_code\ttag_name\n1\t플레이어\n2\t리더\n"),
+            ("master/character_tag_master_v1.tsv", "character_code\ttag_code\n1\t1\n"),
             ("master/equipment_slot_tag_master_v1.tsv",
                 "character_code\tequipment_slot_code\ttag_code\tgroup_number\tis_positive\n7001\t1\t1\t1\ttrue\n7001\t1\t1\t1\tfalse\n"))));
         Assert.Contains("같은 키", error.Message);

@@ -131,6 +131,7 @@ public sealed partial class GamePack
         var uniqueItemTags = LoadUniqueItemTags(zip, uniqueItems, tags);
         var commonItemTags = LoadCommonItemTags(zip, itemInventory, tags);
         var characterTags = LoadCharacterTags(zip, characterInventory, tags);
+        CheckPlayerCharacter(tags, characterInventory, characterTags);
         CheckTrades(trades, shops, itemInventory, bunchInventory, uniqueItems, characterInventory);
         var equipmentSlotTags = LoadEquipmentSlotTags(zip, characterInventory, equipmentSlots, tags);
         var statuses = LoadStatuses(zip);

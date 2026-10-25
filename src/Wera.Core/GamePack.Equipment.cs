@@ -18,6 +18,12 @@ public sealed partial class GamePack
     public const long PlayerTagCode = 1;
     public const long LeaderTagCode = 2;
 
+    /// <summary>
+    /// 플레이어 캐릭터의 코드. 캐릭터 1은 항상 플레이어 태그를 가지고, 플레이어 태그는 캐릭터 1만 가질 수 있다
+    /// (이름은 게임팩 마음대로, 기본 게임팩에서는 "당신"). 태그 마스터와 캐릭터 인벤토리 마스터가 둘 다 있는 게임팩에서 검증한다.
+    /// </summary>
+    public const long PlayerCharacterCode = 1;
+
     /// <summary>장비 슬롯 마스터가 없으면 null.</summary>
     public IReadOnlyList<EquipmentSlotEntry>? EquipmentSlots { get; init; }
 
@@ -123,7 +129,7 @@ public sealed partial class GamePack
     /// </summary>
     static List<T>? LoadTargetTags<T>(
         ZipArchive zip, string file, string codeColumn, string noun, string targetMasterPath, IReadOnlySet<long>? targetCodes,
-        List<TagEntry>? tags, Func<long, long, T> create)
+        List<TagEntry>? tags, Func<long, long, T> create, bool isCharacter = false)
     {
         var text = TryReadEntry(zip, file);
         if (text is null) return null;
@@ -143,6 +149,10 @@ public sealed partial class GamePack
                 throw new PackFormatException($"{file}: {noun} '{target}'의 태그 '{tag}'가 태그 마스터에 없습니다.");
             if (!seen.Add((target, tag)))
                 throw new PackFormatException($"{file}: {noun} '{target}'에 태그 '{tag}'가 두 번 있습니다.");
+            // 플레이어 태그는 캐릭터 1만 가질 수 있다.
+            if (tag == PlayerTagCode && !(isCharacter && target == PlayerCharacterCode))
+                throw new PackFormatException(
+                    $"{file}: 플레이어 태그({PlayerTagCode})는 캐릭터 {PlayerCharacterCode}만 가질 수 있습니다 ({noun} '{target}').");
             rows.Add(create(target, tag));
         }
         return rows;
@@ -158,7 +168,22 @@ public sealed partial class GamePack
 
     static List<CharacterTag>? LoadCharacterTags(ZipArchive zip, List<CharacterEntry>? characters, List<TagEntry>? tags) =>
         LoadTargetTags(zip, CharacterTagMasterPath, "character_code", "캐릭터", CharacterInventoryMasterPath,
-            characters?.Select(c => c.Code).ToHashSet(), tags, (c, t) => new CharacterTag(c, t));
+            characters?.Select(c => c.Code).ToHashSet(), tags, (c, t) => new CharacterTag(c, t), isCharacter: true);
+
+    /// <summary>
+    /// 태그 마스터와 캐릭터 인벤토리 마스터가 둘 다 있으면: 캐릭터 1(플레이어)이 있어야 하고, 캐릭터 태그 마스터에서 플레이어 태그를 가져야 한다.
+    /// (플레이어 태그를 캐릭터 1 말고 다른 곳에 쓰는 것은 각 태그 마스터를 읽을 때 거른다.)
+    /// </summary>
+    static void CheckPlayerCharacter(List<TagEntry>? tags, List<CharacterEntry>? characters, List<CharacterTag>? characterTags)
+    {
+        if (tags is null || characters is null) return;
+        if (characters.All(c => c.Code != PlayerCharacterCode))
+            throw new PackFormatException(
+                $"{CharacterInventoryMasterPath}: 플레이어 캐릭터 {PlayerCharacterCode}이(가) 없습니다. 캐릭터 {PlayerCharacterCode}은(는) 이름은 자유지만 반드시 있어야 합니다.");
+        if (characterTags is null || !characterTags.Any(t => t.CharacterCode == PlayerCharacterCode && t.TagCode == PlayerTagCode))
+            throw new PackFormatException(
+                $"{CharacterTagMasterPath}: 캐릭터 {PlayerCharacterCode}은(는) 플레이어 태그({PlayerTagCode})를 가져야 합니다.");
+    }
 
     /// <summary>
     /// 장비 슬롯 태그 마스터: 캐릭터는 캐릭터 인벤토리에, 슬롯은 장비 슬롯 마스터에, 태그는 태그 마스터에 있어야 한다.

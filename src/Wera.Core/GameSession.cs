@@ -507,6 +507,8 @@ public sealed partial class GameSession
                 paidInstances = spare.Take((int)trade.CostAmount).ToArray();
                 break;
             case TradeKind.Character:
+                if (trade.CostItemCode == GamePack.PlayerCharacterCode)
+                    return $"교환 실패 - 플레이어는 낼 수 없습니다: {Pack.TradeTargetName(trade.CostKind, trade.CostItemCode)} [{text}]";
                 if (!Characters.ContainsKey(trade.CostItemCode))
                     return $"교환 실패 - 부족: {Pack.TradeTargetName(trade.CostKind, trade.CostItemCode)} (보유 0 / 필요 1) [{text}]";
                 if (EquippedCount(EquipRef.Char(trade.CostItemCode)) > 0)
@@ -559,6 +561,7 @@ public sealed partial class GameSession
     /// </summary>
     public bool RemoveCharacter(long characterCode)
     {
+        if (characterCode == GamePack.PlayerCharacterCode) return false;       // 플레이어는 내보낼 수 없다
         if (!Characters.ContainsKey(characterCode) || EquippedCount(EquipRef.Char(characterCode)) > 0) return false;
         Characters.Remove(characterCode);
         for (var i = 0; i < Party.Length; i++)

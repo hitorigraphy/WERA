@@ -13,13 +13,13 @@ public class MultiKindEquipmentTests
         ("master/common_item_inventory_master_v1.tsv", "item_code\titem_name\tcarry_limit\n1\t금화\t99999\n3\t뼈 조각\t99\n"),
         ("master/character_inventory_master_v1.tsv",
             "character_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n" +
-            "7001\t강령술사\t1\t1\t2\n7002\t강시\t1\t1\t2\n7003\t용사\t1\t1\t2\n"),
+            "1\t당신\t1\t1\t2\n7001\t강령술사\t1\t1\t2\n7002\t강시\t1\t1\t2\n7003\t용사\t1\t1\t2\n"),
         ("master/equipment_slot_master_v1.tsv", "equipment_slot_code\tequipment_slot_name\n1\t무기\n3\t소환\n"),
         ("master/tag_master_v1.tsv", "tag_code\ttag_name\n1\t플레이어\n2\t리더\n3\t검\n8\t소환수\n"),
         ("master/unique_item_inventory_master_v1.tsv", "item_code\titem_name\n8001\t철검\n"),
         ("master/unique_item_tag_master_v1.tsv", "item_code\ttag_code\n8001\t3\n"),
         ("master/common_item_tag_master_v1.tsv", "item_code\ttag_code\n3\t8\n"),
-        ("master/character_tag_master_v1.tsv", "character_code\ttag_code\n7002\t8\n"),
+        ("master/character_tag_master_v1.tsv", "character_code\ttag_code\n1\t1\n7002\t8\n"),
         ("master/equipment_slot_tag_master_v1.tsv",
             "character_code\tequipment_slot_code\ttag_code\tgroup_number\tis_positive\n" +
             "7001\t1\t3\t1\ttrue\n7001\t3\t8\t1\ttrue\n")));
@@ -45,7 +45,7 @@ public class MultiKindEquipmentTests
         var pack = Pack();
         Assert.Equal([new UniqueItemTag(8001, 3)], pack.UniqueItemTags);
         Assert.Equal([new CommonItemTag(3, 8)], pack.CommonItemTags);
-        Assert.Equal([new CharacterTag(7002, 8)], pack.CharacterTags);
+        Assert.Equal([new CharacterTag(1, 1), new CharacterTag(7002, 8)], pack.CharacterTags);
         Assert.Equal("철검", pack.FindUniqueItem(8001)!.ItemName);
         Assert.Single(pack.Masters.CharacterTagRowTable.FindByCharacterCode(7002));
         Assert.Single(pack.Masters.CommonItemTagRowTable.FindByItemCode(3));
@@ -66,7 +66,7 @@ public class MultiKindEquipmentTests
             ("master/attribute_master_v1.tsv", "attribute_code\tattribute_name\n1\t불\n2\t물\n"),
             ("master/common_item_inventory_master_v1.tsv", "item_code\titem_name\tcarry_limit\n3\t뼈 조각\t99\n"),
             ("master/character_inventory_master_v1.tsv",
-                "character_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n7002\t강시\t1\t1\t2\n"),
+                "character_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n1\t당신\t1\t1\t2\n7002\t강시\t1\t1\t2\n"),
             ("master/tag_master_v1.tsv", "tag_code\ttag_name\n1\t플레이어\n2\t리더\n3\t검\n8\t소환수\n"),
             ("master/unique_item_inventory_master_v1.tsv", "item_code\titem_name\n8001\t철검\n"),
             (file, content),
@@ -155,13 +155,14 @@ public class MultiKindEquipmentTests
             ("master/attribute_master_v1.tsv", "attribute_code\tattribute_name\n1\t불\n2\t물\n"),
             ("master/common_item_inventory_master_v1.tsv", "item_code\titem_name\tcarry_limit\n1\t금화\t99999\n3\t뼈 조각\t99\n"),
             ("master/character_inventory_master_v1.tsv",
-                "character_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n7001\t강령술사\t1\t1\t2\n"),
+                "character_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n1\t당신\t1\t1\t2\n7001\t강령술사\t1\t1\t2\n"),
             ("master/shop_master_v1.tsv", "code\tname\n2001\t상점\n"),
             ("master/shop_trade_master_v1.tsv",
                 "code\tshop_code\tcost_item_code\tcost_amount\treceive_item_code\treceive_amount\n5001\t2001\t3\t2\t1\t10\n"),
             ("master/equipment_slot_master_v1.tsv", "equipment_slot_code\tequipment_slot_name\n3\t소환\n"),
             ("master/tag_master_v1.tsv", "tag_code\ttag_name\n1\t플레이어\n2\t리더\n8\t소환수\n"),
             ("master/common_item_tag_master_v1.tsv", "item_code\ttag_code\n3\t8\n"),
+            ("master/character_tag_master_v1.tsv", "character_code\ttag_code\n1\t1\n"),
             ("master/equipment_slot_tag_master_v1.tsv",
                 "character_code\tequipment_slot_code\ttag_code\tgroup_number\tis_positive\n7001\t3\t8\t1\ttrue\n")));
         var s = GameSession.NewGame(pack);
@@ -241,12 +242,12 @@ public class MultiKindEquipmentTests
             ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
             ("master/attribute_master_v1.tsv", "attribute_code\tattribute_name\n1\t불\n2\t물\n"),
             ("master/character_inventory_master_v1.tsv",
-                "character_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n7001\t강령술사\t1\t1\t2\n"),
+                "character_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n1\t당신\t1\t1\t2\n7001\t강령술사\t1\t1\t2\n"),
             ("master/equipment_slot_master_v1.tsv", "equipment_slot_code\tequipment_slot_name\n1\t무기\n"),
             ("master/tag_master_v1.tsv", "tag_code\ttag_name\n1\t플레이어\n2\t리더\n3\t검\n8\t소환수\n"),
             ("master/unique_item_inventory_master_v1.tsv", "item_code\titem_name\n8001\t철검\n"),
             ("master/unique_item_tag_master_v1.tsv", "item_code\ttag_code\n8001\t3\n"),
-            ("master/character_tag_master_v1.tsv", "character_code\ttag_code\n" + characterTags),
+            ("master/character_tag_master_v1.tsv", "character_code\ttag_code\n1\t1\n" + characterTags),
             ("master/equipment_slot_tag_master_v1.tsv",
                 "character_code\tequipment_slot_code\ttag_code\tgroup_number\tis_positive\n7001\t1\t3\t1\ttrue\n7001\t1\t8\t1\ttrue\n")));
 

@@ -67,15 +67,26 @@ public sealed partial class GameSession
 
     /// <summary>보유 캐릭터에게 태그를 더한다. 태그 마스터에 없거나 이미 있거나 보유하지 않은 캐릭터면 false. 끼운 것이 더는 맞지 않으면 빠진다.</summary>
     public bool AddCharacterTag(long characterCode, long tagCode) =>
-        Characters.ContainsKey(characterCode) && ChangeTags(OwnCharacterTags(characterCode), tagCode, add: true);
+        Characters.ContainsKey(characterCode) && CanHoldTag(characterCode, tagCode, isCharacter: true)
+        && ChangeTags(OwnCharacterTags(characterCode), tagCode, add: true);
 
     /// <summary>보유 캐릭터에게서 태그를 없앤다. 없었으면 false. 끼운 것이 더는 맞지 않으면 빠진다.</summary>
     public bool RemoveCharacterTag(long characterCode, long tagCode) =>
-        Characters.ContainsKey(characterCode) && ChangeTags(OwnCharacterTags(characterCode), tagCode, add: false);
+        Characters.ContainsKey(characterCode) && !IsPlayerTagOfPlayer(characterCode, tagCode)
+        && ChangeTags(OwnCharacterTags(characterCode), tagCode, add: false);
+
+    /// <summary>플레이어 태그는 캐릭터 1만 가질 수 있다(다른 캐릭터와 유니크 아이템 인스턴스에는 더할 수 없다).</summary>
+    static bool CanHoldTag(long code, long tagCode, bool isCharacter) =>
+        tagCode != GamePack.PlayerTagCode || (isCharacter && code == GamePack.PlayerCharacterCode);
+
+    /// <summary>캐릭터 1에게서 플레이어 태그를 없애려는 시도인가(항상 가져야 하므로 막는다).</summary>
+    static bool IsPlayerTagOfPlayer(long characterCode, long tagCode) =>
+        characterCode == GamePack.PlayerCharacterCode && tagCode == GamePack.PlayerTagCode;
 
     /// <summary>유니크 아이템 인스턴스에 태그를 더한다.</summary>
     public bool AddUniqueItemTag(string instanceId, long tagCode) =>
-        UniqueItemInstances.TryGetValue(instanceId, out var item) && ChangeTags(OwnItemTags(item), tagCode, add: true);
+        UniqueItemInstances.TryGetValue(instanceId, out var item) && CanHoldTag(0, tagCode, isCharacter: false)
+        && ChangeTags(OwnItemTags(item), tagCode, add: true);
 
     /// <summary>유니크 아이템 인스턴스에서 태그를 없앤다.</summary>
     public bool RemoveUniqueItemTag(string instanceId, long tagCode) =>
@@ -337,11 +348,13 @@ public sealed partial class GameSession
     Dictionary<long, Dictionary<long, EquipRef>> CopyEquippedItems() =>
         EquippedItems.Where(kv => kv.Value.Count > 0).ToDictionary(kv => kv.Key, kv => new Dictionary<long, EquipRef>(kv.Value));
 
-    static List<long> CheckTags(GamePack pack, string who, IEnumerable<long> tags)
+    static List<long> CheckTags(GamePack pack, string who, IEnumerable<long> tags, long? playerCharacter = null)
     {
         var list = new List<long>();
         foreach (var tag in tags)
         {
+            if (tag == GamePack.PlayerTagCode && playerCharacter != GamePack.PlayerCharacterCode)
+                throw new SaveFormatException($"세이브의 {who}에 플레이어 태그({tag})가 있습니다. 플레이어 태그는 캐릭터 {GamePack.PlayerCharacterCode}만 가질 수 있습니다.");
             if (pack.Tags is null || pack.Tags.All(t => t.Code != tag))
                 throw new SaveFormatException($"세이브의 {who}의 태그 '{tag}'가 태그 마스터에 없습니다.");
             if (list.Contains(tag))
@@ -385,10 +398,14 @@ public sealed partial class GameSession
         {
             if (!characters.ContainsKey(code))
                 throw new SaveFormatException($"세이브의 캐릭터 태그가 보유하지 않은 캐릭터 '{code}'의 것입니다.");
-            characterTags[code] = CheckTags(pack, $"캐릭터 '{code}'", tags ?? []);
+            characterTags[code] = CheckTags(pack, $"캐릭터 '{code}'", tags ?? [], playerCharacter: code);
         }
         foreach (var code in characters.Keys.Where(c => !characterTags.ContainsKey(c)))
             characterTags[code] = pack.MasterTagsOfCharacter(code).ToList();
+        // 보유한 캐릭터 1은 항상 플레이어 태그를 가진다.
+        if (pack.Tags is not null && characterTags.TryGetValue(GamePack.PlayerCharacterCode, out var playerTags)
+            && !playerTags.Contains(GamePack.PlayerTagCode))
+            throw new SaveFormatException($"세이브의 캐릭터 {GamePack.PlayerCharacterCode}에 플레이어 태그({GamePack.PlayerTagCode})가 없습니다.");
 
         var equipped = new Dictionary<long, Dictionary<long, EquipRef>>();
         foreach (var (character, slots) in savedEquipped ?? [])

@@ -36,10 +36,11 @@ public class EquipmentTests
             ("master/attribute_master_v1.tsv", "attribute_code\tattribute_name\n1\t불\n2\t물\n"),
             ("master/character_inventory_master_v1.tsv",
                 "character_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n" +
-                "7001\t용사\t1\t1\t2\n7002\t마법사\t1\t2\t1\n7003\t도적\t1\t1\t2\n"),
+                "1\t당신\t1\t1\t2\n7001\t용사\t1\t1\t2\n7002\t마법사\t1\t2\t1\n7003\t도적\t1\t1\t2\n"),
         };
         if (slots is not null) files.Add(("master/equipment_slot_master_v1.tsv", slots));
         if (tags is not null) files.Add(("master/tag_master_v1.tsv", tags));
+        if (tags is not null) files.Add(("master/character_tag_master_v1.tsv", "character_code\ttag_code\n1\t1\n"));    // 캐릭터 1은 플레이어 태그
         if (items is not null) files.Add(("master/unique_item_inventory_master_v1.tsv", items));
         if (itemTags is not null) files.Add(("master/unique_item_tag_master_v1.tsv", itemTags));
         if (slotTags is not null) files.Add(("master/equipment_slot_tag_master_v1.tsv", slotTags));
