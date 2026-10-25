@@ -21,7 +21,7 @@ public class MasterDatabaseTests
         ("master/shop_condition_master_v1.tsv",
             "shop_code\tgroup_no\tflag_code\tcondition_type\tcondition_value\n2002\t1\t1002\tGreaterOrEqual\t3\n"),
         ("master/common_item_inventory_master_v1.tsv", "item_code\titem_name\tcarry_limit\n3\t철광석\t99\n1\t금화\t99999\n2\t약초\t99\n"),
-        ("master/bunch_inventory_master_v1.tsv",
+        ("master/bunch_item_inventory_master_v1.tsv",
             "item_code\titem_name\tpart_item_code\tpart_amount\n9001\t초보자 세트\t3\t1\n9001\t초보자 세트\t2\t3\n"),
         ("master/shop_trade_master_v1.tsv",
             "code\tshop_code\tcost_item_code\tcost_amount\treceive_item_code\treceive_amount\n" +

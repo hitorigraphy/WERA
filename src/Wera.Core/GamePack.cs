@@ -14,7 +14,7 @@ public sealed class PackFormatException(string message) : Exception(message);
 ///   master/shop_master_v1.tsv             (선택) code, name
 ///   master/shop_condition_master_v1.tsv   (선택) shop_code, group_no, flag_code, condition_type, condition_value
 ///   master/common_item_inventory_master_v1.tsv      (선택) item_code, item_name, carry_limit
-///   master/bunch_inventory_master_v1.tsv     (선택) item_code, item_name, part_item_code, part_amount
+///   master/bunch_item_inventory_master_v1.tsv     (선택) item_code, item_name, part_item_code, part_amount
 ///   master/character_inventory_master_v1.tsv (선택) character_code, character_name, carry_limit, advantage_attribute_code, disadvantage_attribute_code
 ///   master/attribute_master_v1.tsv        (선택) attribute_code, attribute_name  (캐릭터 마스터가 있으면 필수)
 ///   master/status_effect_master_v1.tsv    (선택) status_effect_code, status_effect_name
@@ -38,7 +38,7 @@ public sealed partial class GamePack
     public const string AttributeMasterPath = "master/attribute_master_v1.tsv";
     public const string StatusEffectMasterPath = "master/status_effect_master_v1.tsv";
     public const string StatusEffectEffectMasterPath = "master/status_effect_effect_master_v1.tsv";
-    public const string BunchInventoryMasterPath = "master/bunch_inventory_master_v1.tsv";
+    public const string BunchItemInventoryMasterPath = "master/bunch_item_inventory_master_v1.tsv";
     public const string ShopTradeMasterPath = "master/shop_trade_master_v1.tsv";
     public const string ShopTradeConditionMasterPath = "master/shop_trade_condition_master_v1.tsv";
 
@@ -378,7 +378,7 @@ public sealed partial class GamePack
     /// <summary>같은 아이템 코드의 행들이 하나의 번치가 된다. 부품은 아이템 인벤토리의 아이템만 가리킬 수 있다.</summary>
     static List<BunchEntry>? LoadBunchInventory(ZipArchive zip, List<ItemEntry>? itemInventory)
     {
-        const string file = BunchInventoryMasterPath;
+        const string file = BunchItemInventoryMasterPath;
         var text = TryReadEntry(zip, file);
         if (text is null) return null;
 

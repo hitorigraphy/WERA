@@ -19,7 +19,7 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
 | `master/shop_master_v1.tsv` | (선택) `code`, `name` |
 | `master/shop_condition_master_v1.tsv` | (선택) `shop_code`, `group_no`, `flag_code`, `condition_type`, `condition_value` |
 | `master/common_item_inventory_master_v1.tsv` | (선택) `item_code`, `item_name`, `carry_limit` |
-| `master/bunch_inventory_master_v1.tsv` | (선택) `item_code`, `item_name`, `part_item_code`, `part_amount` |
+| `master/bunch_item_inventory_master_v1.tsv` | (선택) `item_code`, `item_name`, `part_item_code`, `part_amount` |
 | `master/character_inventory_master_v1.tsv` | (선택) `character_code`, `character_name`, `carry_limit`, `advantage_attribute_code`, `disadvantage_attribute_code` |
 | `master/attribute_master_v1.tsv` | (선택, 캐릭터 인벤토리가 있으면 필수) `attribute_code`, `attribute_name` |
 | `master/status_effect_master_v1.tsv` | (선택) `status_effect_code`, `status_effect_name` |
@@ -36,9 +36,9 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
 
 ### 아이템과 상점 교환
 - **커먼 아이템 인벤토리**(`common_item_inventory_master`)는 아이템 코드, 이름, 소지제한(`carry_limit`, 한 번에 소지할 수 있는 최대 수량, 1 이상의 정수)입니다.
-- **번치 인벤토리**(`bunch_inventory_master`)는 여러 아이템을 묶은 것으로, 같은 `item_code`의 행들이 하나의 번치가 됩니다(행마다 `item_name`은 같아야 함). `part_item_code`는 아이템 인벤토리의 아이템만 가리킬 수 있고, 번치에는 소지제한이 없으며, `part_amount`는 1 이상입니다.
+- **번치 인벤토리**(`bunch_item_inventory_master`)는 여러 아이템을 묶은 것으로, 같은 `item_code`의 행들이 하나의 번치가 됩니다(행마다 `item_name`은 같아야 함). `part_item_code`는 아이템 인벤토리의 아이템만 가리킬 수 있고, 번치에는 소지제한이 없으며, `part_amount`는 1 이상입니다.
 - 아이템 코드는 커먼 아이템 인벤토리와 번치 인벤토리에서 겹치면 안 됩니다.
-- 인벤토리 계통은 **커먼 아이템 / 유니크 아이템 / 번치 아이템 / 캐릭터** 네 종류입니다(`common_item_inventory_master`, `unique_item_inventory_master`, `bunch_inventory_master`, `character_inventory_master`).
+- 인벤토리 계통은 **커먼 아이템 / 유니크 아이템 / 번치 아이템 / 캐릭터** 네 종류입니다(`common_item_inventory_master`, `unique_item_inventory_master`, `bunch_item_inventory_master`, `character_inventory_master`).
 - **캐릭터 인벤토리**(`character_inventory_master`)는 열이 `character_code`, `character_name`, `carry_limit`, `advantage_attribute_code`, `disadvantage_attribute_code`인 별도 마스터이고 코드 공간도 아이템과 따로입니다. 모든 캐릭터는 **유리속성**과 **불리속성**을 하나씩 가져야 하고, 둘 다 속성 마스터에 있어야 하며 서로 달라야 합니다.
 - **속성**(`attribute_master`)은 속성 코드와 이름입니다. 속성 아이콘 이미지는 아직 경로 규칙이 없어 `No Image`로 표시합니다.
 - **상태이상**(`status_effect_master`)은 상태이상 코드와 이름입니다. 캐릭터에 걸려 있는 상태이상은 세이브에 저장하며(아래 "상태이상 저장"), 파티 설정 슬롯의 아이콘 줄에 아이콘으로 나옵니다.

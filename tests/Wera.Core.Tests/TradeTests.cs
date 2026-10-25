@@ -20,7 +20,7 @@ public class TradeTests
         };
         if (shops is not null) files.Add(("master/shop_master_v1.tsv", shops));
         if (common is not null) files.Add(("master/common_item_inventory_master_v1.tsv", common));
-        if (bunch is not null) files.Add(("master/bunch_inventory_master_v1.tsv", bunch));
+        if (bunch is not null) files.Add(("master/bunch_item_inventory_master_v1.tsv", bunch));
         if (trades is not null) files.Add(("master/shop_trade_master_v1.tsv", trades));
         if (tradeConditions is not null) files.Add(("master/shop_trade_condition_master_v1.tsv", tradeConditions));
         return GamePack.Load(CoreTests.Zip(files.ToArray()));
@@ -90,7 +90,7 @@ public class TradeTests
         Assert.Throws<PackFormatException>(() => Pack(trades: TradeHeader + "5001\t2001\tgold\t1\t2\t1\n"));
     }
 
-    // ---- bunch_inventory_master (소지제한 열 없음) ----
+    // ---- bunch_item_inventory_master (소지제한 열 없음) ----
 
 
     [Fact]

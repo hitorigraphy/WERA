@@ -87,7 +87,7 @@ public record ItemInventoryRow
 }
 
 /// <summary>번치 인벤토리: 한 행이 번치의 부품 하나다. 같은 (번치, 부품)은 한 번만 쓸 수 있다.</summary>
-[MemoryTable("bunch_inventory"), MessagePackObject(true)]
+[MemoryTable("bunch_item_inventory"), MessagePackObject(true)]
 public record BunchInventoryRow
 {
     [PrimaryKey(keyOrder: 0)]
