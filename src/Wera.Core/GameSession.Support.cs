@@ -35,7 +35,7 @@ public sealed partial class GameSession
     /// </summary>
     public bool SetSupport(SupportRole role, long? code)
     {
-        if (code is { } owned && !Characters.ContainsKey(owned)) return false;
+        if (code is { } owned && (!Characters.ContainsKey(owned) || owned == GamePack.PlayerCharacterCode)) return false;   // 플레이어는 파트너/어시스트가 될 수 없다
 
         var other = role == SupportRole.Partner ? SupportRole.Assist : SupportRole.Partner;
         var previous = SupportOf(role);
@@ -50,8 +50,15 @@ public sealed partial class GameSession
         else AssistCode = code;
     }
 
-    /// <summary>홈 화면 위쪽 왼쪽의 "당신" 슬롯. 눌러도 바뀌지 않는다(지금은 빈 슬롯 모양).</summary>
-    public PartySlotView PlayerSlot => PartySlotView.Empty() with { Name = PlayerSlotName };
+    /// <summary>홈 화면 위쪽 왼쪽의 "당신" 슬롯: 플레이어(캐릭터 1)를 보여 준다. 눌러도 바뀌지 않는다.</summary>
+    public PartySlotView PlayerSlot
+    {
+        get
+        {
+            var view = CharacterView(-1, GamePack.PlayerCharacterCode);
+            return view.IsEmpty ? view with { Name = PlayerSlotName } : view;
+        }
+    }
 
     public const string PlayerSlotName = "당신";
 
@@ -86,7 +93,7 @@ public sealed partial class GameSession
         var theirs = SupportOf(role == SupportRole.Partner ? SupportRole.Assist : SupportRole.Partner);
         return (Pack.CharacterInventory ?? []).Select(c =>
         {
-            var color = !Characters.ContainsKey(c.Code) ? CharacterListColor.Gray
+            var color = !Characters.ContainsKey(c.Code) || c.Code == GamePack.PlayerCharacterCode ? CharacterListColor.Gray
                 : mine == c.Code ? CharacterListColor.SkyBlue
                 : theirs == c.Code ? CharacterListColor.Green
                 : CharacterListColor.White;

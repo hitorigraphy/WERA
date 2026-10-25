@@ -187,4 +187,61 @@ public class PlayerCharacterTests
     [InlineData(",\"UniqueItems\":{\"01H00000000000000000000001\":{\"ItemCode\":8001,\"Tags\":[1]}}")]   // 유니크 아이템 인스턴스가 플레이어 태그를 가졌다
     public void A_save_breaking_the_player_tag_rule_is_rejected(string fragment) =>
         Assert.Throws<SaveFormatException>(() => GameSession.FromSaveJson(Load(), Head + Chars + fragment + "}"));
+
+    // ---- 새 게임과 홈의 "당신" 슬롯 ----
+
+    [Fact]
+    public void A_new_game_starts_with_the_player_owned_and_tagged()
+    {
+        var s = GameSession.NewGame(Load());
+        Assert.Equal([1L], s.Characters.Keys);
+        Assert.Equal([1L], s.CharacterTags(1));
+        Assert.All(s.Party, p => Assert.Null(p));                         // 파티에는 자동으로 들어가지 않는다
+    }
+
+    [Fact]
+    public void The_home_player_slot_shows_the_player_character()
+    {
+        var s = GameSession.NewGame(Load());
+        Assert.Equal("당신", s.PlayerSlot.Name);
+        Assert.False(s.PlayerSlot.IsEmpty);
+        Assert.Equal("Lv.1", s.PlayerSlot.LevelText);
+        Assert.Equal(-1, s.PlayerSlot.Slot);
+
+        s.Characters[1] = new CharacterState(7, 20, 30, 5, 50);
+        Assert.Equal("Lv.7", s.PlayerSlot.LevelText);
+        Assert.Contains("20/30", s.PlayerSlot.Hp.Text);                   // 게이지는 파티 슬롯과 같은 모양
+    }
+
+    [Fact]
+    public void The_player_cannot_be_the_partner_or_the_assist()
+    {
+        var s = GameSession.NewGame(Load());
+        s.AddCharacter(7001);
+        Assert.False(s.SetSupport(SupportRole.Partner, 1));
+        Assert.False(s.SetSupport(SupportRole.Assist, 1));
+        Assert.True(s.SetSupport(SupportRole.Partner, 7001));
+
+        s.Activate("1");                                                  // 파트너 선택 화면
+        Assert.Equal(CharacterListColor.Gray, s.SupportList.Single(c => c.Code == 1).Color);
+        Assert.Null(s.Activate("1"));                                     // 목록의 1번 코드(플레이어)는 고를 수 없다
+        Assert.Equal(Screen.SupportSelect, s.Screen);
+    }
+
+    [Fact]
+    public void An_older_save_without_the_player_gets_the_player_added_on_load()
+    {
+        var s = GameSession.FromSaveJson(Load(), "{\"Version\":1,\"PackId\":\"demo\"}");
+        Assert.Equal([1L], s.Characters.Keys);
+        Assert.Equal([1L], s.CharacterTags(1));
+    }
+
+    [Fact]
+    public void A_saved_player_keeps_its_own_state()
+    {
+        var s = GameSession.NewGame(Load());
+        s.Characters[1] = new CharacterState(9, 10, 40, 3, 60);
+        var loaded = GameSession.FromSaveJson(Load(), s.ToSaveJson());
+        Assert.Equal(new CharacterState(9, 10, 40, 3, 60), loaded.Characters[1]);
+    }
 }

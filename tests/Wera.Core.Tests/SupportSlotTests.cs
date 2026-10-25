@@ -30,7 +30,9 @@ public class SupportSlotTests
     {
         var s = Session();
         Assert.Equal("당신", s.PlayerSlot.Name);
-        Assert.True(s.PlayerSlot.IsEmpty);
+        Assert.False(s.PlayerSlot.IsEmpty);                           // 플레이어(캐릭터 1)를 보여 준다
+        Assert.Equal("Lv.1", s.PlayerSlot.LevelText);
+        Assert.Equal(-1, s.PlayerSlot.Slot);
         Assert.Null(s.Activate("0"));                                 // 당신 슬롯에는 코드가 없다
         Assert.Equal(Screen.Home, s.Screen);
     }

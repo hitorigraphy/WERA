@@ -171,8 +171,12 @@ public sealed partial class GameSession
     }
 
     /// <summary>튜토리얼이 구현될 때까지 새 게임은 홈 화면으로 직행한다.</summary>
-    public static GameSession NewGame(GamePack pack) =>
-        new(pack, Screen.Home, [], [], [], new long?[PartySlotCount], [], [], [], []);
+    public static GameSession NewGame(GamePack pack)
+    {
+        var session = new GameSession(pack, Screen.Home, [], [], [], new long?[PartySlotCount], [], [], [], []);
+        session.AddCharacter(GamePack.PlayerCharacterCode);      // 플레이어(캐릭터 1)는 처음부터 보유한다
+        return session;
+    }
 
     /// <summary>입장 조건을 하나라도 만족하는 던전.</summary>
     public IReadOnlyList<Dungeon> AvailableDungeons =>
@@ -689,6 +693,10 @@ public sealed partial class GameSession
                 throw new SaveFormatException(
                     $"세이브의 캐릭터 '{code}' 상태가 올바르지 않습니다 (Lv {s.Level}, HP {s.Hp}/{s.MaxHp}, XP {s.Xp}/{s.XpMax}).");
         }
+
+        // 플레이어(캐릭터 1)는 늘 보유한다. 세이브에 없으면(예전 세이브) 새 캐릭터 상태로 채운다.
+        if (!characters.ContainsKey(GamePack.PlayerCharacterCode) && pack.FindCharacter(GamePack.PlayerCharacterCode) is not null)
+            characters[GamePack.PlayerCharacterCode] = pack.NewCharacterState(GamePack.PlayerCharacterCode);
 
         var party = new long?[PartySlotCount];
         if (save.Party is { } saved)

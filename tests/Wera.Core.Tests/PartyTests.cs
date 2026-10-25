@@ -226,7 +226,7 @@ public class PartyTests
         Assert.NotNull(s.Activate("5"));
         Assert.Equal(Screen.CharacterSelect, s.Screen);
         Assert.Equal(4, s.CurrentSlot);
-        Assert.Equal(["7001", "7002", "7003", "999"], s.Entries.Select(e => e.Code));   // 7004는 회색이라 고를 수 없다
+        Assert.Equal(["7001", "7002", "7003", "1", "999"], s.Entries.Select(e => e.Code));   // 7004는 회색이라 고를 수 없다, 보유한 플레이어(1)는 마스터의 맨 끝
     }
 
     [Fact]
@@ -336,12 +336,12 @@ public class PartyTests
         s.Activate("103");
 
         s.Activate("1");                                       // 용사가 있는 슬롯
-        Assert.Equal(["0", "7001", "7002", "7003", "999"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["0", "7001", "7002", "7003", "1", "999"], s.Entries.Select(e => e.Code));
         Assert.Equal(new ScreenEntry("0", "비우기", Screen.PartySetup, EntryAction.ClearSlot), s.Entries[0]);
         s.Activate("999");
 
         s.Activate("2");                                       // 빈 슬롯
-        Assert.Equal(["7001", "7002", "7003", "999"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["7001", "7002", "7003", "1", "999"], s.Entries.Select(e => e.Code));
         Assert.Null(s.Activate("0"));                          // 빈 슬롯에서는 비울 것이 없다
         Assert.Equal(Screen.CharacterSelect, s.Screen);
     }
@@ -429,14 +429,14 @@ public class PartyTests
     }
 
     [Fact]
-    public void Character_list_has_only_the_unowned_player_when_the_pack_defines_no_other_characters()
+    public void Character_list_has_only_the_owned_player_when_the_pack_defines_no_other_characters()
     {
         var s = GameSession.NewGame(Pack(null));
         s.Activate("103");
         s.Activate("1");
         Assert.Equal([1L], s.CharacterList.Select(c => c.Code));
-        Assert.False(s.CharacterList.Single().Selectable);                 // 보유하지 않아 고를 수 없다
-        Assert.Equal(["999"], s.Entries.Select(e => e.Code));
+        Assert.True(s.CharacterList.Single().Selectable);                  // 새 게임에서 플레이어는 이미 보유한다
+        Assert.Equal(["1", "999"], s.Entries.Select(e => e.Code));
     }
 
     // ---- 세이브 ----
@@ -466,7 +466,7 @@ public class PartyTests
     public void Save_without_characters_or_party_loads_as_empty()
     {
         var s = GameSession.FromSaveJson(Pack(), "{\"Version\":1,\"PackId\":\"demo\"}");
-        Assert.Empty(s.Characters);
+        Assert.Equal([GamePack.PlayerCharacterCode], s.Characters.Keys);     // 세이브에 없어도 플레이어(캐릭터 1)는 늘 보유한다
         Assert.Equal(GameSession.PartySlotCount, s.Party.Length);
         Assert.All(s.Party, p => Assert.Null(p));
     }
