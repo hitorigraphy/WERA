@@ -230,4 +230,25 @@ public class MultiKindEquipmentTests
             "\"EquippedItems\":{\"7001\":{\"3\":{\"Kind\":\"CommonItem\",\"Code\":3}}}}");
         Assert.Equal(EquipRef.Common(3), s.EquippedItemOf(7001, 3));
     }
+
+    [Fact]
+    public void The_equipping_characters_own_tags_are_combined_with_the_item_tags()
+    {
+        // 슬롯 규칙: 검 AND 소환수. 철검은 검 태그만 있고, 소환수 태그는 장비하는 캐릭터(7001)가 가진다.
+        GamePack Make(string characterTags) => GamePack.Load(CoreTests.Zip(
+            ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
+            ("master/attribute_master_v1.tsv", "attribute_code\tattribute_name\n1\t불\n2\t물\n"),
+            ("master/character_inventory_master_v1.tsv",
+                "character_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n7001\t강령술사\t1\t1\t2\n"),
+            ("master/equipment_slot_master_v1.tsv", "equipment_slot_code\tequipment_slot_name\n1\t무기\n"),
+            ("master/tag_master_v1.tsv", "tag_code\ttag_name\n1\t검\n6\t소환수\n"),
+            ("master/unique_item_master_v1.tsv", "item_code\titem_name\n8001\t철검\n"),
+            ("master/unique_item_tag_master_v1.tsv", "item_code\ttag_code\n8001\t1\n"),
+            ("master/character_tag_master_v1.tsv", "character_code\ttag_code\n" + characterTags),
+            ("master/equipment_slot_tag_master_v1.tsv",
+                "character_code\tequipment_slot_code\ttag_code\tgroup_number\tis_positive\n7001\t1\t1\t1\ttrue\n7001\t1\t6\t1\ttrue\n")));
+
+        Assert.True(Make("7001\t6\n").CanEquip(7001, 1, 8001));
+        Assert.False(Make("").CanEquip(7001, 1, 8001));
+    }
 }

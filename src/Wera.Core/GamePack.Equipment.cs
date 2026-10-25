@@ -64,7 +64,7 @@ public sealed partial class GamePack
     }) ?? CodeText(target.Code);
 
     /// <summary>
-    /// 이 캐릭터의 이 슬롯에 낄 수 있는가: 슬롯 태그 마스터의 규칙에 그 대상의 태그가 부합해야 한다.
+    /// 이 캐릭터의 이 슬롯에 낄 수 있는가: 슬롯 태그 마스터의 규칙에 (장비하는 캐릭터의 태그 + 끼울 것의 태그)를 합친 태그가 부합해야 한다.
     /// 캐릭터는 자기 자신을 낄 수 없다.
     /// </summary>
     public bool CanEquip(long characterCode, long equipmentSlotCode, EquipRef target)
@@ -73,7 +73,10 @@ public sealed partial class GamePack
         var rules = SlotTagRulesOf(characterCode, equipmentSlotCode);
         if (rules.Count == 0 || !Exists(target)) return false;
 
-        return EquipmentRules.Matches(rules, TagsOf(target));
+        // 장비하는 캐릭터의 태그와 끼울 것의 태그를 합쳐서 규칙에 맞춰 본다.
+        var tags = TagsOf(target).ToHashSet();
+        tags.UnionWith(TagsOf(EquipRef.Char(characterCode)));
+        return EquipmentRules.Matches(rules, tags);
     }
 
     /// <summary>유니크 아이템을 이 캐릭터의 이 슬롯에 낄 수 있는가.</summary>
