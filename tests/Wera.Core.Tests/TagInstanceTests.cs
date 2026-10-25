@@ -18,9 +18,9 @@ public class TagInstanceTests
         ("master/equipment_slot_master_v1.tsv", "equipment_slot_code\tequipment_slot_name\n1\t무기\n2\t소환\n"),
         ("master/tag_master_v1.tsv", "tag_code\ttag_name\n1\t검\n5\t변신\n6\t소환수\n"),
         ("master/unique_item_inventory_master_v1.tsv", "item_code\titem_name\n8001\t철검\n8002\t변신 검\n"),
-        ("master/unique_item_inventory_tag_master_v1.tsv", "item_code\ttag_code\n8001\t1\n8002\t1\n"),
-        ("master/common_item_inventory_tag_master_v1.tsv", "item_code\ttag_code\n3\t6\n"),
-        ("master/character_inventory_tag_master_v1.tsv", "character_code\ttag_code\n7002\t6\n"),
+        ("master/unique_item_tag_master_v1.tsv", "item_code\ttag_code\n8001\t1\n8002\t1\n"),
+        ("master/common_item_tag_master_v1.tsv", "item_code\ttag_code\n3\t6\n"),
+        ("master/character_tag_master_v1.tsv", "character_code\ttag_code\n7002\t6\n"),
         ("master/equipment_slot_tag_master_v1.tsv",
             "character_code\tequipment_slot_code\ttag_code\tgroup_number\tis_positive\n" +
             "7001\t1\t1\t1\ttrue\n7001\t1\t5\t1\ttrue\n7001\t2\t6\t1\ttrue\n")));

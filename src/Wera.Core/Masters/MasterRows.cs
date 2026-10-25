@@ -161,7 +161,7 @@ public record UniqueItemRow
 }
 
 /// <summary>유니크 아이템 태그 마스터: 같은 (아이템, 태그)는 한 번만 쓸 수 있다. 보조키로 아이템의 태그 전부를 찾는다.</summary>
-[MemoryTable("unique_item_inventory_tag"), MessagePackObject(true)]
+[MemoryTable("unique_item_tag"), MessagePackObject(true)]
 public record UniqueItemTagRow
 {
     [PrimaryKey(keyOrder: 0)]
@@ -175,7 +175,7 @@ public record UniqueItemTagRow
 }
 
 /// <summary>커먼 아이템(아이템 인벤토리) 태그 마스터: 같은 (아이템, 태그)는 한 번만 쓸 수 있다.</summary>
-[MemoryTable("common_item_inventory_tag"), MessagePackObject(true)]
+[MemoryTable("common_item_tag"), MessagePackObject(true)]
 public record CommonItemTagRow
 {
     [PrimaryKey(keyOrder: 0)]
@@ -189,7 +189,7 @@ public record CommonItemTagRow
 }
 
 /// <summary>캐릭터 태그 마스터: 같은 (캐릭터, 태그)는 한 번만 쓸 수 있다.</summary>
-[MemoryTable("character_inventory_tag"), MessagePackObject(true)]
+[MemoryTable("character_tag"), MessagePackObject(true)]
 public record CharacterTagRow
 {
     [PrimaryKey(keyOrder: 0)]

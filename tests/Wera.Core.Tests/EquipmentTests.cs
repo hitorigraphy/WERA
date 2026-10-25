@@ -41,7 +41,7 @@ public class EquipmentTests
         if (slots is not null) files.Add(("master/equipment_slot_master_v1.tsv", slots));
         if (tags is not null) files.Add(("master/tag_master_v1.tsv", tags));
         if (items is not null) files.Add(("master/unique_item_inventory_master_v1.tsv", items));
-        if (itemTags is not null) files.Add(("master/unique_item_inventory_tag_master_v1.tsv", itemTags));
+        if (itemTags is not null) files.Add(("master/unique_item_tag_master_v1.tsv", itemTags));
         if (slotTags is not null) files.Add(("master/equipment_slot_tag_master_v1.tsv", slotTags));
         return GamePack.Load(CoreTests.Zip(files.ToArray()));
     }

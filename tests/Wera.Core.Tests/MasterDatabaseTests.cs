@@ -35,7 +35,7 @@ public class MasterDatabaseTests
         ("master/equipment_slot_master_v1.tsv", "equipment_slot_code\tequipment_slot_name\n2\t방어구\n1\t무기\n"),
         ("master/tag_master_v1.tsv", "tag_code\ttag_name\n4\t마법\n1\t검\n3\t중량\n2\t갑옷\n"),
         ("master/unique_item_inventory_master_v1.tsv", "item_code\titem_name\n9003\t지팡이\n9001\t철검\n9002\t대검\n"),
-        ("master/unique_item_inventory_tag_master_v1.tsv", "item_code\ttag_code\n9002\t3\n9001\t1\n9002\t1\n9003\t4\n"),
+        ("master/unique_item_tag_master_v1.tsv", "item_code\ttag_code\n9002\t3\n9001\t1\n9002\t1\n9003\t4\n"),
         ("master/equipment_slot_tag_master_v1.tsv",
             "character_code\tequipment_slot_code\ttag_code\tgroup_number\tis_positive\n" +
             "7002\t1\t4\t1\ttrue\n7001\t1\t3\t1\tfalse\n7001\t1\t1\t1\ttrue\n7001\t2\t2\t1\ttrue\n")));
