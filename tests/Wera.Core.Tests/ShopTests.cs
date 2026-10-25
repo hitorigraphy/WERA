@@ -78,14 +78,14 @@ public class ShopTests
         Assert.Null(s.Activate("102"));
 
         s.PlayerFlags[1001] = 1;
-        Assert.Contains(new ScreenEntry("102", "상점가", Screen.ShopList), s.Entries);
+        Assert.Contains(new ScreenEntry("102", "상점", Screen.ShopList), s.Entries);
     }
 
     [Fact]
     public void Home_order_is_101_102_103_200_300()
     {
         var s = GameSession.NewGame(Pack(TwoShops, null, dungeons: "code\tname\n1001\t초원\n"));
-        Assert.Equal(["101", "102", "103", "200", "300"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["101", "102", "103", "200", "201", "202", "203", "204", "205", "300"], s.Entries.Select(e => e.Code));
     }
 
     [Fact]

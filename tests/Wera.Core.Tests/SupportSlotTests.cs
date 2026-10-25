@@ -56,7 +56,7 @@ public class SupportSlotTests
     public void The_home_entry_list_is_unchanged_and_the_slot_codes_are_hidden_typed_codes()
     {
         var s = Session();
-        Assert.Equal(["103", "200", "300"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["103", "200", "201", "202", "203", "204", "205", "300"], s.Entries.Select(e => e.Code));
         Assert.NotNull(s.Activate("1"));
         Assert.Equal(Screen.SupportSelect, s.Screen);
     }
@@ -64,15 +64,16 @@ public class SupportSlotTests
     // ---- 선택 화면 ----
 
     [Fact]
-    public void Choosing_the_partner_slot_lists_every_character_with_unowned_ones_grayed()
+    public void Choosing_the_partner_slot_lists_only_owned_characters_and_the_player_is_grayed()
     {
         var s = Session();
         s.Activate("1");
         Assert.Equal(SupportRole.Partner, s.CurrentSupportRole);
         Assert.Equal("파트너", s.CurrentSupportRoleName);
 
-        Assert.Equal([7001L, 7002L, 7003L, 7004L, 1L], s.SupportList.Select(c => c.Code));
-        Assert.Equal(CharacterListColor.Gray, s.SupportList.Single(c => c.Code == 7004).Color);
+        Assert.Equal([7001L, 7002L, 7003L, 1L], s.SupportList.Select(c => c.Code));       // 보유하지 않은 도적(7004)은 목록에 없다
+        Assert.DoesNotContain(s.SupportList, c => c.Code == 7004);
+        Assert.Equal(CharacterListColor.Gray, s.SupportList.Single(c => c.Code == 1).Color);   // 플레이어는 보이지만 고를 수 없다
         Assert.Equal(["7001", "7002", "7003", "999"], s.Entries.Select(e => e.Code));    // 비우기는 비어 있으면 없다, 회색은 못 고른다
     }
 
@@ -135,7 +136,7 @@ public class SupportSlotTests
     public void Slot_codes_work_only_on_the_home_screen()
     {
         var s = Session();
-        s.Activate("103");
+        s.Activate("202");
         s.Activate("1");                                              // 파티 설정의 1은 슬롯 1번(캐릭터 목록)이지 파트너가 아니다
         Assert.Equal(Screen.CharacterSelect, s.Screen);
         Assert.Null(s.CurrentSupportRole);
@@ -155,7 +156,7 @@ public class SupportSlotTests
 
         s.Party[0] = null;                                            // 파티에서 빼도 파트너는 그대로
         Assert.Equal(7001, s.PartnerCode);
-        s.Activate("103"); s.Activate("1"); s.Activate("7002");       // 파티 설정에서 마법사를 배치해도 파트너/어시스트는 그대로
+        s.Activate("202"); s.Activate("1"); s.Activate("7002");       // 파티 설정에서 마법사를 배치해도 파트너/어시스트는 그대로
         Assert.Equal(7002, s.Party[0]);
         Assert.Equal(7001, s.PartnerCode);
         Assert.Null(s.AssistCode);

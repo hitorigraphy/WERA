@@ -19,7 +19,7 @@ public class EquipmentFlowTests
         s.Characters[7002] = new CharacterState(3, 10, 25, 12, 30);
         s.Party[0] = 7001;
         s.Party[4] = 7002;
-        s.Activate("103");
+        s.Activate("202");
         return s;
     }
 
@@ -79,7 +79,7 @@ public class EquipmentFlowTests
     public void Back_from_equipment_setup_goes_home_even_when_reached_from_the_home_button_directly()
     {
         var s = GameSession.NewGame(Pack());
-        s.Activate("103");
+        s.Activate("202");
         s.Activate("11");
         s.Activate("10");
         s.Activate("11");

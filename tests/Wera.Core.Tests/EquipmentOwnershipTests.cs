@@ -23,7 +23,7 @@ public class EquipmentOwnershipTests
     static GameSession InSelect(string partySlot, string equipmentSlot, params (long item, long count)[] owned)
     {
         var s = Session(owned);
-        s.Activate("103"); s.Activate("11"); s.Activate(partySlot); s.Activate(equipmentSlot);
+        s.Activate("202"); s.Activate("11"); s.Activate(partySlot); s.Activate(equipmentSlot);
         return s;
     }
 
@@ -134,7 +134,7 @@ public class EquipmentOwnershipTests
     {
         var s = Session((9001, 1));
         s.Equip(7001, 1, 9001);
-        s.Activate("103"); s.Activate("11"); s.Activate("1");
+        s.Activate("202"); s.Activate("11"); s.Activate("1");
 
         Assert.Equal(["무기 : 철검", "방어구 : (없음)", "돌아가기"], s.Entries.Select(e => e.Label));
     }
@@ -227,7 +227,7 @@ public class EquipmentOwnershipTests
         // 지팡이 한 개를 마법사가 끼면, 용사의 목록에서는 사라진다.
         var s = Session((9003, 1), (9001, 1));
         s.Equip(7002, 1, 9003);
-        s.Activate("103"); s.Activate("11"); s.Activate("1"); s.Activate("1");
+        s.Activate("202"); s.Activate("11"); s.Activate("1"); s.Activate("1");
         Assert.Equal(["철검"], s.EquippableItems.Select(i => i.Name));
         Assert.Null(s.Activate("2"));
 

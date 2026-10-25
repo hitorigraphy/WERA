@@ -20,6 +20,16 @@ public enum Screen
     EquipmentSelect,
     /// <summary>선택한 슬롯에 배치할 캐릭터 목록.</summary>
     CharacterSelect,
+    /// <summary>이벤트 화면(103). 아직 내용이 없다.</summary>
+    Event,
+    /// <summary>교류 화면(201). 아직 내용이 없다.</summary>
+    Interaction,
+    /// <summary>동료 확인 화면(203). 아직 내용이 없다.</summary>
+    CompanionCheck,
+    /// <summary>장비 확인 화면(204). 아직 내용이 없다.</summary>
+    EquipmentCheck,
+    /// <summary>아이템 확인 화면(205). 아직 내용이 없다.</summary>
+    ItemCheck,
     /// <summary>홈 화면의 파트너/어시스트 슬롯에 지정할 캐릭터 목록(파티 설정과 독립). 돌아가기는 홈.</summary>
     SupportSelect,
     /// <summary>선택한 상점의 교환 목록.</summary>
@@ -83,8 +93,13 @@ public sealed partial class GameSession
 
     public const string DungeonEntryCode = "101";
     public const string ShopEntryCode = "102";
-    public const string PartyEntryCode = "103";
+    public const string EventEntryCode = "103";
     public const string SaveEntryCode = "200";
+    public const string InteractionEntryCode = "201";
+    public const string PartyEntryCode = "202";
+    public const string CompanionCheckEntryCode = "203";
+    public const string EquipmentCheckEntryCode = "204";
+    public const string ItemCheckEntryCode = "205";
     public const string LoadEntryCode = "300";
     public const string BackEntryCode = "999";
 
@@ -250,8 +265,8 @@ public sealed partial class GameSession
     }
 
     /// <summary>
-    /// 캐릭터 선택 화면의 목록(캐릭터 인벤토리 마스터 순서).
-    /// 보유하지 않은 캐릭터는 회색, 이 슬롯의 캐릭터는 하늘색, 다른 슬롯에 있는 파티원은 초록, 나머지는 흰색.
+    /// 캐릭터 선택 화면의 목록(캐릭터 인벤토리 마스터 순서). 보유하지 않은 캐릭터는 목록에 나오지 않는다.
+    /// 이 슬롯의 캐릭터는 하늘색, 다른 슬롯에 있는 파티원은 초록, 나머지는 흰색.
     /// </summary>
     public IReadOnlyList<CharacterListItem> CharacterList
     {
@@ -259,7 +274,7 @@ public sealed partial class GameSession
         {
             if (Screen == Screen.SupportSelect) return SupportList;
             if (Screen != Screen.CharacterSelect || CurrentSlot is not { } slot) return [];
-            return (Pack.CharacterInventory ?? []).Select(c =>
+            return (Pack.CharacterInventory ?? []).Where(c => Characters.ContainsKey(c.Code)).Select(c =>
             {
                 var placedAt = Array.IndexOf(Party, (long?)c.Code);
                 var color = !Characters.ContainsKey(c.Code) ? CharacterListColor.Gray
@@ -283,9 +298,14 @@ public sealed partial class GameSession
                     if (AvailableDungeons.Count > 0)
                         list.Add(new ScreenEntry(DungeonEntryCode, "던전", Screen.DungeonSelect));
                     if (AvailableShops.Count > 0)
-                        list.Add(new ScreenEntry(ShopEntryCode, "상점가", Screen.ShopList));
-                    list.Add(new ScreenEntry(PartyEntryCode, "파티 설정", Screen.PartySetup));
+                        list.Add(new ScreenEntry(ShopEntryCode, "상점", Screen.ShopList));
+                    list.Add(new ScreenEntry(EventEntryCode, "이벤트", Screen.Event));
                     list.Add(new ScreenEntry(SaveEntryCode, "세이브", Screen.Home, EntryAction.Save));
+                    list.Add(new ScreenEntry(InteractionEntryCode, "교류", Screen.Interaction));
+                    list.Add(new ScreenEntry(PartyEntryCode, "파티 설정", Screen.PartySetup));
+                    list.Add(new ScreenEntry(CompanionCheckEntryCode, "동료 확인", Screen.CompanionCheck));
+                    list.Add(new ScreenEntry(EquipmentCheckEntryCode, "장비 확인", Screen.EquipmentCheck));
+                    list.Add(new ScreenEntry(ItemCheckEntryCode, "아이템 확인", Screen.ItemCheck));
                     list.Add(new ScreenEntry(LoadEntryCode, "로드", Screen.Load));
                     return list;
                 case Screen.ShopList:
@@ -337,6 +357,11 @@ public sealed partial class GameSession
                     return SupportSelectEntries();
                 case Screen.DungeonSelect:
                 case Screen.Load:
+                case Screen.Event:
+                case Screen.Interaction:
+                case Screen.CompanionCheck:
+                case Screen.EquipmentCheck:
+                case Screen.ItemCheck:
                     return [new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home)];
                 default:
                     return [];

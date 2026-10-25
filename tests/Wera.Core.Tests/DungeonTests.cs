@@ -161,13 +161,13 @@ public class DungeonTests
     }
 
     [Fact]
-    public void Home_always_has_party_103_save_200_and_load_300_in_order()
+    public void Home_menu_is_in_code_order_with_the_always_present_entries()
     {
-        // 던전이 없어도 세이브/로드는 항상 있고, 던전이 있으면 101이 맨 앞.
-        Assert.Equal(["103", "200", "300"], GameSession.NewGame(Pack(null, null)).Entries.Select(e => e.Code));
+        // 던전이 없어도 이벤트(103), 세이브(200), 교류(201), 파티 설정(202), 동료/장비/아이템 확인(203~205), 로드(300)는 항상 있고, 던전이 있으면 101이 맨 앞.
+        Assert.Equal(["103", "200", "201", "202", "203", "204", "205", "300"], GameSession.NewGame(Pack(null, null)).Entries.Select(e => e.Code));
         var s = GameSession.NewGame(Pack(TwoDungeons, null));
-        Assert.Equal(["101", "103", "200", "300"], s.Entries.Select(e => e.Code));
-        Assert.Equal(["세이브", "로드"], s.Entries.Skip(2).Select(e => e.Label));
+        Assert.Equal(["101", "103", "200", "201", "202", "203", "204", "205", "300"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["던전", "이벤트", "세이브", "교류", "파티 설정", "동료 확인", "장비 확인", "아이템 확인", "로드"], s.Entries.Select(e => e.Label));
     }
 
     [Fact]
