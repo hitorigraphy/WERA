@@ -24,8 +24,9 @@ public sealed partial class GamePack
         List<ItemEntry>? items, List<BunchEntry>? bunches, List<CharacterEntry>? characters, List<AttributeEntry>? attributes,
         List<ShopTrade>? trades, List<FlatCondition> tradeConditions,
         List<StatusEffectEntry>? statusEffects, List<StatusEffectEffect>? statusEffectEffects,
-        List<EquipmentSlotEntry>? equipmentSlots, List<TagEntry>? tags, List<EquipmentItem>? equipmentItems,
-        List<EquipmentTag>? equipmentTags, List<EquipmentSlotTag>? equipmentSlotTags)
+        List<EquipmentSlotEntry>? equipmentSlots, List<TagEntry>? tags, List<UniqueItem>? uniqueItems,
+        List<UniqueItemTag>? uniqueItemTags, List<CommonItemTag>? commonItemTags, List<CharacterTag>? characterTags,
+        List<EquipmentSlotTag>? equipmentSlotTags)
     {
         var builder = new DatabaseBuilder();
 
@@ -77,10 +78,14 @@ public sealed partial class GamePack
 
         builder.Append((equipmentSlots ?? []).Select((s, i) => new EquipmentSlotRow { Code = s.Code, Name = s.Name, Order = i }).ToList());
         builder.Append((tags ?? []).Select((t, i) => new TagRow { Code = t.Code, Name = t.Name, Order = i }).ToList());
-        builder.Append((equipmentItems ?? []).Select((e, i) => new EquipmentItemRow
+        builder.Append((uniqueItems ?? []).Select((e, i) => new UniqueItemRow
             { ItemCode = e.ItemCode, ItemName = e.ItemName, Order = i }).ToList());
-        builder.Append((equipmentTags ?? []).Select((t, i) => new EquipmentTagRow
+        builder.Append((uniqueItemTags ?? []).Select((t, i) => new UniqueItemTagRow
             { ItemCode = t.ItemCode, TagCode = t.TagCode, Order = i }).ToList());
+        builder.Append((commonItemTags ?? []).Select((t, i) => new CommonItemTagRow
+            { ItemCode = t.ItemCode, TagCode = t.TagCode, Order = i }).ToList());
+        builder.Append((characterTags ?? []).Select((t, i) => new CharacterTagRow
+            { CharacterCode = t.CharacterCode, TagCode = t.TagCode, Order = i }).ToList());
         builder.Append((equipmentSlotTags ?? []).Select((t, i) => new EquipmentSlotTagRow
         {
             CharacterCode = t.CharacterCode, EquipmentSlotCode = t.EquipmentSlotCode, TagCode = t.TagCode,
@@ -122,8 +127,8 @@ public sealed partial class GamePack
     public EquipmentSlotEntry? FindEquipmentSlot(long code) =>
         Masters.EquipmentSlotRowTable.TryFindByCode(code, out var r) ? new EquipmentSlotEntry(r.Code, r.Name) : null;
 
-    public EquipmentItem? FindEquipmentItem(long itemCode) =>
-        Masters.EquipmentItemRowTable.TryFindByItemCode(itemCode, out var r) ? new EquipmentItem(r.ItemCode, r.ItemName) : null;
+    public UniqueItem? FindUniqueItem(long itemCode) =>
+        Masters.UniqueItemRowTable.TryFindByItemCode(itemCode, out var r) ? new UniqueItem(r.ItemCode, r.ItemName) : null;
 
     /// <summary>상태이상이 가진 이펙트 행들(게임팩 파일 순서).</summary>
     public IReadOnlyList<StatusEffectEffect> StatusEffectEffectsOf(long statusEffectCode) =>
@@ -140,9 +145,14 @@ public sealed partial class GamePack
             .Select(r => new EquipmentSlotTag(r.CharacterCode, r.EquipmentSlotCode, r.TagCode, r.GroupNumber, r.IsPositive))
             .ToList();
 
-    /// <summary>장비가 가진 태그 코드들. 보조키 장비 코드로 찾는다.</summary>
-    IReadOnlySet<long> TagsOfEquipment(long itemCode) =>
-        Masters.EquipmentTagRowTable.FindByItemCode(itemCode).Select(r => r.TagCode).ToHashSet();
+    /// <summary>끼울 것이 가진 태그 코드들. 종류에 맞는 태그 마스터에서 보조키(대상 코드)로 찾는다.</summary>
+    IReadOnlySet<long> TagsOf(EquipRef target) => target.Kind switch
+    {
+        EquipKind.UniqueItem => Masters.UniqueItemTagRowTable.FindByItemCode(target.Code).Select(r => r.TagCode).ToHashSet(),
+        EquipKind.CommonItem => Masters.CommonItemTagRowTable.FindByItemCode(target.Code).Select(r => r.TagCode).ToHashSet(),
+        EquipKind.Character => Masters.CharacterTagRowTable.FindByCharacterCode(target.Code).Select(r => r.TagCode).ToHashSet(),
+        _ => new HashSet<long>(),
+    };
 
     string CodeText(long code) => code.ToString(CultureInfo.InvariantCulture);
 }

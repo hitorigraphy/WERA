@@ -40,8 +40,8 @@ public class EquipmentTests
         };
         if (slots is not null) files.Add(("master/equipment_slot_master_v1.tsv", slots));
         if (tags is not null) files.Add(("master/tag_master_v1.tsv", tags));
-        if (items is not null) files.Add(("master/equipment_master_v1.tsv", items));
-        if (itemTags is not null) files.Add(("master/equipment_tag_master_v1.tsv", itemTags));
+        if (items is not null) files.Add(("master/unique_item_master_v1.tsv", items));
+        if (itemTags is not null) files.Add(("master/unique_item_tag_master_v1.tsv", itemTags));
         if (slotTags is not null) files.Add(("master/equipment_slot_tag_master_v1.tsv", slotTags));
         return GamePack.Load(CoreTests.Zip(files.ToArray()));
     }
@@ -54,11 +54,11 @@ public class EquipmentTests
         var pack = Pack(null, null, null, null, null);
         Assert.Null(pack.EquipmentSlots);
         Assert.Null(pack.Tags);
-        Assert.Null(pack.EquipmentItems);
-        Assert.Null(pack.EquipmentTags);
+        Assert.Null(pack.UniqueItems);
+        Assert.Null(pack.UniqueItemTags);
         Assert.Null(pack.EquipmentSlotTags);
         Assert.Empty(pack.EquipmentSlotsOf(7001));
-        Assert.Empty(pack.EquippableItems(7001, 1));
+        Assert.Empty(pack.EquippableTargets(7001, 1));
         Assert.False(pack.CanEquip(7001, 1, 9001));
     }
 
@@ -69,9 +69,9 @@ public class EquipmentTests
         Assert.Equal([new EquipmentSlotEntry(1, "무기"), new EquipmentSlotEntry(2, "방어구")], pack.EquipmentSlots);
         Assert.Equal(4, pack.Tags!.Count);
         Assert.Equal(new TagEntry(3, "중량"), pack.Tags[2]);
-        Assert.Equal(new EquipmentItem(9004, "판금갑옷"), pack.EquipmentItems![3]);
-        Assert.Equal(7, pack.EquipmentTags!.Count);
-        Assert.Contains(new EquipmentTag(9002, 3), pack.EquipmentTags);
+        Assert.Equal(new UniqueItem(9004, "판금갑옷"), pack.UniqueItems![3]);
+        Assert.Equal(7, pack.UniqueItemTags!.Count);
+        Assert.Contains(new UniqueItemTag(9002, 3), pack.UniqueItemTags);
     }
 
     [Fact]
@@ -292,10 +292,10 @@ public class EquipmentTests
     public void Equippable_items_come_in_equipment_master_order()
     {
         var pack = Pack();
-        Assert.Equal(["철검", "지팡이"], pack.EquippableItems(7001, 1).Select(i => i.ItemName));
-        Assert.Equal(["판금갑옷", "천 옷"], pack.EquippableItems(7001, 2).Select(i => i.ItemName));
-        Assert.Equal(["지팡이"], pack.EquippableItems(7002, 1).Select(i => i.ItemName));
-        Assert.Empty(pack.EquippableItems(7003, 1));
+        Assert.Equal(["철검", "지팡이"], pack.EquippableTargets(7001, 1).Select(i => i.Name));
+        Assert.Equal(["판금갑옷", "천 옷"], pack.EquippableTargets(7001, 2).Select(i => i.Name));
+        Assert.Equal(["지팡이"], pack.EquippableTargets(7002, 1).Select(i => i.Name));
+        Assert.Empty(pack.EquippableTargets(7003, 1));
     }
 
     // ---- 화면 흐름 ----
@@ -347,7 +347,7 @@ public class EquipmentTests
         Assert.Equal(Screen.EquipmentSelect, s.Screen);
         Assert.Equal(1, s.CurrentEquipmentSlotCode);
         Assert.Equal("무기", s.CurrentEquipmentSlot!.Name);
-        Assert.Equal(["철검", "지팡이"], s.EquippableItems.Select(i => i.ItemName));
+        Assert.Equal(["철검", "지팡이"], s.EquippableItems.Select(i => i.Name));
         Assert.Equal("용사", s.CurrentSlotCharacterName);
     }
 
@@ -356,11 +356,11 @@ public class EquipmentTests
     {
         var s = Session();
         s.Activate("1"); s.Activate("2");
-        Assert.Equal(["판금갑옷", "천 옷"], s.EquippableItems.Select(i => i.ItemName));
+        Assert.Equal(["판금갑옷", "천 옷"], s.EquippableItems.Select(i => i.Name));
         s.Activate("999"); s.Activate("999");                     // 장비 슬롯 목록 → 장비 착용 화면
 
         s.Activate("5"); s.Activate("1");                         // 마법사의 무기
-        Assert.Equal(["지팡이"], s.EquippableItems.Select(i => i.ItemName));
+        Assert.Equal(["지팡이"], s.EquippableItems.Select(i => i.Name));
     }
 
     [Fact]
@@ -368,7 +368,7 @@ public class EquipmentTests
     {
         var s = Session();
         s.Activate("1"); s.Activate("1");
-        Assert.Equal(["9001", "9003", "999"], s.Entries.Select(e => e.Code));   // 낄 수 있는 보유 장비(철검, 지팡이) + 돌아가기
+        Assert.Equal(["1", "2", "999"], s.Entries.Select(e => e.Code));   // 낄 수 있는 보유 장비(철검, 지팡이) + 돌아가기
 
         s.Activate("999");
         Assert.Equal(Screen.EquipmentList, s.Screen);
@@ -389,7 +389,7 @@ public class EquipmentTests
     {
         var s = Session();
         s.Activate("1"); s.Activate("1");
-        Assert.Null(s.Activate("2"));                             // 다른 장비 슬롯으로 바로 갈 수 없다
+        Assert.Null(s.Activate("3"));                             // 다른 장비 슬롯으로 바로 갈 수 없다
         Assert.Null(s.Activate("5"));
         Assert.Equal(Screen.EquipmentSelect, s.Screen);
         Assert.Equal(1, s.CurrentEquipmentSlotCode);

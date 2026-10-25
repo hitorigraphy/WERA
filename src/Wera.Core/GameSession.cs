@@ -59,7 +59,7 @@ public sealed record SaveData(
     long?[]? Party = null,
     Dictionary<long, List<ActiveStatusEffect>>? StatusEffects = null,
     Dictionary<long, long>? OwnedEquipment = null,
-    Dictionary<long, Dictionary<long, long>>? EquippedItems = null);
+    Dictionary<long, Dictionary<long, EquipRef>>? EquippedItems = null);
 
 [JsonSerializable(typeof(SaveData))]
 [JsonSourceGenerationOptions(WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
@@ -134,7 +134,7 @@ public sealed partial class GameSession
         GamePack pack, Screen screen, Dictionary<long, long> playerFlags,
         Dictionary<long, InventoryItem> inventoryItems, Dictionary<long, CharacterState> characters, long?[] party,
         Dictionary<long, List<ActiveStatusEffect>> statusEffects,
-        Dictionary<long, long> ownedEquipment, Dictionary<long, Dictionary<long, long>> equippedItems)
+        Dictionary<long, long> ownedEquipment, Dictionary<long, Dictionary<long, EquipRef>> equippedItems)
     {
         Pack = pack;
         Screen = screen;
@@ -369,7 +369,7 @@ public sealed partial class GameSession
                 Screen = entry.Target;
                 break;
             case EntryAction.EquipItem:
-                Message = EquipFromScreen(CodeOf(entry));
+                Message = EquipFromScreen(ParseRef(entry.Arg!));
                 CurrentEquipmentSlotCode = null;
                 Screen = entry.Target;                  // 같은 캐릭터의 장비 슬롯 목록(CurrentSlot 유지)
                 break;
@@ -448,7 +448,8 @@ public sealed partial class GameSession
         // 코스트는 받기 전의 보유량으로 판단한다.
         foreach (var (item, need) in cost)
         {
-            var have = InventoryItems.GetValueOrDefault(item).Amount;
+            // 장비 슬롯에 끼워 둔 커먼 아이템은 쓸 수 없다(끼운 개수가 보유 개수를 넘지 않게 한다).
+            var have = InventoryItems.GetValueOrDefault(item).Amount - EquippedCount(EquipRef.Common(item));
             if (have < need) return $"교환 실패 - 부족: {Pack.ItemName(item)} (보유 {have} / 필요 {need}) [{text}]";
         }
 
@@ -605,7 +606,7 @@ public sealed partial class GameSession
             throw new SaveFormatException("세이브의 파티에 같은 캐릭터가 두 번 이상 있습니다.");
 
         var statusEffects = ValidateStatusEffects(pack, characters, save.StatusEffects);
-        var (ownedEquipment, equippedItems) = ValidateEquipment(pack, characters, save.OwnedEquipment, save.EquippedItems);
+        var (ownedEquipment, equippedItems) = ValidateEquipment(pack, characters, inventory, save.OwnedEquipment, save.EquippedItems);
 
         // 불러오기는 저장된 화면과 상관없이 항상 홈으로 들어간다.
         return new GameSession(pack, Screen.Home, playerFlags, inventory, characters, party, statusEffects, ownedEquipment, equippedItems);

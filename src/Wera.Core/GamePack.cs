@@ -128,8 +128,10 @@ public sealed partial class GamePack
         var statusEffectEffects = LoadStatusEffectEffects(zip, statusEffects, embeddedEffects);
         var equipmentSlots = LoadEquipmentSlots(zip);
         var tags = LoadTags(zip);
-        var equipmentItems = LoadEquipmentItems(zip);
-        var equipmentTags = LoadEquipmentTags(zip, equipmentItems, tags);
+        var uniqueItems = LoadUniqueItems(zip);
+        var uniqueItemTags = LoadUniqueItemTags(zip, uniqueItems, tags);
+        var commonItemTags = LoadCommonItemTags(zip, itemInventory, tags);
+        var characterTags = LoadCharacterTags(zip, characterInventory, tags);
         var equipmentSlotTags = LoadEquipmentSlotTags(zip, characterInventory, equipmentSlots, tags);
 
         return new GamePack
@@ -147,13 +149,15 @@ public sealed partial class GamePack
             StatusEffectEffects = statusEffectEffects,
             EquipmentSlots = equipmentSlots,
             Tags = tags,
-            EquipmentItems = equipmentItems,
-            EquipmentTags = equipmentTags,
+            UniqueItems = uniqueItems,
+            UniqueItemTags = uniqueItemTags,
+            CommonItemTags = commonItemTags,
+            CharacterTags = characterTags,
             EquipmentSlotTags = equipmentSlotTags,
             Masters = BuildMasters(
                 dungeons, dungeonConditions, shops, shopConditions, itemInventory, bunchInventory, characterInventory, attributes,
                 trades, tradeConditions, statusEffects, statusEffectEffects,
-                equipmentSlots, tags, equipmentItems, equipmentTags, equipmentSlotTags),
+                equipmentSlots, tags, uniqueItems, uniqueItemTags, commonItemTags, characterTags, equipmentSlotTags),
             EmbeddedEffects = embeddedEffects,
         };
     }

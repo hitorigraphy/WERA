@@ -34,8 +34,8 @@ public class MasterDatabaseTests
             "1\tAfterTurnEnd\t2\t1\t-3\t3\t0\n3\tAfterTurnStart\t1\t1\t5\t5\t0\n1\tBeforeAttack\t1\t1\t-1\t2\t9\n"),
         ("master/equipment_slot_master_v1.tsv", "equipment_slot_code\tequipment_slot_name\n2\t방어구\n1\t무기\n"),
         ("master/tag_master_v1.tsv", "tag_code\ttag_name\n4\t마법\n1\t검\n3\t중량\n2\t갑옷\n"),
-        ("master/equipment_master_v1.tsv", "item_code\titem_name\n9003\t지팡이\n9001\t철검\n9002\t대검\n"),
-        ("master/equipment_tag_master_v1.tsv", "item_code\ttag_code\n9002\t3\n9001\t1\n9002\t1\n9003\t4\n"),
+        ("master/unique_item_master_v1.tsv", "item_code\titem_name\n9003\t지팡이\n9001\t철검\n9002\t대검\n"),
+        ("master/unique_item_tag_master_v1.tsv", "item_code\ttag_code\n9002\t3\n9001\t1\n9002\t1\n9003\t4\n"),
         ("master/equipment_slot_tag_master_v1.tsv",
             "character_code\tequipment_slot_code\ttag_code\tgroup_number\tis_positive\n" +
             "7002\t1\t4\t1\ttrue\n7001\t1\t3\t1\tfalse\n7001\t1\t1\t1\ttrue\n7001\t2\t2\t1\ttrue\n")));
@@ -61,8 +61,8 @@ public class MasterDatabaseTests
         Assert.Equal(pack.Trades!.Count, db.ShopTradeRowTable.Count);
         Assert.Equal(pack.EquipmentSlots!.Count, db.EquipmentSlotRowTable.Count);
         Assert.Equal(pack.Tags!.Count, db.TagRowTable.Count);
-        Assert.Equal(pack.EquipmentItems!.Count, db.EquipmentItemRowTable.Count);
-        Assert.Equal(pack.EquipmentTags!.Count, db.EquipmentTagRowTable.Count);
+        Assert.Equal(pack.UniqueItems!.Count, db.UniqueItemRowTable.Count);
+        Assert.Equal(pack.UniqueItemTags!.Count, db.UniqueItemTagRowTable.Count);
         Assert.Equal(pack.EquipmentSlotTags!.Count, db.EquipmentSlotTagRowTable.Count);
     }
 
@@ -120,14 +120,14 @@ public class MasterDatabaseTests
         Assert.Equal(new StatusEffectEntry(1, "독"), pack.FindStatusEffect(1));
         Assert.Equal(new ItemEntry(2, "약초", 99), pack.FindItem(2));
         Assert.Equal(new EquipmentSlotEntry(1, "무기"), pack.FindEquipmentSlot(1));
-        Assert.Equal(new EquipmentItem(9002, "대검"), pack.FindEquipmentItem(9002));
+        Assert.Equal(new UniqueItem(9002, "대검"), pack.FindUniqueItem(9002));
 
         Assert.Null(pack.FindCharacter(9999));
         Assert.Null(pack.FindAttribute(9999));
         Assert.Null(pack.FindStatusEffect(9999));
         Assert.Null(pack.FindItem(9999));
         Assert.Null(pack.FindEquipmentSlot(9999));
-        Assert.Null(pack.FindEquipmentItem(9999));
+        Assert.Null(pack.FindUniqueItem(9999));
         Assert.Null(Empty().FindCharacter(7001));
     }
 
@@ -192,9 +192,9 @@ public class MasterDatabaseTests
         var db = FullPack().Masters;
         Assert.Equal(3, db.BunchInventoryRowTable.FindByItemCodeAndPartItemCode((9001, 2)).PartAmount);
         Assert.False(db.BunchInventoryRowTable.TryFindByItemCodeAndPartItemCode((9001, 1), out _));
-        Assert.Equal(2, db.EquipmentTagRowTable.FindByItemCode(9002).Count);
-        Assert.True(db.EquipmentTagRowTable.TryFindByItemCodeAndTagCode((9002, 3), out _));
-        Assert.False(db.EquipmentTagRowTable.TryFindByItemCodeAndTagCode((9001, 3), out _));
+        Assert.Equal(2, db.UniqueItemTagRowTable.FindByItemCode(9002).Count);
+        Assert.True(db.UniqueItemTagRowTable.TryFindByItemCodeAndTagCode((9002, 3), out _));
+        Assert.False(db.UniqueItemTagRowTable.TryFindByItemCodeAndTagCode((9001, 3), out _));
     }
 
     [Fact]
@@ -208,8 +208,8 @@ public class MasterDatabaseTests
         Assert.False(pack.CanEquip(7001, 1, 9002));                    // 대검은 중량
         Assert.True(pack.CanEquip(7002, 1, 9003));                     // 마법
         Assert.False(pack.CanEquip(7001, 1, 99999));
-        Assert.Equal(["지팡이"], pack.EquippableItems(7002, 1).Select(i => i.ItemName));
-        Assert.Equal(["철검"], pack.EquippableItems(7001, 1).Select(i => i.ItemName));        // 장비 마스터 순서
+        Assert.Equal(["지팡이"], pack.EquippableTargets(7002, 1).Select(i => i.Name));
+        Assert.Equal(["철검"], pack.EquippableTargets(7001, 1).Select(i => i.Name));        // 장비 마스터 순서
     }
 
     // ---- 검증기와 직렬화 ----

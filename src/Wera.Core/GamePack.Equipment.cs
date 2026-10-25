@@ -2,13 +2,16 @@ using System.IO.Compression;
 
 namespace Wera.Core;
 
-// 장비: 슬롯 마스터, 태그 마스터, 장비 마스터, 장비 태그 마스터, 장비 슬롯 태그 마스터.
+// 장비: 슬롯 마스터, 태그 마스터, 유니크 아이템 마스터, 유니크/커먼/캐릭터 태그 마스터, 장비 슬롯 태그 마스터.
+// 장비 슬롯에는 유니크 아이템, 커먼 아이템, 캐릭터가 들어갈 수 있다(펫, 소환수 같은 것).
 public sealed partial class GamePack
 {
     public const string EquipmentSlotMasterPath = "master/equipment_slot_master_v1.tsv";
     public const string TagMasterPath = "master/tag_master_v1.tsv";
-    public const string EquipmentMasterPath = "master/equipment_master_v1.tsv";
-    public const string EquipmentTagMasterPath = "master/equipment_tag_master_v1.tsv";
+    public const string UniqueItemMasterPath = "master/unique_item_master_v1.tsv";
+    public const string UniqueItemTagMasterPath = "master/unique_item_tag_master_v1.tsv";
+    public const string CommonItemTagMasterPath = "master/common_item_tag_master_v1.tsv";
+    public const string CharacterTagMasterPath = "master/character_tag_master_v1.tsv";
     public const string EquipmentSlotTagMasterPath = "master/equipment_slot_tag_master_v1.tsv";
 
     /// <summary>장비 슬롯 마스터가 없으면 null.</summary>
@@ -17,11 +20,17 @@ public sealed partial class GamePack
     /// <summary>태그 마스터가 없으면 null.</summary>
     public IReadOnlyList<TagEntry>? Tags { get; init; }
 
-    /// <summary>장비 마스터가 없으면 null.</summary>
-    public IReadOnlyList<EquipmentItem>? EquipmentItems { get; init; }
+    /// <summary>유니크 아이템 마스터가 없으면 null.</summary>
+    public IReadOnlyList<UniqueItem>? UniqueItems { get; init; }
 
-    /// <summary>장비 태그 마스터가 없으면 null.</summary>
-    public IReadOnlyList<EquipmentTag>? EquipmentTags { get; init; }
+    /// <summary>유니크 아이템 태그 마스터가 없으면 null.</summary>
+    public IReadOnlyList<UniqueItemTag>? UniqueItemTags { get; init; }
+
+    /// <summary>커먼 아이템 태그 마스터가 없으면 null.</summary>
+    public IReadOnlyList<CommonItemTag>? CommonItemTags { get; init; }
+
+    /// <summary>캐릭터 태그 마스터가 없으면 null.</summary>
+    public IReadOnlyList<CharacterTag>? CharacterTags { get; init; }
 
     /// <summary>장비 슬롯 태그 마스터가 없으면 null. 게임팩에 적힌 순서 그대로다.</summary>
     public IReadOnlyList<EquipmentSlotTag>? EquipmentSlotTags { get; init; }
@@ -36,18 +45,51 @@ public sealed partial class GamePack
         return rows.Select(r => r.EquipmentSlotCode).Distinct().Select(code => FindEquipmentSlot(code)!).ToList();
     }
 
-    /// <summary>장비가 이 캐릭터의 이 슬롯에 낄 수 있는가: 슬롯 태그 마스터의 규칙에 장비의 태그가 부합해야 한다.</summary>
-    public bool CanEquip(long characterCode, long equipmentSlotCode, long itemCode)
+    /// <summary>끼울 것이 마스터에 있는가: 유니크 아이템 마스터, 아이템 인벤토리, 캐릭터 인벤토리.</summary>
+    public bool Exists(EquipRef target) => target.Kind switch
     {
-        var rules = SlotTagRulesOf(characterCode, equipmentSlotCode);
-        if (rules.Count == 0 || FindEquipmentItem(itemCode) is null) return false;
+        EquipKind.UniqueItem => FindUniqueItem(target.Code) is not null,
+        EquipKind.CommonItem => FindItem(target.Code) is not null,
+        EquipKind.Character => FindCharacter(target.Code) is not null,
+        _ => false,
+    };
 
-        return EquipmentRules.Matches(rules, TagsOfEquipment(itemCode));
+    /// <summary>이름. 마스터에 없으면 코드 그대로.</summary>
+    public string NameOf(EquipRef target) => (target.Kind switch
+    {
+        EquipKind.UniqueItem => FindUniqueItem(target.Code)?.ItemName,
+        EquipKind.CommonItem => FindItem(target.Code)?.Name,
+        EquipKind.Character => FindCharacter(target.Code)?.Name,
+        _ => null,
+    }) ?? CodeText(target.Code);
+
+    /// <summary>
+    /// 이 캐릭터의 이 슬롯에 낄 수 있는가: 슬롯 태그 마스터의 규칙에 그 대상의 태그가 부합해야 한다.
+    /// 캐릭터는 자기 자신을 낄 수 없다.
+    /// </summary>
+    public bool CanEquip(long characterCode, long equipmentSlotCode, EquipRef target)
+    {
+        if (target.Kind == EquipKind.Character && target.Code == characterCode) return false;
+        var rules = SlotTagRulesOf(characterCode, equipmentSlotCode);
+        if (rules.Count == 0 || !Exists(target)) return false;
+
+        return EquipmentRules.Matches(rules, TagsOf(target));
     }
 
-    /// <summary>이 캐릭터의 이 슬롯에 낄 수 있는 장비들(장비 마스터 순서).</summary>
-    public IReadOnlyList<EquipmentItem> EquippableItems(long characterCode, long equipmentSlotCode) =>
-        (EquipmentItems ?? []).Where(i => CanEquip(characterCode, equipmentSlotCode, i.ItemCode)).ToList();
+    /// <summary>유니크 아이템을 이 캐릭터의 이 슬롯에 낄 수 있는가.</summary>
+    public bool CanEquip(long characterCode, long equipmentSlotCode, long uniqueItemCode) =>
+        CanEquip(characterCode, equipmentSlotCode, EquipRef.Unique(uniqueItemCode));
+
+    /// <summary>
+    /// 이 캐릭터의 이 슬롯에 낄 수 있는 것들(보유와 무관). 유니크 아이템(마스터 순서), 커먼 아이템(아이템 인벤토리 순서),
+    /// 캐릭터(캐릭터 인벤토리 순서) 순이다.
+    /// </summary>
+    public IReadOnlyList<EquipCandidate> EquippableTargets(long characterCode, long equipmentSlotCode) =>
+        (UniqueItems ?? []).Select(i => new EquipCandidate(EquipRef.Unique(i.ItemCode), i.ItemName))
+            .Concat((ItemInventory ?? []).Select(i => new EquipCandidate(EquipRef.Common(i.Code), i.Name)))
+            .Concat((CharacterInventory ?? []).Select(c => new EquipCandidate(EquipRef.Char(c.Code), c.Name)))
+            .Where(c => CanEquip(characterCode, equipmentSlotCode, c.Ref))
+            .ToList();
 
     // ---- 로더 ----
 
@@ -77,37 +119,52 @@ public sealed partial class GamePack
     static List<TagEntry>? LoadTags(ZipArchive zip) =>
         LoadCodeNames(zip, TagMasterPath, "tag_code", "tag_name", "태그", (code, name) => new TagEntry(code, name));
 
-    static List<EquipmentItem>? LoadEquipmentItems(ZipArchive zip) =>
-        LoadCodeNames(zip, EquipmentMasterPath, "item_code", "item_name", "장비 아이템",
-            (code, name) => new EquipmentItem(code, name));
+    static List<UniqueItem>? LoadUniqueItems(ZipArchive zip) =>
+        LoadCodeNames(zip, UniqueItemMasterPath, "item_code", "item_name", "유니크 아이템",
+            (code, name) => new UniqueItem(code, name));
 
-    /// <summary>장비 태그 마스터: 장비는 장비 마스터에, 태그는 태그 마스터에 있어야 하고, 같은 (장비, 태그)를 두 번 쓸 수 없다.</summary>
-    static List<EquipmentTag>? LoadEquipmentTags(ZipArchive zip, List<EquipmentItem>? items, List<TagEntry>? tags)
+    /// <summary>
+    /// 대상(유니크 아이템, 커먼 아이템, 캐릭터) 태그 마스터를 읽는다: (대상 코드, 태그 코드) 두 열.
+    /// 대상은 각자의 마스터에, 태그는 태그 마스터에 있어야 하고, 같은 (대상, 태그)를 두 번 쓸 수 없다.
+    /// </summary>
+    static List<T>? LoadTargetTags<T>(
+        ZipArchive zip, string file, string codeColumn, string noun, string targetMasterPath, IReadOnlySet<long>? targetCodes,
+        List<TagEntry>? tags, Func<long, long, T> create)
     {
-        const string file = EquipmentTagMasterPath;
         var text = TryReadEntry(zip, file);
         if (text is null) return null;
-        if (items is null) throw new PackFormatException($"{file}가 있으려면 {EquipmentMasterPath}도 필요합니다.");
+        if (targetCodes is null) throw new PackFormatException($"{file}가 있으려면 {targetMasterPath}도 필요합니다.");
         if (tags is null) throw new PackFormatException($"{file}가 있으려면 {TagMasterPath}도 필요합니다.");
 
-        var itemCodes = items.Select(i => i.ItemCode).ToHashSet();
         var tagCodes = tags.Select(t => t.Code).ToHashSet();
-        var rows = new List<EquipmentTag>();
+        var rows = new List<T>();
         var seen = new HashSet<(long, long)>();
-        foreach (var r in Body(file, text, "item_code", "tag_code"))
+        foreach (var r in Body(file, text, codeColumn, "tag_code"))
         {
-            var item = ParseLong(file, "장비 아이템 코드", r[0]);
-            var tag = ParseLong(file, $"장비 '{item}'의 태그 코드", r[1]);
-            if (!itemCodes.Contains(item))
-                throw new PackFormatException($"{file}: 장비 '{item}'가 장비 마스터에 없습니다.");
+            var target = ParseLong(file, $"{noun} 코드", r[0]);
+            var tag = ParseLong(file, $"{noun} '{target}'의 태그 코드", r[1]);
+            if (!targetCodes.Contains(target))
+                throw new PackFormatException($"{file}: {noun} '{target}'가 {targetMasterPath}에 없습니다.");
             if (!tagCodes.Contains(tag))
-                throw new PackFormatException($"{file}: 장비 '{item}'의 태그 '{tag}'가 태그 마스터에 없습니다.");
-            if (!seen.Add((item, tag)))
-                throw new PackFormatException($"{file}: 장비 '{item}'에 태그 '{tag}'가 두 번 있습니다.");
-            rows.Add(new EquipmentTag(item, tag));
+                throw new PackFormatException($"{file}: {noun} '{target}'의 태그 '{tag}'가 태그 마스터에 없습니다.");
+            if (!seen.Add((target, tag)))
+                throw new PackFormatException($"{file}: {noun} '{target}'에 태그 '{tag}'가 두 번 있습니다.");
+            rows.Add(create(target, tag));
         }
         return rows;
     }
+
+    static List<UniqueItemTag>? LoadUniqueItemTags(ZipArchive zip, List<UniqueItem>? items, List<TagEntry>? tags) =>
+        LoadTargetTags(zip, UniqueItemTagMasterPath, "item_code", "유니크 아이템", UniqueItemMasterPath,
+            items?.Select(i => i.ItemCode).ToHashSet(), tags, (c, t) => new UniqueItemTag(c, t));
+
+    static List<CommonItemTag>? LoadCommonItemTags(ZipArchive zip, List<ItemEntry>? items, List<TagEntry>? tags) =>
+        LoadTargetTags(zip, CommonItemTagMasterPath, "item_code", "커먼 아이템", ItemInventoryMasterPath,
+            items?.Select(i => i.Code).ToHashSet(), tags, (c, t) => new CommonItemTag(c, t));
+
+    static List<CharacterTag>? LoadCharacterTags(ZipArchive zip, List<CharacterEntry>? characters, List<TagEntry>? tags) =>
+        LoadTargetTags(zip, CharacterTagMasterPath, "character_code", "캐릭터", CharacterInventoryMasterPath,
+            characters?.Select(c => c.Code).ToHashSet(), tags, (c, t) => new CharacterTag(c, t));
 
     /// <summary>
     /// 장비 슬롯 태그 마스터: 캐릭터는 캐릭터 인벤토리에, 슬롯은 장비 슬롯 마스터에, 태그는 태그 마스터에 있어야 한다.

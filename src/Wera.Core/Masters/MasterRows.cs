@@ -152,21 +152,49 @@ public record TagRow
     public required int Order { get; init; }
 }
 
-[MemoryTable("equipment_item"), MessagePackObject(true)]
-public record EquipmentItemRow
+[MemoryTable("unique_item"), MessagePackObject(true)]
+public record UniqueItemRow
 {
     [PrimaryKey] public required long ItemCode { get; init; }
     public required string ItemName { get; init; }
     public required int Order { get; init; }
 }
 
-/// <summary>장비 태그 마스터: 같은 (장비, 태그)는 한 번만 쓸 수 있다. 보조키로 장비의 태그 전부를 찾는다.</summary>
-[MemoryTable("equipment_tag"), MessagePackObject(true)]
-public record EquipmentTagRow
+/// <summary>유니크 아이템 태그 마스터: 같은 (아이템, 태그)는 한 번만 쓸 수 있다. 보조키로 아이템의 태그 전부를 찾는다.</summary>
+[MemoryTable("unique_item_tag"), MessagePackObject(true)]
+public record UniqueItemTagRow
 {
     [PrimaryKey(keyOrder: 0)]
     [SecondaryKey(0), NonUnique]
     public required long ItemCode { get; init; }
+
+    [PrimaryKey(keyOrder: 1)]
+    public required long TagCode { get; init; }
+
+    public required int Order { get; init; }
+}
+
+/// <summary>커먼 아이템(아이템 인벤토리) 태그 마스터: 같은 (아이템, 태그)는 한 번만 쓸 수 있다.</summary>
+[MemoryTable("common_item_tag"), MessagePackObject(true)]
+public record CommonItemTagRow
+{
+    [PrimaryKey(keyOrder: 0)]
+    [SecondaryKey(0), NonUnique]
+    public required long ItemCode { get; init; }
+
+    [PrimaryKey(keyOrder: 1)]
+    public required long TagCode { get; init; }
+
+    public required int Order { get; init; }
+}
+
+/// <summary>캐릭터 태그 마스터: 같은 (캐릭터, 태그)는 한 번만 쓸 수 있다.</summary>
+[MemoryTable("character_tag"), MessagePackObject(true)]
+public record CharacterTagRow
+{
+    [PrimaryKey(keyOrder: 0)]
+    [SecondaryKey(0), NonUnique]
+    public required long CharacterCode { get; init; }
 
     [PrimaryKey(keyOrder: 1)]
     public required long TagCode { get; init; }

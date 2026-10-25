@@ -6,11 +6,40 @@ public sealed record EquipmentSlotEntry(long Code, string Name);
 /// <summary>태그 마스터의 한 행. 태그는 장비에 붙고, 장비 슬롯 태그 마스터가 "이 슬롯에는 어떤 태그의 장비가 들어가는가"를 정한다.</summary>
 public sealed record TagEntry(long Code, string Name);
 
-/// <summary>장비 마스터의 한 행.</summary>
-public sealed record EquipmentItem(long ItemCode, string ItemName);
+/// <summary>유니크 아이템 마스터의 한 행. 유니크 아이템의 코드 공간은 아이템 인벤토리와 따로다.</summary>
+public sealed record UniqueItem(long ItemCode, string ItemName);
 
-/// <summary>장비 태그 마스터의 한 행: 장비(ItemCode)가 가진 태그.</summary>
-public sealed record EquipmentTag(long ItemCode, long TagCode);
+/// <summary>유니크 아이템 태그 마스터의 한 행: 유니크 아이템(ItemCode)이 가진 태그.</summary>
+public sealed record UniqueItemTag(long ItemCode, long TagCode);
+
+/// <summary>커먼 아이템 태그 마스터의 한 행: 아이템 인벤토리의 아이템(ItemCode)이 가진 태그.</summary>
+public sealed record CommonItemTag(long ItemCode, long TagCode);
+
+/// <summary>캐릭터 태그 마스터의 한 행: 캐릭터(CharacterCode)가 가진 태그.</summary>
+public sealed record CharacterTag(long CharacterCode, long TagCode);
+
+/// <summary>장비 슬롯에 들어갈 수 있는 것의 종류. 코드 공간이 종류마다 따로라서 코드만으로는 구분되지 않는다.</summary>
+[System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<EquipKind>))]
+public enum EquipKind
+{
+    /// <summary>유니크 아이템(보유 개수는 세이브의 OwnedEquipment).</summary>
+    UniqueItem,
+    /// <summary>커먼 아이템(아이템 인벤토리. 보유 개수는 인벤토리 수량).</summary>
+    CommonItem,
+    /// <summary>캐릭터(펫, 소환수 같은 것. 보유 캐릭터여야 한다).</summary>
+    Character,
+}
+
+/// <summary>장비 슬롯에 끼는 것 하나: 종류와 그 종류 안의 코드.</summary>
+public readonly record struct EquipRef(EquipKind Kind, long Code)
+{
+    public static EquipRef Unique(long code) => new(EquipKind.UniqueItem, code);
+    public static EquipRef Common(long code) => new(EquipKind.CommonItem, code);
+    public static EquipRef Char(long code) => new(EquipKind.Character, code);
+}
+
+/// <summary>낄 수 있는 것의 목록 항목.</summary>
+public sealed record EquipCandidate(EquipRef Ref, string Name);
 
 /// <summary>
 /// 장비 슬롯 태그 마스터의 한 행. 캐릭터(CharacterCode)의 장비 슬롯(EquipmentSlotCode)에 장비를 낄 수 있는 조건의 일부:

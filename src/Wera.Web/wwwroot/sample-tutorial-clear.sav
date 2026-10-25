@@ -43,7 +43,7 @@
     "8006": 1
   },
   "EquippedItems": {
-    "7001": { "1": 8001, "2": 8004 },
-    "7003": { "1": 8001 }
+    "7001": { "1": { "Kind": "UniqueItem", "Code": 8001 }, "2": { "Kind": "UniqueItem", "Code": 8004 } },
+    "7003": { "1": { "Kind": "UniqueItem", "Code": 8001 } }
   }
 }

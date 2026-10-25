@@ -37,7 +37,7 @@ public class EquipmentOwnershipTests
 
         s.OwnedEquipment[9001] = 1;
         Assert.True(s.Equip(7001, 1, 9001));
-        Assert.Equal(9001, s.EquippedItemOf(7001, 1));
+        Assert.Equal(EquipRef.Unique(9001), s.EquippedItemOf(7001, 1));
     }
 
     [Fact]
@@ -68,7 +68,7 @@ public class EquipmentOwnershipTests
         var s = Session((9003, 1));
         Assert.True(s.Equip(7001, 1, 9003));
         Assert.False(s.Equip(7002, 1, 9003));                    // 남는 개수가 없다
-        Assert.Equal(9003, s.EquippedItemOf(7001, 1));
+        Assert.Equal(EquipRef.Unique(9003), s.EquippedItemOf(7001, 1));
         Assert.Null(s.EquippedItemOf(7002, 1));
 
         s.OwnedEquipment[9003] = 2;                              // 한 개 더 보유하면 가능
@@ -85,7 +85,7 @@ public class EquipmentOwnershipTests
 
         Assert.True(s.Equip(7001, 1, 9003));
 
-        Assert.Equal(9003, s.EquippedItemOf(7001, 1));
+        Assert.Equal(EquipRef.Unique(9003), s.EquippedItemOf(7001, 1));
         Assert.Equal(1, s.FreeCopies(9001));                     // 철검은 빠져 보유로 돌아갔다
         Assert.Equal(0, s.FreeCopies(9003));
     }
@@ -108,7 +108,7 @@ public class EquipmentOwnershipTests
 
         Assert.True(s.Unequip(7001, 1));
         Assert.Null(s.EquippedItemOf(7001, 1));
-        Assert.Equal(9004, s.EquippedItemOf(7001, 2));
+        Assert.Equal(EquipRef.Unique(9004), s.EquippedItemOf(7001, 2));
         Assert.Equal(1, s.FreeCopies(9001));
 
         Assert.False(s.Unequip(7001, 1));                        // 이미 비어 있음
@@ -123,7 +123,7 @@ public class EquipmentOwnershipTests
         var s = Session((9001, 1));
         s.Equip(7001, 1, 9001);
         s.Party[0] = null;
-        Assert.Equal(9001, s.EquippedItemOf(7001, 1));
+        Assert.Equal(EquipRef.Unique(9001), s.EquippedItemOf(7001, 1));
     }
 
     // ---- 화면 ----
@@ -143,10 +143,10 @@ public class EquipmentOwnershipTests
     {
         var s = InSelect("1", "1", (9001, 1), (9003, 1), (9002, 1), (9004, 1));   // 대검(불가), 판금갑옷(불가)도 보유
 
-        Assert.Equal(["9001", "9003", "999"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["1", "2", "999"], s.Entries.Select(e => e.Code));
         Assert.Equal(["철검", "지팡이", "돌아가기"], s.Entries.Select(e => e.Label));
         Assert.All(s.Entries.Take(2), e => Assert.Equal(EntryAction.EquipItem, e.Action));
-        Assert.Equal(["철검", "지팡이"], s.EquippableItems.Select(i => i.ItemName));
+        Assert.Equal(["철검", "지팡이"], s.EquippableItems.Select(i => i.Name));
     }
 
     [Fact]
@@ -155,7 +155,7 @@ public class EquipmentOwnershipTests
         var s = InSelect("1", "1", (9004, 1));
         Assert.Empty(s.EquippableItems);
         Assert.Equal(["999"], s.Entries.Select(e => e.Code));
-        Assert.Null(s.Activate("9001"));
+        Assert.Null(s.Activate("1"));
     }
 
     [Fact]
@@ -163,13 +163,13 @@ public class EquipmentOwnershipTests
     {
         var s = InSelect("1", "1", (9001, 1));
 
-        var entry = s.Activate("9001");
+        var entry = s.Activate("1");
 
         Assert.Equal(EntryAction.EquipItem, entry!.Action);
         Assert.Equal(Screen.EquipmentList, s.Screen);
         Assert.Equal(7001, s.CurrentCharacterCode);
         Assert.Null(s.CurrentEquipmentSlotCode);
-        Assert.Equal(9001, s.EquippedItemOf(7001, 1));
+        Assert.Equal(EquipRef.Unique(9001), s.EquippedItemOf(7001, 1));
         Assert.Equal("장착: 용사의 무기 ← 철검", s.Message);
         Assert.Equal("무기 : 철검", s.Entries[0].Label);
     }
@@ -178,15 +178,15 @@ public class EquipmentOwnershipTests
     public void Choosing_another_item_replaces_the_equipped_one_and_says_so()
     {
         var s = InSelect("1", "1", (9001, 1), (9003, 1));
-        s.Activate("9001");
+        s.Activate("1");
         s.Activate("1");                                          // 다시 무기 슬롯
 
-        Assert.Equal(["0", "9001", "9003", "999"], s.Entries.Select(e => e.Code));   // 해제 + 두 장비
+        Assert.Equal(["0", "1", "2", "999"], s.Entries.Select(e => e.Code));   // 해제 + 두 장비
         Assert.Equal(["해제", "철검 (장착중)", "지팡이", "돌아가기"], s.Entries.Select(e => e.Label));
 
-        s.Activate("9003");
+        s.Activate("2");
         Assert.Equal("장착: 용사의 무기 철검 → 지팡이", s.Message);
-        Assert.Equal(9003, s.EquippedItemOf(7001, 1));
+        Assert.Equal(EquipRef.Unique(9003), s.EquippedItemOf(7001, 1));
         Assert.Equal(1, s.FreeCopies(9001));
     }
 
@@ -194,9 +194,9 @@ public class EquipmentOwnershipTests
     public void Choosing_the_item_already_in_the_slot_changes_nothing()
     {
         var s = InSelect("1", "1", (9001, 1));
-        s.Activate("9001");
         s.Activate("1");
-        s.Activate("9001");
+        s.Activate("1");
+        s.Activate("1");
 
         Assert.Equal("이미 장착 중: 용사의 무기 = 철검", s.Message);
         Assert.Equal(1, s.EquippedCount(9001));
@@ -209,7 +209,7 @@ public class EquipmentOwnershipTests
         Assert.Null(s.Activate("0"));                             // 아직 낀 것이 없다
         Assert.DoesNotContain(s.Entries, e => e.Code == "0");
 
-        s.Activate("9001");
+        s.Activate("1");
         s.Activate("1");
         var entry = s.Activate("0");
 
@@ -227,12 +227,12 @@ public class EquipmentOwnershipTests
         var s = Session((9003, 1), (9001, 1));
         s.Equip(7002, 1, 9003);
         s.Activate("103"); s.Activate("11"); s.Activate("1"); s.Activate("1");
-        Assert.Equal(["철검"], s.EquippableItems.Select(i => i.ItemName));
-        Assert.Null(s.Activate("9003"));
+        Assert.Equal(["철검"], s.EquippableItems.Select(i => i.Name));
+        Assert.Null(s.Activate("2"));
 
         // 마법사 본인의 목록에는 낀 채로 남는다.
         s.Activate("999"); s.Activate("999"); s.Activate("5"); s.Activate("1");
-        Assert.Equal(["지팡이"], s.EquippableItems.Select(i => i.ItemName));
+        Assert.Equal(["지팡이"], s.EquippableItems.Select(i => i.Name));
         Assert.Contains(s.Entries, e => e.Label == "지팡이 (장착중)");
     }
 
@@ -262,9 +262,9 @@ public class EquipmentOwnershipTests
 
         var loaded = GameSession.FromSaveJson(s.Pack, json);
         Assert.Equal(new Dictionary<long, long> { [9001] = 2, [9003] = 1, [9004] = 1 }, loaded.OwnedEquipment);
-        Assert.Equal(9001, loaded.EquippedItemOf(7001, 1));
-        Assert.Equal(9004, loaded.EquippedItemOf(7001, 2));
-        Assert.Equal(9003, loaded.EquippedItemOf(7002, 1));
+        Assert.Equal(EquipRef.Unique(9001), loaded.EquippedItemOf(7001, 1));
+        Assert.Equal(EquipRef.Unique(9004), loaded.EquippedItemOf(7001, 2));
+        Assert.Equal(EquipRef.Unique(9003), loaded.EquippedItemOf(7002, 1));
         Assert.Equal(1, loaded.FreeCopies(9001));
     }
 
@@ -289,13 +289,13 @@ public class EquipmentOwnershipTests
     [InlineData("\"OwnedEquipment\":{\"99999\":1}")]                                           // 장비 마스터에 없는 장비
     [InlineData("\"OwnedEquipment\":{\"9001\":-1}")]                                           // 음수 개수
     [InlineData("\"OwnedEquipment\":{\"철검\":1}")]                                            // 숫자가 아닌 키
-    [InlineData("\"OwnedEquipment\":{\"9001\":1},\"EquippedItems\":{\"7003\":{\"1\":9001}}")]  // 보유하지 않은 캐릭터
-    [InlineData("\"OwnedEquipment\":{\"9001\":1},\"EquippedItems\":{\"7001\":{\"99\":9001}}")]  // 그 캐릭터에게 없는 슬롯
-    [InlineData("\"OwnedEquipment\":{\"9001\":1},\"EquippedItems\":{\"7002\":{\"2\":9001}}")]   // 마법사는 방어구 슬롯이 없다
-    [InlineData("\"EquippedItems\":{\"7001\":{\"1\":99999}}")]                                 // 장비 마스터에 없는 장비를 장착
-    [InlineData("\"OwnedEquipment\":{\"9002\":1},\"EquippedItems\":{\"7001\":{\"1\":9002}}")]  // 슬롯 태그에 부합하지 않는 장비(대검)
-    [InlineData("\"EquippedItems\":{\"7001\":{\"1\":9001}}")]                                  // 보유하지 않은 장비를 장착(보유 0 < 장착 1)
-    [InlineData("\"OwnedEquipment\":{\"9003\":1},\"EquippedItems\":{\"7001\":{\"1\":9003},\"7002\":{\"1\":9003}}")]  // 한 개를 두 곳에
+    [InlineData("\"OwnedEquipment\":{\"9001\":1},\"EquippedItems\":{\"7003\":{\"1\":{\"Kind\":\"UniqueItem\",\"Code\":9001}}}")]  // 보유하지 않은 캐릭터
+    [InlineData("\"OwnedEquipment\":{\"9001\":1},\"EquippedItems\":{\"7001\":{\"99\":{\"Kind\":\"UniqueItem\",\"Code\":9001}}}")]  // 그 캐릭터에게 없는 슬롯
+    [InlineData("\"OwnedEquipment\":{\"9001\":1},\"EquippedItems\":{\"7002\":{\"2\":{\"Kind\":\"UniqueItem\",\"Code\":9001}}}")]   // 마법사는 방어구 슬롯이 없다
+    [InlineData("\"EquippedItems\":{\"7001\":{\"1\":{\"Kind\":\"UniqueItem\",\"Code\":99999}}}")]                                 // 장비 마스터에 없는 장비를 장착
+    [InlineData("\"OwnedEquipment\":{\"9002\":1},\"EquippedItems\":{\"7001\":{\"1\":{\"Kind\":\"UniqueItem\",\"Code\":9002}}}")]  // 슬롯 태그에 부합하지 않는 장비(대검)
+    [InlineData("\"EquippedItems\":{\"7001\":{\"1\":{\"Kind\":\"UniqueItem\",\"Code\":9001}}}")]                                  // 보유하지 않은 장비를 장착(보유 0 < 장착 1)
+    [InlineData("\"OwnedEquipment\":{\"9003\":1},\"EquippedItems\":{\"7001\":{\"1\":{\"Kind\":\"UniqueItem\",\"Code\":9003}},\"7002\":{\"1\":{\"Kind\":\"UniqueItem\",\"Code\":9003}}}")]  // 한 개를 두 곳에
     public void Invalid_equipment_in_a_save_is_rejected(string body)
         => Assert.Throws<SaveFormatException>(() =>
             GameSession.FromSaveJson(EquipmentTests.Pack(), Head + Chars + body + "}"));
@@ -304,7 +304,7 @@ public class EquipmentOwnershipTests
     public void Two_copies_may_be_equipped_in_two_places_when_owned_twice()
     {
         var s = GameSession.FromSaveJson(EquipmentTests.Pack(),
-            Head + Chars + "\"OwnedEquipment\":{\"9003\":2},\"EquippedItems\":{\"7001\":{\"1\":9003},\"7002\":{\"1\":9003}}}");
+            Head + Chars + "\"OwnedEquipment\":{\"9003\":2},\"EquippedItems\":{\"7001\":{\"1\":{\"Kind\":\"UniqueItem\",\"Code\":9003}},\"7002\":{\"1\":{\"Kind\":\"UniqueItem\",\"Code\":9003}}}}");
         Assert.Equal(2, s.EquippedCount(9003));
         Assert.Equal(0, s.FreeCopies(9003));
     }
