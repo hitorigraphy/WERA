@@ -69,7 +69,8 @@ public sealed partial class GamePack
         builder.Append((trades ?? []).Select((t, i) => new ShopTradeRow
         {
             Code = t.Code, ShopCode = t.ShopCode, CostItemCode = t.CostItemCode, CostAmount = t.CostAmount,
-            ReceiveItemCode = t.ReceiveItemCode, ReceiveAmount = t.ReceiveAmount, Order = i,
+            ReceiveItemCode = t.ReceiveItemCode, ReceiveAmount = t.ReceiveAmount,
+            CostKind = t.CostKind, ReceiveKind = t.ReceiveKind, Order = i,
         }).ToList());
         builder.Append(tradeConditions.Select((c, i) => new ShopTradeConditionRow
         {
@@ -164,6 +165,14 @@ public sealed partial class GamePack
     /// <summary>캐릭터 태그 마스터에 적힌 태그 코드들(캐릭터를 얻을 때 복사되는 태그).</summary>
     public IReadOnlyList<long> MasterTagsOfCharacter(long characterCode) =>
         Masters.CharacterTagRowTable.FindByCharacterCode(characterCode).OrderBy(r => r.Order).Select(r => r.TagCode).ToList();
+
+    /// <summary>교환의 코스트/리시브 이름: 커먼·번치 아이템, 유니크 아이템, 캐릭터. 마스터에 없으면 코드 그대로.</summary>
+    public string TradeTargetName(TradeKind kind, long code) => kind switch
+    {
+        TradeKind.UniqueItem => FindUniqueItem(code)?.ItemName ?? CodeText(code),
+        TradeKind.Character => FindCharacter(code)?.Name ?? CodeText(code),
+        _ => ItemName(code),
+    };
 
     string CodeText(long code) => code.ToString(CultureInfo.InvariantCulture);
 }

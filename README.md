@@ -33,7 +33,7 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
 | `master/common_item_tag_master_v1.tsv` | (선택, 커먼 아이템 인벤토리/태그 마스터 필요) `item_code`, `tag_code` |
 | `master/character_tag_master_v1.tsv` | (선택, 캐릭터 인벤토리/태그 마스터 필요) `character_code`, `tag_code` |
 | `master/equipment_slot_tag_master_v1.tsv` | (선택, 캐릭터 인벤토리/장비 슬롯/태그 마스터 필요) `character_code`, `equipment_slot_code`, `tag_code`, `group_number`, `is_positive` |
-| `master/shop_trade_master_v1.tsv` | (선택) `code`, `shop_code`, `cost_item_code`, `cost_amount`, `receive_item_code`, `receive_amount` |
+| `master/shop_trade_master_v1.tsv` | (선택) `code`, `shop_code`, `cost_item_code`, `cost_amount`, `receive_item_code`, `receive_amount` + 선택 열 `cost_kind`, `receive_kind` |
 | `master/shop_trade_condition_master_v1.tsv` | (선택) `trade_code`, `group_no`, `flag_code`, `condition_type`, `condition_value` |
 
 ### 아이템과 상점 교환
@@ -70,6 +70,10 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
   - 세이브를 불러올 때 검증합니다: 보유 장비와 장착 장비는 장비 마스터에 있어야 하고, 장착한 캐릭터는 보유 캐릭터, 슬롯은 그 캐릭터의 장비 슬롯, 장비는 그 슬롯 태그에 부합해야 하며, 장비마다 낀 개수가 보유 개수를 넘으면 안 됩니다.
 - **속성 전투 규칙**(전투 시스템이 생기면 적용, 아직 코드에는 없음): 유리속성으로 공격하면 데미지와 명중률이 ×1.5, 불리속성으로 공격하면 ×0.5입니다. 피격 쪽은 공격 속성이 자신의 유리속성이면 ×0.5, 불리속성이면 ×1.5입니다. 두 보정은 곱하므로 유리속성 공격자가 불리속성 피격자를 치면 ×2.25입니다.
 - **교환**(`shop_trade_master`)은 상점 `shop_code`에서 `cost_item_code`를 `cost_amount`개 내고 `receive_item_code`를 `receive_amount`개 받는 것입니다. 아이템 코드는 아이템/번치 인벤토리 어느 쪽이든 가능하고, 어마운트는 1 이상입니다. 상점과 아이템 코드는 해당 마스터에 있어야 합니다.
+  - **종류 열**: 여섯 열 뒤에 `cost_kind`, `receive_kind`를 **둘 다** 붙일 수 있습니다(순서 고정). 값은 `common_item`(커먼/번치 아이템, 비우면 이것), `unique_item`(유니크 아이템), `character`(캐릭터)이고, 코드는 종류에 맞는 인벤토리 마스터에 있어야 합니다.
+  - **유니크 아이템을 받으면** 어마운트만큼 새 인스턴스가 만들어지고(마스터 태그 복사, 어마운트는 1000 이하), **내면** 장비 슬롯에 끼지 않은 인스턴스가 작은 ID부터 쓰입니다.
+  - **캐릭터**는 어마운트가 1이어야 합니다. **받으면** 레벨 0 스테이터스로 새 캐릭터가 되고(이미 보유하면 교환 실패), **내면** 보유에서 빠지며 파티 슬롯, 상태이상, 태그가 지워지고 끼고 있던 장비는 보유로 돌아갑니다(다른 캐릭터의 장비 슬롯에 끼워져 있으면 낼 수 없음).
+  - 어느 쪽이든 모자라거나 불가하면 아무것도 바꾸지 않고 사유를 알립니다.
 - **교환 조건표**(`shop_trade_condition_master`)는 던전/상점 조건표와 같은 규칙(그룹 AND/OR, `None`)이고, 조건이 없으면 항상 가능합니다.
 
 ### 던전 마스터

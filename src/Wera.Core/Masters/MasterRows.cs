@@ -122,6 +122,8 @@ public record ShopTradeRow
     public required long CostAmount { get; init; }
     public required long ReceiveItemCode { get; init; }
     public required long ReceiveAmount { get; init; }
+    public required TradeKind CostKind { get; init; }
+    public required TradeKind ReceiveKind { get; init; }
     public required int Order { get; init; }
 }
 

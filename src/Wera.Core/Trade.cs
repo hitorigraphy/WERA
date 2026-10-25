@@ -23,9 +23,20 @@ public sealed record TradeLine(long Code, string CostItemName, long CostAmount, 
     public string Text => $"{CostItemName} ×{CostAmount} → {ReceiveItemName} ×{ReceiveAmount}";
 }
 
+/// <summary>상점 교환의 코스트/리시브가 가리키는 것의 종류. 종류마다 코드 공간이 따로다.</summary>
+public enum TradeKind
+{
+    /// <summary>커먼 아이템 인벤토리 또는 번치 아이템 인벤토리의 코드(TSV에서 비워 두면 이것).</summary>
+    CommonItem,
+    /// <summary>유니크 아이템 인벤토리의 코드. 받으면 새 인스턴스가 만들어지고, 내면 끼지 않은 인스턴스가 쓰인다.</summary>
+    UniqueItem,
+    /// <summary>캐릭터 인벤토리의 코드. 어마운트는 1이다. 받으면 새 캐릭터가 되고, 내면 캐릭터가 떠난다.</summary>
+    Character,
+}
+
 /// <summary>
-/// 상점 교환: 코스트 아이템을 CostAmount개 내면 리시브 아이템을 ReceiveAmount개 받는다.
-/// 아이템 코드는 아이템 인벤토리 또는 번치 인벤토리의 코드.
+/// 상점 교환: 코스트를 CostAmount개 내면 리시브를 ReceiveAmount개 받는다.
+/// 코스트/리시브는 CostKind/ReceiveKind에 따라 커먼·번치 아이템, 유니크 아이템, 캐릭터의 코드를 가리킨다.
 /// </summary>
 /// <param name="Groups">그룹넘버 순으로 정렬된 조건 묶음. 같은 그룹 안은 AND, 그룹끼리는 OR.</param>
 public sealed record ShopTrade(
@@ -35,7 +46,9 @@ public sealed record ShopTrade(
     long CostAmount,
     long ReceiveItemCode,
     long ReceiveAmount,
-    IReadOnlyList<IReadOnlyList<FlagCondition>> Groups)
+    IReadOnlyList<IReadOnlyList<FlagCondition>> Groups,
+    TradeKind CostKind = TradeKind.CommonItem,
+    TradeKind ReceiveKind = TradeKind.CommonItem)
 {
     public bool IsAvailable(IReadOnlyDictionary<long, long> playerFlags) => ConditionGroups.IsMet(Groups, playerFlags);
 }

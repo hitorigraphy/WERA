@@ -184,8 +184,8 @@ public sealed partial class GameSession
                 .Where(t => t.ShopCode == CurrentShopCode && t.IsAvailable(PlayerFlags))
                 .Select(t => new TradeLine(
                     t.Code,
-                    Pack.ItemName(t.CostItemCode), t.CostAmount,
-                    Pack.ItemName(t.ReceiveItemCode), t.ReceiveAmount))
+                    Pack.TradeTargetName(t.CostKind, t.CostItemCode), t.CostAmount,
+                    Pack.TradeTargetName(t.ReceiveKind, t.ReceiveItemCode), t.ReceiveAmount))
                 .ToList() ?? [];
 
     string CharacterName(long code) =>
@@ -442,8 +442,8 @@ public sealed partial class GameSession
     {
         var trade = Pack.Trades!.First(t => t.Code == tradeCode);
         var text = new TradeLine(
-            trade.Code, Pack.ItemName(trade.CostItemCode), trade.CostAmount,
-            Pack.ItemName(trade.ReceiveItemCode), trade.ReceiveAmount).Text;
+            trade.Code, Pack.TradeTargetName(trade.CostKind, trade.CostItemCode), trade.CostAmount,
+            Pack.TradeTargetName(trade.ReceiveKind, trade.ReceiveItemCode), trade.ReceiveAmount).Text;
 
         try
         {
@@ -457,23 +457,54 @@ public sealed partial class GameSession
 
     string ExecuteTrade(ShopTrade trade, string text)
     {
-        var cost = Pack.Expand(trade.CostItemCode, trade.CostAmount);
-        var gain = Pack.Expand(trade.ReceiveItemCode, trade.ReceiveAmount);
+        // 커먼 아이템은 번치를 부품으로 풀어 한꺼번에 계산한다. 유니크 아이템과 캐릭터는 확인한 뒤 따로 처리한다.
+        var net = new Dictionary<long, long>();
+        long[] paidInstances = [];
+        long? paidCharacter = null;
 
         // 코스트는 받기 전의 보유량으로 판단한다.
-        foreach (var (item, need) in cost)
+        switch (trade.CostKind)
         {
-            // 장비 슬롯에 끼워 둔 커먼 아이템은 쓸 수 없다(끼운 개수가 보유 개수를 넘지 않게 한다).
-            var have = InventoryItems.GetValueOrDefault(item).Amount - EquippedCount(EquipRef.Common(item));
-            if (have < need) return $"교환 실패 - 부족: {Pack.ItemName(item)} (보유 {have} / 필요 {need}) [{text}]";
+            case TradeKind.CommonItem:
+                foreach (var (item, need) in Pack.Expand(trade.CostItemCode, trade.CostAmount))
+                {
+                    // 장비 슬롯에 끼워 둔 커먼 아이템은 쓸 수 없다(끼운 개수가 보유 개수를 넘지 않게 한다).
+                    var have = InventoryItems.GetValueOrDefault(item).Amount - EquippedCount(EquipRef.Common(item));
+                    if (have < need) return $"교환 실패 - 부족: {Pack.ItemName(item)} (보유 {have} / 필요 {need}) [{text}]";
+                    // 합산은 checked라 long 범위를 넘으면 OverflowException이 난다(바깥에서 실패로 처리).
+                    net[item] = checked(net.GetValueOrDefault(item) - need);
+                }
+                break;
+            case TradeKind.UniqueItem:
+                // 장비 슬롯에 끼지 않은 인스턴스만 낼 수 있다(작은 ID부터).
+                var spare = InstancesOf(trade.CostItemCode).Where(id => EquippedCount(EquipRef.Unique(id)) == 0).ToList();
+                if (spare.Count < trade.CostAmount)
+                    return $"교환 실패 - 부족: {Pack.TradeTargetName(trade.CostKind, trade.CostItemCode)} (보유 {spare.Count} / 필요 {trade.CostAmount}) [{text}]";
+                paidInstances = spare.Take((int)trade.CostAmount).ToArray();
+                break;
+            case TradeKind.Character:
+                if (!Characters.ContainsKey(trade.CostItemCode))
+                    return $"교환 실패 - 부족: {Pack.TradeTargetName(trade.CostKind, trade.CostItemCode)} (보유 0 / 필요 1) [{text}]";
+                if (EquippedCount(EquipRef.Char(trade.CostItemCode)) > 0)
+                    return $"교환 실패 - 장비 슬롯에 끼워 둔 캐릭터: {Pack.TradeTargetName(trade.CostKind, trade.CostItemCode)} [{text}]";
+                paidCharacter = trade.CostItemCode;
+                break;
         }
 
-        // 합산은 checked라 long 범위를 넘으면 OverflowException이 난다(바깥에서 실패로 처리).
-        var net = new Dictionary<long, long>();
-        foreach (var (item, n) in cost) net[item] = checked(net.GetValueOrDefault(item) - n);
-        foreach (var (item, n) in gain) net[item] = checked(net.GetValueOrDefault(item) + n);
+        switch (trade.ReceiveKind)
+        {
+            case TradeKind.CommonItem:
+                foreach (var (item, n) in Pack.Expand(trade.ReceiveItemCode, trade.ReceiveAmount))
+                    net[item] = checked(net.GetValueOrDefault(item) + n);
+                break;
+            case TradeKind.Character:
+                // 같은 캐릭터를 내고 받는 교환이면 낸 뒤에는 보유하지 않으므로 받을 수 있다.
+                if (Characters.ContainsKey(trade.ReceiveItemCode) && paidCharacter != trade.ReceiveItemCode)
+                    return $"교환 실패 - 이미 보유한 캐릭터: {Pack.TradeTargetName(trade.ReceiveKind, trade.ReceiveItemCode)} [{text}]";
+                break;
+        }
 
-        // 아이템 인벤토리 마스터의 소지제한을 넘게 되면 교환하지 않는다. 마스터에 없는 아이템은 long 한도까지.
+        // 커먼 아이템 인벤토리 마스터의 소지제한을 넘게 되면 교환하지 않는다. 마스터에 없는 아이템은 long 한도까지.
         foreach (var (item, delta) in net)
         {
             if (delta <= 0) continue;
@@ -488,7 +519,30 @@ public sealed partial class GameSession
             if (after == 0) InventoryItems.Remove(item);
             else InventoryItems[item] = new InventoryItem(after);
         }
+        foreach (var id in paidInstances) RemoveUniqueItem(id);
+        if (paidCharacter is { } leaving) RemoveCharacter(leaving);
+
+        if (trade.ReceiveKind == TradeKind.UniqueItem)
+            for (var i = 0L; i < trade.ReceiveAmount; i++) AddUniqueItem(trade.ReceiveItemCode);
+        else if (trade.ReceiveKind == TradeKind.Character)
+            AddCharacter(trade.ReceiveItemCode);
         return $"교환 완료: {text}";
+    }
+
+    /// <summary>
+    /// 캐릭터를 내보낸다: 보유 캐릭터에서 빠지고, 파티 슬롯과 상태이상, 태그가 지워지며, 끼고 있던 장비는 빠져 보유로 돌아간다.
+    /// 다른 캐릭터에게 장비로 끼워져 있으면 하지 않고 false(보유하지 않아도 false).
+    /// </summary>
+    public bool RemoveCharacter(long characterCode)
+    {
+        if (!Characters.ContainsKey(characterCode) || EquippedCount(EquipRef.Char(characterCode)) > 0) return false;
+        Characters.Remove(characterCode);
+        for (var i = 0; i < Party.Length; i++)
+            if (Party[i] == characterCode) Party[i] = null;
+        CharacterStatusEffects.Remove(characterCode);
+        CharacterTagInstances.Remove(characterCode);
+        EquippedItems.Remove(characterCode);
+        return true;
     }
 
     // ---- 상태이상 ----

@@ -123,7 +123,6 @@ public sealed partial class GamePack
         var characterInventory = LoadCharacterInventory(zip, attributes);
         CheckItemCodesAreUnique(itemInventory, bunchInventory);
         var trades = LoadTrades(zip, tradeConditions);
-        CheckTrades(trades, shops, itemInventory, bunchInventory);
         var statusEffects = LoadStatusEffects(zip);
         var statusEffectEffects = LoadStatusEffectEffects(zip, statusEffects, embeddedEffects);
         var equipmentSlots = LoadEquipmentSlots(zip);
@@ -132,6 +131,7 @@ public sealed partial class GamePack
         var uniqueItemTags = LoadUniqueItemTags(zip, uniqueItems, tags);
         var commonItemTags = LoadCommonItemTags(zip, itemInventory, tags);
         var characterTags = LoadCharacterTags(zip, characterInventory, tags);
+        CheckTrades(trades, shops, itemInventory, bunchInventory, uniqueItems, characterInventory);
         var equipmentSlotTags = LoadEquipmentSlotTags(zip, characterInventory, equipmentSlots, tags);
         var statuses = LoadStatuses(zip);
         var characterStatuses = LoadCharacterStatuses(zip, characterInventory, statuses);
@@ -427,7 +427,38 @@ public sealed partial class GamePack
                 throw new PackFormatException($"아이템 코드 '{b.Code}'가 아이템 인벤토리와 번치 인벤토리 마스터에 모두 있습니다.");
     }
 
-    static List<ShopTrade>? LoadTrades(ZipArchive zip, List<FlatCondition> conditions) =>
+    /// <summary>
+    /// 트레이드 마스터. 앞의 여섯 열 뒤에 선택 열 cost_kind, receive_kind(common_item / unique_item / character, 비우면 common_item)를
+    /// 둘 다 붙일 수 있다. 캐릭터의 어마운트는 1이어야 하고, 유니크 아이템을 받는 어마운트는 1000 이하여야 한다.
+    /// </summary>
+    static List<ShopTrade>? LoadTrades(ZipArchive zip, List<FlatCondition> conditions)
+    {
+        var text = TryReadEntry(zip, ShopTradeMasterPath);
+        if (text is not null)
+        {
+            var rows = Tsv.Parse(text);
+            if (rows.Count > 0 && rows[0].Length > 6
+                && !(rows[0].Length == 8 && rows[0][6] == "cost_kind" && rows[0][7] == "receive_kind"))
+                throw new PackFormatException(
+                    $"{ShopTradeMasterPath}: 여섯 열 뒤에는 'cost_kind\treceive_kind' 두 열만 붙일 수 있습니다.");
+        }
+        return LoadTradeRows(zip, conditions);
+    }
+
+    const long MaxUniqueReceive = 1000;
+
+    static string CellOf(string[] r, int index) => index < r.Length ? r[index] : "";
+
+    static TradeKind ParseTradeKind(string file, string what, string value) =>
+        value.Trim().ToLowerInvariant() switch
+        {
+            "" or "common_item" => TradeKind.CommonItem,
+            "unique_item" => TradeKind.UniqueItem,
+            "character" => TradeKind.Character,
+            _ => throw new PackFormatException($"{file}: {what} '{value}'이(가) common_item/unique_item/character가 아닙니다."),
+        };
+
+    static List<ShopTrade>? LoadTradeRows(ZipArchive zip, List<FlatCondition> conditions) =>
         LoadConditioned(
             zip, ShopTradeMasterPath,
             ["code", "shop_code", "cost_item_code", "cost_amount", "receive_item_code", "receive_amount"],
@@ -437,29 +468,56 @@ public sealed partial class GamePack
             {
                 const string file = ShopTradeMasterPath;
                 var who = $"트레이드 '{code}'의";
+                var costKind = ParseTradeKind(file, $"{who} 코스트 종류", CellOf(r, 6));
+                var receiveKind = ParseTradeKind(file, $"{who} 리시브 종류", CellOf(r, 7));
+                var costAmount = ParsePositive(file, $"{who} 코스트 어마운트", r[3]);
+                var receiveAmount = ParsePositive(file, $"{who} 리시브 어마운트", r[5]);
+                if (costKind == TradeKind.Character && costAmount != 1)
+                    throw new PackFormatException($"{file}: {who} 코스트가 캐릭터면 어마운트는 1이어야 합니다 ({costAmount}).");
+                if (receiveKind == TradeKind.Character && receiveAmount != 1)
+                    throw new PackFormatException($"{file}: {who} 리시브가 캐릭터면 어마운트는 1이어야 합니다 ({receiveAmount}).");
+                if (receiveKind == TradeKind.UniqueItem && receiveAmount > MaxUniqueReceive)
+                    throw new PackFormatException($"{file}: {who} 리시브 유니크 아이템의 어마운트는 {MaxUniqueReceive} 이하여야 합니다 ({receiveAmount}).");
                 return new ShopTrade(
                     code,
                     ParseLong(file, $"{who} 상점 코드", r[1]),
-                    ParseLong(file, $"{who} 코스트 아이템 코드", r[2]),
-                    ParsePositive(file, $"{who} 코스트 어마운트", r[3]),
-                    ParseLong(file, $"{who} 리시브 아이템 코드", r[4]),
-                    ParsePositive(file, $"{who} 리시브 어마운트", r[5]),
-                    groups);
+                    ParseLong(file, $"{who} 코스트 코드", r[2]),
+                    costAmount,
+                    ParseLong(file, $"{who} 리시브 코드", r[4]),
+                    receiveAmount,
+                    groups,
+                    costKind,
+                    receiveKind);
             });
 
-    static void CheckTrades(List<ShopTrade>? trades, List<Shop>? shops, List<ItemEntry>? common, List<BunchEntry>? bunch)
+    static void CheckTrades(
+        List<ShopTrade>? trades, List<Shop>? shops, List<ItemEntry>? common, List<BunchEntry>? bunch,
+        List<UniqueItem>? uniqueItems, List<CharacterEntry>? characters)
     {
         if (trades is null) return;
         var shopCodes = shops?.Select(s => s.Code).ToHashSet() ?? [];
         var itemCodes = (common?.Select(i => i.Code) ?? []).Concat(bunch?.Select(b => b.Code) ?? []).ToHashSet();
+        var uniqueCodes = uniqueItems?.Select(u => u.ItemCode).ToHashSet() ?? [];
+        var characterCodes = characters?.Select(c => c.Code).ToHashSet() ?? [];
+
+        void Check(ShopTrade t, string side, TradeKind kind, long code)
+        {
+            var (known, master) = kind switch
+            {
+                TradeKind.CommonItem => (itemCodes.Contains(code), "아이템/번치 인벤토리 마스터"),
+                TradeKind.UniqueItem => (uniqueCodes.Contains(code), "유니크 아이템 인벤토리 마스터"),
+                _ => (characterCodes.Contains(code), "캐릭터 인벤토리 마스터"),
+            };
+            if (!known)
+                throw new PackFormatException($"{ShopTradeMasterPath}: 트레이드 '{t.Code}'의 {side} '{code}'가 {master}에 없습니다.");
+        }
+
         foreach (var t in trades)
         {
             if (!shopCodes.Contains(t.ShopCode))
                 throw new PackFormatException($"{ShopTradeMasterPath}: 트레이드 '{t.Code}'의 상점 '{t.ShopCode}'가 상점 마스터에 없습니다.");
-            if (!itemCodes.Contains(t.CostItemCode))
-                throw new PackFormatException($"{ShopTradeMasterPath}: 트레이드 '{t.Code}'의 코스트 아이템 '{t.CostItemCode}'가 아이템/번치 인벤토리 마스터에 없습니다.");
-            if (!itemCodes.Contains(t.ReceiveItemCode))
-                throw new PackFormatException($"{ShopTradeMasterPath}: 트레이드 '{t.Code}'의 리시브 아이템 '{t.ReceiveItemCode}'가 아이템/번치 인벤토리 마스터에 없습니다.");
+            Check(t, "코스트", t.CostKind, t.CostItemCode);
+            Check(t, "리시브", t.ReceiveKind, t.ReceiveItemCode);
         }
     }
 
