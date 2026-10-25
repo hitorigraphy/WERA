@@ -21,8 +21,13 @@ public sealed class PackFormatException(string message) : Exception(message);
 ///   master/status_effect_effect_master_v1.tsv (선택, 상태이상 마스터 필요) status_effect_code, trigger_type, priority, effect_code, effect_value_1, effect_value_2, effect_value_3
 ///   master/shop_trade_master_v1.tsv       (선택) code, shop_code, cost_item_code, cost_amount, receive_item_code, receive_amount
 ///   master/shop_trade_condition_master_v1.tsv (선택) trade_code, group_no, flag_code, condition_type, condition_value
+///   master/equipment_slot_master_v1.tsv   (선택) equipment_slot_code, equipment_slot_name
+///   master/tag_master_v1.tsv              (선택) tag_code, tag_name
+///   master/equipment_master_v1.tsv        (선택) item_code, item_name
+///   master/equipment_tag_master_v1.tsv    (선택, 장비/태그 마스터 필요) item_code, tag_code
+///   master/equipment_slot_tag_master_v1.tsv (선택, 캐릭터/슬롯/태그 마스터 필요) character_code, equipment_slot_code, tag_code, group_number, is_positive
 /// </summary>
-public sealed class GamePack
+public sealed partial class GamePack
 {
     public const string DungeonMasterPath = "master/dungeon_master_v1.tsv";
     public const string DungeonFlagMasterPath = "master/dungeon_flag_master_v1.tsv";
@@ -118,6 +123,11 @@ public sealed class GamePack
         CheckTrades(trades, shops, itemInventory, bunchInventory);
         var statusEffects = LoadStatusEffects(zip);
         var statusEffectEffects = LoadStatusEffectEffects(zip, statusEffects, embeddedEffects);
+        var equipmentSlots = LoadEquipmentSlots(zip);
+        var tags = LoadTags(zip);
+        var equipmentItems = LoadEquipmentItems(zip);
+        var equipmentTags = LoadEquipmentTags(zip, equipmentItems, tags);
+        var equipmentSlotTags = LoadEquipmentSlotTags(zip, characterInventory, equipmentSlots, tags);
 
         return new GamePack
         {
@@ -132,6 +142,11 @@ public sealed class GamePack
             Trades = trades,
             StatusEffects = statusEffects,
             StatusEffectEffects = statusEffectEffects,
+            EquipmentSlots = equipmentSlots,
+            Tags = tags,
+            EquipmentItems = equipmentItems,
+            EquipmentTags = equipmentTags,
+            EquipmentSlotTags = equipmentSlotTags,
             EmbeddedEffects = embeddedEffects,
         };
     }

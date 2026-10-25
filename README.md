@@ -24,6 +24,11 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
 | `master/attribute_master_v1.tsv` | (선택, 캐릭터 인벤토리가 있으면 필수) `attribute_code`, `attribute_name` |
 | `master/status_effect_master_v1.tsv` | (선택) `status_effect_code`, `status_effect_name` |
 | `master/status_effect_effect_master_v1.tsv` | (선택, 상태이상 마스터가 있어야 함) `status_effect_code`, `trigger_type`, `priority`, `effect_code`, `effect_value_1`, `effect_value_2`, `effect_value_3` |
+| `master/equipment_slot_master_v1.tsv` | (선택) `equipment_slot_code`, `equipment_slot_name` |
+| `master/tag_master_v1.tsv` | (선택) `tag_code`, `tag_name` |
+| `master/equipment_master_v1.tsv` | (선택) `item_code`, `item_name` |
+| `master/equipment_tag_master_v1.tsv` | (선택, 장비/태그 마스터 필요) `item_code`, `tag_code` |
+| `master/equipment_slot_tag_master_v1.tsv` | (선택, 캐릭터 인벤토리/장비 슬롯/태그 마스터 필요) `character_code`, `equipment_slot_code`, `tag_code`, `group_number`, `is_positive` |
 | `master/shop_trade_master_v1.tsv` | (선택) `code`, `shop_code`, `cost_item_code`, `cost_amount`, `receive_item_code`, `receive_amount` |
 | `master/shop_trade_condition_master_v1.tsv` | (선택) `trade_code`, `group_no`, `flag_code`, `condition_type`, `condition_value` |
 
@@ -47,6 +52,12 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
 - **상태이상 이펙트**(`status_effect_effect_master`)는 "상태이상(`status_effect_code`)이 `trigger_type` 시점에 임베디드 이펙트(`effect_code`)를 `effect_value_1~3`으로 실행한다"를 적습니다. 상태이상 코드는 상태이상 마스터에, 이펙트 코드는 임베디드 이펙트에 등록되어 있어야 하고 밸류는 비워 두면 0입니다. `priority`는 `long` 값이며 정렬 방향은 사용하는 쪽이 정합니다. `trigger_type`은 이름으로 적습니다(대소문자 무시, 숫자 불가).
   - `None`(조건 없음/시점 없음), `BeforeAttack`(공격하기 전), `AfterAttack`(공격한 후), `BeforeAttacked`(공격을 받기 전), `AfterAttacked`(공격을 받은 후), `AfterTurnStart`(턴 개시 후), `AfterTurnEnd`(턴 종료 후), `AfterBattleStart`(배틀 개시 후), `AfterBattleEnd`(배틀 종료 후), `AfterMove`(이동 후)
 - `GameSession.ApplyEffect(이펙트 코드, 캐릭터 코드, 밸류 1~3)`은 이펙트를 만들어(타겟과 밸류 저장) `Execute()`로 보유 캐릭터에게 실행하고, 바뀐 상태를 세이브가 받아들이는 범위(레벨 1 이상, HP 0~최대 HP, XP 0~필요 XP)로 보정해 저장합니다.
+- **장비**는 슬롯과 태그로 정합니다.
+  - `equipment_slot_master`는 장비 슬롯의 종류(무기, 방어구 등), `tag_master`는 태그(검, 갑옷, 중량 등), `equipment_master`는 장비(`item_code`, `item_name`)입니다. 장비의 코드 공간은 아이템/번치 인벤토리와 따로입니다.
+  - `equipment_tag_master`는 장비가 가진 태그입니다(장비와 태그가 각각 장비/태그 마스터에 있어야 하고, 같은 `(item_code, tag_code)`를 두 번 쓸 수 없음).
+  - `equipment_slot_tag_master`는 **캐릭터의 장비 슬롯에 어떤 장비가 들어가는가**를 태그로 적습니다. **복합키는 앞의 네 열**(`character_code`, `equipment_slot_code`, `tag_code`, `group_number`)이고 `is_positive`는 값입니다. 같은 키를 두 번 쓰면 `is_positive`가 달라도 오류입니다. `is_positive`는 `true`/`false`(대소문자 무시) 또는 `1`/`0`입니다.
+  - **부합 규칙**: 같은 (캐릭터, 슬롯)에서 같은 `group_number`가 한 그룹이고 **그룹 안은 모두 만족(AND), 그룹끼리는 하나만 만족해도 됨(OR)**입니다. `is_positive`가 참이면 장비가 그 태그를 **가져야** 하고, 거짓이면 **가지면 안 됩니다**. 규칙이 없으면 아무것도 낄 수 없습니다.
+  - **캐릭터가 가진 장비 슬롯**은 이 마스터에 그 캐릭터로 나오는 슬롯입니다(처음 나온 순서). 행이 없는 캐릭터는 장비 슬롯이 없습니다.
 - **속성 전투 규칙**(전투 시스템이 생기면 적용, 아직 코드에는 없음): 유리속성으로 공격하면 데미지와 명중률이 ×1.5, 불리속성으로 공격하면 ×0.5입니다. 피격 쪽은 공격 속성이 자신의 유리속성이면 ×0.5, 불리속성이면 ×1.5입니다. 두 보정은 곱하므로 유리속성 공격자가 불리속성 피격자를 치면 ×2.25입니다.
 - **교환**(`shop_trade_master`)은 상점 `shop_code`에서 `cost_item_code`를 `cost_amount`개 내고 `receive_item_code`를 `receive_amount`개 받는 것입니다. 아이템 코드는 아이템/번치 인벤토리 어느 쪽이든 가능하고, 어마운트는 1 이상입니다. 상점과 아이템 코드는 해당 마스터에 있어야 합니다.
 - **교환 조건표**(`shop_trade_condition_master`)는 던전/상점 조건표와 같은 규칙(그룹 AND/OR, `None`)이고, 조건이 없으면 항상 가능합니다.
@@ -69,8 +80,7 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
 ### 파티 설정 (`[103]`, 홈에 조건 없이 항상 나옴)
 - 슬롯 아래에 모드를 바꾸는 텍스트 버튼이 있습니다: **`[10] 캐릭터 배치`**, **`[11] 장비 착용`**(클릭하거나 코드 입력). 화면 제목에도 지금 모드가 나옵니다(`파티 설정 · 캐릭터 배치` / `파티 설정 · 장비 착용`).
   - **캐릭터 배치**: 아래에 나오는 방식으로 슬롯의 캐릭터를 배치합니다. 돌아가기는 홈입니다.
-  - **장비 착용**: 같은 3×3 슬롯이 나오지만 캐릭터가 있는 슬롯만 고를 수 있습니다(빈 슬롯은 눌러지지 않음). 슬롯을 고르면 그 캐릭터의 **장비 목록**(`○○의 장비`)으로 갑니다. 이 화면(장비 착용)에서 돌아가기를 하면 **파티 설정이 아니라 홈**으로 갑니다. 장비 목록에서 돌아가면 장비 착용 화면입니다.
-  - 장비 목록에서 장비를 누르면 장비 가능한 목록이 나오는 단계는 장비 데이터(장비 슬롯 종류, 장비 가능 여부)가 정해진 뒤에 만듭니다. 지금 장비 목록은 비어 있습니다.
+  - **장비 착용**: 같은 3×3 슬롯이 나오지만 캐릭터가 있는 슬롯만 고를 수 있습니다(빈 슬롯은 눌러지지 않음). 슬롯을 고르면 그 캐릭터의 **장비 슬롯 목록**(`○○의 장비`)으로 갑니다. 거기서 슬롯(`[슬롯코드] 무기` 등)을 고르면 그 슬롯에 낄 수 있는 **장비 가능 목록**(`○○의 무기`)이 나옵니다. 이 화면(장비 착용)에서 돌아가기를 하면 **파티 설정이 아니라 홈**으로 갑니다. 장비 슬롯 목록에서 돌아가면 장비 착용 화면, 장비 가능 목록에서 돌아가면 같은 캐릭터의 장비 슬롯 목록입니다. 장비를 실제로 끼는 동작과 장착 상태 저장은 아직 없습니다.
 - 3×3 슬롯입니다. 위 줄이 전위(슬롯 1~3), 가운데 줄이 중위(4~6), 아래 줄이 후위(7~9)입니다. 각 줄의 슬롯 위에 줄 이름(`전위`, `중위`, `후위`)이 구분선과 함께 한 줄로 나옵니다.
 - 슬롯은 왼쪽에 캐릭터 아이콘, 오른쪽에 4줄을 보여 줍니다. 아이콘은 이 4줄 높이의 정사각형입니다.
   1. `Lv.5` (왼쪽 정렬) … `용사` (오른쪽 정렬)

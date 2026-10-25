@@ -126,7 +126,26 @@
 
             case Screen.EquipmentList:
                 <h2>@(session.CurrentSlotCharacterName)의 장비</h2>
-                <p class="end">표시할 장비가 없습니다.</p>
+                @if (session.Entries.Count == 1)
+                {
+                    <p class="end">장비 슬롯이 없습니다.</p>
+                }
+                @entryList(session.Entries)
+                @commandBox
+                break;
+
+            case Screen.EquipmentSelect:
+                <h2>@(session.CurrentSlotCharacterName)의 @(session.CurrentEquipmentSlot?.Name)</h2>
+                @if (session.EquippableItems.Count == 0)
+                {
+                    <p class="end">장비할 수 있는 장비가 없습니다.</p>
+                }
+                <ul class="dungeons">
+                    @foreach (var item in session.EquippableItems)
+                    {
+                        <li>[@item.ItemCode] @item.ItemName</li>
+                    }
+                </ul>
                 @entryList(session.Entries)
                 @commandBox
                 break;

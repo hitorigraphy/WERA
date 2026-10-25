@@ -14,8 +14,10 @@ public enum Screen
     PartySetup,
     /// <summary>파티 설정(장비 착용): 같은 3×3 슬롯. 슬롯을 고르면 그 캐릭터의 장비 목록으로 간다. 돌아가기는 홈.</summary>
     EquipmentSetup,
-    /// <summary>선택한 슬롯 캐릭터의 장비 목록. 돌아가기는 장비 착용 화면.</summary>
+    /// <summary>선택한 슬롯 캐릭터의 장비 슬롯 목록. 돌아가기는 장비 착용 화면.</summary>
     EquipmentList,
+    /// <summary>선택한 장비 슬롯에 낄 수 있는 장비 목록(슬롯 태그 마스터에 부합하는 장비). 돌아가기는 장비 슬롯 목록.</summary>
+    EquipmentSelect,
     /// <summary>선택한 슬롯에 배치할 캐릭터 목록.</summary>
     CharacterSelect,
     /// <summary>선택한 상점의 교환 목록.</summary>
@@ -108,6 +110,23 @@ public sealed class GameSession
 
     /// <summary>선택한 슬롯(<see cref="CurrentSlot"/>)에 있는 캐릭터의 이름. 슬롯이 없으면 null, 빈 슬롯이면 "빈 슬롯".</summary>
     public string? CurrentSlotCharacterName => CurrentSlot is { } slot ? PartySlotViews[slot].Name : null;
+
+    /// <summary>선택한 슬롯(<see cref="CurrentSlot"/>)에 있는 캐릭터의 코드. 슬롯이 없거나 비어 있으면 null.</summary>
+    public long? CurrentCharacterCode => CurrentSlot is { } slot ? Party[slot] : null;
+
+    /// <summary>장비 가능 목록 화면에서 보고 있는 장비 슬롯 코드. 그 화면이 아니면 null.</summary>
+    public long? CurrentEquipmentSlotCode { get; private set; }
+
+    public EquipmentSlotEntry? CurrentEquipmentSlot =>
+        Pack.EquipmentSlots?.FirstOrDefault(s => s.Code == CurrentEquipmentSlotCode);
+
+    /// <summary>선택한 캐릭터가 가진 장비 슬롯들.</summary>
+    IReadOnlyList<EquipmentSlotEntry> CurrentEquipmentSlots =>
+        CurrentCharacterCode is { } character ? Pack.EquipmentSlotsOf(character) : [];
+
+    /// <summary>선택한 캐릭터의 선택한 장비 슬롯에 낄 수 있는 장비들(슬롯 태그 마스터에 부합하는 것).</summary>
+    public IReadOnlyList<EquipmentItem> EquippableItems =>
+        CurrentCharacterCode is { } c && CurrentEquipmentSlotCode is { } s ? Pack.EquippableItems(c, s) : [];
 
     GameSession(
         GamePack pack, Screen screen, Dictionary<long, long> playerFlags,
@@ -262,7 +281,14 @@ public sealed class GameSession
                         .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home))
                         .ToList();
                 case Screen.EquipmentList:
-                    return [new ScreenEntry(BackEntryCode, "돌아가기", Screen.EquipmentSetup)];
+                    // 그 캐릭터가 가진 장비 슬롯(슬롯 코드를 입력하거나 클릭하면 그 슬롯에 낄 수 있는 장비 목록으로 간다).
+                    return CurrentEquipmentSlots
+                        .Select(s => new ScreenEntry(Text(s.Code), s.Name, Screen.EquipmentSelect))
+                        .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen.EquipmentSetup))
+                        .ToList();
+                case Screen.EquipmentSelect:
+                    // 같은 캐릭터의 장비 슬롯 목록으로 돌아간다(Arg로 캐릭터가 있는 파티 슬롯을 넘겨 유지한다).
+                    return [new ScreenEntry(BackEntryCode, "돌아가기", Screen.EquipmentList, Arg: CurrentSlot!.Value.ToString(CultureInfo.InvariantCulture))];
                 case Screen.CharacterSelect:
                     // 맨 위에 "[0] 비우기"(이 슬롯에 캐릭터가 있을 때만), 그다음 고를 수 있는 캐릭터(회색 제외)를 코드로 입력하거나 클릭하면 배치한다.
                     return ClearEntries()
@@ -316,7 +342,13 @@ public sealed class GameSession
         {
             case EntryAction.Navigate:
                 CurrentShopCode = entry.Target == Screen.ShopTrades ? CodeOf(entry) : null;
-                CurrentSlot = entry.Target is Screen.CharacterSelect or Screen.EquipmentList ? int.Parse(entry.Arg!, CultureInfo.InvariantCulture) : null;
+                CurrentSlot = entry.Target switch
+                {
+                    Screen.CharacterSelect or Screen.EquipmentList => int.Parse(entry.Arg!, CultureInfo.InvariantCulture),
+                    Screen.EquipmentSelect => CurrentSlot,      // 같은 캐릭터를 계속 본다
+                    _ => null,
+                };
+                CurrentEquipmentSlotCode = entry.Target == Screen.EquipmentSelect ? CodeOf(entry) : null;
                 Screen = entry.Target;
                 break;
             case EntryAction.Trade:
