@@ -5,6 +5,18 @@ namespace Wera.Core;
 /// <summary>TSV 파서. 큰따옴표로 감싼 셀 안의 탭/줄바꿈과 "" 이스케이프를 지원한다.</summary>
 public static class Tsv
 {
+    /// <summary>
+    /// "memo" 열은 사람이 보려고 적는 메모라 엔진은 읽지 않는다. 헤더에 있으면 그 열을 모든 행에서 뺀다
+    /// (어느 마스터든 어느 위치에든 둘 수 있다).
+    /// </summary>
+    public static List<string[]> WithoutMemo(List<string[]> rows)
+    {
+        if (rows.Count == 0) return rows;
+        var memo = Array.FindIndex(rows[0], h => string.Equals(h.Trim(), "memo", StringComparison.OrdinalIgnoreCase));
+        if (memo < 0) return rows;
+        return rows.Select(r => memo < r.Length ? r.Where((_, i) => i != memo).ToArray() : r).ToList();
+    }
+
     public static List<string[]> Parse(string text)
     {
         var rows = new List<string[]>();

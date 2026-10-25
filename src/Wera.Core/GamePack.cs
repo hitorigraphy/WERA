@@ -461,7 +461,7 @@ public sealed partial class GamePack
         var text = TryReadEntry(zip, ShopTradeMasterPath);
         if (text is not null)
         {
-            var rows = Tsv.Parse(text);
+            var rows = Tsv.WithoutMemo(Tsv.Parse(text));
             if (rows.Count > 0 && rows[0].Length > 6
                 && !(rows[0].Length == 8 && rows[0][6] == "cost_kind" && rows[0][7] == "receive_kind"))
                 throw new PackFormatException(
@@ -563,7 +563,7 @@ public sealed partial class GamePack
     /// <summary>헤더를 검사하고 데이터 행만 반환한다. 열이 모자란 행은 빈 셀로 채운다.</summary>
     static IEnumerable<string[]> Body(string file, string tsv, params string[] header)
     {
-        var rows = Tsv.Parse(tsv);
+        var rows = Tsv.WithoutMemo(Tsv.Parse(tsv));
         if (rows.Count == 0 || !rows[0].Take(header.Length).SequenceEqual(header))
             throw new PackFormatException($"{file}: 헤더가 '{string.Join("\\t", header)}'이어야 합니다.");
         foreach (var raw in rows.Skip(1))

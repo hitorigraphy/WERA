@@ -1,6 +1,6 @@
-attribute_code	attribute_name
-1	불
-2	물
-3	풀
-4	빛
-5	어둠
+attribute_code	attribute_name	memo
+1	불	필수: 플레이어(캐릭터 1)가 가리키는 속성
+2	물	필수: 플레이어(캐릭터 1)가 가리키는 속성
+3	풀	
+4	빛	
+5	어둠	

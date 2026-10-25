@@ -1,4 +1,4 @@
-shop_code	group_number	flag_code	condition_type	condition_value
-2001	1	1001	GreaterOrEqual	1
-2002	1	1001	GreaterOrEqual	1
-2002	1	1002	GreaterOrEqual	3
+shop_code	group_number	flag_code	condition_type	condition_value	memo
+2001	1	1001	GreaterOrEqual	1	
+2002	1	1001	GreaterOrEqual	1	
+2002	1	1002	GreaterOrEqual	3	

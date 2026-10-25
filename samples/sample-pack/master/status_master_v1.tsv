@@ -1,4 +1,4 @@
-status_code	status_name
-1	level
-2	hp
-3	xp
+status_code	status_name	memo
+1	level	필수: 예약 코드 1(level)
+2	hp	필수: 예약 코드 2(hp)
+3	xp	
