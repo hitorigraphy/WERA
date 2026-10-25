@@ -24,9 +24,17 @@ public sealed partial class GamePack
     /// <summary>캐릭터 스테이터스 마스터가 없으면 null. 게임팩에 적힌 순서 그대로다.</summary>
     public IReadOnlyList<CharacterStatus>? CharacterStatuses { get; init; }
 
-    static List<StatusEntry>? LoadStatuses(ZipArchive zip) =>
-        LoadCodeNames(zip, StatusMasterPath, "status_code", "status_name", "스테이터스",
+    /// <summary>스테이터스 마스터: level(1)과 hp(2)는 엔진이 예약한 코드라 반드시 있어야 한다.</summary>
+    static List<StatusEntry>? LoadStatuses(ZipArchive zip)
+    {
+        var statuses = LoadCodeNames(zip, StatusMasterPath, "status_code", "status_name", "스테이터스",
             (code, name) => new StatusEntry(code, name));
+        if (statuses is null) return null;
+        foreach (var (code, what) in new[] { (LevelStatusCode, "level"), (HpStatusCode, "hp") })
+            if (statuses.All(s => s.Code != code))
+                throw new PackFormatException($"{StatusMasterPath}: 예약된 스테이터스 코드 {code}({what})가 없습니다. level은 {LevelStatusCode}, hp는 {HpStatusCode}로 적어야 합니다.");
+        return statuses;
+    }
 
     /// <summary>
     /// 캐릭터 스테이터스 마스터: 캐릭터는 캐릭터 인벤토리에, 스테이터스는 스테이터스 마스터에 있어야 하고,
@@ -71,6 +79,14 @@ public sealed partial class GamePack
                     $"{file}: 같은 키(캐릭터 {character}, 스테이터스 {status}, 레벨 {level})가 두 번 있습니다.");
             rows.Add(new CharacterStatus(character, status, level, initial, min, max));
         }
+
+        // 캐릭터를 만들 때는 레벨 0 행을 읽는다. level과 hp는 폴백이 없으므로 모든 캐릭터에게 레벨 0 행이 있어야 한다(xp는 없으면 0).
+        var baseRows = rows.Where(r => r.Level == BaseLevel).Select(r => (r.CharacterCode, r.StatusCode)).ToHashSet();
+        foreach (var character in characters)
+            foreach (var (code, what) in new[] { (LevelStatusCode, "level"), (HpStatusCode, "hp") })
+                if (!baseRows.Contains((character.Code, code)))
+                    throw new PackFormatException(
+                        $"{file}: 캐릭터 '{character.Code}'에 {what}({code})의 레벨 {BaseLevel} 행이 없습니다.");
         return rows;
     }
 
@@ -105,7 +121,8 @@ public sealed partial class GamePack
     /// <summary>
     /// 새로 얻는 캐릭터의 상태. 레벨이 정해지기 전이므로 레벨 0의 행으로 채운다: 레벨 = level의 초깃값,
     /// HP = hp의 초깃값(최대 HP는 최댓값), 경험치 = xp의 초깃값(필요 경험치는 최댓값).
-    /// 행이 없는 스테이터스는 레벨 1, HP 1/1, 경험치 0/1로 시작한다.
+    /// 캐릭터 스테이터스 마스터가 있으면 level과 hp의 레벨 0 행이 반드시 있다(로드 때 검증). 마스터가 없는 게임팩이나 xp 행이 없는 캐릭터는
+    /// 레벨 1, HP 1/1(마스터가 없을 때), 경험치 0/0으로 시작한다.
     /// </summary>
     public CharacterState NewCharacterState(long characterCode)
     {
@@ -115,6 +132,6 @@ public sealed partial class GamePack
         return new CharacterState(
             level?.InitialValue ?? 1,
             hp?.InitialValue ?? 1, hp?.MaxValue ?? 1,
-            xp?.InitialValue ?? 0, xp?.MaxValue ?? 1).Clamped();
+            xp?.InitialValue ?? 0, xp?.MaxValue ?? 0).Clamped();
     }
 }
