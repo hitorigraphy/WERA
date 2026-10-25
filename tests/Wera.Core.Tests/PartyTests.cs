@@ -101,17 +101,17 @@ public class PartyTests
     public void Home_always_shows_party_setup_103_even_without_any_master()
     {
         var s = GameSession.NewGame(Pack(null));
-        Assert.Contains(new ScreenEntry("202", "파티 설정", Screen.PartySetup), s.Entries);
+        Assert.Contains(new ScreenEntry("105", "파티 설정", Screen.PartySetup), s.Entries);
     }
 
     [Fact]
     public void Party_setup_has_nine_slot_entries_the_two_mode_buttons_and_back()
     {
         var s = Session();
-        s.Activate("202");
+        s.Activate("105");
         Assert.Equal(Screen.PartySetup, s.Screen);
         Assert.Equal(["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "999"], s.Entries.Select(e => e.Code));
-        Assert.Null(s.Activate("202"));
+        Assert.Null(s.Activate("105"));
         Assert.NotNull(s.Activate("999"));
         Assert.Equal(Screen.Home, s.Screen);
     }
@@ -222,7 +222,7 @@ public class PartyTests
     public void Picking_a_slot_by_number_or_click_opens_the_character_list_for_it()
     {
         var s = Session();
-        s.Activate("202");
+        s.Activate("105");
         Assert.NotNull(s.Activate("5"));
         Assert.Equal(Screen.CharacterSelect, s.Screen);
         Assert.Equal(4, s.CurrentSlot);
@@ -235,7 +235,7 @@ public class PartyTests
         var s = Session();
         s.Party[4] = 7001;                                   // 이 슬롯(5번)에 용사
         s.Party[0] = 7002;                                   // 다른 슬롯에 마법사
-        s.Activate("202");
+        s.Activate("105");
         s.Activate("5");
 
         var colors = s.CharacterList.ToDictionary(c => c.Code, c => c.Color);
@@ -252,7 +252,7 @@ public class PartyTests
     public void Gray_character_cannot_be_chosen_even_by_typing_its_code()
     {
         var s = Session();
-        s.Activate("202");
+        s.Activate("105");
         s.Activate("1");
         Assert.Null(s.Activate("7004"));
         Assert.Equal(Screen.CharacterSelect, s.Screen);
@@ -263,7 +263,7 @@ public class PartyTests
     public void Choosing_a_free_character_places_it_and_returns_to_party_setup()
     {
         var s = Session();
-        s.Activate("202");
+        s.Activate("105");
         s.Activate("1");
         s.Activate("7001");
 
@@ -278,7 +278,7 @@ public class PartyTests
     {
         var s = Session();
         s.Party[0] = 7001;
-        s.Activate("202");
+        s.Activate("105");
         s.Activate("1");
         s.Activate("7002");
 
@@ -291,7 +291,7 @@ public class PartyTests
     {
         var s = Session();
         s.Party[3] = 7001;
-        s.Activate("202");
+        s.Activate("105");
         s.Activate("4");
         Assert.NotNull(s.Activate("7001"));
         Assert.Equal(Screen.PartySetup, s.Screen);
@@ -305,7 +305,7 @@ public class PartyTests
         var s = Session();
         s.Party[0] = 7001;
         s.Party[5] = 7002;
-        s.Activate("202");
+        s.Activate("105");
         s.Activate("1");                                       // 슬롯 1(전위 첫 칸)에 마법사를 고른다
         s.Activate("7002");
 
@@ -318,7 +318,7 @@ public class PartyTests
     {
         var s = Session();
         s.Party[5] = 7002;
-        s.Activate("202");
+        s.Activate("105");
         s.Activate("1");
         s.Activate("7002");
 
@@ -334,7 +334,7 @@ public class PartyTests
     {
         var s = Session();
         s.Party[0] = 7001;
-        s.Activate("202");
+        s.Activate("105");
 
         s.Activate("1");                                       // 용사가 있는 슬롯
         Assert.Equal(["0", "7001", "7002", "7003", "1", "999"], s.Entries.Select(e => e.Code));
@@ -353,7 +353,7 @@ public class PartyTests
         var s = Session();
         s.Party[4] = 7002;
         s.Party[0] = 7001;
-        s.Activate("202");
+        s.Activate("105");
         s.Activate("5");
 
         var entry = s.Activate("0");
@@ -373,7 +373,7 @@ public class PartyTests
     {
         var s = Session();
         s.Party[4] = 7002;
-        s.Activate("202");
+        s.Activate("105");
         s.Activate("5");
         s.Activate("0");
 
@@ -389,7 +389,7 @@ public class PartyTests
         var s = Session();
         s.Party[0] = 7001;
         s.Party[8] = 7003;
-        s.Activate("202");
+        s.Activate("105");
         s.Activate("1"); s.Activate("0");
         s.Activate("9"); s.Activate("0");
         Assert.All(s.Party, p => Assert.Null(p));
@@ -400,7 +400,7 @@ public class PartyTests
     {
         var s = Session();
         s.Party[2] = 7001;
-        s.Activate("202");
+        s.Activate("105");
         s.Activate("3");
         Assert.NotNull(s.Activate(" 000 "));
         Assert.Null(s.Party[2]);
@@ -412,7 +412,7 @@ public class PartyTests
         var s = Session();
         s.Party[0] = 7001;
         Assert.Null(s.Activate("0"));                          // 홈
-        s.Activate("202");
+        s.Activate("105");
         Assert.Null(s.Activate("0"));                          // 파티 설정 (슬롯 번호는 1~9)
         Assert.Equal(7001, s.Party[0]);
     }
@@ -421,7 +421,7 @@ public class PartyTests
     public void Back_from_the_character_list_returns_to_party_setup_without_changes()
     {
         var s = Session();
-        s.Activate("202");
+        s.Activate("105");
         s.Activate("1");
         Assert.NotNull(s.Activate("999"));
         Assert.Equal(Screen.PartySetup, s.Screen);
@@ -433,7 +433,7 @@ public class PartyTests
     public void Character_list_has_only_the_owned_player_when_the_pack_defines_no_other_characters()
     {
         var s = GameSession.NewGame(Pack(null));
-        s.Activate("202");
+        s.Activate("105");
         s.Activate("1");
         Assert.Equal([1L], s.CharacterList.Select(c => c.Code));
         Assert.True(s.CharacterList.Single().Selectable);                  // 새 게임에서 플레이어는 이미 보유한다
@@ -449,7 +449,7 @@ public class PartyTests
         var s = Session();
         s.Party[0] = 7001;
         s.Party[4] = 7002;
-        s.Activate("202");
+        s.Activate("105");
 
         var json = s.ToSaveJson();
         Assert.Contains("\"Characters\"", json);
@@ -515,6 +515,6 @@ public class PartyTests
             Assert.Equal(-1, slot.Slot);                              // 파티 슬롯 번호(0~8)가 아니다
             Assert.Equal("-----0/0-----", slot.Hp.Text);
         }
-        Assert.Equal(["103", "200", "201", "202", "203", "204", "205", "300"], s.Entries.Select(e => e.Code));   // 홈 항목에는 영향이 없다
+        Assert.Equal(["103", "104", "105", "201", "202", "203", "200", "300"], s.Entries.Select(e => e.Code));   // 홈 항목에는 영향이 없다
     }
 }

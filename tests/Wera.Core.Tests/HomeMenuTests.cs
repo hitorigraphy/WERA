@@ -2,46 +2,90 @@ using Wera.Core;
 
 namespace Wera.Core.Tests;
 
-// 홈 메뉴: 101 던전, 102 상점, 103 이벤트, 200 세이브, 201 교류, 202 파티 설정, 203 동료 확인, 204 장비 확인, 205 아이템 확인, 300 로드.
+// 홈 메뉴는 구분선으로 나뉜 세 분류다:
+//  [RPG] 101 던전, 102 상점, 103 이벤트, 104 교류, 105 파티 설정
+//  [정보] 201 동료 확인, 202 장비 확인, 203 아이템 확인
+//  [시스템] 200 세이브, 300 로드
 public class HomeMenuTests
 {
     static GameSession Session() =>
         GameSession.NewGame(GamePack.Load(CoreTests.PackZip(("pack.tsv", "id\tdemo\ntitle\t데모\n"))));
 
     [Fact]
-    public void The_always_present_entries_have_the_new_codes_and_labels()
+    public void The_menu_has_three_groups_in_order()
     {
-        var entries = Session().Entries;
+        var menu = Session().HomeMenu;
+        Assert.Equal(["RPG", "정보", "시스템"], menu.Select(g => g.Name));
         Assert.Equal(
-            [("103", "이벤트"), ("200", "세이브"), ("201", "교류"), ("202", "파티 설정"),
-             ("203", "동료 확인"), ("204", "장비 확인"), ("205", "아이템 확인"), ("300", "로드")],
-            entries.Select(e => (e.Code, e.Label)));
+            [("103", "이벤트"), ("104", "교류"), ("105", "파티 설정")],
+            menu[0].Entries.Select(e => (e.Code, e.Label)));                      // 던전/상점은 열려 있을 때만 앞에 붙는다
+        Assert.Equal(
+            [("201", "동료 확인"), ("202", "장비 확인"), ("203", "아이템 확인")],
+            menu[1].Entries.Select(e => (e.Code, e.Label)));
+        Assert.Equal([("200", "세이브"), ("300", "로드")], menu[2].Entries.Select(e => (e.Code, e.Label)));
     }
 
     [Fact]
-    public void The_party_setup_moved_from_103_to_202()
+    public void Dungeon_and_shop_lead_the_rpg_group_when_they_are_open()
+    {
+        var s = GameSession.NewGame(SampleLoader.Pack());
+        var rpg = s.HomeMenu[0].Entries;
+        Assert.Equal(["101", "102", "103", "104", "105"], rpg.Select(e => e.Code));
+        Assert.Equal(["던전", "상점", "이벤트", "교류", "파티 설정"], rpg.Select(e => e.Label));
+    }
+
+    [Fact]
+    public void The_flat_entries_are_the_groups_in_order()
     {
         var s = Session();
-        Assert.Equal("202", GameSession.PartyEntryCode);
-        Assert.Equal(Screen.Event, s.Activate("103")!.Target);          // 103은 이제 이벤트
+        Assert.Equal(s.HomeMenu.SelectMany(g => g.Entries).Select(e => e.Code), s.Entries.Select(e => e.Code));
+        Assert.Equal(["103", "104", "105", "201", "202", "203", "200", "300"], s.Entries.Select(e => e.Code));
+    }
+
+    [Fact]
+    public void The_party_setup_is_105_and_103_is_the_event()
+    {
+        var s = Session();
+        Assert.Equal("105", GameSession.PartyEntryCode);
+        Assert.Equal(Screen.Event, s.Activate("103")!.Target);
         s.Activate("999");
-        Assert.Equal(Screen.PartySetup, s.Activate("202")!.Target);
+        Assert.Equal(Screen.PartySetup, s.Activate("105")!.Target);
         Assert.Equal(Screen.PartySetup, s.Screen);
     }
 
     [Theory]
     [InlineData("103", Screen.Event)]
-    [InlineData("201", Screen.Interaction)]
-    [InlineData("203", Screen.CompanionCheck)]
-    [InlineData("204", Screen.EquipmentCheck)]
-    [InlineData("205", Screen.ItemCheck)]
-    public void The_new_entries_open_their_screens_and_back_returns_home(string code, Screen screen)
+    [InlineData("104", Screen.Interaction)]
+    [InlineData("201", Screen.CompanionCheck)]
+    [InlineData("202", Screen.EquipmentCheck)]
+    [InlineData("203", Screen.ItemCheck)]
+    public void The_menu_entries_open_their_screens_and_back_returns_home(string code, Screen screen)
     {
         var s = Session();
         s.Activate(code);
         Assert.Equal(screen, s.Screen);
         Assert.Equal(["999"], s.Entries.Select(e => e.Code));
         s.Activate("999");
+        Assert.Equal(Screen.Home, s.Screen);
+    }
+
+    [Fact]
+    public void The_system_group_keeps_save_and_load()
+    {
+        var s = Session();
+        Assert.Equal(EntryAction.Save, s.Activate("200")!.Action);
+        Assert.Equal(Screen.Home, s.Screen);
+        Assert.Equal(Screen.Load, s.Activate("300")!.Target);
+    }
+
+    [Fact]
+    public void The_old_codes_no_longer_mean_what_they_did()
+    {
+        var s = Session();
+        s.Activate("202");                                              // 예전 파티 설정 → 지금은 장비 확인
+        Assert.Equal(Screen.EquipmentCheck, s.Screen);
+        s.Activate("999");
+        s.Activate("205");                                              // 예전 아이템 확인 코드는 이제 없다
         Assert.Equal(Screen.Home, s.Screen);
     }
 
@@ -68,7 +112,7 @@ public class HomeMenuTests
     public void The_new_screens_survive_the_save_as_home()
     {
         var s = Session();
-        s.Activate("205");
+        s.Activate("203");
         var json = s.ToSaveJson();
         Assert.Contains("\"ItemCheck\"", json);
         Assert.Equal(Screen.Home, GameSession.FromSaveJson(s.Pack, json).Screen);       // 불러오기는 늘 홈으로 간다
@@ -87,7 +131,7 @@ public class HomeMenuTests
         var s = GameSession.NewGame(pack);
         s.AddCharacter(7001);                                              // 마법사(7002)와 전사(7003)는 보유하지 않았다
 
-        s.Activate("202"); s.Activate("1");
+        s.Activate("105"); s.Activate("1");
         Assert.Equal([1L, 7001L], s.CharacterList.Select(c => c.Code).Order());      // 파티 슬롯 목록
         Assert.Equal(["1", "7001", "999"], s.Entries.Select(e => e.Code));              // 마스터 순서(플레이어가 먼저), 비우기는 빈 슬롯이라 없다
         Assert.Null(s.Activate("7002"));                                               // 목록에 없으니 코드를 쳐도 안 된다

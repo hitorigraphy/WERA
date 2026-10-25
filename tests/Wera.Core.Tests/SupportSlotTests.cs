@@ -56,7 +56,7 @@ public class SupportSlotTests
     public void The_home_entry_list_is_unchanged_and_the_slot_codes_are_hidden_typed_codes()
     {
         var s = Session();
-        Assert.Equal(["103", "200", "201", "202", "203", "204", "205", "300"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["103", "104", "105", "201", "202", "203", "200", "300"], s.Entries.Select(e => e.Code));
         Assert.NotNull(s.Activate("1"));
         Assert.Equal(Screen.SupportSelect, s.Screen);
     }
@@ -136,7 +136,7 @@ public class SupportSlotTests
     public void Slot_codes_work_only_on_the_home_screen()
     {
         var s = Session();
-        s.Activate("202");
+        s.Activate("105");
         s.Activate("1");                                              // 파티 설정의 1은 슬롯 1번(캐릭터 목록)이지 파트너가 아니다
         Assert.Equal(Screen.CharacterSelect, s.Screen);
         Assert.Null(s.CurrentSupportRole);
@@ -156,7 +156,7 @@ public class SupportSlotTests
 
         s.Party[0] = null;                                            // 파티에서 빼도 파트너는 그대로
         Assert.Equal(7001, s.PartnerCode);
-        s.Activate("202"); s.Activate("1"); s.Activate("7002");       // 파티 설정에서 마법사를 배치해도 파트너/어시스트는 그대로
+        s.Activate("105"); s.Activate("1"); s.Activate("7002");       // 파티 설정에서 마법사를 배치해도 파트너/어시스트는 그대로
         Assert.Equal(7002, s.Party[0]);
         Assert.Equal(7001, s.PartnerCode);
         Assert.Null(s.AssistCode);

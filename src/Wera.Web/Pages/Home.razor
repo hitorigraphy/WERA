@@ -147,7 +147,14 @@
                 </div>
                 @* 슬롯 영역 아래: 게임상 날짜와 시간대(턴이 넘어가면 다음 턴의 날짜와 시간대로 바뀐다) *@
                 <div class="home-date" aria-label="게임상 날짜와 시간대">@session.CurrentDateText</div>
-                @commands
+                @* 구분선으로 나뉜 분류들: [RPG], [정보], [시스템] *@
+                @foreach (var group in session.HomeMenu)
+                {
+                    <div class="menu-separator"></div>
+                    <div class="menu-category">[@group.Name]</div>
+                    @entryList(group.Entries)
+                }
+                @commandBox
                 break;
 
             case Screen.DungeonSelect:

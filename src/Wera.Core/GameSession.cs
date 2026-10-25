@@ -22,13 +22,13 @@ public enum Screen
     CharacterSelect,
     /// <summary>이벤트 화면(103). 아직 내용이 없다.</summary>
     Event,
-    /// <summary>교류 화면(201). 아직 내용이 없다.</summary>
+    /// <summary>교류 화면(104). 아직 내용이 없다.</summary>
     Interaction,
-    /// <summary>동료 확인 화면(203). 아직 내용이 없다.</summary>
+    /// <summary>동료 확인 화면(201). 아직 내용이 없다.</summary>
     CompanionCheck,
-    /// <summary>장비 확인 화면(204). 아직 내용이 없다.</summary>
+    /// <summary>장비 확인 화면(202). 아직 내용이 없다.</summary>
     EquipmentCheck,
-    /// <summary>아이템 확인 화면(205). 아직 내용이 없다.</summary>
+    /// <summary>아이템 확인 화면(203). 아직 내용이 없다.</summary>
     ItemCheck,
     /// <summary>홈 화면의 파트너/어시스트 슬롯에 지정할 캐릭터 목록(파티 설정과 독립). 돌아가기는 홈.</summary>
     SupportSelect,
@@ -87,6 +87,9 @@ internal sealed partial class SaveJsonContext : JsonSerializerContext;
 
 public sealed class SaveFormatException(string message) : Exception(message);
 
+/// <summary>메뉴의 한 분류: 이름(화면에는 [이름]으로 나온다)과 그 아래 항목들.</summary>
+public sealed record MenuGroup(string Name, IReadOnlyList<ScreenEntry> Entries);
+
 public sealed partial class GameSession
 {
     public const int SaveVersion = 1;
@@ -94,12 +97,12 @@ public sealed partial class GameSession
     public const string DungeonEntryCode = "101";
     public const string ShopEntryCode = "102";
     public const string EventEntryCode = "103";
+    public const string InteractionEntryCode = "104";
+    public const string PartyEntryCode = "105";
     public const string SaveEntryCode = "200";
-    public const string InteractionEntryCode = "201";
-    public const string PartyEntryCode = "202";
-    public const string CompanionCheckEntryCode = "203";
-    public const string EquipmentCheckEntryCode = "204";
-    public const string ItemCheckEntryCode = "205";
+    public const string CompanionCheckEntryCode = "201";
+    public const string EquipmentCheckEntryCode = "202";
+    public const string ItemCheckEntryCode = "203";
     public const string LoadEntryCode = "300";
     public const string BackEntryCode = "999";
 
@@ -286,6 +289,42 @@ public sealed partial class GameSession
         }
     }
 
+    /// <summary>
+    /// 홈 화면의 메뉴: 구분선으로 나뉜 세 분류. [RPG] 던전(101, 입장 가능한 것이 있을 때만), 상점(102, 열린 상점이 있을 때만),
+    /// 이벤트(103), 교류(104), 파티 설정(105) / [정보] 동료 확인(201), 장비 확인(202), 아이템 확인(203) / [시스템] 세이브(200), 로드(300).
+    /// 홈의 <see cref="Entries"/>는 이 분류들을 순서대로 이어 붙인 것이다.
+    /// </summary>
+    public IReadOnlyList<MenuGroup> HomeMenu
+    {
+        get
+        {
+            var rpg = new List<ScreenEntry>();
+            if (AvailableDungeons.Count > 0)
+                rpg.Add(new ScreenEntry(DungeonEntryCode, "던전", Screen.DungeonSelect));
+            if (AvailableShops.Count > 0)
+                rpg.Add(new ScreenEntry(ShopEntryCode, "상점", Screen.ShopList));
+            rpg.Add(new ScreenEntry(EventEntryCode, "이벤트", Screen.Event));
+            rpg.Add(new ScreenEntry(InteractionEntryCode, "교류", Screen.Interaction));
+            rpg.Add(new ScreenEntry(PartyEntryCode, "파티 설정", Screen.PartySetup));
+
+            return
+            [
+                new MenuGroup("RPG", rpg),
+                new MenuGroup("정보",
+                [
+                    new ScreenEntry(CompanionCheckEntryCode, "동료 확인", Screen.CompanionCheck),
+                    new ScreenEntry(EquipmentCheckEntryCode, "장비 확인", Screen.EquipmentCheck),
+                    new ScreenEntry(ItemCheckEntryCode, "아이템 확인", Screen.ItemCheck),
+                ]),
+                new MenuGroup("시스템",
+                [
+                    new ScreenEntry(SaveEntryCode, "세이브", Screen.Home, EntryAction.Save),
+                    new ScreenEntry(LoadEntryCode, "로드", Screen.Load),
+                ]),
+            ];
+        }
+    }
+
     /// <summary>현재 화면에서 클릭하거나 코드를 입력할 수 있는 텍스트들.</summary>
     public IReadOnlyList<ScreenEntry> Entries
     {
@@ -294,20 +333,7 @@ public sealed partial class GameSession
             switch (Screen)
             {
                 case Screen.Home:
-                    var list = new List<ScreenEntry>();
-                    if (AvailableDungeons.Count > 0)
-                        list.Add(new ScreenEntry(DungeonEntryCode, "던전", Screen.DungeonSelect));
-                    if (AvailableShops.Count > 0)
-                        list.Add(new ScreenEntry(ShopEntryCode, "상점", Screen.ShopList));
-                    list.Add(new ScreenEntry(EventEntryCode, "이벤트", Screen.Event));
-                    list.Add(new ScreenEntry(SaveEntryCode, "세이브", Screen.Home, EntryAction.Save));
-                    list.Add(new ScreenEntry(InteractionEntryCode, "교류", Screen.Interaction));
-                    list.Add(new ScreenEntry(PartyEntryCode, "파티 설정", Screen.PartySetup));
-                    list.Add(new ScreenEntry(CompanionCheckEntryCode, "동료 확인", Screen.CompanionCheck));
-                    list.Add(new ScreenEntry(EquipmentCheckEntryCode, "장비 확인", Screen.EquipmentCheck));
-                    list.Add(new ScreenEntry(ItemCheckEntryCode, "아이템 확인", Screen.ItemCheck));
-                    list.Add(new ScreenEntry(LoadEntryCode, "로드", Screen.Load));
-                    return list;
+                    return HomeMenu.SelectMany(group => group.Entries).ToList();
                 case Screen.ShopList:
                     // 상점 코드를 입력하거나 클릭하면 그 상점의 교환 목록으로 간다.
                     return AvailableShops
