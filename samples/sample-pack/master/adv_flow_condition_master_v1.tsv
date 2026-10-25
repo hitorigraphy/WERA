@@ -1,0 +1,2 @@
+adv_code	flow_number	group_number	flag_code	condition_type	condition_value	memo
+4001	3	1	1001	GreaterOrEqual	1	테스트용

@@ -281,7 +281,7 @@ public class EventScreenTests
         Assert.Equal(Screen.Event, s.Screen);
         Assert.Null(s.CurrentEvent);
         Assert.Null(s.CurrentStep);
-        Assert.Equal("이벤트가 끝났습니다.", s.Message);
+        Assert.Null(s.Message);
     }
 
     [Fact]
@@ -291,5 +291,144 @@ public class EventScreenTests
         s.Activate("103");
         s.Activate("3001");
         Assert.Equal(Screen.Event, s.Screen);
+    }
+}
+
+// adv_flow_master / adv_flow_condition_master
+public class AdvFlowMasterTests
+{
+    const string Header = "adv_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\n";
+
+    static GamePack Load(string flows, string? conditions = null, bool withAdvMaster = true)
+    {
+        var files = new List<(string, string)> { ("pack.tsv", "id\tdemo\ntitle\t데모\n") };
+        if (withAdvMaster) files.Add(("master/adv_master_v1.tsv", "code\tname\n4001\tA\n4002\tB\n"));
+        files.Add(("master/adv_flow_master_v1.tsv", Header + flows));
+        if (conditions is not null)
+            files.Add(("master/adv_flow_condition_master_v1.tsv", "adv_code\tflow_number\tgroup_number\tflag_code\tcondition_type\tcondition_value\n" + conditions));
+        return GamePack.Load(CoreTests.PackZip(files.ToArray()));
+    }
+
+    static string Error(string flows, string? conditions = null) =>
+        Assert.Throws<PackFormatException>(() => Load(flows, conditions)).Message;
+
+    [Fact]
+    public void Flows_load_with_their_types_params_and_conditions_and_come_back_in_flow_number_order()
+    {
+        var pack = Load(
+            "4001\t3\tFinish\t0\t0\t0\n4001\t1\ttext\t0\t0\t0\n4001\t2\tChoice\t7\t3\t0\n4002\t1\tNone\t\t\t\n",
+            "4001\t2\t1\t1001\tGreaterOrEqual\t1\n");
+        Assert.Equal(4, pack.AdvFlows!.Count);
+        Assert.Equal([1L, 2L, 3L], pack.AdvFlowsOf(4001).Select(f => f.FlowNumber));
+        var choice = pack.FindAdvFlow(4001, 2)!;
+        Assert.Equal(AdvFlowType.Choice, choice.FlowType);
+        Assert.Equal((7L, 3L), (choice.Param1, choice.Param2));
+        Assert.Single(choice.Groups);
+        Assert.False(choice.IsAvailable(new Dictionary<long, long>()));
+        Assert.True(choice.IsAvailable(new Dictionary<long, long> { [1001] = 1 }));
+        Assert.True(pack.FindAdvFlow(4001, 1)!.IsAvailable(new Dictionary<long, long>()));          // 조건이 없으면 참
+        Assert.Equal(AdvFlowType.None, pack.FindAdvFlow(4002, 1)!.FlowType);
+        Assert.Null(pack.FindAdvFlow(4002, 9));
+        Assert.Equal(4, pack.Masters.AdvFlowRowTable.Count);                                         // 마스터메모리 테이블에도 들어간다
+    }
+
+    [Fact]
+    public void The_enum_numbers_are_fixed()
+    {
+        Assert.Equal([0, 1, 2, 3, 4], new[] { AdvFlowType.None, AdvFlowType.Finish, AdvFlowType.Jump, AdvFlowType.Text, AdvFlowType.Choice }.Select(t => (int)t));
+    }
+
+    [Fact]
+    public void A_pack_without_the_flow_master_has_none_and_the_condition_master_alone_is_rejected()
+    {
+        var files = new[] { ("pack.tsv", "id\tdemo\ntitle\t데모\n"), ("master/adv_master_v1.tsv", "code\tname\n4001\tA\n") };
+        Assert.Null(GamePack.Load(CoreTests.PackZip(files)).AdvFlows);
+
+        var withCondition = files.Append(("master/adv_flow_condition_master_v1.tsv",
+            "adv_code\tflow_number\tgroup_number\tflag_code\tcondition_type\tcondition_value\n4001\t1\t1\t1\tEqual\t1\n")).ToArray();
+        Assert.Contains("adv_flow_master_v1.tsv도 필요", Assert.Throws<PackFormatException>(() => GamePack.Load(CoreTests.PackZip(withCondition))).Message);
+    }
+
+    [Fact]
+    public void The_flow_master_needs_the_adv_master_and_a_known_adv()
+    {
+        Assert.Contains("adv_master_v1.tsv도 필요", Assert.Throws<PackFormatException>(() => Load("4001\t1\tText\t0\t0\t0\n", withAdvMaster: false)).Message);
+        Assert.Contains("ADV '9'가 ADV 마스터에 없습니다", Error("9\t1\tText\t0\t0\t0\n"));
+    }
+
+    [Fact]
+    public void Duplicate_keys_unknown_types_and_bad_numbers_are_rejected()
+    {
+        Assert.Contains("두 번", Error("4001\t1\tText\t0\t0\t0\n4001\t1\tFinish\t0\t0\t0\n"));
+        Assert.Contains("흐름 종류", Error("4001\t1\tAdv\t0\t0\t0\n"));
+        Assert.Contains("흐름 종류", Error("4001\t1\t3\t0\t0\t0\n"));                                   // 숫자로는 못 쓴다
+        Assert.Contains("흐름 번호", Error("4001\tx\tText\t0\t0\t0\n"));
+    }
+
+    [Fact]
+    public void Jump_must_go_forward_to_a_flow_of_the_same_adv()
+    {
+        Assert.Contains("보다 커야", Error("4001\t1\tJump\t1\t0\t0\n"));
+        Assert.Contains("보다 커야", Error("4001\t1\tText\t0\t0\t0\n4001\t2\tJump\t1\t0\t0\n"));
+        Assert.Contains("같은 ADV의 흐름에 없습니다", Error("4001\t1\tJump\t5\t0\t0\n4002\t5\tText\t0\t0\t0\n"));
+        Assert.NotNull(Load("4001\t1\tJump\t5\t0\t0\n4001\t5\tFinish\t0\t0\t0\n"));
+    }
+
+    [Fact]
+    public void Choice_param_2_must_go_forward_to_a_flow_of_the_same_adv()
+    {
+        Assert.Contains("보다 커야", Error("4001\t1\tChoice\t1\t1\t0\n"));
+        Assert.Contains("보다 커야", Error("4001\t1\tText\t0\t0\t0\n4001\t2\tChoice\t1\t1\t0\n"));
+        Assert.Contains("같은 ADV의 흐름에 없습니다", Error("4001\t1\tChoice\t1\t5\t0\n4002\t5\tText\t0\t0\t0\n"));
+        Assert.NotNull(Load("4001\t1\tChoice\t1\t5\t0\n4001\t5\tFinish\t0\t0\t0\n"));
+    }
+
+    [Fact]
+    public void Choice_rows_of_the_same_group_must_be_consecutive()
+    {
+        // 같은 그룹이 이어지면 된다(그룹 1: 1~2번, 그룹 2: 3~4번)
+        Assert.NotNull(Load(
+            "4001\t1\tChoice\t1\t5\t0\n4001\t2\tChoice\t1\t5\t0\n4001\t3\tChoice\t2\t5\t0\n4001\t4\tChoice\t2\t5\t0\n4001\t5\tFinish\t0\t0\t0\n"));
+
+        // 다른 종류의 칸이 끼어들면 안 된다
+        Assert.Contains("연속하지 않습니다", Error(
+            "4001\t1\tChoice\t1\t5\t0\n4001\t2\tText\t0\t0\t0\n4001\t3\tChoice\t1\t5\t0\n4001\t5\tFinish\t0\t0\t0\n"));
+        // 다른 그룹의 선택지가 끼어들어도 안 된다
+        Assert.Contains("연속하지 않습니다", Error(
+            "4001\t1\tChoice\t1\t5\t0\n4001\t2\tChoice\t2\t5\t0\n4001\t3\tChoice\t1\t5\t0\n4001\t5\tFinish\t0\t0\t0\n"));
+        // 파일에 적힌 순서가 아니라 흐름 번호 순으로 본다
+        Assert.NotNull(Load(
+            "4001\t5\tFinish\t0\t0\t0\n4001\t2\tChoice\t1\t5\t0\n4001\t1\tChoice\t1\t5\t0\n"));
+        Assert.Contains("연속하지 않습니다", Error(
+            "4001\t3\tChoice\t1\t5\t0\n4001\t1\tChoice\t1\t5\t0\n4001\t2\tText\t0\t0\t0\n4001\t5\tFinish\t0\t0\t0\n"));
+    }
+
+    [Fact]
+    public void The_same_group_id_in_different_advs_is_fine()
+    {
+        Assert.NotNull(Load(
+            "4001\t1\tChoice\t1\t2\t0\n4001\t2\tFinish\t0\t0\t0\n4002\t1\tChoice\t1\t2\t0\n4002\t2\tFinish\t0\t0\t0\n"));
+    }
+
+    [Fact]
+    public void Flow_conditions_need_a_known_flow_and_unique_keys()
+    {
+        const string flows = "4001\t1\tText\t0\t0\t0\n";
+        Assert.Contains("알 수 없는 흐름", Error(flows, "4001\t2\t1\t1\tEqual\t1\n"));
+        Assert.Contains("두 번", Error(flows, "4001\t1\t1\t1\tEqual\t1\n4001\t1\t1\t1\tEqual\t2\n"));
+        Assert.Contains("컨디션 타입", Error(flows, "4001\t1\t1\t1\tNope\t1\n"));
+        Assert.Contains("그룹넘버", Error(flows, "4001\t1\tx\t1\tEqual\t1\n"));
+    }
+
+    [Fact]
+    public void The_default_pack_has_an_adv_flow_with_a_choice()
+    {
+        var root = AppContext.BaseDirectory;
+        while (!File.Exists(Path.Combine(root, "WERA.slnx"))) root = Path.GetDirectoryName(root)!;
+        using var zip = File.OpenRead(Path.Combine(root, "src", "Wera.Web", "wwwroot", "sample-pack.zip"));
+        var pack = GamePack.Load(zip);
+        Assert.Equal(5, pack.AdvFlowsOf(4001).Count);
+        Assert.Equal(2, pack.AdvFlowsOf(4001).Count(f => f.FlowType == AdvFlowType.Choice));
+        Assert.False(pack.FindAdvFlow(4001, 3)!.IsAvailable(new Dictionary<long, long>()));          // 튜토리얼 플래그가 있어야 두 번째 선택지
     }
 }

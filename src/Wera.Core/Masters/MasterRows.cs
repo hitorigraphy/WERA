@@ -305,6 +305,39 @@ public record AdvRow
     public required string Name { get; init; }
 }
 
+/// <summary>ADV 흐름: 복합키는 (ADV, 흐름 번호)이고, 보조키 ADV 코드로 그 ADV의 흐름 전부를 찾는다.</summary>
+[MemoryTable("adv_flow"), MessagePackObject(true)]
+public record AdvFlowRow
+{
+    [PrimaryKey(keyOrder: 0)]
+    [SecondaryKey(0), NonUnique]
+    public required long AdvCode { get; init; }
+
+    [PrimaryKey(keyOrder: 1)] public required long FlowNumber { get; init; }
+    public required AdvFlowType FlowType { get; init; }
+    public required long Param1 { get; init; }
+    public required long Param2 { get; init; }
+    public required long Param3 { get; init; }
+}
+
+/// <summary>ADV 흐름 조건: 복합키는 (ADV, 흐름 번호, 그룹넘버, 플래그)이고, 보조키 (ADV, 흐름 번호)로 그 흐름의 조건 전부를 찾는다.</summary>
+[MemoryTable("adv_flow_condition"), MessagePackObject(true)]
+public record AdvFlowConditionRow
+{
+    [PrimaryKey(keyOrder: 0)]
+    [SecondaryKey(0, keyOrder: 0), NonUnique]
+    public required long AdvCode { get; init; }
+
+    [PrimaryKey(keyOrder: 1)]
+    [SecondaryKey(0, keyOrder: 1), NonUnique]
+    public required long FlowNumber { get; init; }
+
+    [PrimaryKey(keyOrder: 2)] public required int GroupNumber { get; init; }
+    [PrimaryKey(keyOrder: 3)] public required long FlagCode { get; init; }
+    public required ConditionType Type { get; init; }
+    public required long Value { get; init; }
+}
+
 [MemoryTable("battle"), MessagePackObject(true)]
 public record BattleRow
 {

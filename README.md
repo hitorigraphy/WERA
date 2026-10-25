@@ -42,9 +42,13 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
 | `master/event_flow_master_v1.tsv` | (선택, 이벤트 마스터 필요) `event_code`, `flow_number`, `flow_type`, `param_1`, `param_2`, `param_3` |
 | `master/event_flow_condition_master_v1.tsv` | (선택, 이벤트 흐름 마스터 필요) `event_code`, `flow_number`, `group_number`, `flag_code`, `condition_type`, `condition_value` |
 | `master/adv_master_v1.tsv` | (선택) `code`, `name` |
+| `master/adv_flow_master_v1.tsv` | (선택, ADV 마스터 필요) `adv_code`, `flow_number`, `flow_type`, `param_1`, `param_2`, `param_3` |
+| `master/adv_flow_condition_master_v1.tsv` | (선택, ADV 흐름 마스터 필요) `adv_code`, `flow_number`, `group_number`, `flag_code`, `condition_type`, `condition_value` |
 | `master/battle_master_v1.tsv` | (선택) `code`, `name` |
 
 **이벤트, ADV, 전투 마스터**(모두 선택, 아직 게임 진행에는 쓰이지 않음): `event_master`와 `adv_master`, `battle_master`는 `code`(키), `name`입니다. `event_condition_master`는 던전/상점과 같은 조건표 규칙(그룹 안 AND, 그룹끼리 OR, `condition_type`은 `None` 등, 복합키 `(event_code, group_number, flag_code)`)이고 조건이 없는 이벤트는 늘 열립니다. `event_flow_master`의 키는 `(event_code, flow_number)`이고 `flow_type`(이름으로 적음)과 정수 `param_1`~`param_3`(비우면 0)가 값입니다. 종류와 번호는 `None`=0, `Finish`=1(이벤트 끝), `Jump`=2(`param_1`이 점프할 같은 이벤트의 `flow_number`이고 **자신의 `flow_number`보다 커야 합니다** — 뒤로만 점프하므로 무한 반복이 생기지 않습니다), `Adv`=3(`param_1`이 재생할 `adv_master`의 코드), `Battle`=4(`param_1`이 개시할 `battle_master`의 코드)이고, `param_2`와 `param_3`은 지금은 쓰이지 않습니다(앞으로를 위해 남김). Jump, Adv, Battle의 `param_1`은 로드할 때 검증합니다(Adv와 Battle은 그 마스터가 있어야 함). `event_flow_condition_master`의 키는 `(event_code, flow_number, group_number, flag_code)`이고 값은 `condition_type`, `condition_value`이며, 흐름은 흐름 마스터에 있어야 하고 규칙(그룹 안 AND, 그룹끼리 OR, 조건 없으면 늘 실행 가능)은 다른 조건표와 같습니다. 이벤트는 이벤트 마스터에 있어야 하고 같은 키를 두 번 쓸 수 없습니다.
+
+**ADV 흐름 마스터**: 키는 `(adv_code, flow_number)`이고 `flow_type`은 이름으로 적습니다(`AdvFlowType`: `None`=0, `Finish`=1, `Jump`=2, `Text`=3, `Choice`=4). `Jump`의 `param_1`은 점프할 같은 ADV의 `flow_number`로 자신보다 커야 합니다(뒤로만 점프). `Choice`는 한 행이 선택지 하나이고 `param_1`이 선택지 그룹 아이디, `param_2`가 그 선택지를 고르면 점프할 같은 ADV의 `flow_number`이며 이것도 자신보다 커야 합니다. 같은 ADV에서 `param_1`(선택지 그룹)이 같은 `Choice` 행들은 `flow_number` 순으로 연속해야 하고(다른 칸이 끼어들 수 없음) 그룹 아이디는 ADV마다 따로입니다. `Text`의 인자는 아직 정해지지 않아 쓰이지 않습니다. `adv_flow_condition_master`는 이벤트 흐름 조건과 같은 규칙이고 복합키는 `(adv_code, flow_number, group_number, flag_code)`입니다. 아직 게임 진행에는 쓰이지 않습니다.
 
 **memo 열:** 모든 마스터 TSV는 헤더에 `memo` 열을 둘 수 있고(위치 자유) 사람이 보는 메모일 뿐이라 엔진은 읽지 않으며 마스터메모리에도 올리지 않습니다. 기본 게임팩은 엔진이 요구하는 필수 행(예약 태그와 스테이터스, 플레이어 캐릭터와 그 속성/태그, 모든 캐릭터의 level/hp 레벨 0 행)의 메모에 "필수"라고 적어 두었고, 테스트용 던전(`1999`)과 상점(`2999`, 커먼/유니크/캐릭터 교환 포함)은 필수가 아니며 조건이 없어 새 게임부터 열려 있습니다.
 

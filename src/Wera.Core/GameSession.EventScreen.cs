@@ -44,7 +44,6 @@ public sealed partial class GameSession
             CurrentEvent = null;
             CurrentStep = null;
             Screen = Screen.Event;
-            Message = "이벤트가 끝났습니다.";
             return;
         }
         CurrentStep = step;
