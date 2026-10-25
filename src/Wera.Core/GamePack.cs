@@ -78,8 +78,8 @@ public sealed partial class GamePack
     /// <summary>아이템/번치 인벤토리의 아이템 코드의 이름. 마스터에 없으면 코드를 그대로 문자열로 돌려준다.</summary>
     /// <remarks>캐릭터 인벤토리는 별도 마스터라 여기서 찾지 않는다.</remarks>
     public string ItemName(long itemCode) =>
-        ItemInventory?.FirstOrDefault(i => i.Code == itemCode)?.Name
-        ?? BunchInventory?.FirstOrDefault(b => b.Code == itemCode)?.Name
+        FindItem(itemCode)?.Name
+        ?? FindBunch(itemCode)?.Name
         ?? itemCode.ToString(CultureInfo.InvariantCulture);
 
     /// <summary>
@@ -89,7 +89,7 @@ public sealed partial class GamePack
     /// <exception cref="OverflowException">곱이 long 범위를 넘을 때.</exception>
     public Dictionary<long, long> Expand(long itemCode, long amount)
     {
-        var bunch = BunchInventory?.FirstOrDefault(b => b.Code == itemCode);
+        var bunch = FindBunch(itemCode);
         return bunch is null
             ? new Dictionary<long, long> { [itemCode] = amount }
             : bunch.Parts.ToDictionary(p => p.ItemCode, p => checked(p.Amount * amount));
@@ -110,16 +110,19 @@ public sealed partial class GamePack
                 ? v
                 : throw new PackFormatException($"pack.tsv에 '{key}' 항목이 없습니다.");
 
+        var dungeonConditions = new List<FlatCondition>();
+        var shopConditions = new List<FlatCondition>();
+        var tradeConditions = new List<FlatCondition>();
         var dungeons = LoadConditioned(zip, DungeonMasterPath, ["code", "name"], DungeonFlagMasterPath, "던전", "dungeon_code",
-            (code, r, groups) => new Dungeon(code, r[1], groups));
+            dungeonConditions, (code, r, groups) => new Dungeon(code, r[1], groups));
         var shops = LoadConditioned(zip, ShopMasterPath, ["code", "name"], ShopConditionMasterPath, "상점", "shop_code",
-            (code, r, groups) => new Shop(code, r[1], groups));
+            shopConditions, (code, r, groups) => new Shop(code, r[1], groups));
         var itemInventory = LoadItemInventory(zip);
         var bunchInventory = LoadBunchInventory(zip, itemInventory);
         var attributes = LoadAttributes(zip);
         var characterInventory = LoadCharacterInventory(zip, attributes);
         CheckItemCodesAreUnique(itemInventory, bunchInventory);
-        var trades = LoadTrades(zip);
+        var trades = LoadTrades(zip, tradeConditions);
         CheckTrades(trades, shops, itemInventory, bunchInventory);
         var statusEffects = LoadStatusEffects(zip);
         var statusEffectEffects = LoadStatusEffectEffects(zip, statusEffects, embeddedEffects);
@@ -147,6 +150,10 @@ public sealed partial class GamePack
             EquipmentItems = equipmentItems,
             EquipmentTags = equipmentTags,
             EquipmentSlotTags = equipmentSlotTags,
+            Masters = BuildMasters(
+                dungeons, dungeonConditions, shops, shopConditions, itemInventory, bunchInventory, characterInventory, attributes,
+                trades, tradeConditions, statusEffects, statusEffectEffects,
+                equipmentSlots, tags, equipmentItems, equipmentTags, equipmentSlotTags),
             EmbeddedEffects = embeddedEffects,
         };
     }
@@ -172,6 +179,7 @@ public sealed partial class GamePack
     /// </summary>
     static List<T>? LoadConditioned<T>(
         ZipArchive zip, string masterPath, string[] masterHeader, string conditionPath, string noun, string codeColumn,
+        List<FlatCondition> flat,
         Func<long, string[], IReadOnlyList<IReadOnlyList<FlagCondition>>, T> create)
     {
         var masterText = TryReadEntry(zip, masterPath);
@@ -219,7 +227,9 @@ public sealed partial class GamePack
                 }
 
                 if (!byGroup.TryGetValue(groupNo, out var list)) byGroup[groupNo] = list = [];
-                list.Add(new FlagCondition(flagCode, type, value));
+                var condition = new FlagCondition(flagCode, type, value);
+                list.Add(condition);
+                flat.Add(new FlatCondition(code, groupNo, condition));       // 파일 순서 그대로(MasterMemory 테이블용)
             }
         }
 
@@ -408,11 +418,12 @@ public sealed partial class GamePack
                 throw new PackFormatException($"아이템 코드 '{b.Code}'가 아이템 인벤토리와 번치 인벤토리 마스터에 모두 있습니다.");
     }
 
-    static List<ShopTrade>? LoadTrades(ZipArchive zip) =>
+    static List<ShopTrade>? LoadTrades(ZipArchive zip, List<FlatCondition> conditions) =>
         LoadConditioned(
             zip, ShopTradeMasterPath,
             ["code", "shop_code", "cost_item_code", "cost_amount", "receive_item_code", "receive_amount"],
             ShopTradeConditionMasterPath, "트레이드", "trade_code",
+            conditions,
             (code, r, groups) =>
             {
                 const string file = ShopTradeMasterPath;
@@ -472,3 +483,6 @@ public sealed partial class GamePack
         }
     }
 }
+
+/// <summary>조건표의 한 행(파일 순서 그대로): 어느 코드(던전/상점/교환)의 몇 번 그룹에 어떤 조건이 있는가.</summary>
+internal readonly record struct FlatCondition(long Code, int GroupNo, FlagCondition Condition);

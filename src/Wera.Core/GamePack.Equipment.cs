@@ -29,21 +29,20 @@ public sealed partial class GamePack
     /// <summary>캐릭터가 가진 장비 슬롯들. 장비 슬롯 태그 마스터에 그 캐릭터로 나오는 슬롯이며, 처음 나온 순서다.</summary>
     public IReadOnlyList<EquipmentSlotEntry> EquipmentSlotsOf(long characterCode)
     {
-        var codes = (EquipmentSlotTags ?? []).Where(t => t.CharacterCode == characterCode)
-            .Select(t => t.EquipmentSlotCode).Distinct();
-        return codes.Select(code => EquipmentSlots!.First(s => s.Code == code)).ToList();
+        // 보조키 (캐릭터, 슬롯)의 범위 조회로 그 캐릭터의 규칙 행들을 모은 뒤, 파일에 처음 나온 순서로 슬롯을 고른다.
+        var rows = Masters.EquipmentSlotTagRowTable
+            .FindRangeByCharacterCodeAndEquipmentSlotCode((characterCode, long.MinValue), (characterCode, long.MaxValue))
+            .OrderBy(r => r.Order);
+        return rows.Select(r => r.EquipmentSlotCode).Distinct().Select(code => FindEquipmentSlot(code)!).ToList();
     }
 
     /// <summary>장비가 이 캐릭터의 이 슬롯에 낄 수 있는가: 슬롯 태그 마스터의 규칙에 장비의 태그가 부합해야 한다.</summary>
     public bool CanEquip(long characterCode, long equipmentSlotCode, long itemCode)
     {
-        var rules = (EquipmentSlotTags ?? [])
-            .Where(t => t.CharacterCode == characterCode && t.EquipmentSlotCode == equipmentSlotCode)
-            .ToList();
-        if (rules.Count == 0 || EquipmentItems?.Any(i => i.ItemCode == itemCode) != true) return false;
+        var rules = SlotTagRulesOf(characterCode, equipmentSlotCode);
+        if (rules.Count == 0 || FindEquipmentItem(itemCode) is null) return false;
 
-        var tags = (EquipmentTags ?? []).Where(t => t.ItemCode == itemCode).Select(t => t.TagCode).ToHashSet();
-        return EquipmentRules.Matches(rules, tags);
+        return EquipmentRules.Matches(rules, TagsOfEquipment(itemCode));
     }
 
     /// <summary>이 캐릭터의 이 슬롯에 낄 수 있는 장비들(장비 마스터 순서).</summary>

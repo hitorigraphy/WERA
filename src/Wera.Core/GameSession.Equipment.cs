@@ -64,7 +64,7 @@ public sealed partial class GameSession
     }
 
     string EquipmentItemName(long itemCode) =>
-        Pack.EquipmentItems?.FirstOrDefault(i => i.ItemCode == itemCode)?.ItemName ?? itemCode.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        Pack.FindEquipmentItem(itemCode)?.ItemName ?? itemCode.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
     /// <summary>장비 슬롯 목록의 항목 이름: "무기 : 철검", 비어 있으면 "무기 : (없음)".</summary>
     string EquipmentSlotLabel(EquipmentSlotEntry slot)
@@ -137,12 +137,12 @@ public sealed partial class GameSession
         GamePack pack, Dictionary<long, CharacterState> characters,
         Dictionary<long, long>? savedOwned, Dictionary<long, Dictionary<long, long>>? savedEquipped)
     {
-        var knownItems = pack.EquipmentItems?.Select(i => i.ItemCode).ToHashSet() ?? [];
+        bool IsKnownItem(long item) => pack.FindEquipmentItem(item) is not null;
 
         var owned = new Dictionary<long, long>();
         foreach (var (item, count) in savedOwned ?? [])
         {
-            if (!knownItems.Contains(item))
+            if (!IsKnownItem(item))
                 throw new SaveFormatException($"세이브의 보유 장비 '{item}'가 장비 마스터에 없습니다.");
             if (count < 0)
                 throw new SaveFormatException($"세이브의 보유 장비 '{item}'의 개수가 음수입니다: {count}");
@@ -159,7 +159,7 @@ public sealed partial class GameSession
             {
                 if (pack.EquipmentSlotsOf(character).All(s => s.Code != slot))
                     throw new SaveFormatException($"세이브의 캐릭터 '{character}'에게는 장비 슬롯 '{slot}'가 없습니다.");
-                if (!knownItems.Contains(item))
+                if (!IsKnownItem(item))
                     throw new SaveFormatException($"세이브의 장착 장비 '{item}'가 장비 마스터에 없습니다.");
                 if (!pack.CanEquip(character, slot, item))
                     throw new SaveFormatException($"세이브의 캐릭터 '{character}' 슬롯 '{slot}'에 장비 '{item}'를 끼울 수 없습니다(슬롯 태그에 부합하지 않음).");

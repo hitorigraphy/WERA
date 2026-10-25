@@ -124,7 +124,7 @@ public sealed partial class GameSession
     public long? CurrentEquipmentSlotCode { get; private set; }
 
     public EquipmentSlotEntry? CurrentEquipmentSlot =>
-        Pack.EquipmentSlots?.FirstOrDefault(s => s.Code == CurrentEquipmentSlotCode);
+        CurrentEquipmentSlotCode is { } slotCode ? Pack.FindEquipmentSlot(slotCode) : null;
 
     /// <summary>선택한 캐릭터가 가진 장비 슬롯들.</summary>
     IReadOnlyList<EquipmentSlotEntry> CurrentEquipmentSlots =>
@@ -174,7 +174,7 @@ public sealed partial class GameSession
                 .ToList() ?? [];
 
     string CharacterName(long code) =>
-        Pack.CharacterInventory?.FirstOrDefault(c => c.Code == code)?.Name ?? code.ToString(CultureInfo.InvariantCulture);
+        Pack.FindCharacter(code)?.Name ?? code.ToString(CultureInfo.InvariantCulture);
 
     /// <summary>파티 설정 화면의 9개 슬롯. 비었거나 상태를 알 수 없으면 "빈 슬롯"(회색 0/0).</summary>
     public IReadOnlyList<PartySlotView> PartySlotViews =>
@@ -200,17 +200,17 @@ public sealed partial class GameSession
         StatusEffectsOf(characterCode)
             .Select(s => new StatusBadge(
                 s.StatusEffectCode,
-                Pack.StatusEffects?.FirstOrDefault(e => e.Code == s.StatusEffectCode)?.Name
+                Pack.FindStatusEffect(s.StatusEffectCode)?.Name
                     ?? s.StatusEffectCode.ToString(CultureInfo.InvariantCulture)))
             .ToList();
 
     /// <summary>캐릭터의 유리속성(⭕), 불리속성(❌) 순서의 배지.</summary>
     IReadOnlyList<AttributeBadge> AttributeBadges(long characterCode)
     {
-        var character = Pack.CharacterInventory?.FirstOrDefault(c => c.Code == characterCode);
+        var character = Pack.FindCharacter(characterCode);
         if (character is null) return [];
         string NameOf(long attribute) =>
-            Pack.Attributes?.FirstOrDefault(a => a.Code == attribute)?.Name ?? attribute.ToString(CultureInfo.InvariantCulture);
+            Pack.FindAttribute(attribute)?.Name ?? attribute.ToString(CultureInfo.InvariantCulture);
         return
         [
             new AttributeBadge(character.AdvantageAttributeCode, NameOf(character.AdvantageAttributeCode), Advantage: true),
@@ -316,7 +316,7 @@ public sealed partial class GameSession
     /// </summary>
     public bool ApplyEffect(long effectCode, long targetCharacterCode, long value1 = 0, long value2 = 0, long value3 = 0)
     {
-        var entry = Pack.CharacterInventory?.FirstOrDefault(c => c.Code == targetCharacterCode);
+        var entry = Pack.FindCharacter(targetCharacterCode);
         if (!Pack.EmbeddedEffects.Contains(effectCode)
             || entry is null
             || !Characters.TryGetValue(targetCharacterCode, out var state))
@@ -461,7 +461,7 @@ public sealed partial class GameSession
         foreach (var (item, delta) in net)
         {
             if (delta <= 0) continue;
-            var limit = Pack.ItemInventory?.FirstOrDefault(i => i.Code == item)?.CarryLimit ?? long.MaxValue;
+            var limit = Pack.FindItem(item)?.CarryLimit ?? long.MaxValue;
             if (checked(InventoryItems.GetValueOrDefault(item).Amount + delta) > limit)
                 return $"교환 실패 - 소지 한도 초과: {Pack.ItemName(item)} (한도 {limit}) [{text}]";
         }
@@ -489,12 +489,9 @@ public sealed partial class GameSession
     public bool ApplyStatusEffect(long characterCode, long statusEffectCode)
     {
         if (!Characters.ContainsKey(characterCode)) return false;
-        if (Pack.StatusEffects?.Any(s => s.Code == statusEffectCode) != true) return false;
+        if (Pack.FindStatusEffect(statusEffectCode) is null) return false;
 
-        var effects = (Pack.StatusEffectEffects ?? [])
-            .Where(r => r.StatusEffectCode == statusEffectCode)
-            .Select(ActiveEffect.From)
-            .ToList();
+        var effects = Pack.StatusEffectEffectsOf(statusEffectCode).Select(ActiveEffect.From).ToList();
         if (!CharacterStatusEffects.TryGetValue(characterCode, out var list))
             CharacterStatusEffects[characterCode] = list = [];
         list.RemoveAll(s => s.StatusEffectCode == statusEffectCode);
@@ -532,7 +529,7 @@ public sealed partial class GameSession
             foreach (var status in list ?? [])
             {
                 if (status is null) throw new SaveFormatException($"세이브의 캐릭터 '{characterCode}'의 상태이상 목록에 빈 항목이 있습니다.");
-                if (pack.StatusEffects?.Any(s => s.Code == status.StatusEffectCode) != true)
+                if (pack.FindStatusEffect(status.StatusEffectCode) is null)
                     throw new SaveFormatException($"세이브의 상태이상 '{status.StatusEffectCode}'가 상태이상 마스터에 없습니다.");
                 if (!seen.Add(status.StatusEffectCode))
                     throw new SaveFormatException(
@@ -587,7 +584,7 @@ public sealed partial class GameSession
         var characters = save.Characters is null ? [] : new Dictionary<long, CharacterState>(save.Characters);
         foreach (var (code, s) in characters)
         {
-            if (pack.CharacterInventory?.Any(c => c.Code == code) != true)
+            if (pack.FindCharacter(code) is null)
                 throw new SaveFormatException($"세이브의 캐릭터 '{code}'가 캐릭터 인벤토리 마스터에 없습니다.");
             if (s.Level < 1 || s.MaxHp < 0 || s.Hp < 0 || s.Hp > s.MaxHp || s.XpMax < 0 || s.Xp < 0 || s.Xp > s.XpMax)
                 throw new SaveFormatException(
