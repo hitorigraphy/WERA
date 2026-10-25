@@ -195,12 +195,17 @@ public sealed partial class GameSession
     public IReadOnlyList<PartySlotView> PartySlotViews =>
         Enumerable.Range(0, PartySlotCount).Select(SlotView).ToList();
 
+    /// <summary>홈 화면 위쪽 왼쪽의 파트너 슬롯. 아직 기능이 없어 늘 비어 있다(추후 확장).</summary>
+    public PartySlotView PartnerSlot => PartySlotView.Empty();
+
+    /// <summary>홈 화면 위쪽 오른쪽의 어시스트 슬롯. 아직 기능이 없어 늘 비어 있다(추후 확장).</summary>
+    public PartySlotView AssistSlot => PartySlotView.Empty();
+
     PartySlotView SlotView(int slot)
     {
         if (Party[slot] is not { } code || !Characters.TryGetValue(code, out var state))
         {
-            var empty = Gauge.Render(0, 0, gray: true);
-            return new PartySlotView(slot, null, "", PartySlotView.EmptyName, empty, empty, [], []);
+            return PartySlotView.Empty(slot);
         }
         return new PartySlotView(
             slot, code, $"Lv.{state.Level}", CharacterName(code),

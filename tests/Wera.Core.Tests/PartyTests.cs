@@ -5,7 +5,8 @@ namespace Wera.Core.Tests;
 public class PartyTests
 {
     // 속성: 1 불, 2 물, 3 풀, 4 빛, 5 어둠
-    const string Attributes = "attribute_code\tattribute_name\n1\t불\n2\t물\n3\t풀\n4\t빛\n5\t어둠\n";
+    const string PackText = "id\tdemo\ntitle\t데모\n";
+    const string Attributes ="attribute_code\tattribute_name\n1\t불\n2\t물\n3\t풀\n4\t빛\n5\t어둠\n";
 
     // 7001 용사(유리 빛, 불리 어둠), 7002 마법사(불/물), 7003 전사(풀/불), 7004 도적(보유하지 않음)
     const string Characters =
@@ -500,4 +501,18 @@ public class PartyTests
     [Fact]
     public void Characters_in_a_save_need_a_character_inventory_master()
         => Assert.Throws<SaveFormatException>(() => GameSession.FromSaveJson(Pack(null), Header + Owned7001 + "}"));
+
+    [Fact]
+    public void Home_has_empty_partner_and_assist_slots_for_later_extension()
+    {
+        var s = GameSession.NewGame(GamePack.Load(CoreTests.Zip(("pack.tsv", PackText))));
+        foreach (var slot in new[] { s.PartnerSlot, s.AssistSlot })
+        {
+            Assert.True(slot.IsEmpty);
+            Assert.Equal(PartySlotView.EmptyName, slot.Name);
+            Assert.Equal(-1, slot.Slot);                              // 파티 슬롯 번호(0~8)가 아니다
+            Assert.Equal("-----0/0-----", slot.Hp.Text);
+        }
+        Assert.Equal(["103", "200", "300"], s.Entries.Select(e => e.Code));   // 홈 항목에는 영향이 없다
+    }
 }

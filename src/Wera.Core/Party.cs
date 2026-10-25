@@ -80,6 +80,13 @@ public sealed record PartySlotView(
 {
     public const string EmptyName = "빈 슬롯";
 
+    /// <summary>빈 슬롯의 표시(회색 0/0). 슬롯 번호가 없는 슬롯(파트너, 어시스트)은 -1.</summary>
+    public static PartySlotView Empty(int slot = -1)
+    {
+        var empty = Gauge.Render(0, 0, gray: true);
+        return new PartySlotView(slot, null, "", EmptyName, empty, empty, [], []);
+    }
+
     /// <summary>줄 이름: 위 줄(슬롯 0~2) 전위, 가운데 줄(3~5) 중위, 아래 줄(6~8) 후위.</summary>
     public static IReadOnlyList<string> RowNames { get; } = ["전위", "중위", "후위"];
 

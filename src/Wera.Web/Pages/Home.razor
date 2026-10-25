@@ -35,6 +35,17 @@
         <text x="50" y="55" text-anchor="middle" font-size="15" fill="#999" font-family="monospace">No Image</text>
     </svg>;
 
+    // 홈 화면 위쪽의 파트너/어시스트 슬롯: 파티 슬롯과 같은 모양이지만 아직 누를 수 있는 기능이 없다.
+    RenderFragment<PartySlotView> homeSlot = slot => @<div class="slot">
+        <div class="slot-icon" title="@slot.Name">@noImage</div>
+        <div class="slot-info">
+            <div class="slot-name"><span class="slot-level">@slot.LevelText</span><span class="slot-char">@slot.Name</span></div>
+            <div class="gauge-line">HP : <span class="gauge gauge-@slot.Hp.Color.ToString().ToLowerInvariant()">@slot.Hp.Text</span></div>
+            <div class="gauge-line">XP : <span class="gauge gauge-@slot.Xp.Color.ToString().ToLowerInvariant()">@slot.Xp.Text</span></div>
+            <div class="icon-line"></div>
+        </div>
+    </div>;
+
     // 파티 슬롯 3×3. 위 줄이 전위, 가운데 줄이 중위, 아래 줄이 후위. 이름이나 아이콘을 누르면(또는 슬롯 번호를 입력하면)
     // 캐릭터 배치 모드에서는 배치할 캐릭터 목록으로, 장비 착용 모드에서는 그 캐릭터의 장비 목록으로 간다.
     // 장비 착용 모드에서는 빈 슬롯을 누를 수 없다.
@@ -94,6 +105,16 @@
         @switch (session.Screen)
         {
             case Screen.Home:
+                <div class="home-slots">
+                    <div>
+                        <div class="row-label">파트너</div>
+                        @homeSlot(session.PartnerSlot)
+                    </div>
+                    <div>
+                        <div class="row-label">어시스트</div>
+                        @homeSlot(session.AssistSlot)
+                    </div>
+                </div>
                 @commands
                 break;
 
