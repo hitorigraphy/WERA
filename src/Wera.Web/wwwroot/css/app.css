@@ -124,6 +124,7 @@ a.button, button.button { border-color: #666; }
 
 /* ---- 파티 설정: 3×3 슬롯 ---- */
 .home-slots { display: flex; justify-content: space-between; gap: 1.5rem; margin: 1rem 0; overflow-x: auto; }
+.home-slots > div { min-width: max-content; }
 .party-grid { display: grid; grid-template-columns: repeat(3, max-content); gap: .9rem 1.5rem; margin: 1rem 0; overflow-x: auto; }
 .slot { display: flex; gap: .5rem; align-items: flex-start; }
 /* 아이콘은 오른쪽 4줄(이름, HP, XP, 아이콘 줄)의 세로 높이와 같은 정사각형 */

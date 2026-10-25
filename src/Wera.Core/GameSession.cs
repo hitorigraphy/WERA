@@ -20,6 +20,8 @@ public enum Screen
     EquipmentSelect,
     /// <summary>선택한 슬롯에 배치할 캐릭터 목록.</summary>
     CharacterSelect,
+    /// <summary>홈 화면의 파트너/어시스트 슬롯에 지정할 캐릭터 목록(파티 설정과 독립). 돌아가기는 홈.</summary>
+    SupportSelect,
     /// <summary>선택한 상점의 교환 목록.</summary>
     ShopTrades,
     Load,
@@ -37,6 +39,10 @@ public enum EntryAction
     PlaceCharacter,
     /// <summary>선택한 슬롯의 캐릭터를 파티에서 뺀다(슬롯이 빈다).</summary>
     ClearSlot,
+    /// <summary>항목의 코드에 해당하는 캐릭터를 홈의 파트너/어시스트 슬롯에 지정한다(다른 쪽에 있던 캐릭터면 서로 바뀐다).</summary>
+    SetSupport,
+    /// <summary>선택한 파트너/어시스트 슬롯을 비운다.</summary>
+    ClearSupport,
     /// <summary>항목의 코드에 해당하는 보유 장비를 선택한 캐릭터의 선택한 장비 슬롯에 끼운다(이미 끼고 있던 장비는 빠진다).</summary>
     EquipItem,
     /// <summary>선택한 캐릭터의 선택한 장비 슬롯의 장비를 뺀다.</summary>
@@ -60,7 +66,9 @@ public sealed record SaveData(
     Dictionary<long, List<ActiveStatusEffect>>? StatusEffects = null,
     Dictionary<string, UniqueItemInstance>? UniqueItems = null,
     Dictionary<long, List<long>>? CharacterTags = null,
-    Dictionary<long, Dictionary<long, EquipRef>>? EquippedItems = null);
+    Dictionary<long, Dictionary<long, EquipRef>>? EquippedItems = null,
+    long? Partner = null,
+    long? Assist = null);
 
 [JsonSerializable(typeof(SaveData))]
 [JsonSourceGenerationOptions(WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
@@ -195,15 +203,12 @@ public sealed partial class GameSession
     public IReadOnlyList<PartySlotView> PartySlotViews =>
         Enumerable.Range(0, PartySlotCount).Select(SlotView).ToList();
 
-    /// <summary>홈 화면 위쪽 왼쪽의 파트너 슬롯. 아직 기능이 없어 늘 비어 있다(추후 확장).</summary>
-    public PartySlotView PartnerSlot => PartySlotView.Empty();
+    PartySlotView SlotView(int slot) => CharacterView(slot, Party[slot]);
 
-    /// <summary>홈 화면 위쪽 오른쪽의 어시스트 슬롯. 아직 기능이 없어 늘 비어 있다(추후 확장).</summary>
-    public PartySlotView AssistSlot => PartySlotView.Empty();
-
-    PartySlotView SlotView(int slot)
+    /// <summary>캐릭터 한 명의 슬롯 표시. 코드가 없거나 보유하지 않으면 빈 슬롯. 슬롯 번호가 없는 슬롯은 -1.</summary>
+    PartySlotView CharacterView(int slot, long? characterCode)
     {
-        if (Party[slot] is not { } code || !Characters.TryGetValue(code, out var state))
+        if (characterCode is not { } code || !Characters.TryGetValue(code, out var state))
         {
             return PartySlotView.Empty(slot);
         }
@@ -246,6 +251,7 @@ public sealed partial class GameSession
     {
         get
         {
+            if (Screen == Screen.SupportSelect) return SupportList;
             if (Screen != Screen.CharacterSelect || CurrentSlot is not { } slot) return [];
             return (Pack.CharacterInventory ?? []).Select(c =>
             {
@@ -321,6 +327,8 @@ public sealed partial class GameSession
                             .Select(c => new ScreenEntry(Text(c.Code), c.Name, Screen.PartySetup, EntryAction.PlaceCharacter)))
                         .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen.PartySetup))
                         .ToList();
+                case Screen.SupportSelect:
+                    return SupportSelectEntries();
                 case Screen.DungeonSelect:
                 case Screen.Load:
                     return [new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home)];
@@ -361,7 +369,7 @@ public sealed partial class GameSession
     {
         Message = null;
         code = Normalize(code);
-        var entry = Entries.FirstOrDefault(e => e.Code == code);
+        var entry = Entries.Concat(HomeSlotEntries).FirstOrDefault(e => e.Code == code);
         switch (entry?.Action)
         {
             case EntryAction.Navigate:
@@ -373,6 +381,17 @@ public sealed partial class GameSession
                     _ => null,
                 };
                 CurrentEquipmentSlotCode = entry.Target == Screen.EquipmentSelect ? CodeOf(entry) : null;
+                CurrentSupportRole = entry.Target == Screen.SupportSelect ? Enum.Parse<SupportRole>(entry.Arg!) : null;
+                Screen = entry.Target;
+                break;
+            case EntryAction.SetSupport:
+                SetSupport(CurrentSupportRole!.Value, CodeOf(entry));
+                CurrentSupportRole = null;
+                Screen = entry.Target;
+                break;
+            case EntryAction.ClearSupport:
+                SetSupport(CurrentSupportRole!.Value, null);
+                CurrentSupportRole = null;
                 Screen = entry.Target;
                 break;
             case EntryAction.Trade:
@@ -640,7 +659,8 @@ public sealed partial class GameSession
                 CopyStatusEffects(CharacterStatusEffects),
                 CopyUniqueItems(),
                 CopyCharacterTags(),
-                CopyEquippedItems()),
+                CopyEquippedItems(),
+                PartnerCode, AssistCode),
             SaveJsonContext.Default.SaveData);
 
     public static GameSession FromSaveJson(GamePack pack, string json)
@@ -684,7 +704,17 @@ public sealed partial class GameSession
         var (uniqueItems, characterTags, equippedItems) =
             ValidateEquipment(pack, characters, inventory, save.UniqueItems, save.CharacterTags, save.EquippedItems);
 
+        foreach (var (what, code) in new[] { ("파트너", save.Partner), ("어시스트", save.Assist) })
+            if (code is { } support && !characters.ContainsKey(support))
+                throw new SaveFormatException($"세이브의 {what} 캐릭터 '{support}'가 보유 캐릭터에 없습니다.");
+        if (save.Partner is not null && save.Partner == save.Assist)
+            throw new SaveFormatException("세이브의 파트너와 어시스트가 같은 캐릭터입니다.");
+
         // 불러오기는 저장된 화면과 상관없이 항상 홈으로 들어간다.
-        return new GameSession(pack, Screen.Home, playerFlags, inventory, characters, party, statusEffects, uniqueItems, characterTags, equippedItems);
+        return new GameSession(pack, Screen.Home, playerFlags, inventory, characters, party, statusEffects, uniqueItems, characterTags, equippedItems)
+        {
+            PartnerCode = save.Partner,
+            AssistCode = save.Assist,
+        };
     }
 }

@@ -35,14 +35,40 @@
         <text x="50" y="55" text-anchor="middle" font-size="15" fill="#999" font-family="monospace">No Image</text>
     </svg>;
 
-    // 홈 화면 위쪽의 파트너/어시스트 슬롯: 파티 슬롯과 같은 모양이지만 아직 누를 수 있는 기능이 없다.
-    RenderFragment<PartySlotView> homeSlot = slot => @<div class="slot">
-        <div class="slot-icon" title="@slot.Name">@noImage</div>
+    // 홈 화면 위쪽의 슬롯(당신, 파트너, 어시스트): 파티 슬롯과 같은 모양. 코드가 있으면 이미지나 이름을 눌러(또는 그 코드를 입력해)
+    // 캐릭터 목록으로 가고, 코드가 없으면(당신) 눌러도 아무 일도 없다.
+    RenderFragment<(PartySlotView View, string? Code)> homeSlot = item => @<div class="slot">
+        @if (item.Code is { } homeCode)
+        {
+            <button class="slot-icon" title="@item.View.Name" @onclick="() => Activate(homeCode)">@noImage</button>
+        }
+        else
+        {
+            <div class="slot-icon" title="@item.View.Name">@noImage</div>
+        }
         <div class="slot-info">
-            <div class="slot-name"><span class="slot-level">@slot.LevelText</span><span class="slot-char">@slot.Name</span></div>
-            <div class="gauge-line">HP : <span class="gauge gauge-@slot.Hp.Color.ToString().ToLowerInvariant()">@slot.Hp.Text</span></div>
-            <div class="gauge-line">XP : <span class="gauge gauge-@slot.Xp.Color.ToString().ToLowerInvariant()">@slot.Xp.Text</span></div>
-            <div class="icon-line"></div>
+            @if (item.Code is { } nameCode)
+            {
+                <button class="slot-name" @onclick="() => Activate(nameCode)">
+                    <span class="slot-level">@item.View.LevelText</span><span class="slot-char">@item.View.Name</span>
+                </button>
+            }
+            else
+            {
+                <div class="slot-name"><span class="slot-level">@item.View.LevelText</span><span class="slot-char">@item.View.Name</span></div>
+            }
+            <div class="gauge-line">HP : <span class="gauge gauge-@item.View.Hp.Color.ToString().ToLowerInvariant()">@item.View.Hp.Text</span></div>
+            <div class="gauge-line">XP : <span class="gauge gauge-@item.View.Xp.Color.ToString().ToLowerInvariant()">@item.View.Xp.Text</span></div>
+            <div class="icon-line">
+                @foreach (var badge in item.View.Badges)
+                {
+                    <span class="badge" title="@badge.Name (@(badge.Advantage ? "유리속성" : "불리속성"))">@noImageSmall<span class="badge-marker">@badge.Marker</span></span>
+                }
+                @foreach (var status in item.View.StatusBadges)
+                {
+                    <span class="badge" title="@status.Name (상태이상)">@noImageSmall</span>
+                }
+            </div>
         </div>
     </div>;
 
@@ -107,12 +133,16 @@
             case Screen.Home:
                 <div class="home-slots">
                     <div>
-                        <div class="row-label">파트너</div>
-                        @homeSlot(session.PartnerSlot)
+                        <div class="row-label">@GameSession.PlayerSlotName</div>
+                        @homeSlot((session.PlayerSlot, null))
                     </div>
                     <div>
-                        <div class="row-label">어시스트</div>
-                        @homeSlot(session.AssistSlot)
+                        <div class="row-label">[@GameSession.PartnerEntryCode] 파트너</div>
+                        @homeSlot((session.PartnerSlot, GameSession.PartnerEntryCode))
+                    </div>
+                    <div>
+                        <div class="row-label">[@GameSession.AssistEntryCode] 어시스트</div>
+                        @homeSlot((session.AssistSlot, GameSession.AssistEntryCode))
                     </div>
                 </div>
                 @commands
@@ -165,6 +195,32 @@
                     <p class="end">장비할 수 있는 장비가 없습니다.</p>
                 }
                 @entryList(session.Entries)
+                @commandBox
+                break;
+
+            case Screen.SupportSelect:
+                <h2>@(session.CurrentSupportRoleName)로 지정할 캐릭터</h2>
+                @* 맨 위 [0] 비우기: 이 슬롯에 캐릭터가 있을 때만 나온다. 파티 설정과는 독립이다. *@
+                @entryList(session.Entries.Where(e => e.Code == GameSession.ClearEntryCode))
+                @* 흰색: 지정 가능, 회색: 보유하지 않음, 하늘색: 이 슬롯의 캐릭터, 초록: 다른 쪽 슬롯의 캐릭터(고르면 서로 바뀐다) *@
+                <ul class="character-list">
+                    @foreach (var c in session.SupportList)
+                    {
+                        var supportCode = c.Code.ToString();
+                        var supportClass = "char-" + c.Color.ToString().ToLowerInvariant();
+                        <li>
+                            @if (c.Selectable)
+                            {
+                                <button class="textlink @supportClass" @onclick="() => Activate(supportCode)">[@c.Code] @c.Name</button>
+                            }
+                            else
+                            {
+                                <span class="@supportClass">[@c.Code] @c.Name</span>
+                            }
+                        </li>
+                    }
+                </ul>
+                @entryList(session.Entries.Where(e => e.Code == GameSession.BackEntryCode))
                 @commandBox
                 break;
 
