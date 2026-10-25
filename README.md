@@ -9,15 +9,15 @@ GitHub Pages에서 동작하는 텍스트 게임 구동기입니다. C# / Blazor
 ## 게임팩 형식 (잠정)
 TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
 
-**값의 타입:** 모든 코드(던전, 상점, 아이템, 캐릭터, 교환, 플래그 코드 등), 수량(어마운트, 소지제한), 캐릭터 수치(레벨, HP, XP 등), 플래그 값은 `long` 정수입니다. 그룹넘버(`group_no`)만 `int`입니다. 코드를 숫자가 아닌 이름으로 쓸 수 없습니다(예: 플래그 코드 `1001`). 게임팩 `id`는 문자열입니다.
+**값의 타입:** 모든 코드(던전, 상점, 아이템, 캐릭터, 교환, 플래그 코드 등), 수량(어마운트, 소지제한), 캐릭터 수치(레벨, HP, XP 등), 플래그 값은 `long` 정수입니다. 그룹넘버(`group_number`)만 `int`입니다. 코드를 숫자가 아닌 이름으로 쓸 수 없습니다(예: 플래그 코드 `1001`). 게임팩 `id`는 문자열입니다.
 
 | 파일 | 내용 |
 |---|---|
 | `pack.tsv` | `key`/`value` 행: `id`, `title` |
 | `master/dungeon_master_v1.tsv` | (선택) `code`, `name` |
-| `master/dungeon_flag_master_v1.tsv` | (선택) `dungeon_code`, `group_no`, `flag_code`, `condition_type`, `condition_value` |
+| `master/dungeon_flag_master_v1.tsv` | (선택) `dungeon_code`, `group_number`, `flag_code`, `condition_type`, `condition_value` |
 | `master/shop_master_v1.tsv` | (선택) `code`, `name` |
-| `master/shop_condition_master_v1.tsv` | (선택) `shop_code`, `group_no`, `flag_code`, `condition_type`, `condition_value` |
+| `master/shop_condition_master_v1.tsv` | (선택) `shop_code`, `group_number`, `flag_code`, `condition_type`, `condition_value` |
 | `master/common_item_inventory_master_v1.tsv` | (선택) `item_code`, `item_name`, `carry_limit` |
 | `master/bunch_item_inventory_master_v1.tsv` | (선택) `item_code`, `item_name`, `part_item_code`, `part_amount` |
 | `master/character_inventory_master_v1.tsv` | (선택) `character_code`, `character_name`, `carry_limit`, `advantage_attribute_code`, `disadvantage_attribute_code` |
@@ -34,7 +34,7 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
 | `master/character_tag_master_v1.tsv` | (선택, 캐릭터 인벤토리/태그 마스터 필요) `character_code`, `tag_code` |
 | `master/equipment_slot_tag_master_v1.tsv` | (선택, 캐릭터 인벤토리/장비 슬롯/태그 마스터 필요) `character_code`, `equipment_slot_code`, `tag_code`, `group_number`, `is_positive` |
 | `master/shop_trade_master_v1.tsv` | (선택) `code`, `shop_code`, `cost_item_code`, `cost_amount`, `receive_item_code`, `receive_amount` + 선택 열 `cost_kind`, `receive_kind` |
-| `master/shop_trade_condition_master_v1.tsv` | (선택) `trade_code`, `group_no`, `flag_code`, `condition_type`, `condition_value` |
+| `master/shop_trade_condition_master_v1.tsv` | (선택) `trade_code`, `group_number`, `flag_code`, `condition_type`, `condition_value` |
 
 ### 아이템과 상점 교환
 - **커먼 아이템 인벤토리**(`common_item_inventory_master`)는 아이템 코드, 이름, 소지제한(`carry_limit`, 한 번에 소지할 수 있는 최대 수량, 1 이상의 정수)입니다.
@@ -125,7 +125,7 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
 ## 구조
 - `src/Wera.Core` — 게임팩 로딩, 세션, 세이브 (브라우저 비의존)
 - `src/Wera.Web` — Blazor WASM UI
-- 마스터 데이터는 [MasterMemory](https://github.com/Cysharp/MasterMemory)(인메모리 읽기 전용 DB)에 올립니다. 테이블 정의는 `src/Wera.Core/Masters/MasterRows.cs`, 조회는 `GamePack.Masters.cs`(`GamePack.Masters`, `FindCharacter` 등)입니다. TSV 파싱과 외래키 검증은 기존 로더가 하고, 결과를 테이블로 올린 뒤 `Validate()`로 기본키 중복을 한 번 더 확인합니다. 테이블은 행 순서(int 순번)를 따로 기억하지 않고 기본키 순서로 저장되며, 순서가 필요한 조회(번치 부품, 상태이상 이펙트, 슬롯 규칙, 태그 등)는 키 순서대로 `OrderBy`/`ThenBy` 합니다. 화면에 나오는 목록(던전, 상점, 캐릭터 등)은 게임팩 파일 순서 그대로입니다. 복합키가 같은 행은 두 번 쓸 수 없고(오류), 던전/상점/교환 조건표는 `(코드, group_no, flag_code)`, 상태이상 이펙트는 `(status_effect_code, trigger_type, effect_code)`가 복합키입니다.
+- 마스터 데이터는 [MasterMemory](https://github.com/Cysharp/MasterMemory)(인메모리 읽기 전용 DB)에 올립니다. 테이블 정의는 `src/Wera.Core/Masters/MasterRows.cs`, 조회는 `GamePack.Masters.cs`(`GamePack.Masters`, `FindCharacter` 등)입니다. TSV 파싱과 외래키 검증은 기존 로더가 하고, 결과를 테이블로 올린 뒤 `Validate()`로 기본키 중복을 한 번 더 확인합니다. 테이블은 행 순서(int 순번)를 따로 기억하지 않고 기본키 순서로 저장되며, 순서가 필요한 조회(번치 부품, 상태이상 이펙트, 슬롯 규칙, 태그 등)는 키 순서대로 `OrderBy`/`ThenBy` 합니다. 화면에 나오는 목록(던전, 상점, 캐릭터 등)은 게임팩 파일 순서 그대로입니다. 복합키가 같은 행은 두 번 쓸 수 없고(오류), 던전/상점/교환 조건표는 `(코드, group_number, flag_code)`, 상태이상 이펙트는 `(status_effect_code, trigger_type, effect_code)`가 복합키입니다.
 - `tests/Wera.Core.Tests` — xUnit 테스트
 
 ## 개발

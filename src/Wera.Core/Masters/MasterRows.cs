@@ -56,7 +56,7 @@ public record DungeonFlagRow
     [SecondaryKey(0), NonUnique]
     public required long DungeonCode { get; init; }
 
-    [PrimaryKey(keyOrder: 1)] public required int GroupNo { get; init; }
+    [PrimaryKey(keyOrder: 1)] public required int GroupNumber { get; init; }
     [PrimaryKey(keyOrder: 2)] public required long FlagCode { get; init; }
     public required ConditionType Type { get; init; }
     public required long Value { get; init; }
@@ -77,7 +77,7 @@ public record ShopConditionRow
     [SecondaryKey(0), NonUnique]
     public required long ShopCode { get; init; }
 
-    [PrimaryKey(keyOrder: 1)] public required int GroupNo { get; init; }
+    [PrimaryKey(keyOrder: 1)] public required int GroupNumber { get; init; }
     [PrimaryKey(keyOrder: 2)] public required long FlagCode { get; init; }
     public required ConditionType Type { get; init; }
     public required long Value { get; init; }
@@ -137,7 +137,7 @@ public record ShopTradeConditionRow
     [SecondaryKey(0), NonUnique]
     public required long TradeCode { get; init; }
 
-    [PrimaryKey(keyOrder: 1)] public required int GroupNo { get; init; }
+    [PrimaryKey(keyOrder: 1)] public required int GroupNumber { get; init; }
     [PrimaryKey(keyOrder: 2)] public required long FlagCode { get; init; }
     public required ConditionType Type { get; init; }
     public required long Value { get; init; }

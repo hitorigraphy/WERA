@@ -1,4 +1,4 @@
-dungeon_code	group_no	flag_code	condition_type	condition_value
+dungeon_code	group_number	flag_code	condition_type	condition_value
 1001	1	1001	GreaterOrEqual	1
 1002	1	1001	GreaterOrEqual	1
 1002	1	1002	GreaterOrEqual	3

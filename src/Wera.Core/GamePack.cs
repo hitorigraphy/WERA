@@ -7,12 +7,12 @@ namespace Wera.Core;
 public sealed class PackFormatException(string message) : Exception(message);
 
 /// <summary>
-/// 게임팩: TSV 묶음 zip. 첫 줄은 헤더. 모든 코드와 수량은 long 정수, 그룹넘버(group_no)는 int.
+/// 게임팩: TSV 묶음 zip. 첫 줄은 헤더. 모든 코드와 수량은 long 정수, 그룹넘버(group_number)는 int.
 ///   pack.tsv                              key/value 행 (id, title)
 ///   master/dungeon_master_v1.tsv          (선택) code, name
-///   master/dungeon_flag_master_v1.tsv     (선택) dungeon_code, group_no, flag_code, condition_type, condition_value
+///   master/dungeon_flag_master_v1.tsv     (선택) dungeon_code, group_number, flag_code, condition_type, condition_value
 ///   master/shop_master_v1.tsv             (선택) code, name
-///   master/shop_condition_master_v1.tsv   (선택) shop_code, group_no, flag_code, condition_type, condition_value
+///   master/shop_condition_master_v1.tsv   (선택) shop_code, group_number, flag_code, condition_type, condition_value
 ///   master/common_item_inventory_master_v1.tsv      (선택) item_code, item_name, carry_limit
 ///   master/bunch_item_inventory_master_v1.tsv     (선택) item_code, item_name, part_item_code, part_amount
 ///   master/character_inventory_master_v1.tsv (선택) character_code, character_name, carry_limit, advantage_attribute_code, disadvantage_attribute_code
@@ -20,7 +20,7 @@ public sealed class PackFormatException(string message) : Exception(message);
 ///   master/status_effect_master_v1.tsv    (선택) status_effect_code, status_effect_name
 ///   master/status_effect_effect_master_v1.tsv (선택, 상태이상 마스터 필요) status_effect_code, trigger_type, priority, effect_code, effect_value_1, effect_value_2, effect_value_3
 ///   master/shop_trade_master_v1.tsv       (선택) code, shop_code, cost_item_code, cost_amount, receive_item_code, receive_amount
-///   master/shop_trade_condition_master_v1.tsv (선택) trade_code, group_no, flag_code, condition_type, condition_value
+///   master/shop_trade_condition_master_v1.tsv (선택) trade_code, group_number, flag_code, condition_type, condition_value
 ///   master/equipment_slot_master_v1.tsv   (선택) equipment_slot_code, equipment_slot_name
 ///   master/tag_master_v1.tsv              (선택) tag_code, tag_name
 ///   master/equipment_master_v1.tsv        (선택) item_code, item_name
@@ -216,12 +216,12 @@ public sealed partial class GamePack
         {
             var file = conditionPath;
             var seenKeys = new HashSet<(long, int, long)>();       // 복합키는 (코드, 그룹넘버, 플래그 코드)
-            foreach (var r in Body(file, conditionText, codeColumn, "group_no", "flag_code", "condition_type", "condition_value"))
+            foreach (var r in Body(file, conditionText, codeColumn, "group_number", "flag_code", "condition_type", "condition_value"))
             {
                 var code = ParseLong(file, $"{noun} 코드", r[0]);
                 if (!groups.TryGetValue(code, out var byGroup))
                     throw new PackFormatException($"{file}: 알 수 없는 {noun} 코드 '{code}'.");
-                if (!int.TryParse(r[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var groupNo))
+                if (!int.TryParse(r[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var groupNumber))
                     throw new PackFormatException($"{file}: {noun} '{code}'의 그룹넘버 '{r[1]}'이(가) 정수가 아닙니다.");
                 // 숫자("1")도 Enum.TryParse를 통과하므로 이름 목록으로 먼저 거른다.
                 if (!Enum.GetNames<ConditionType>().Contains(r[3], StringComparer.OrdinalIgnoreCase)
@@ -236,13 +236,13 @@ public sealed partial class GamePack
                     value = ParseLong(file, $"{noun} '{code}'의 컨디션 밸류", r[4]);
                 }
 
-                if (!seenKeys.Add((code, groupNo, flagCode)))
+                if (!seenKeys.Add((code, groupNumber, flagCode)))
                     throw new PackFormatException(
-                        $"{file}: {noun} '{code}'의 그룹 {groupNo}에 플래그 '{flagCode}'가 두 번 있습니다.");
-                if (!byGroup.TryGetValue(groupNo, out var list)) byGroup[groupNo] = list = [];
+                        $"{file}: {noun} '{code}'의 그룹 {groupNumber}에 플래그 '{flagCode}'가 두 번 있습니다.");
+                if (!byGroup.TryGetValue(groupNumber, out var list)) byGroup[groupNumber] = list = [];
                 var condition = new FlagCondition(flagCode, type, value);
                 list.Add(condition);
-                flat.Add(new FlatCondition(code, groupNo, condition));       // 파일 순서 그대로(MasterMemory 테이블용)
+                flat.Add(new FlatCondition(code, groupNumber, condition));       // 파일 순서 그대로(MasterMemory 테이블용)
             }
         }
 
@@ -560,4 +560,4 @@ public sealed partial class GamePack
 }
 
 /// <summary>조건표의 한 행(파일 순서 그대로): 어느 코드(던전/상점/교환)의 몇 번 그룹에 어떤 조건이 있는가.</summary>
-internal readonly record struct FlatCondition(long Code, int GroupNo, FlagCondition Condition);
+internal readonly record struct FlatCondition(long Code, int GroupNumber, FlagCondition Condition);

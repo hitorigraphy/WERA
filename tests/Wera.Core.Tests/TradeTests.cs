@@ -8,7 +8,7 @@ public class TradeTests
     const string Common = "item_code\titem_name\tcarry_limit\n1\t금화\t99999\n2\t약초\t99\n3\t철광석\t99\n";
     const string Bunch = "item_code\titem_name\tpart_item_code\tpart_amount\n9001\t초보자 세트\t2\t3\n9001\t초보자 세트\t3\t1\n";
     const string TradeHeader = "code\tshop_code\tcost_item_code\tcost_amount\treceive_item_code\treceive_amount\n";
-    const string CondHeader = "trade_code\tgroup_no\tflag_code\tcondition_type\tcondition_value\n";
+    const string CondHeader = "trade_code\tgroup_number\tflag_code\tcondition_type\tcondition_value\n";
 
     static GamePack Pack(
         string? shops = Shops, string? common = Common, string? bunch = null,
@@ -524,7 +524,7 @@ public class TradeTests
     public void Trade_condition_header_must_be_trade_code()
         => Assert.Throws<PackFormatException>(() => Pack(
             trades: TradeHeader + "5001\t2001\t1\t1\t2\t1\n",
-            tradeConditions: "shop_code\tgroup_no\tflag_code\tcondition_type\tcondition_value\n"));
+            tradeConditions: "shop_code\tgroup_number\tflag_code\tcondition_type\tcondition_value\n"));
 
     [Fact]
     public void Trade_conditions_without_trade_master_are_rejected()

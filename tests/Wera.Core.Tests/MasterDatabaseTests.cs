@@ -15,11 +15,11 @@ public class MasterDatabaseTests
             "7003\t도적\t1\t3\t1\n7001\t용사\t1\t1\t2\n7002\t마법사\t2\t2\t3\n"),
         ("master/dungeon_master_v1.tsv", "code\tname\n1002\t동굴\n1001\t초원\n"),
         ("master/dungeon_flag_master_v1.tsv",
-            "dungeon_code\tgroup_no\tflag_code\tcondition_type\tcondition_value\n" +
+            "dungeon_code\tgroup_number\tflag_code\tcondition_type\tcondition_value\n" +
             "1002\t2\t1003\tEqual\t1\n1002\t1\t1001\tGreaterOrEqual\t1\n1001\t1\t1001\tGreaterOrEqual\t1\n"),
         ("master/shop_master_v1.tsv", "code\tname\n2002\t무기점\n2001\t잡화점\n"),
         ("master/shop_condition_master_v1.tsv",
-            "shop_code\tgroup_no\tflag_code\tcondition_type\tcondition_value\n2002\t1\t1002\tGreaterOrEqual\t3\n"),
+            "shop_code\tgroup_number\tflag_code\tcondition_type\tcondition_value\n2002\t1\t1002\tGreaterOrEqual\t3\n"),
         ("master/common_item_inventory_master_v1.tsv", "item_code\titem_name\tcarry_limit\n3\t철광석\t99\n1\t금화\t99999\n2\t약초\t99\n"),
         ("master/bunch_item_inventory_master_v1.tsv",
             "item_code\titem_name\tpart_item_code\tpart_amount\n9001\t초보자 세트\t3\t1\n9001\t초보자 세트\t2\t3\n"),
@@ -27,7 +27,7 @@ public class MasterDatabaseTests
             "code\tshop_code\tcost_item_code\tcost_amount\treceive_item_code\treceive_amount\n" +
             "5003\t2002\t3\t3\t9001\t1\n5001\t2001\t1\t100\t2\t5\n5002\t2001\t2\t10\t1\t30\n"),
         ("master/shop_trade_condition_master_v1.tsv",
-            "trade_code\tgroup_no\tflag_code\tcondition_type\tcondition_value\n5002\t1\t1001\tGreaterOrEqual\t1\n"),
+            "trade_code\tgroup_number\tflag_code\tcondition_type\tcondition_value\n5002\t1\t1001\tGreaterOrEqual\t1\n"),
         ("master/status_effect_master_v1.tsv", "status_effect_code\tstatus_effect_name\n3\t재생\n1\t독\n"),
         ("master/status_effect_effect_master_v1.tsv",
             "status_effect_code\ttrigger_type\tpriority\teffect_code\teffect_value_1\teffect_value_2\teffect_value_3\n" +
@@ -75,7 +75,7 @@ public class MasterDatabaseTests
         Assert.Equal(3, db.DungeonFlagRowTable.Count);
         var dungeonRows = db.DungeonFlagRowTable.All.ToList();
         Assert.Equal([(1001L, 1, 1001L), (1002L, 1, 1001L), (1002L, 2, 1003L)],
-            dungeonRows.Select(r => (r.DungeonCode, r.GroupNo, r.FlagCode)));
+            dungeonRows.Select(r => (r.DungeonCode, r.GroupNumber, r.FlagCode)));
         Assert.Equal(ConditionType.Equal, dungeonRows[2].Type);
 
         Assert.Single(db.ShopConditionRowTable.All);
@@ -250,8 +250,8 @@ public class MasterDatabaseTests
     }
 
     [Theory]
-    [InlineData("master/dungeon_flag_master_v1.tsv", "dungeon_code\tgroup_no\tflag_code\tcondition_type\tcondition_value\n1001\t1\t1001\tGreaterOrEqual\t1\n1001\t1\t1001\tLessThan\t5\n", "던전")]
-    [InlineData("master/shop_condition_master_v1.tsv", "shop_code\tgroup_no\tflag_code\tcondition_type\tcondition_value\n2001\t1\t1001\tGreaterOrEqual\t1\n2001\t1\t1001\tGreaterOrEqual\t1\n", "상점")]
+    [InlineData("master/dungeon_flag_master_v1.tsv", "dungeon_code\tgroup_number\tflag_code\tcondition_type\tcondition_value\n1001\t1\t1001\tGreaterOrEqual\t1\n1001\t1\t1001\tLessThan\t5\n", "던전")]
+    [InlineData("master/shop_condition_master_v1.tsv", "shop_code\tgroup_number\tflag_code\tcondition_type\tcondition_value\n2001\t1\t1001\tGreaterOrEqual\t1\n2001\t1\t1001\tGreaterOrEqual\t1\n", "상점")]
     public void Conditions_with_the_same_code_group_and_flag_are_rejected(string file, string rows, string noun)
     {
         // 복합키는 (코드, 그룹넘버, 플래그)라 타입과 밸류가 달라도 같은 키는 두 번 쓸 수 없다.
@@ -271,7 +271,7 @@ public class MasterDatabaseTests
             ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
             ("master/dungeon_master_v1.tsv", "code\tname\n1001\t초원\n"),
             ("master/dungeon_flag_master_v1.tsv",
-                "dungeon_code\tgroup_no\tflag_code\tcondition_type\tcondition_value\n1001\t1\t1001\tGreaterOrEqual\t1\n1001\t2\t1001\tLessThan\t5\n")));
+                "dungeon_code\tgroup_number\tflag_code\tcondition_type\tcondition_value\n1001\t1\t1001\tGreaterOrEqual\t1\n1001\t2\t1001\tLessThan\t5\n")));
         Assert.Equal(2, pack.Masters.DungeonFlagRowTable.Count);
     }
 

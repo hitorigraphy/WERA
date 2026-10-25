@@ -4,7 +4,7 @@ namespace Wera.Core.Tests;
 
 public class DungeonTests
 {
-    const string Header = "dungeon_code\tgroup_no\tflag_code\tcondition_type\tcondition_value\n";
+    const string Header = "dungeon_code\tgroup_number\tflag_code\tcondition_type\tcondition_value\n";
 
     static GamePack Pack(string? dungeons, string? flags, bool backslashPaths = false)
     {

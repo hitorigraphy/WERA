@@ -4,7 +4,7 @@ namespace Wera.Core.Tests;
 
 public class ShopTests
 {
-    const string Header = "shop_code\tgroup_no\tflag_code\tcondition_type\tcondition_value\n";
+    const string Header = "shop_code\tgroup_number\tflag_code\tcondition_type\tcondition_value\n";
     const string TwoShops = "code\tname\n2001\t잡화점\n2002\t무기점\n";
     const string TutorialOnly = Header + "2001\t1\t1001\tGreaterOrEqual\t1\n2002\t1\t1001\tGreaterOrEqual\t1\n2002\t1\t1002\tGreaterOrEqual\t3\n";
 
@@ -65,7 +65,7 @@ public class ShopTests
         Assert.Throws<PackFormatException>(() => Pack(null, Header));                      // 상점 마스터 없이 조건표만
         // 상점 조건표 헤더는 shop_code여야 한다 (던전 조건표 헤더와 혼동 금지).
         Assert.Throws<PackFormatException>(() =>
-            Pack(TwoShops, "dungeon_code\tgroup_no\tflag_code\tcondition_type\tcondition_value\n"));
+            Pack(TwoShops, "dungeon_code\tgroup_number\tflag_code\tcondition_type\tcondition_value\n"));
     }
 
     [Fact]

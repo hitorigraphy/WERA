@@ -40,13 +40,13 @@ public sealed partial class GamePack
 
         builder.Append((dungeons ?? []).Select(d => new DungeonRow { Code = d.Code, Name = d.Name }).ToList());
         builder.Append(dungeonConditions.Select(c => new DungeonFlagRow
-        { DungeonCode = c.Code, GroupNo = c.GroupNo,
+        { DungeonCode = c.Code, GroupNumber = c.GroupNumber,
             FlagCode = c.Condition.FlagCode, Type = c.Condition.Type, Value = c.Condition.Value,
         }).ToList());
 
         builder.Append((shops ?? []).Select(s => new ShopRow { Code = s.Code, Name = s.Name }).ToList());
         builder.Append(shopConditions.Select(c => new ShopConditionRow
-        { ShopCode = c.Code, GroupNo = c.GroupNo,
+        { ShopCode = c.Code, GroupNumber = c.GroupNumber,
             FlagCode = c.Condition.FlagCode, Type = c.Condition.Type, Value = c.Condition.Value,
         }).ToList());
 
@@ -69,7 +69,7 @@ public sealed partial class GamePack
             CostKind = t.CostKind, ReceiveKind = t.ReceiveKind,
         }).ToList());
         builder.Append(tradeConditions.Select(c => new ShopTradeConditionRow
-        { TradeCode = c.Code, GroupNo = c.GroupNo,
+        { TradeCode = c.Code, GroupNumber = c.GroupNumber,
             FlagCode = c.Condition.FlagCode, Type = c.Condition.Type, Value = c.Condition.Value,
         }).ToList());
 

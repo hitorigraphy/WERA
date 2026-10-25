@@ -8,7 +8,7 @@ public class PlayerStateTests
         ("pack.tsv", "id\tdemo\ntitle\t데모\nstart\ta\n"),
         ("master/dungeon_master_v1.tsv", "code\tname\n1001\t초원\n"),
         ("master/dungeon_flag_master_v1.tsv",
-            "dungeon_code\tgroup_no\tflag_code\tcondition_type\tcondition_value\n1001\t1\t1004\tGreaterOrEqual\t5000000000\n")));
+            "dungeon_code\tgroup_number\tflag_code\tcondition_type\tcondition_value\n1001\t1\t1004\tGreaterOrEqual\t5000000000\n")));
 
     [Fact]
     public void New_game_starts_with_empty_player_flags_and_inventory()
