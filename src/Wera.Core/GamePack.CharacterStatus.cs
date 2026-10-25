@@ -11,6 +11,13 @@ public sealed partial class GamePack
     /// <summary>레벨 칸이 이 값인 행은 레벨별 행이 없을 때 쓰는 기본값이고, 캐릭터를 만들 때(레벨이 정해지기 전)의 값이다.</summary>
     public const long BaseLevel = 0;
 
+    /// <summary>엔진이 아는 스테이터스 코드: 스테이터스 마스터에 이 번호로 적어야 캐릭터 상태(CharacterState)를 채우는 데 쓰인다.</summary>
+    public const long LevelStatusCode = 1;
+    /// <summary>HP: 초깃값이 현재 HP, 최댓값이 최대 HP.</summary>
+    public const long HpStatusCode = 2;
+    /// <summary>경험치: 초깃값이 현재 경험치, 최댓값이 다음 레벨까지 필요한 경험치.</summary>
+    public const long XpStatusCode = 3;
+
     /// <summary>스테이터스 마스터가 없으면 null.</summary>
     public IReadOnlyList<StatusEntry>? Statuses { get; init; }
 
@@ -94,4 +101,20 @@ public sealed partial class GamePack
             .OrderBy(r => r.Order)
             .Select(r => new CharacterStatus(r.CharacterCode, r.StatusCode, r.Level, r.InitialValue, r.MinValue, r.MaxValue))
             .ToList();
+
+    /// <summary>
+    /// 새로 얻는 캐릭터의 상태. 레벨이 정해지기 전이므로 레벨 0의 행으로 채운다: 레벨 = level의 초깃값,
+    /// HP = hp의 초깃값(최대 HP는 최댓값), 경험치 = xp의 초깃값(필요 경험치는 최댓값).
+    /// 행이 없는 스테이터스는 레벨 1, HP 1/1, 경험치 0/1로 시작한다.
+    /// </summary>
+    public CharacterState NewCharacterState(long characterCode)
+    {
+        var level = InitialCharacterStatus(characterCode, LevelStatusCode);
+        var hp = InitialCharacterStatus(characterCode, HpStatusCode);
+        var xp = InitialCharacterStatus(characterCode, XpStatusCode);
+        return new CharacterState(
+            level?.InitialValue ?? 1,
+            hp?.InitialValue ?? 1, hp?.MaxValue ?? 1,
+            xp?.InitialValue ?? 0, xp?.MaxValue ?? 1).Clamped();
+    }
 }

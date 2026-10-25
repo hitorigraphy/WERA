@@ -150,6 +150,18 @@ public sealed partial class GameSession
         EquippedItems = equippedItems;
     }
 
+    /// <summary>
+    /// 캐릭터를 새로 얻는다: 캐릭터 인벤토리 마스터에 있고 아직 보유하지 않았을 때, 캐릭터 스테이터스 마스터의 레벨 0 값으로
+    /// 상태를 채워 보유 캐릭터에 넣는다. 태그는 캐릭터 태그 마스터에서 복사한다. 마스터에 없거나 이미 보유하면 false.
+    /// </summary>
+    public bool AddCharacter(long characterCode)
+    {
+        if (Pack.FindCharacter(characterCode) is null || Characters.ContainsKey(characterCode)) return false;
+        Characters[characterCode] = Pack.NewCharacterState(characterCode);
+        CharacterTagInstances[characterCode] = Pack.MasterTagsOfCharacter(characterCode).ToList();
+        return true;
+    }
+
     /// <summary>튜토리얼이 구현될 때까지 새 게임은 홈 화면으로 직행한다.</summary>
     public static GameSession NewGame(GamePack pack) =>
         new(pack, Screen.Home, [], [], [], new long?[PartySlotCount], [], [], [], []);
