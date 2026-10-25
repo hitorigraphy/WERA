@@ -16,14 +16,14 @@ public class TagInstanceTests
             "inventory_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n" +
             "1\t당신\t1\t1\t2\n7001\t변신술사\t1\t1\t2\n7002\t강시\t1\t1\t2\n"),
         ("master/equipment_slot_master_v1.tsv", "equipment_slot_code\tequipment_slot_name\n1\t무기\n2\t소환\n"),
-        ("master/tag_master_v1.tsv", "tag_code\ttag_name\n1\t플레이어\n2\t리더\n3\t검\n7\t변신\n8\t소환수\n"),
+        ("master/tag_master_v1.tsv", "tag_code\ttag_name\n1\t플레이어\n2\t리더\n9\t검\n7\t변신\n8\t소환수\n3\t메인 통화\n"),
         ("master/unique_item_inventory_master_v1.tsv", "inventory_code\titem_name\n8001\t철검\n8002\t변신 검\n"),
-        ("master/unique_item_tag_master_v1.tsv", "item_code\ttag_code\n8001\t3\n8002\t3\n"),
-        ("master/common_item_tag_master_v1.tsv", "item_code\ttag_code\n3\t8\n"),
+        ("master/unique_item_tag_master_v1.tsv", "item_code\ttag_code\n8001\t9\n8002\t9\n"),
+        ("master/common_item_tag_master_v1.tsv", "item_code\ttag_code\n2\t3\n3\t8\n"),
         ("master/character_tag_master_v1.tsv", "character_code\ttag_code\n1\t1\n7002\t8\n"),
         ("master/equipment_slot_tag_master_v1.tsv",
             "character_code\tequipment_slot_code\ttag_code\tgroup_number\tis_positive\n" +
-            "7001\t1\t3\t1\ttrue\n7001\t1\t7\t1\ttrue\n7001\t2\t8\t1\ttrue\n")));
+            "7001\t1\t9\t1\ttrue\n7001\t1\t7\t1\ttrue\n7001\t2\t8\t1\ttrue\n")));
 
     static GameSession Session()
     {
@@ -42,7 +42,7 @@ public class TagInstanceTests
         var a = s.AddUniqueItem(8001)!;
         var b = s.AddUniqueItem(8001)!;
         Assert.NotEqual(a, b);
-        Assert.Equal([3L], s.TagsOf(EquipRef.Unique(a)));
+        Assert.Equal([9L], s.TagsOf(EquipRef.Unique(a)));
         Assert.Equal([a, b], s.InstancesOf(8001));
         Assert.Null(s.AddUniqueItem(99999));                       // 마스터에 없다
     }
@@ -55,14 +55,14 @@ public class TagInstanceTests
         var b = s.AddUniqueItem(8001)!;
 
         Assert.True(s.AddUniqueItemTag(a, 7));
-        Assert.Equal([3L, 7L], s.TagsOf(EquipRef.Unique(a)));
-        Assert.Equal([3L], s.TagsOf(EquipRef.Unique(b)));
-        Assert.Equal([3L], s.Pack.MasterTagsOfUniqueItem(8001));
+        Assert.Equal([7L, 9L], s.TagsOf(EquipRef.Unique(a)));
+        Assert.Equal([9L], s.TagsOf(EquipRef.Unique(b)));
+        Assert.Equal([9L], s.Pack.MasterTagsOfUniqueItem(8001));
         Assert.False(s.AddUniqueItemTag(a, 7));                    // 이미 있다
         Assert.False(s.AddUniqueItemTag(a, 99));                   // 태그 마스터에 없다
-        Assert.True(s.RemoveUniqueItemTag(a, 3));
-        Assert.False(s.RemoveUniqueItemTag(a, 3));
-        Assert.False(s.RemoveUniqueItemTag("없는 ID", 3));
+        Assert.True(s.RemoveUniqueItemTag(a, 9));
+        Assert.False(s.RemoveUniqueItemTag(a, 9));
+        Assert.False(s.RemoveUniqueItemTag("없는 ID", 9));
     }
 
     [Fact]
@@ -90,7 +90,7 @@ public class TagInstanceTests
         var sword = EquipRef.Unique(s.AddUniqueItem(8001)!);
         s.Equip(7001, 1, sword);
 
-        s.RemoveUniqueItemTag(sword.Instance!, 3);                      // 검 태그가 사라지면
+        s.RemoveUniqueItemTag(sword.Instance!, 9);                      // 검 태그가 사라지면
         Assert.Null(s.EquippedItemOf(7001, 1));
     }
 
@@ -101,7 +101,7 @@ public class TagInstanceTests
         s.AddCharacterTag(7001, 7);
         var first = s.AddUniqueItem(8001)!;
         var second = s.AddUniqueItem(8001)!;
-        s.RemoveUniqueItemTag(first, 3);                           // 첫 번째는 검이 아니게 되었다
+        s.RemoveUniqueItemTag(first, 9);                           // 첫 번째는 검이 아니게 되었다
 
         Assert.True(s.Equip(7001, 1, 8001));
         Assert.Equal(EquipRef.Unique(second), s.EquippedItemOf(7001, 1));
@@ -191,7 +191,7 @@ public class TagInstanceTests
         var loaded = GameSession.FromSaveJson(Pack(), json);
         Assert.Equal([7L], loaded.CharacterTags(7001));
         Assert.Empty(loaded.CharacterTags(7002));                  // 잃은 태그는 마스터로 되돌아가지 않는다
-        Assert.Equal([3L, 7L], loaded.TagsOf(EquipRef.Unique(id)));
+        Assert.Equal([7L, 9L], loaded.TagsOf(EquipRef.Unique(id)));
         Assert.Equal(EquipRef.Unique(id), loaded.EquippedItemOf(7001, 1));
     }
 
@@ -204,7 +204,7 @@ public class TagInstanceTests
     public void Missing_tags_in_a_save_are_copied_from_the_masters()
     {
         var s = GameSession.FromSaveJson(Pack(), Head + Chars + "\"UniqueItems\":{\"01H00000000000000000000004\":{\"ItemCode\":8002}}}");
-        Assert.Equal([3L], s.TagsOf(EquipRef.Unique("01H00000000000000000000004")));
+        Assert.Equal([9L], s.TagsOf(EquipRef.Unique("01H00000000000000000000004")));
         Assert.Equal([8L], s.CharacterTags(7002));
         Assert.Empty(s.CharacterTags(7001));
         Assert.True(string.CompareOrdinal(s.AddUniqueItem(8001), "01H00000000000000000000004") > 0);   // 새 인스턴스 ID는 가장 큰 ID보다 뒤

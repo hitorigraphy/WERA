@@ -26,12 +26,12 @@ public class TradeKindTests
             ("master/character_inventory_master_v1.tsv",
                 "inventory_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n1\t당신\t1\t1\t2\n7001\t용사\t1\t1\t2\n7002\t마법사\t1\t2\t1\n"),
             ("master/unique_item_inventory_master_v1.tsv", "inventory_code\titem_name\n8001\t철검\n"),
-            ("master/tag_master_v1.tsv", "tag_code\ttag_name\n1\t플레이어\n2\t리더\n3\t검\n8\t소환수\n"),
-            ("master/unique_item_tag_master_v1.tsv", "item_code\ttag_code\n8001\t3\n"),
+            ("master/tag_master_v1.tsv", "tag_code\ttag_name\n1\t플레이어\n2\t리더\n9\t검\n8\t소환수\n3\t메인 통화\n"),
+            ("master/unique_item_tag_master_v1.tsv", "item_code\ttag_code\n8001\t9\n"),
             ("master/character_tag_master_v1.tsv", "character_code\ttag_code\n1\t1\n7002\t8\n"),
             ("master/equipment_slot_master_v1.tsv", "equipment_slot_code\tequipment_slot_name\n1\t무기\n3\t소환\n"),
             ("master/equipment_slot_tag_master_v1.tsv",
-                "character_code\tequipment_slot_code\ttag_code\tgroup_number\tis_positive\n7001\t1\t3\t1\ttrue\n7001\t3\t8\t1\ttrue\n"),
+                "character_code\tequipment_slot_code\ttag_code\tgroup_number\tis_positive\n7001\t1\t9\t1\ttrue\n7001\t3\t8\t1\ttrue\n"),
             ("master/shop_master_v1.tsv", "code\tname\n2001\t상점\n"),
             ("master/shop_trade_master_v1.tsv", trades),
         };
@@ -106,7 +106,7 @@ public class TradeKindTests
         Assert.Equal(900, s.InventoryItems[11].Amount);
         var id = Assert.Single(s.InstancesOf(8001));
         Assert.True(Ulid.TryParse(id, out _));                          // 인스턴스 ID는 ULID
-        Assert.Equal([3L], s.TagsOf(EquipRef.Unique(id)));
+        Assert.Equal([9L], s.TagsOf(EquipRef.Unique(id)));
 
         Trade(s, "5001");                                               // 또 받으면 다른 인스턴스
         Assert.Equal(2, s.InstancesOf(8001).Count);
@@ -182,7 +182,7 @@ public class TradeKindTests
         s.Party[4] = 7002;
         s.AddUniqueItem(8001);
         s.Equip(7002, 1, 8001);                                       // 마법사에게는 슬롯이 없어 끼지 못한다(규칙 없음)
-        s.AddCharacterTag(7002, 3);
+        s.AddCharacterTag(7002, 9);
 
         Assert.Equal("교환 완료: 마법사 ×1 → 금화 ×300", Trade(s, "5004"));
         Assert.False(s.Characters.ContainsKey(7002));

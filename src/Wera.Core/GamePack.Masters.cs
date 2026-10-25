@@ -130,6 +130,9 @@ public sealed partial class GamePack
     public StatusEffectEntry? FindStatusEffect(long code) =>
         Masters.StatusEffectRowTable.TryFindByCode(code, out var r) ? new StatusEffectEntry(r.Code, r.Name) : null;
 
+    /// <summary>메인 통화 아이템(커먼 아이템 2): 필수 마스터라 로드된 게임팩에는 늘 있다. 이름은 게임팩 마음대로다.</summary>
+    public ItemEntry MainCurrency => FindItem(MainCurrencyItemCode)!;
+
     public ItemEntry? FindItem(long code) =>
         Masters.ItemInventoryRowTable.TryFindByCode(code, out var r) ? new ItemEntry(r.Code, r.Name, r.CarryLimit) : null;
 

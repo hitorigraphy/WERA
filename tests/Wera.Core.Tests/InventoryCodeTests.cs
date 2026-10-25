@@ -42,7 +42,7 @@ public class InventoryCodeTests
         Assert.Equal(new InventoryEntry(9001, InventoryKind.BunchItem, "초보자 세트"), inventory[9001]);
         Assert.Equal(new InventoryEntry(1, InventoryKind.Character, "당신"), inventory[1]);
         Assert.Equal(new InventoryEntry(7001, InventoryKind.Character, "용사"), inventory[7001]);
-        Assert.Equal(6, inventory.Count);                                           // 번치는 부품 행이 아니라 번치 하나
+        Assert.Equal(7, inventory.Count);                                           // 번치는 부품 행이 아니라 번치 하나, 메인 통화(아이템 2)는 시험 도우미가 더한다
     }
 
     [Fact]
@@ -59,7 +59,7 @@ public class InventoryCodeTests
     {
         var inventory = Load(bunch: null).Inventory;
         Assert.DoesNotContain(inventory.Values, e => e.Kind == InventoryKind.BunchItem);
-        Assert.Equal(5, inventory.Count);
+        Assert.Equal(6, inventory.Count);
     }
 
     // ---- 겹치지 않는다 ----
@@ -154,7 +154,7 @@ public class InventoryCodeTests
         var pack = GamePack.Load(zip);
 
         Assert.Equal(InventoryKind.Character, pack.FindInventory(GamePack.PlayerCharacterCode)!.Kind);
-        Assert.Equal("금화", pack.FindInventory(101)!.Name);
+        Assert.Equal("금화", pack.FindInventory(GamePack.MainCurrencyItemCode)!.Name);
         Assert.Equal(InventoryKind.UniqueItem, pack.FindInventory(8001)!.Kind);
         Assert.Equal(InventoryKind.BunchItem, pack.FindInventory(9001)!.Kind);
         var total = (pack.ItemInventory?.Count ?? 0) + (pack.UniqueItems?.Count ?? 0) + (pack.BunchInventory?.Count ?? 0) + (pack.CharacterInventory?.Count ?? 0);

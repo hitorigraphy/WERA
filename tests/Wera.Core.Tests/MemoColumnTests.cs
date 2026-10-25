@@ -88,7 +88,7 @@ public class MemoColumnTests
     public void The_test_shop_trades_cover_common_unique_and_character_kinds()
     {
         var s = GameSession.NewGame(Sample());
-        s.InventoryItems[101] = new InventoryItem(200);
+        s.InventoryItems[2] = new InventoryItem(200);
         s.Activate("102"); s.Activate("2999");
         Assert.Equal(
             ["금화 ×1 → 약초 ×1", "금화 ×10 → 철검 ×1", "금화 ×100 → 도적 ×1", "철검 ×1 → 금화 ×5"],
@@ -126,8 +126,12 @@ public class MemoColumnTests
         Assert.Contains("status_master_v1.tsv:2", required);
         Assert.Contains("character_inventory_master_v1.tsv:1", required);
         Assert.Contains("character_tag_master_v1.tsv:1", required);
+        Assert.Contains("tag_master_v1.tsv:3", required);                    // 메인 통화 태그
+        Assert.Contains("common_item_inventory_master_v1.tsv:2", required);  // 메인 통화 아이템
+        Assert.Contains("common_item_tag_master_v1.tsv:2", required);
         Assert.DoesNotContain(required, r => r.StartsWith("dungeon_master") || r.StartsWith("shop_master") || r.StartsWith("shop_trade"));
-        Assert.DoesNotContain("tag_master_v1.tsv:3", required);
+        Assert.DoesNotContain("tag_master_v1.tsv:4", required);
+        Assert.DoesNotContain("common_item_inventory_master_v1.tsv:3", required);
         Assert.DoesNotContain("status_master_v1.tsv:3", required);
     }
 }

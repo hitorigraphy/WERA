@@ -32,7 +32,9 @@ public class CoreTests
         void AddIfMissing(string name, string content) { if (Find(name) is null) all.Add((name, content)); }
 
         AddIfMissing(GamePack.AttributeMasterPath, "attribute_code\tattribute_name\n1\t불\n2\t물\n");
-        AddIfMissing(GamePack.TagMasterPath, "tag_code\ttag_name\n1\t플레이어\n2\t리더\n");
+        AddIfMissing(GamePack.TagMasterPath, "tag_code\ttag_name\n1\t플레이어\n2\t리더\n3\t메인 통화\n");
+        AddIfMissing(GamePack.CommonItemInventoryMasterPath, "inventory_code\titem_name\tcarry_limit\n2\t금화\t99999\n");
+        AddIfMissing(GamePack.CommonItemTagMasterPath, "item_code\ttag_code\n2\t3\n");
         AddIfMissing(GamePack.StatusMasterPath, "status_code\tstatus_name\n1\tlevel\n2\thp\n3\txp\n");
         AddIfMissing(GamePack.CharacterInventoryMasterPath,
             "inventory_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n1\t당신\t1\t1\t2\n");
@@ -45,6 +47,12 @@ public class CoreTests
         var characterText = all[characterIndex].content;
         if (!Tsv.Parse(characterText).Skip(1).Any(r => r.Length > 0 && r[0] == "1"))
             all[characterIndex] = (GamePack.CharacterInventoryMasterPath, characterText + (characterText.EndsWith('\n') ? "" : "\n") + "1\t당신\t1\t1\t2\n");
+
+        // 직접 적은 커먼 아이템 마스터에 메인 통화(아이템 2)가 없으면 맨 끝에 붙인다.
+        var commonIndex = all.FindIndex(f => f.name == GamePack.CommonItemInventoryMasterPath);
+        var commonText = all[commonIndex].content;
+        if (!Tsv.Parse(commonText).Skip(1).Any(r => r.Length > 0 && r[0] == "2"))
+            all[commonIndex] = (GamePack.CommonItemInventoryMasterPath, commonText + (commonText.EndsWith('\n') ? "" : "\n") + "2\t금화\t99999\n");
 
         var characterCodes = Tsv.Parse(Find(GamePack.CharacterInventoryMasterPath)!)
             .Skip(1).Where(r => r.Length > 0 && r[0].Length > 0).Select(r => r[0]);
@@ -124,7 +132,8 @@ public class CoreTests
         Assert.Equal(
             ["master/attribute_master_v1.tsv", "master/tag_master_v1.tsv", "master/status_master_v1.tsv",
              "master/character_inventory_master_v1.tsv", "master/character_tag_master_v1.tsv", "master/character_status_master_v1.tsv",
-             "master/time_slot_master_v1.tsv", "master/turn_master_v1.tsv"],
+             "master/time_slot_master_v1.tsv", "master/turn_master_v1.tsv",
+             "master/common_item_inventory_master_v1.tsv", "master/common_item_tag_master_v1.tsv"],
             GamePack.RequiredMasterPaths);
     }
 

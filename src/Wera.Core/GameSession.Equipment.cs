@@ -75,9 +75,12 @@ public sealed partial class GameSession
         Characters.ContainsKey(characterCode) && !IsPlayerTagOfPlayer(characterCode, tagCode)
         && ChangeTags(OwnCharacterTags(characterCode), tagCode, add: false);
 
-    /// <summary>플레이어 태그는 캐릭터 1만 가질 수 있다(다른 캐릭터와 유니크 아이템 인스턴스에는 더할 수 없다).</summary>
+    /// <summary>
+    /// 이 태그를 더할 수 있는가: 플레이어 태그는 캐릭터 1만, 메인 통화 태그는 커먼 아이템 2만 가질 수 있다
+    /// (캐릭터와 유니크 아이템 인스턴스에는 메인 통화 태그를 더할 수 없다).
+    /// </summary>
     static bool CanHoldTag(long code, long tagCode, bool isCharacter) =>
-        tagCode != GamePack.PlayerTagCode || (isCharacter && code == GamePack.PlayerCharacterCode);
+        GamePack.MayHoldTag(tagCode, isCharacter ? InventoryKind.Character : InventoryKind.UniqueItem, code);
 
     /// <summary>캐릭터 1에게서 플레이어 태그를 없애려는 시도인가(항상 가져야 하므로 막는다).</summary>
     static bool IsPlayerTagOfPlayer(long characterCode, long tagCode) =>
@@ -348,13 +351,13 @@ public sealed partial class GameSession
     Dictionary<long, Dictionary<long, EquipRef>> CopyEquippedItems() =>
         EquippedItems.Where(kv => kv.Value.Count > 0).ToDictionary(kv => kv.Key, kv => new Dictionary<long, EquipRef>(kv.Value));
 
-    static List<long> CheckTags(GamePack pack, string who, IEnumerable<long> tags, long? playerCharacter = null)
+    static List<long> CheckTags(GamePack pack, string who, IEnumerable<long> tags, InventoryKind kind, long code)
     {
         var list = new List<long>();
         foreach (var tag in tags)
         {
-            if (tag == GamePack.PlayerTagCode && playerCharacter != GamePack.PlayerCharacterCode)
-                throw new SaveFormatException($"세이브의 {who}에 플레이어 태그({tag})가 있습니다. 플레이어 태그는 캐릭터 {GamePack.PlayerCharacterCode}만 가질 수 있습니다.");
+            if (!GamePack.MayHoldTag(tag, kind, code))
+                throw new SaveFormatException($"세이브의 {who}에 태그 {tag}가 있습니다. 플레이어 태그({GamePack.PlayerTagCode})는 캐릭터 {GamePack.PlayerCharacterCode}만, 메인 통화 태그({GamePack.MainCurrencyTagCode})는 커먼 아이템 {GamePack.MainCurrencyItemCode}만 가질 수 있습니다.");
             if (pack.Tags is null || pack.Tags.All(t => t.Code != tag))
                 throw new SaveFormatException($"세이브의 {who}의 태그 '{tag}'가 태그 마스터에 없습니다.");
             if (list.Contains(tag))
@@ -389,7 +392,7 @@ public sealed partial class GameSession
                 throw new SaveFormatException($"세이브의 유니크 아이템 인스턴스 '{id}'의 아이템이 유니크 아이템 마스터에 없습니다.");
             var tags = item.Tags is null
                 ? pack.MasterTagsOfUniqueItem(item.ItemCode).ToList()
-                : CheckTags(pack, $"유니크 아이템 인스턴스 '{id}'", item.Tags);
+                : CheckTags(pack, $"유니크 아이템 인스턴스 '{id}'", item.Tags, InventoryKind.UniqueItem, item.ItemCode);
             instances[id] = new UniqueItemInstance(item.ItemCode, tags);
         }
 
@@ -398,7 +401,7 @@ public sealed partial class GameSession
         {
             if (!characters.ContainsKey(code))
                 throw new SaveFormatException($"세이브의 캐릭터 태그가 보유하지 않은 캐릭터 '{code}'의 것입니다.");
-            characterTags[code] = CheckTags(pack, $"캐릭터 '{code}'", tags ?? [], playerCharacter: code);
+            characterTags[code] = CheckTags(pack, $"캐릭터 '{code}'", tags ?? [], InventoryKind.Character, code);
         }
         foreach (var code in characters.Keys.Where(c => !characterTags.ContainsKey(c)))
             characterTags[code] = pack.MasterTagsOfCharacter(code).ToList();

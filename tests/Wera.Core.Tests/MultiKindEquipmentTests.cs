@@ -15,14 +15,14 @@ public class MultiKindEquipmentTests
             "inventory_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n" +
             "1\t당신\t1\t1\t2\n7001\t강령술사\t1\t1\t2\n7002\t강시\t1\t1\t2\n7003\t용사\t1\t1\t2\n"),
         ("master/equipment_slot_master_v1.tsv", "equipment_slot_code\tequipment_slot_name\n1\t무기\n3\t소환\n"),
-        ("master/tag_master_v1.tsv", "tag_code\ttag_name\n1\t플레이어\n2\t리더\n3\t검\n8\t소환수\n"),
+        ("master/tag_master_v1.tsv", "tag_code\ttag_name\n1\t플레이어\n2\t리더\n9\t검\n8\t소환수\n3\t메인 통화\n"),
         ("master/unique_item_inventory_master_v1.tsv", "inventory_code\titem_name\n8001\t철검\n"),
-        ("master/unique_item_tag_master_v1.tsv", "item_code\ttag_code\n8001\t3\n"),
-        ("master/common_item_tag_master_v1.tsv", "item_code\ttag_code\n3\t8\n"),
+        ("master/unique_item_tag_master_v1.tsv", "item_code\ttag_code\n8001\t9\n"),
+        ("master/common_item_tag_master_v1.tsv", "item_code\ttag_code\n2\t3\n3\t8\n"),
         ("master/character_tag_master_v1.tsv", "character_code\ttag_code\n1\t1\n7002\t8\n"),
         ("master/equipment_slot_tag_master_v1.tsv",
             "character_code\tequipment_slot_code\ttag_code\tgroup_number\tis_positive\n" +
-            "7001\t1\t3\t1\ttrue\n7001\t3\t8\t1\ttrue\n")));
+            "7001\t1\t9\t1\ttrue\n7001\t3\t8\t1\ttrue\n")));
 
     static GameSession Session()
     {
@@ -43,8 +43,8 @@ public class MultiKindEquipmentTests
     public void The_new_tag_masters_are_loaded_and_looked_up_per_kind()
     {
         var pack = Pack();
-        Assert.Equal([new UniqueItemTag(8001, 3)], pack.UniqueItemTags);
-        Assert.Equal([new CommonItemTag(3, 8)], pack.CommonItemTags);
+        Assert.Equal([new UniqueItemTag(8001, 9)], pack.UniqueItemTags);
+        Assert.Equal([new CommonItemTag(2, 3), new CommonItemTag(3, 8)], pack.CommonItemTags);
         Assert.Equal([new CharacterTag(1, 1), new CharacterTag(7002, 8)], pack.CharacterTags);
         Assert.Equal("철검", pack.FindUniqueItem(8001)!.ItemName);
         Assert.Single(pack.Masters.CharacterTagRowTable.FindByCharacterCode(7002));
@@ -57,7 +57,7 @@ public class MultiKindEquipmentTests
     [InlineData("master/common_item_tag_master_v1.tsv", "item_code\ttag_code\n3\t8\n3\t8\n", "두 번")]
     [InlineData("master/character_tag_master_v1.tsv", "character_code\ttag_code\n9999\t8\n", "캐릭터 '9999'")]
     [InlineData("master/character_tag_master_v1.tsv", "character_code\ttag_code\n7002\t8\n7002\t8\n", "두 번")]
-    [InlineData("master/unique_item_tag_master_v1.tsv", "item_code\ttag_code\n99999\t3\n", "유니크 아이템 '99999'")]
+    [InlineData("master/unique_item_tag_master_v1.tsv", "item_code\ttag_code\n99999\t9\n", "유니크 아이템 '99999'")]
     public void Tag_masters_reject_unknown_targets_unknown_tags_and_duplicates(string file, string content, string message)
     {
         var files = new List<(string, string)>
@@ -67,7 +67,7 @@ public class MultiKindEquipmentTests
             ("master/common_item_inventory_master_v1.tsv", "inventory_code\titem_name\tcarry_limit\n3\t뼈 조각\t99\n"),
             ("master/character_inventory_master_v1.tsv",
                 "inventory_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n1\t당신\t1\t1\t2\n7002\t강시\t1\t1\t2\n"),
-            ("master/tag_master_v1.tsv", "tag_code\ttag_name\n1\t플레이어\n2\t리더\n3\t검\n8\t소환수\n"),
+            ("master/tag_master_v1.tsv", "tag_code\ttag_name\n1\t플레이어\n2\t리더\n9\t검\n8\t소환수\n3\t메인 통화\n"),
             ("master/unique_item_inventory_master_v1.tsv", "inventory_code\titem_name\n8001\t철검\n"),
             (file, content),
         };
@@ -80,7 +80,7 @@ public class MultiKindEquipmentTests
     {
         Assert.Throws<PackFormatException>(() => GamePack.Load(CoreTests.PackZip(
             ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
-            ("master/tag_master_v1.tsv", "tag_code\ttag_name\n1\t플레이어\n2\t리더\n8\t소환수\n"),
+            ("master/tag_master_v1.tsv", "tag_code\ttag_name\n1\t플레이어\n2\t리더\n8\t소환수\n3\t메인 통화\n"),
             ("master/character_tag_master_v1.tsv", "character_code\ttag_code\n7002\t8\n"))));
         Assert.Throws<PackFormatException>(() => GamePack.Load(CoreTests.PackZip(
             ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
@@ -160,8 +160,8 @@ public class MultiKindEquipmentTests
             ("master/shop_trade_master_v1.tsv",
                 "code\tshop_code\tcost_item_code\tcost_amount\treceive_item_code\treceive_amount\n5001\t2001\t3\t2\t11\t10\n"),
             ("master/equipment_slot_master_v1.tsv", "equipment_slot_code\tequipment_slot_name\n3\t소환\n"),
-            ("master/tag_master_v1.tsv", "tag_code\ttag_name\n1\t플레이어\n2\t리더\n8\t소환수\n"),
-            ("master/common_item_tag_master_v1.tsv", "item_code\ttag_code\n3\t8\n"),
+            ("master/tag_master_v1.tsv", "tag_code\ttag_name\n1\t플레이어\n2\t리더\n8\t소환수\n3\t메인 통화\n"),
+            ("master/common_item_tag_master_v1.tsv", "item_code\ttag_code\n2\t3\n3\t8\n"),
             ("master/character_tag_master_v1.tsv", "character_code\ttag_code\n1\t1\n"),
             ("master/equipment_slot_tag_master_v1.tsv",
                 "character_code\tequipment_slot_code\ttag_code\tgroup_number\tis_positive\n7001\t3\t8\t1\ttrue\n")));
@@ -244,12 +244,12 @@ public class MultiKindEquipmentTests
             ("master/character_inventory_master_v1.tsv",
                 "inventory_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n1\t당신\t1\t1\t2\n7001\t강령술사\t1\t1\t2\n"),
             ("master/equipment_slot_master_v1.tsv", "equipment_slot_code\tequipment_slot_name\n1\t무기\n"),
-            ("master/tag_master_v1.tsv", "tag_code\ttag_name\n1\t플레이어\n2\t리더\n3\t검\n8\t소환수\n"),
+            ("master/tag_master_v1.tsv", "tag_code\ttag_name\n1\t플레이어\n2\t리더\n9\t검\n8\t소환수\n3\t메인 통화\n"),
             ("master/unique_item_inventory_master_v1.tsv", "inventory_code\titem_name\n8001\t철검\n"),
-            ("master/unique_item_tag_master_v1.tsv", "item_code\ttag_code\n8001\t3\n"),
+            ("master/unique_item_tag_master_v1.tsv", "item_code\ttag_code\n8001\t9\n"),
             ("master/character_tag_master_v1.tsv", "character_code\ttag_code\n1\t1\n" + characterTags),
             ("master/equipment_slot_tag_master_v1.tsv",
-                "character_code\tequipment_slot_code\ttag_code\tgroup_number\tis_positive\n7001\t1\t3\t1\ttrue\n7001\t1\t8\t1\ttrue\n")));
+                "character_code\tequipment_slot_code\ttag_code\tgroup_number\tis_positive\n7001\t1\t9\t1\ttrue\n7001\t1\t8\t1\ttrue\n")));
 
         Assert.True(Make("7001\t8\n").CanEquip(7001, 1, 8001));
         Assert.False(Make("").CanEquip(7001, 1, 8001));

@@ -29,10 +29,10 @@ public class TradeTests
     static Dictionary<long, long> F(params (long, long)[] kv) => kv.ToDictionary(x => x.Item1, x => x.Item2);
 
     [Fact]
-    public void All_item_and_trade_masters_are_optional()
+    public void Bunch_and_trade_masters_are_optional_but_the_common_item_master_is_required()
     {
-        var pack = Pack(shops: null, common: null);
-        Assert.Null(pack.ItemInventory);
+        var pack = Pack(shops: null, common: null);                      // 시험 도우미가 필수 마스터(메인 통화 아이템 2)를 채운다
+        Assert.Equal([2L], pack.ItemInventory!.Select(i => i.Code));
         Assert.Null(pack.BunchInventory);
         Assert.Null(pack.Trades);
     }

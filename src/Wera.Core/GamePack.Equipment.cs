@@ -19,6 +19,30 @@ public sealed partial class GamePack
     public const long LeaderTagCode = 2;
 
     /// <summary>
+    /// 엔진이 예약한 세 번째 태그: 3 = 메인 통화. 메인 통화 태그는 커먼 아이템 <see cref="MainCurrencyItemCode"/>(2)만 가지고,
+    /// 그 아이템은 반드시 이 태그를 가진다(이름은 게임팩 마음대로, 기본 게임팩에서는 "금화").
+    /// </summary>
+    public const long MainCurrencyTagCode = 3;
+
+    /// <summary>메인 통화 아이템의 인벤토리 코드(커먼 아이템 인벤토리 마스터). 반드시 있고 메인 통화 태그를 가진다.</summary>
+    public const long MainCurrencyItemCode = 2;
+
+    /// <summary>
+    /// 이 태그를 이 인벤토리 항목이 가질 수 있는가: 플레이어 태그는 캐릭터 1만, 메인 통화 태그는 커먼 아이템 2만 가질 수 있다.
+    /// 나머지 태그는 누구나 가질 수 있다. 마스터를 읽을 때와 게임 중 태그를 바꿀 때, 세이브를 불러올 때 같은 규칙을 쓴다.
+    /// </summary>
+    public static bool MayHoldTag(long tagCode, InventoryKind kind, long inventoryCode) => tagCode switch
+    {
+        PlayerTagCode => kind == InventoryKind.Character && inventoryCode == PlayerCharacterCode,
+        MainCurrencyTagCode => kind == InventoryKind.CommonItem && inventoryCode == MainCurrencyItemCode,
+        _ => true,
+    };
+
+    static string ExclusiveTagText(long tagCode) => tagCode == PlayerTagCode
+        ? $"플레이어 태그({PlayerTagCode})는 캐릭터 {PlayerCharacterCode}만"
+        : $"메인 통화 태그({MainCurrencyTagCode})는 커먼 아이템 {MainCurrencyItemCode}만";
+
+    /// <summary>
     /// 플레이어 캐릭터의 코드. 캐릭터 1은 항상 플레이어 태그를 가지고, 플레이어 태그는 캐릭터 1만 가질 수 있다
     /// (이름은 게임팩 마음대로, 기본 게임팩에서는 "당신"). 태그 마스터와 캐릭터 인벤토리 마스터가 둘 다 있는 게임팩에서 검증한다.
     /// </summary>
@@ -107,15 +131,15 @@ public sealed partial class GamePack
         LoadCodeNames(zip, EquipmentSlotMasterPath, "equipment_slot_code", "equipment_slot_name", "장비 슬롯",
             (code, name) => new EquipmentSlotEntry(code, name));
 
-    /// <summary>태그 마스터: 플레이어(1)와 리더(2)는 엔진이 예약한 코드라 반드시 있어야 한다(이름은 자유).</summary>
+    /// <summary>태그 마스터: 플레이어(1), 리더(2), 메인 통화(3)는 엔진이 예약한 코드라 반드시 있어야 한다(이름은 자유).</summary>
     static List<TagEntry>? LoadTags(ZipArchive zip)
     {
         var tags = LoadCodeNames(zip, TagMasterPath, "tag_code", "tag_name", "태그", (code, name) => new TagEntry(code, name));
         if (tags is null) return null;
-        foreach (var (code, what) in new[] { (PlayerTagCode, "플레이어"), (LeaderTagCode, "리더") })
+        foreach (var (code, what) in new[] { (PlayerTagCode, "플레이어"), (LeaderTagCode, "리더"), (MainCurrencyTagCode, "메인 통화") })
             if (tags.All(t => t.Code != code))
                 throw new PackFormatException(
-                    $"{TagMasterPath}: 예약된 태그 코드 {code}({what})가 없습니다. 플레이어는 {PlayerTagCode}, 리더는 {LeaderTagCode}로 적어야 합니다.");
+                    $"{TagMasterPath}: 예약된 태그 코드 {code}({what})가 없습니다. 플레이어는 {PlayerTagCode}, 리더는 {LeaderTagCode}, 메인 통화는 {MainCurrencyTagCode}로 적어야 합니다.");
         return tags;
     }
 
@@ -129,7 +153,7 @@ public sealed partial class GamePack
     /// </summary>
     static List<T>? LoadTargetTags<T>(
         ZipArchive zip, string file, string codeColumn, string noun, string targetMasterPath, IReadOnlySet<long>? targetCodes,
-        List<TagEntry>? tags, Func<long, long, T> create, bool isCharacter = false)
+        List<TagEntry>? tags, Func<long, long, T> create, InventoryKind kind)
     {
         var text = TryReadEntry(zip, file);
         if (text is null) return null;
@@ -149,10 +173,9 @@ public sealed partial class GamePack
                 throw new PackFormatException($"{file}: {noun} '{target}'의 태그 '{tag}'가 태그 마스터에 없습니다.");
             if (!seen.Add((target, tag)))
                 throw new PackFormatException($"{file}: {noun} '{target}'에 태그 '{tag}'가 두 번 있습니다.");
-            // 플레이어 태그는 캐릭터 1만 가질 수 있다.
-            if (tag == PlayerTagCode && !(isCharacter && target == PlayerCharacterCode))
-                throw new PackFormatException(
-                    $"{file}: 플레이어 태그({PlayerTagCode})는 캐릭터 {PlayerCharacterCode}만 가질 수 있습니다 ({noun} '{target}').");
+            // 플레이어 태그는 캐릭터 1만, 메인 통화 태그는 커먼 아이템 2만 가질 수 있다(그 밖의 곳에 쓰면 거른다).
+            if (!MayHoldTag(tag, kind, target))
+                throw new PackFormatException($"{file}: {ExclusiveTagText(tag)} 가질 수 있습니다 ({noun} '{target}').");
             rows.Add(create(target, tag));
         }
         return rows;
@@ -160,15 +183,29 @@ public sealed partial class GamePack
 
     static List<UniqueItemTag>? LoadUniqueItemTags(ZipArchive zip, List<UniqueItem>? items, List<TagEntry>? tags) =>
         LoadTargetTags(zip, UniqueItemTagMasterPath, "item_code", "유니크 아이템", UniqueItemInventoryMasterPath,
-            items?.Select(i => i.ItemCode).ToHashSet(), tags, (c, t) => new UniqueItemTag(c, t));
+            items?.Select(i => i.ItemCode).ToHashSet(), tags, (c, t) => new UniqueItemTag(c, t), InventoryKind.UniqueItem);
 
     static List<CommonItemTag>? LoadCommonItemTags(ZipArchive zip, List<ItemEntry>? items, List<TagEntry>? tags) =>
         LoadTargetTags(zip, CommonItemTagMasterPath, "item_code", "커먼 아이템", CommonItemInventoryMasterPath,
-            items?.Select(i => i.Code).ToHashSet(), tags, (c, t) => new CommonItemTag(c, t));
+            items?.Select(i => i.Code).ToHashSet(), tags, (c, t) => new CommonItemTag(c, t), InventoryKind.CommonItem);
 
     static List<CharacterTag>? LoadCharacterTags(ZipArchive zip, List<CharacterEntry>? characters, List<TagEntry>? tags) =>
         LoadTargetTags(zip, CharacterTagMasterPath, "character_code", "캐릭터", CharacterInventoryMasterPath,
-            characters?.Select(c => c.Code).ToHashSet(), tags, (c, t) => new CharacterTag(c, t), isCharacter: true);
+            characters?.Select(c => c.Code).ToHashSet(), tags, (c, t) => new CharacterTag(c, t), InventoryKind.Character);
+
+    /// <summary>
+    /// 메인 통화: 커먼 아이템 인벤토리 마스터에 아이템 <see cref="MainCurrencyItemCode"/>(2)가 있어야 하고, 커먼 아이템 태그 마스터에서
+    /// 메인 통화 태그(3)를 가져야 한다. 메인 통화 태그를 다른 곳에 쓰는 것(둘 이상의 메인 통화)은 각 태그 마스터를 읽을 때 거른다.
+    /// </summary>
+    static void CheckMainCurrency(List<ItemEntry>? commonItems, List<CommonItemTag>? commonItemTags)
+    {
+        if (commonItems is null || commonItems.All(i => i.Code != MainCurrencyItemCode))
+            throw new PackFormatException(
+                $"{CommonItemInventoryMasterPath}: 메인 통화 아이템 {MainCurrencyItemCode}이(가) 없습니다. 아이템 {MainCurrencyItemCode}은(는) 이름은 자유지만 반드시 있어야 합니다.");
+        if (commonItemTags is null || !commonItemTags.Any(t => t.ItemCode == MainCurrencyItemCode && t.TagCode == MainCurrencyTagCode))
+            throw new PackFormatException(
+                $"{CommonItemTagMasterPath}: 아이템 {MainCurrencyItemCode}은(는) 메인 통화 태그({MainCurrencyTagCode})를 가져야 합니다.");
+    }
 
     /// <summary>
     /// 태그 마스터와 캐릭터 인벤토리 마스터가 둘 다 있으면: 캐릭터 1(플레이어)이 있어야 하고, 캐릭터 태그 마스터에서 플레이어 태그를 가져야 한다.

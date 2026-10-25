@@ -18,7 +18,7 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
 | `master/dungeon_flag_master_v1.tsv` | (선택) `dungeon_code`, `group_number`, `flag_code`, `condition_type`, `condition_value` |
 | `master/shop_master_v1.tsv` | (선택) `code`, `name` |
 | `master/shop_condition_master_v1.tsv` | (선택) `shop_code`, `group_number`, `flag_code`, `condition_type`, `condition_value` |
-| `master/common_item_inventory_master_v1.tsv` | (선택) `inventory_code`, `item_name`, `carry_limit` |
+| `master/common_item_inventory_master_v1.tsv` | **(필수)** `inventory_code`, `item_name`, `carry_limit` |
 | `master/bunch_item_inventory_master_v1.tsv` | (선택) `inventory_code`, `item_name`, `part_item_code`, `part_amount` |
 | `master/character_inventory_master_v1.tsv` | **(필수)** `inventory_code`, `character_name`, `carry_limit`, `advantage_attribute_code`, `disadvantage_attribute_code` |
 | `master/status_master_v1.tsv` | **(필수)** `status_code`, `status_name` |
@@ -32,7 +32,7 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
 | `master/tag_master_v1.tsv` | **(필수)** `tag_code`, `tag_name` |
 | `master/unique_item_inventory_master_v1.tsv` | (선택) `inventory_code`, `item_name` |
 | `master/unique_item_tag_master_v1.tsv` | (선택, 유니크 아이템 인벤토리/태그 마스터 필요) `item_code`, `tag_code` |
-| `master/common_item_tag_master_v1.tsv` | (선택, 커먼 아이템 인벤토리/태그 마스터 필요) `item_code`, `tag_code` |
+| `master/common_item_tag_master_v1.tsv` | **(필수)** `item_code`, `tag_code` |
 | `master/character_tag_master_v1.tsv` | **(필수)** `character_code`, `tag_code` |
 | `master/equipment_slot_tag_master_v1.tsv` | (선택, 캐릭터 인벤토리/장비 슬롯/태그 마스터 필요) `character_code`, `equipment_slot_code`, `tag_code`, `group_number`, `is_positive` |
 | `master/shop_trade_master_v1.tsv` | (선택) `code`, `shop_code`, `cost_item_code`, `cost_amount`, `receive_item_code`, `receive_amount` + 선택 열 `cost_kind`, `receive_kind` |
@@ -40,12 +40,12 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
 
 **memo 열:** 모든 마스터 TSV는 헤더에 `memo` 열을 둘 수 있고(위치 자유) 사람이 보는 메모일 뿐이라 엔진은 읽지 않으며 마스터메모리에도 올리지 않습니다. 기본 게임팩은 엔진이 요구하는 필수 행(예약 태그와 스테이터스, 플레이어 캐릭터와 그 속성/태그, 모든 캐릭터의 level/hp 레벨 0 행)의 메모에 "필수"라고 적어 두었고, 테스트용 던전(`1999`)과 상점(`2999`, 커먼/유니크/캐릭터 교환 포함)은 필수가 아니며 조건이 없어 새 게임부터 열려 있습니다.
 
-**필수 마스터 방침:** 엔진이 검증하는 마스터(예약 코드나 필수 항목이 있는 마스터)는 로드할 때 존재부터 확인합니다. 없으면 "`...`가 반드시 필요합니다" 오류로 로드되지 않습니다. 필수 마스터는 `attribute_master`, `tag_master`(예약 태그 1 플레이어, 2 리더), `status_master`(예약 스테이터스 1 level, 2 hp), `character_inventory_master`(캐릭터 1 = 플레이어), `character_tag_master`(캐릭터 1의 플레이어 태그), `character_status_master`(모든 캐릭터의 level/hp 레벨 0 행), `time_slot_master`와 `turn_master`(시간대 FK, 시작 턴 한 행 이상)입니다. 나머지는 선택이고, 선택 마스터가 있으면 가리키는 상위 마스터도 있어야 합니다.
+**필수 마스터 방침:** 엔진이 검증하는 마스터(예약 코드나 필수 항목이 있는 마스터)는 로드할 때 존재부터 확인합니다. 없으면 "`...`가 반드시 필요합니다" 오류로 로드되지 않습니다. 필수 마스터는 `attribute_master`, `tag_master`(예약 태그 1 플레이어, 2 리더), `status_master`(예약 스테이터스 1 level, 2 hp), `character_inventory_master`(캐릭터 1 = 플레이어), `character_tag_master`(캐릭터 1의 플레이어 태그), `character_status_master`(모든 캐릭터의 level/hp 레벨 0 행), `time_slot_master`와 `turn_master`(시간대 FK, 시작 턴 한 행 이상), `common_item_inventory_master`와 `common_item_tag_master`(메인 통화)입니다. 나머지는 선택이고, 선택 마스터가 있으면 가리키는 상위 마스터도 있어야 합니다.
 
 ### 아이템과 상점 교환
 - **커먼 아이템 인벤토리**(`common_item_inventory_master`)는 아이템 코드, 이름, 소지제한(`carry_limit`, 한 번에 소지할 수 있는 최대 수량, 1 이상의 정수)입니다.
 - **번치 인벤토리**(`bunch_item_inventory_master`)는 여러 아이템을 묶은 것으로, 같은 `inventory_code`의 행들이 하나의 번치가 됩니다(행마다 `item_name`은 같아야 함). `part_item_code`는 아이템 인벤토리의 아이템만 가리킬 수 있고, 번치에는 소지제한이 없으며, `part_amount`는 1 이상입니다.
-- **인벤토리 코드는 하나의 코드 공간**입니다: 커먼 아이템, 유니크 아이템, 번치 아이템, 캐릭터 인벤토리 마스터의 코드 열은 모두 `inventory_code`이고, 게임팩을 읽을 때 네 마스터를 `inventory_code`로 찾는 하나의 사전(`GamePack.Inventory`: 코드 → 종류와 이름)으로 합칩니다. **같은 코드가 두 마스터에 있으면(같은 마스터 안에서도) 읽지 못합니다.** 캐릭터 1은 플레이어이므로 아이템은 1번을 쓸 수 없습니다(기본 게임팩의 금화는 101).
+- **인벤토리 코드는 하나의 코드 공간**입니다: 커먼 아이템, 유니크 아이템, 번치 아이템, 캐릭터 인벤토리 마스터의 코드 열은 모두 `inventory_code`이고, 게임팩을 읽을 때 네 마스터를 `inventory_code`로 찾는 하나의 사전(`GamePack.Inventory`: 코드 → 종류와 이름)으로 합칩니다. **같은 코드가 두 마스터에 있으면(같은 마스터 안에서도) 읽지 못합니다.** 캐릭터 1은 플레이어이므로 아이템은 1번을 쓸 수 없습니다. **커먼 아이템 2는 메인 통화**입니다(기본 게임팩에서는 "금화", 이름은 게임팩 마음대로): 커먼 아이템 인벤토리에 반드시 있어야 하고 `common_item_tag_master`에서 **메인 통화 태그(3)를 반드시 가집니다.** 메인 통화 태그는 아이템 2만 가질 수 있어(다른 커먼 아이템, 유니크 아이템, 캐릭터가 가지면 로드 오류, 게임 중에도 더할 수 없고 세이브도 거부) 메인 통화는 둘 이상일 수 없습니다.
 - 인벤토리 계통은 **커먼 아이템 / 유니크 아이템 / 번치 아이템 / 캐릭터** 네 종류입니다(`common_item_inventory_master`, `unique_item_inventory_master`, `bunch_item_inventory_master`, `character_inventory_master`).
 - **캐릭터 인벤토리**(`character_inventory_master`)는 열이 `inventory_code`, `character_name`, `carry_limit`, `advantage_attribute_code`, `disadvantage_attribute_code`인 마스터입니다. 모든 캐릭터는 **유리속성**과 **불리속성**을 하나씩 가져야 하고, 둘 다 속성 마스터에 있어야 하며 서로 달라야 합니다.
 - **스테이터스**(`status_master`)는 스테이터스의 종류(level, hp, xp, exp 등)이고, **캐릭터 스테이터스**(`character_status_master`)는 캐릭터 × 스테이터스 × 레벨별 값입니다. 복합키는 `(character_code, status_code, level)`이고 값은 `initial_value`, `min_value`, `max_value`(모두 정수)입니다. `min_value <= initial_value <= max_value`여야 하고, `level`은 0 이상입니다. **폴백**: 현재 레벨의 행을 먼저 찾고, 없으면 `level` 0의 행을 씁니다. 캐릭터를 만들 때는 레벨이 정해지지 않았으므로 `level` 0의 행을 읽습니다. 엔진이 예약한 스테이터스 코드는 **1 = level, 2 = hp, 3 = xp**입니다(이름은 자유). `status_master`에는 **level(1)과 hp(2)가 반드시** 있어야 하고, `character_status_master`에는 **모든 캐릭터에게 level과 hp의 `level` 0 행이 있어야** 합니다(어기면 로드 오류). xp(3)는 선택입니다. 캐릭터를 새로 얻을 때(`AddCharacter`) 상태가 레벨 0 행으로 채워집니다: 레벨 = level의 `initial_value`, HP = hp의 `initial_value`(최대 HP는 `max_value`), 경험치 = xp의 `initial_value`(필요 경험치는 `max_value`). **xp 행이 없으면 0/0**으로 시작합니다.
@@ -65,7 +65,7 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
   - `None`(조건 없음/시점 없음), `BeforeAttack`(공격하기 전), `AfterAttack`(공격한 후), `BeforeAttacked`(공격을 받기 전), `AfterAttacked`(공격을 받은 후), `AfterTurnStart`(턴 개시 후), `AfterTurnEnd`(턴 종료 후), `AfterBattleStart`(배틀 개시 후), `AfterBattleEnd`(배틀 종료 후), `AfterMove`(이동 후)
 - `GameSession.ApplyEffect(이펙트 코드, 캐릭터 코드, 밸류 1~3)`은 이펙트를 만들어(타겟과 밸류 저장) `Execute()`로 보유 캐릭터에게 실행하고, 바뀐 상태를 세이브가 받아들이는 범위(레벨 1 이상, HP 0~최대 HP, XP 0~필요 XP)로 보정해 저장합니다.
 - **장비**는 슬롯과 태그로 정합니다.
-  - `equipment_slot_master`는 장비 슬롯의 종류(무기, 방어구 등), `tag_master`는 태그(검, 갑옷, 중량 등; **1 = 플레이어, 2 = 리더는 엔진이 예약한 코드**라 반드시 이 번호로 있어야 하고 없으면 로드 오류입니다, 이름은 자유), `unique_item_inventory_master`는 유니크 아이템(`inventory_code`, `item_name`)입니다. **캐릭터 1은 플레이어**입니다: 캐릭터 1이 반드시 있어야 하고(이름은 게임팩 마음대로, 기본 게임팩에서는 "당신") `character_tag_master`에서 플레이어 태그(1)를 가져야 하며, **플레이어 태그는 캐릭터 1만** 가질 수 있습니다(다른 캐릭터나 아이템이 가지면 로드 오류, 게임 중에도 더하거나 뺄 수 없고 세이브도 거부). 플레이어는 상점 교환의 코스트로 낼 수 없고 내보낼 수 없습니다.
+  - `equipment_slot_master`는 장비 슬롯의 종류(무기, 방어구 등), `tag_master`는 태그(검, 갑옷, 중량 등; **1 = 플레이어, 2 = 리더, 3 = 메인 통화는 엔진이 예약한 코드**라 반드시 이 번호로 있어야 하고 없으면 로드 오류입니다, 이름은 자유), `unique_item_inventory_master`는 유니크 아이템(`inventory_code`, `item_name`)입니다. **캐릭터 1은 플레이어**입니다: 캐릭터 1이 반드시 있어야 하고(이름은 게임팩 마음대로, 기본 게임팩에서는 "당신") `character_tag_master`에서 플레이어 태그(1)를 가져야 하며, **플레이어 태그는 캐릭터 1만** 가질 수 있습니다(다른 캐릭터나 아이템이 가지면 로드 오류, 게임 중에도 더하거나 뺄 수 없고 세이브도 거부). 플레이어는 상점 교환의 코스트로 낼 수 없고 내보낼 수 없습니다.
   - `unique_item_tag_master`, `common_item_tag_master`, `character_tag_master`는 각각 유니크 아이템, 커먼 아이템(아이템 인벤토리), 캐릭터가 가진 태그입니다(대상과 태그가 각자의 마스터에 있어야 하고, 같은 `(대상 코드, tag_code)`를 두 번 쓸 수 없음). **장비 슬롯에는 이 세 종류가 모두 들어갈 수 있습니다**(예: 강령술사가 강시 캐릭터를 장비). 어느 종류가 들어가는지는 슬롯 태그 규칙에 그 종류의 태그를 쓰는 것으로 정합니다. **장비 가능 판정은 (장비하는 캐릭터의 태그 + 끼울 것의 태그)를 합친 태그 집합으로 슬롯 태그 규칙을 검사합니다**(캐릭터 태그는 `character_tag_master`).
   - `equipment_slot_tag_master`는 **캐릭터의 장비 슬롯에 어떤 장비가 들어가는가**를 태그로 적습니다. **복합키는 앞의 네 열**(`character_code`, `equipment_slot_code`, `tag_code`, `group_number`)이고 `is_positive`는 값입니다. 같은 키를 두 번 쓰면 `is_positive`가 달라도 오류입니다. `is_positive`는 `true`/`false`(대소문자 무시) 또는 `1`/`0`입니다.
   - **부합 규칙**: 같은 (캐릭터, 슬롯)에서 같은 `group_number`가 한 그룹이고 **그룹 안은 모두 만족(AND), 그룹끼리는 하나만 만족해도 됨(OR)**입니다. `is_positive`가 참이면 장비가 그 태그를 **가져야** 하고, 거짓이면 **가지면 안 됩니다**. 규칙이 없으면 아무것도 낄 수 없습니다.
