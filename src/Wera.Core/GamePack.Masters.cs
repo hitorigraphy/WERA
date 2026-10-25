@@ -132,7 +132,7 @@ public sealed partial class GamePack
         builder.Append((advFlows ?? []).Select(f => new AdvFlowRow
         {
             AdvCode = f.AdvCode, FlowNumber = f.FlowNumber, FlowType = f.FlowType,
-            Param1 = f.Param1, Param2 = f.Param2, Param3 = f.Param3,
+            Param1 = f.Param1, Param2 = f.Param2, Param3 = f.Param3, Text = f.Text,
         }).ToList());
         builder.Append(advFlowConditions.Select(c => new AdvFlowConditionRow
         {

@@ -297,7 +297,7 @@ public class EventScreenTests
 // adv_flow_master / adv_flow_condition_master
 public class AdvFlowMasterTests
 {
-    const string Header = "adv_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\n";
+    const string Header = "adv_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\ttext\n";
 
     static GamePack Load(string flows, string? conditions = null, bool withAdvMaster = true)
     {
@@ -316,7 +316,7 @@ public class AdvFlowMasterTests
     public void Flows_load_with_their_types_params_and_conditions_and_come_back_in_flow_number_order()
     {
         var pack = Load(
-            "4001\t3\tFinish\t0\t0\t0\n4001\t1\ttext\t0\t0\t0\n4001\t2\tChoice\t7\t3\t0\n4002\t1\tNone\t\t\t\n",
+            "4001\t3\tFinish\t0\t0\t0\n4001\t1\ttextme\t0\t0\t0\t내 말\n4001\t2\tChoice\t7\t3\t0\n4002\t1\tNone\t\t\t\n",
             "4001\t2\t1\t1001\tGreaterOrEqual\t1\n");
         Assert.Equal(4, pack.AdvFlows!.Count);
         Assert.Equal([1L, 2L, 3L], pack.AdvFlowsOf(4001).Select(f => f.FlowNumber));
@@ -335,7 +335,25 @@ public class AdvFlowMasterTests
     [Fact]
     public void The_enum_numbers_are_fixed()
     {
-        Assert.Equal([0, 1, 2, 3, 4], new[] { AdvFlowType.None, AdvFlowType.Finish, AdvFlowType.Jump, AdvFlowType.Text, AdvFlowType.Choice }.Select(t => (int)t));
+        Assert.Equal([0, 1, 2, 3, 4, 5, 6],
+            new[] { AdvFlowType.None, AdvFlowType.Finish, AdvFlowType.Jump, AdvFlowType.TextMe, AdvFlowType.Choice, AdvFlowType.TextYou, AdvFlowType.TextNormal }
+                .Select(t => (int)t));
+    }
+
+    [Fact]
+    public void The_text_column_is_loaded_and_the_three_text_types_need_it()
+    {
+        var pack = Load("4001\t1\tTextMe\t0\t0\t0\t안녕\n4001\t2\tTextYou\t0\t0\t0\t반가워\n4001\t3\tTextNormal\t0\t0\t0\t밤이 되었다\n4001\t4\tChoice\t1\t5\t0\t고른다\n4001\t5\tFinish\t0\t0\t0\t\n");
+        Assert.Equal(["안녕", "반가워", "밤이 되었다", "고른다", ""], pack.AdvFlowsOf(4001).Select(f => f.Text));
+        Assert.Equal("반가워", pack.Masters.AdvFlowRowTable.FindByAdvCodeAndFlowNumber((4001, 2)).Text);
+
+        foreach (var type in new[] { "TextMe", "TextYou", "TextNormal" })
+        {
+            Assert.Contains("text가 있어야", Error($"4001\t1\t{type}\t0\t0\t0\t\n"));
+            Assert.Contains("text가 있어야", Error($"4001\t1\t{type}\t0\t0\t0\t  \n"));
+            Assert.Contains("text가 있어야", Error($"4001\t1\t{type}\t0\t0\t0\n"));          // 칸이 아예 없어도 같다
+        }
+        Assert.Contains("흐름 종류", Error("4001\t1\tText\t0\t0\t0\t안녕\n"));                  // 옛 이름 Text는 없다
     }
 
     [Fact]
@@ -352,25 +370,25 @@ public class AdvFlowMasterTests
     [Fact]
     public void The_flow_master_needs_the_adv_master_and_a_known_adv()
     {
-        Assert.Contains("adv_master_v1.tsv도 필요", Assert.Throws<PackFormatException>(() => Load("4001\t1\tText\t0\t0\t0\n", withAdvMaster: false)).Message);
-        Assert.Contains("ADV '9'가 ADV 마스터에 없습니다", Error("9\t1\tText\t0\t0\t0\n"));
+        Assert.Contains("adv_master_v1.tsv도 필요", Assert.Throws<PackFormatException>(() => Load("4001\t1\tTextNormal\t0\t0\t0\t문장\n", withAdvMaster: false)).Message);
+        Assert.Contains("ADV '9'가 ADV 마스터에 없습니다", Error("9\t1\tTextNormal\t0\t0\t0\t문장\n"));
     }
 
     [Fact]
     public void Duplicate_keys_unknown_types_and_bad_numbers_are_rejected()
     {
-        Assert.Contains("두 번", Error("4001\t1\tText\t0\t0\t0\n4001\t1\tFinish\t0\t0\t0\n"));
+        Assert.Contains("두 번", Error("4001\t1\tTextNormal\t0\t0\t0\t문장\n4001\t1\tFinish\t0\t0\t0\n"));
         Assert.Contains("흐름 종류", Error("4001\t1\tAdv\t0\t0\t0\n"));
         Assert.Contains("흐름 종류", Error("4001\t1\t3\t0\t0\t0\n"));                                   // 숫자로는 못 쓴다
-        Assert.Contains("흐름 번호", Error("4001\tx\tText\t0\t0\t0\n"));
+        Assert.Contains("흐름 번호", Error("4001\tx\tTextNormal\t0\t0\t0\t문장\n"));
     }
 
     [Fact]
     public void Jump_must_go_forward_to_a_flow_of_the_same_adv()
     {
         Assert.Contains("보다 커야", Error("4001\t1\tJump\t1\t0\t0\n"));
-        Assert.Contains("보다 커야", Error("4001\t1\tText\t0\t0\t0\n4001\t2\tJump\t1\t0\t0\n"));
-        Assert.Contains("같은 ADV의 흐름에 없습니다", Error("4001\t1\tJump\t5\t0\t0\n4002\t5\tText\t0\t0\t0\n"));
+        Assert.Contains("보다 커야", Error("4001\t1\tTextNormal\t0\t0\t0\t문장\n4001\t2\tJump\t1\t0\t0\n"));
+        Assert.Contains("같은 ADV의 흐름에 없습니다", Error("4001\t1\tJump\t5\t0\t0\n4002\t5\tTextNormal\t0\t0\t0\t문장\n"));
         Assert.NotNull(Load("4001\t1\tJump\t5\t0\t0\n4001\t5\tFinish\t0\t0\t0\n"));
     }
 
@@ -378,8 +396,8 @@ public class AdvFlowMasterTests
     public void Choice_param_2_must_go_forward_to_a_flow_of_the_same_adv()
     {
         Assert.Contains("보다 커야", Error("4001\t1\tChoice\t1\t1\t0\n"));
-        Assert.Contains("보다 커야", Error("4001\t1\tText\t0\t0\t0\n4001\t2\tChoice\t1\t1\t0\n"));
-        Assert.Contains("같은 ADV의 흐름에 없습니다", Error("4001\t1\tChoice\t1\t5\t0\n4002\t5\tText\t0\t0\t0\n"));
+        Assert.Contains("보다 커야", Error("4001\t1\tTextNormal\t0\t0\t0\t문장\n4001\t2\tChoice\t1\t1\t0\n"));
+        Assert.Contains("같은 ADV의 흐름에 없습니다", Error("4001\t1\tChoice\t1\t5\t0\n4002\t5\tTextNormal\t0\t0\t0\t문장\n"));
         Assert.NotNull(Load("4001\t1\tChoice\t1\t5\t0\n4001\t5\tFinish\t0\t0\t0\n"));
     }
 
@@ -392,7 +410,7 @@ public class AdvFlowMasterTests
 
         // 다른 종류의 칸이 끼어들면 안 된다
         Assert.Contains("연속하지 않습니다", Error(
-            "4001\t1\tChoice\t1\t5\t0\n4001\t2\tText\t0\t0\t0\n4001\t3\tChoice\t1\t5\t0\n4001\t5\tFinish\t0\t0\t0\n"));
+            "4001\t1\tChoice\t1\t5\t0\n4001\t2\tTextNormal\t0\t0\t0\t문장\n4001\t3\tChoice\t1\t5\t0\n4001\t5\tFinish\t0\t0\t0\n"));
         // 다른 그룹의 선택지가 끼어들어도 안 된다
         Assert.Contains("연속하지 않습니다", Error(
             "4001\t1\tChoice\t1\t5\t0\n4001\t2\tChoice\t2\t5\t0\n4001\t3\tChoice\t1\t5\t0\n4001\t5\tFinish\t0\t0\t0\n"));
@@ -400,7 +418,7 @@ public class AdvFlowMasterTests
         Assert.NotNull(Load(
             "4001\t5\tFinish\t0\t0\t0\n4001\t2\tChoice\t1\t5\t0\n4001\t1\tChoice\t1\t5\t0\n"));
         Assert.Contains("연속하지 않습니다", Error(
-            "4001\t3\tChoice\t1\t5\t0\n4001\t1\tChoice\t1\t5\t0\n4001\t2\tText\t0\t0\t0\n4001\t5\tFinish\t0\t0\t0\n"));
+            "4001\t3\tChoice\t1\t5\t0\n4001\t1\tChoice\t1\t5\t0\n4001\t2\tTextNormal\t0\t0\t0\t문장\n4001\t5\tFinish\t0\t0\t0\n"));
     }
 
     [Fact]
@@ -413,7 +431,7 @@ public class AdvFlowMasterTests
     [Fact]
     public void Flow_conditions_need_a_known_flow_and_unique_keys()
     {
-        const string flows = "4001\t1\tText\t0\t0\t0\n";
+        const string flows = "4001\t1\tTextNormal\t0\t0\t0\t문장\n";
         Assert.Contains("알 수 없는 흐름", Error(flows, "4001\t2\t1\t1\tEqual\t1\n"));
         Assert.Contains("두 번", Error(flows, "4001\t1\t1\t1\tEqual\t1\n4001\t1\t1\t1\tEqual\t2\n"));
         Assert.Contains("컨디션 타입", Error(flows, "4001\t1\t1\t1\tNope\t1\n"));
@@ -427,8 +445,8 @@ public class AdvFlowMasterTests
         while (!File.Exists(Path.Combine(root, "WERA.slnx"))) root = Path.GetDirectoryName(root)!;
         using var zip = File.OpenRead(Path.Combine(root, "src", "Wera.Web", "wwwroot", "sample-pack.zip"));
         var pack = GamePack.Load(zip);
-        Assert.Equal(5, pack.AdvFlowsOf(4001).Count);
+        Assert.Equal(7, pack.AdvFlowsOf(4001).Count);
         Assert.Equal(2, pack.AdvFlowsOf(4001).Count(f => f.FlowType == AdvFlowType.Choice));
-        Assert.False(pack.FindAdvFlow(4001, 3)!.IsAvailable(new Dictionary<long, long>()));          // 튜토리얼 플래그가 있어야 두 번째 선택지
+        Assert.False(pack.FindAdvFlow(4001, 4)!.IsAvailable(new Dictionary<long, long>()));          // 튜토리얼 플래그가 있어야 두 번째 선택지
     }
 }
