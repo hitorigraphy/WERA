@@ -233,3 +233,63 @@ public class EventExecutionTests
         Assert.Equal([(EventStepKind.Adv, 4001L), (EventStepKind.Battle, 5001L)], RunAll(s.StartEvent(3001)!));
     }
 }
+
+// 103 이벤트 화면: 목록 → 시작 → 장면마다 [1] 다음 → 끝나면 이벤트 화면
+public class EventScreenTests
+{
+    static GameSession Session(string flows, string? eventConditions = null)
+    {
+        var files = new List<(string, string)>
+        {
+            ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
+            ("master/event_master_v1.tsv", "code\tname\n3001\t첫 이벤트\n3002\t조건 이벤트\n"),
+            ("master/adv_master_v1.tsv", "code\tname\n4001\t인사\n"),
+            ("master/battle_master_v1.tsv", "code\tname\n5001\t슬라임\n"),
+            ("master/event_flow_master_v1.tsv", "event_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\n" + flows),
+        };
+        if (eventConditions is not null)
+            files.Add(("master/event_condition_master_v1.tsv", "event_code\tgroup_number\tflag_code\tcondition_type\tcondition_value\n" + eventConditions));
+        return GameSession.NewGame(GamePack.Load(CoreTests.PackZip(files.ToArray())));
+    }
+
+    [Fact]
+    public void The_event_screen_lists_only_events_whose_conditions_are_met()
+    {
+        var s = Session("3001\t1\tAdv\t4001\t0\t0\n", "3002\t1\t1001\tGreaterOrEqual\t1\n");
+        s.Activate("103");
+        Assert.Equal(["3001", "999"], s.Entries.Select(e => e.Code));
+        s.PlayerFlags[1001] = 1;
+        Assert.Equal(["3001", "3002", "999"], s.Entries.Select(e => e.Code));
+    }
+
+    [Fact]
+    public void Playing_an_event_shows_each_scene_and_returns_to_the_list_when_finished()
+    {
+        var s = Session("3001\t1\tAdv\t4001\t0\t0\n3001\t2\tBattle\t5001\t0\t0\n");
+        s.Activate("103");
+        s.Activate("3001");
+
+        Assert.Equal(Screen.EventPlay, s.Screen);
+        Assert.Equal("ADV: 인사", s.CurrentStepText);
+        Assert.Equal(["1"], s.Entries.Select(e => e.Code));
+
+        s.Activate("1");
+        Assert.Equal(Screen.EventPlay, s.Screen);
+        Assert.Equal("전투: 슬라임", s.CurrentStepText);
+
+        s.Activate("1");
+        Assert.Equal(Screen.Event, s.Screen);
+        Assert.Null(s.CurrentEvent);
+        Assert.Null(s.CurrentStep);
+        Assert.Equal("이벤트가 끝났습니다.", s.Message);
+    }
+
+    [Fact]
+    public void An_event_with_nothing_to_show_goes_straight_back_to_the_list()
+    {
+        var s = Session("3001\t1\tFinish\t0\t0\t0\n");
+        s.Activate("103");
+        s.Activate("3001");
+        Assert.Equal(Screen.Event, s.Screen);
+    }
+}

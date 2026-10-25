@@ -20,8 +20,10 @@ public enum Screen
     EquipmentSelect,
     /// <summary>선택한 슬롯에 배치할 캐릭터 목록.</summary>
     CharacterSelect,
-    /// <summary>이벤트 화면(103). 아직 내용이 없다.</summary>
+    /// <summary>이벤트 화면(103): 조건을 만족하는 이벤트 목록. 하나를 고르면 그 이벤트를 시작한다.</summary>
     Event,
+    /// <summary>진행 중인 이벤트의 현재 장면(ADV 재생 또는 전투). [1] 다음으로 이벤트를 이어 가며, 끝나면 이벤트 화면으로 돌아간다.</summary>
+    EventPlay,
     /// <summary>교류 화면(104). 아직 내용이 없다.</summary>
     Interaction,
     /// <summary>동료 확인 화면(201). 아직 내용이 없다.</summary>
@@ -57,6 +59,10 @@ public enum EntryAction
     EquipItem,
     /// <summary>선택한 캐릭터의 선택한 장비 슬롯의 장비를 뺀다.</summary>
     Unequip,
+    /// <summary>항목의 코드에 해당하는 이벤트를 시작해 첫 장면으로 간다.</summary>
+    StartEvent,
+    /// <summary>진행 중인 이벤트를 다음 장면으로 이어 간다(더 없으면 이벤트 화면으로).</summary>
+    NextEventStep,
 }
 
 /// <summary>화면에 나오는 클릭 가능한 텍스트. 클릭하거나 Code를 입력하면 Action을 수행한다.</summary>
@@ -382,8 +388,15 @@ public sealed partial class GameSession
                 case Screen.SupportSelect:
                     return SupportSelectEntries();
                 case Screen.DungeonSelect:
-                case Screen.Load:
                 case Screen.Event:
+                    // 조건을 만족하는 이벤트를 코드로 입력하거나 클릭하면 시작한다.
+                    return AvailableEvents
+                        .Select(e => new ScreenEntry(Text(e.Code), e.Name, Screen.EventPlay, EntryAction.StartEvent))
+                        .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home))
+                        .ToList();
+                case Screen.EventPlay:
+                    return [new ScreenEntry(NextEventStepCode, "다음", Screen.EventPlay, EntryAction.NextEventStep)];
+                case Screen.Load:
                 case Screen.Interaction:
                 case Screen.CompanionCheck:
                 case Screen.EquipmentCheck:
@@ -473,6 +486,12 @@ public sealed partial class GameSession
                 Message = UnequipFromScreen();
                 CurrentEquipmentSlotCode = null;
                 Screen = entry.Target;
+                break;
+            case EntryAction.StartEvent:
+                BeginEvent(CodeOf(entry));
+                break;
+            case EntryAction.NextEventStep:
+                ShowNextEventStep();
                 break;
         }
         return entry;
