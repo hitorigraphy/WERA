@@ -7,8 +7,8 @@ namespace Wera.Core;
 // 게임 중에 추가/소실). 커먼 아이템은 인스턴스가 없어 늘 마스터의 태그다.
 public sealed partial class GameSession
 {
-    /// <summary>보유 유니크 아이템 인스턴스: 인스턴스 ID → 인스턴스. 유니크 아이템 코드는 유니크 아이템 마스터에 있어야 한다.</summary>
-    public Dictionary<long, UniqueItemInstance> UniqueItemInstances { get; }
+    /// <summary>보유 유니크 아이템 인스턴스: 인스턴스 ID(ULID 문자열) → 인스턴스. 유니크 아이템 코드는 유니크 아이템 마스터에 있어야 한다.</summary>
+    public Dictionary<string, UniqueItemInstance> UniqueItemInstances { get; }
 
     /// <summary>
     /// 캐릭터 태그 인스턴스: 캐릭터 코드 → 현재 태그. 아직 없는 캐릭터는 캐릭터 태그 마스터의 태그를 그대로 가진 것으로 본다
@@ -22,25 +22,40 @@ public sealed partial class GameSession
     // ---- 유니크 아이템 인스턴스 ----
 
     /// <summary>유니크 아이템을 한 개 얻는다: 새 인스턴스를 만들고 유니크 아이템 태그 마스터의 태그를 복사한다. 마스터에 없으면 null.</summary>
-    public long? AddUniqueItem(long itemCode)
+    public string? AddUniqueItem(long itemCode)
     {
         if (Pack.FindUniqueItem(itemCode) is null) return null;
-        var id = (UniqueItemInstances.Count == 0 ? 0 : UniqueItemInstances.Keys.Max()) + 1;
+        var id = NewInstanceId();
         UniqueItemInstances[id] = new UniqueItemInstance(itemCode, Pack.MasterTagsOfUniqueItem(itemCode).ToList());
         return id;
     }
 
+    /// <summary>
+    /// 새 인스턴스 ID(ULID의 ToString). ULID는 시간순으로 정렬되므로 이미 있는 것보다 시각이 반드시 늦도록 해서
+    /// 만든 순서가 ID의 순서와 같게 한다(같은 밀리초에 여러 개를 만들어도).
+    /// </summary>
+    string NewInstanceId()
+    {
+        var latest = UniqueItemInstances.Keys
+            .Select(k => Ulid.TryParse(k, out var u) ? u.Time : DateTimeOffset.MinValue)
+            .DefaultIfEmpty(DateTimeOffset.MinValue).Max();
+        // ULID의 시각은 밀리초 단위이므로 밀리초로 비교한다(같은 밀리초면 뒤의 무작위 부분이 순서를 정해 버린다).
+        var latestMs = latest.ToUnixTimeMilliseconds();
+        var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        return Ulid.NewUlid(DateTimeOffset.FromUnixTimeMilliseconds(Math.Max(nowMs, latestMs + 1))).ToString();
+    }
+
     /// <summary>인스턴스를 없앤다(끼고 있었다면 빠진다). 없으면 false.</summary>
-    public bool RemoveUniqueItem(long instanceId)
+    public bool RemoveUniqueItem(string instanceId)
     {
         if (!UniqueItemInstances.Remove(instanceId)) return false;
         RevalidateEquipment();
         return true;
     }
 
-    /// <summary>이 유니크 아이템 코드의 인스턴스 ID들(작은 ID부터).</summary>
-    public IReadOnlyList<long> InstancesOf(long itemCode) =>
-        UniqueItemInstances.Where(kv => kv.Value.ItemCode == itemCode).Select(kv => kv.Key).Order().ToList();
+    /// <summary>이 유니크 아이템 코드의 인스턴스 ID들(ID순 = 만든 순서).</summary>
+    public IReadOnlyList<string> InstancesOf(long itemCode) =>
+        UniqueItemInstances.Where(kv => kv.Value.ItemCode == itemCode).Select(kv => kv.Key).Order(StringComparer.Ordinal).ToList();
 
     // ---- 태그 ----
 
@@ -59,11 +74,11 @@ public sealed partial class GameSession
         Characters.ContainsKey(characterCode) && ChangeTags(OwnCharacterTags(characterCode), tagCode, add: false);
 
     /// <summary>유니크 아이템 인스턴스에 태그를 더한다.</summary>
-    public bool AddUniqueItemTag(long instanceId, long tagCode) =>
+    public bool AddUniqueItemTag(string instanceId, long tagCode) =>
         UniqueItemInstances.TryGetValue(instanceId, out var item) && ChangeTags(OwnItemTags(item), tagCode, add: true);
 
     /// <summary>유니크 아이템 인스턴스에서 태그를 없앤다.</summary>
-    public bool RemoveUniqueItemTag(long instanceId, long tagCode) =>
+    public bool RemoveUniqueItemTag(string instanceId, long tagCode) =>
         UniqueItemInstances.TryGetValue(instanceId, out var item) && ChangeTags(OwnItemTags(item), tagCode, add: false);
 
     // 인스턴스가 자기 태그 목록을 갖게 한다(캐릭터는 처음 바꿀 때 마스터에서 복사).
@@ -112,7 +127,7 @@ public sealed partial class GameSession
 
     /// <summary>슬롯에 끼고 있는 것이 유니크 아이템이면 그 유니크 아이템 코드, 아니면 null.</summary>
     public long? EquippedUniqueCode(long characterCode, long equipmentSlotCode) =>
-        EquippedItemOf(characterCode, equipmentSlotCode) is { Kind: EquipKind.UniqueItem } r && UniqueItemInstances.TryGetValue(r.Code, out var i)
+        EquippedItemOf(characterCode, equipmentSlotCode) is { Kind: EquipKind.UniqueItem } r && UniqueItemInstances.TryGetValue(r.Instance ?? "", out var i)
             ? i.ItemCode : null;
 
     /// <summary>이것을 모든 캐릭터가 합쳐서 몇 개 끼고 있는가.</summary>
@@ -125,7 +140,7 @@ public sealed partial class GameSession
     /// <summary>보유 개수: 유니크 아이템 인스턴스와 캐릭터는 있으면 1, 커먼 아이템은 인벤토리 수량.</summary>
     public long OwnedCount(EquipRef target) => target.Kind switch
     {
-        EquipKind.UniqueItem => UniqueItemInstances.ContainsKey(target.Code) ? 1 : 0,
+        EquipKind.UniqueItem => UniqueItemInstances.ContainsKey(target.Instance ?? "") ? 1 : 0,
         EquipKind.CommonItem => InventoryItems.GetValueOrDefault(target.Code).Amount,
         EquipKind.Character => Characters.ContainsKey(target.Code) ? 1 : 0,
         _ => 0,
@@ -171,11 +186,11 @@ public sealed partial class GameSession
     /// <summary>끼울 것의 이름. 마스터에 없으면 코드 그대로.</summary>
     public string NameOf(EquipRef target) => (target.Kind switch
     {
-        EquipKind.UniqueItem => UniqueItemInstances.TryGetValue(target.Code, out var i) ? Pack.FindUniqueItem(i.ItemCode)?.ItemName : null,
+        EquipKind.UniqueItem => UniqueItemInstances.TryGetValue(target.Instance ?? "", out var i) ? Pack.FindUniqueItem(i.ItemCode)?.ItemName : null,
         EquipKind.CommonItem => Pack.FindItem(target.Code)?.Name,
         EquipKind.Character => Pack.FindCharacter(target.Code)?.Name,
         _ => null,
-    }) ?? target.Code.ToString(CultureInfo.InvariantCulture);
+    }) ?? target.Key;
 
     /// <summary>
     /// 선택한 캐릭터의 선택한 장비 슬롯에 지금 낄 수 있는 것들: 슬롯 태그에 부합하고 보유 중이며
@@ -191,7 +206,7 @@ public sealed partial class GameSession
 
             var masterOrder = (Pack.UniqueItems ?? []).Select((u, index) => (u.ItemCode, index)).ToDictionary(x => x.ItemCode, x => x.index);
             var unique = UniqueItemInstances
-                .OrderBy(kv => masterOrder.GetValueOrDefault(kv.Value.ItemCode, int.MaxValue)).ThenBy(kv => kv.Key)
+                .OrderBy(kv => masterOrder.GetValueOrDefault(kv.Value.ItemCode, int.MaxValue)).ThenBy(kv => kv.Key, StringComparer.Ordinal)
                 .Select(kv => EquipRef.Unique(kv.Key));
             var common = (Pack.ItemInventory ?? []).Select(i => EquipRef.Common(i.Code));
             var characters = (Pack.CharacterInventory ?? []).Select(c => EquipRef.Char(c.Code));
@@ -207,10 +222,10 @@ public sealed partial class GameSession
     // ---- 판정 (세이브 검증과 같은 규칙을 쓰려고 상태를 인자로 받는다) ----
 
     static IReadOnlySet<long> TagsOfTarget(
-        GamePack pack, Dictionary<long, UniqueItemInstance> instances, Dictionary<long, List<long>> characterTags, EquipRef target) =>
+        GamePack pack, Dictionary<string, UniqueItemInstance> instances, Dictionary<long, List<long>> characterTags, EquipRef target) =>
         target.Kind switch
         {
-            EquipKind.UniqueItem => instances.TryGetValue(target.Code, out var i)
+            EquipKind.UniqueItem => instances.TryGetValue(target.Instance ?? "", out var i)
                 ? (i.Tags ?? pack.MasterTagsOfUniqueItem(i.ItemCode)).ToHashSet() : new HashSet<long>(),
             EquipKind.CommonItem => pack.MasterTagsOfCommonItem(target.Code).ToHashSet(),
             EquipKind.Character => (characterTags.TryGetValue(target.Code, out var t) ? t : pack.MasterTagsOfCharacter(target.Code)).ToHashSet(),
@@ -222,12 +237,12 @@ public sealed partial class GameSession
     /// (캐릭터의 태그 + 끼울 것의 태그)가 슬롯 규칙에 부합한다.
     /// </summary>
     static bool Fits(
-        GamePack pack, Dictionary<long, UniqueItemInstance> instances, Dictionary<long, List<long>> characterTags,
+        GamePack pack, Dictionary<string, UniqueItemInstance> instances, Dictionary<long, List<long>> characterTags,
         Dictionary<long, CharacterState> owned, long characterCode, long equipmentSlotCode, EquipRef target)
     {
         var exists = target.Kind switch
         {
-            EquipKind.UniqueItem => instances.ContainsKey(target.Code),
+            EquipKind.UniqueItem => instances.ContainsKey(target.Instance ?? ""),
             EquipKind.CommonItem => pack.FindItem(target.Code) is not null,
             EquipKind.Character => owned.ContainsKey(target.Code) && target.Code != characterCode,
             _ => false,
@@ -248,12 +263,15 @@ public sealed partial class GameSession
         return $"{slot.Name} : {(item is { } target ? NameOf(target) : "(없음)")}";
     }
 
-    static string RefText(EquipRef target) => $"{target.Kind}:{target.Code.ToString(CultureInfo.InvariantCulture)}";
+    static string RefText(EquipRef target) => $"{target.Kind}:{target.Key}";
 
     static EquipRef ParseRef(string text)
     {
         var parts = text.Split(':');
-        return new EquipRef(Enum.Parse<EquipKind>(parts[0]), long.Parse(parts[1], CultureInfo.InvariantCulture));
+        var kind = Enum.Parse<EquipKind>(parts[0]);
+        return kind == EquipKind.UniqueItem
+            ? EquipRef.Unique(parts[1])
+            : new EquipRef(kind, long.Parse(parts[1], CultureInfo.InvariantCulture));
     }
 
     /// <summary>
@@ -307,7 +325,7 @@ public sealed partial class GameSession
 
     // ---- 세이브 ----
 
-    Dictionary<long, UniqueItemInstance> CopyUniqueItems() =>
+    Dictionary<string, UniqueItemInstance> CopyUniqueItems() =>
         UniqueItemInstances.ToDictionary(kv => kv.Key,
             kv => new UniqueItemInstance(kv.Value.ItemCode, (kv.Value.Tags ?? Pack.MasterTagsOfUniqueItem(kv.Value.ItemCode)).ToList()));
 
@@ -340,17 +358,20 @@ public sealed partial class GameSession
     /// 장착한 캐릭터는 보유 캐릭터, 슬롯은 그 캐릭터의 장비 슬롯, 끼운 것은 있어야 하고 (캐릭터 태그 + 끼운 것의 태그)가
     /// 슬롯 규칙에 부합해야 하며, 같은 것을 두 곳에 끼거나 커먼 아이템을 인벤토리 수량보다 많이 끼면 안 된다.
     /// </summary>
-    static (Dictionary<long, UniqueItemInstance> Instances, Dictionary<long, List<long>> CharacterTags,
+    static (Dictionary<string, UniqueItemInstance> Instances, Dictionary<long, List<long>> CharacterTags,
         Dictionary<long, Dictionary<long, EquipRef>> Equipped) ValidateEquipment(
         GamePack pack, Dictionary<long, CharacterState> characters, Dictionary<long, InventoryItem> inventory,
-        Dictionary<long, UniqueItemInstance>? savedInstances, Dictionary<long, List<long>>? savedCharacterTags,
+        Dictionary<string, UniqueItemInstance>? savedInstances, Dictionary<long, List<long>>? savedCharacterTags,
         Dictionary<long, Dictionary<long, EquipRef>>? savedEquipped)
     {
-        var instances = new Dictionary<long, UniqueItemInstance>();
-        foreach (var (id, item) in savedInstances ?? [])
+        var instances = new Dictionary<string, UniqueItemInstance>();
+        foreach (var (savedId, item) in savedInstances ?? [])
         {
-            if (id < 1)
-                throw new SaveFormatException($"세이브의 유니크 아이템 인스턴스 ID '{id}'가 1 이상이 아닙니다.");
+            if (!Ulid.TryParse(savedId, out var ulid))
+                throw new SaveFormatException($"세이브의 유니크 아이템 인스턴스 ID '{savedId}'가 ULID가 아닙니다.");
+            var id = ulid.ToString();          // 소문자로 적혀 있어도 ToString 값으로 맞춘다
+            if (instances.ContainsKey(id))
+                throw new SaveFormatException($"세이브의 유니크 아이템 인스턴스 ID '{id}'가 두 번 있습니다.");
             if (item is null || pack.FindUniqueItem(item.ItemCode) is null)
                 throw new SaveFormatException($"세이브의 유니크 아이템 인스턴스 '{id}'의 아이템이 유니크 아이템 마스터에 없습니다.");
             var tags = item.Tags is null
@@ -381,7 +402,7 @@ public sealed partial class GameSession
                     throw new SaveFormatException($"세이브의 캐릭터 '{character}'에게는 장비 슬롯 '{slot}'가 없습니다.");
                 if (!Fits(pack, instances, characterTags, characters, character, slot, target))
                     throw new SaveFormatException(
-                        $"세이브의 캐릭터 '{character}' 슬롯 '{slot}'에 {target.Kind} '{target.Code}'를 끼울 수 없습니다(없거나, 자기 자신이거나, 슬롯 태그에 부합하지 않음).");
+                        $"세이브의 캐릭터 '{character}' 슬롯 '{slot}'에 {target.Kind} '{target.Key}'를 끼울 수 없습니다(없거나, 자기 자신이거나, 슬롯 태그에 부합하지 않음).");
                 copy[slot] = target;
             }
             if (copy.Count > 0) equipped[character] = copy;
@@ -392,7 +413,7 @@ public sealed partial class GameSession
             var have = group.Key.Kind == EquipKind.CommonItem ? inventory.GetValueOrDefault(group.Key.Code).Amount : 1;
             if (group.LongCount() > have)
                 throw new SaveFormatException(
-                    $"세이브에서 {group.Key.Kind} '{group.Key.Code}'를 {group.LongCount()}개 끼고 있는데 보유는 {have}개입니다.");
+                    $"세이브에서 {group.Key.Kind} '{group.Key.Key}'를 {group.LongCount()}개 끼고 있는데 보유는 {have}개입니다.");
         }
 
         return (instances, characterTags, equipped);

@@ -39,8 +39,8 @@ public class TagInstanceTests
     public void A_unique_item_instance_copies_the_master_tags_and_gets_its_own_id()
     {
         var s = Session();
-        var a = s.AddUniqueItem(8001)!.Value;
-        var b = s.AddUniqueItem(8001)!.Value;
+        var a = s.AddUniqueItem(8001)!;
+        var b = s.AddUniqueItem(8001)!;
         Assert.NotEqual(a, b);
         Assert.Equal([1L], s.TagsOf(EquipRef.Unique(a)));
         Assert.Equal([a, b], s.InstancesOf(8001));
@@ -51,8 +51,8 @@ public class TagInstanceTests
     public void Changing_one_instances_tags_does_not_touch_its_twin_or_the_master()
     {
         var s = Session();
-        var a = s.AddUniqueItem(8001)!.Value;
-        var b = s.AddUniqueItem(8001)!.Value;
+        var a = s.AddUniqueItem(8001)!;
+        var b = s.AddUniqueItem(8001)!;
 
         Assert.True(s.AddUniqueItemTag(a, 5));
         Assert.Equal([1L, 5L], s.TagsOf(EquipRef.Unique(a)));
@@ -62,7 +62,7 @@ public class TagInstanceTests
         Assert.False(s.AddUniqueItemTag(a, 99));                   // 태그 마스터에 없다
         Assert.True(s.RemoveUniqueItemTag(a, 1));
         Assert.False(s.RemoveUniqueItemTag(a, 1));
-        Assert.False(s.RemoveUniqueItemTag(999, 1));
+        Assert.False(s.RemoveUniqueItemTag("없는 ID", 1));
     }
 
     [Fact]
@@ -70,7 +70,7 @@ public class TagInstanceTests
     {
         // 변신 검이 아닌 철검도 "변신" 태그를 얻으면 낄 수 있다. 캐릭터가 변신을 잃으면 도로 빠진다.
         var s = Session();
-        var sword = EquipRef.Unique(s.AddUniqueItem(8001)!.Value);
+        var sword = EquipRef.Unique(s.AddUniqueItem(8001)!);
 
         Assert.False(s.Equip(7001, 1, sword));                     // 캐릭터에 변신 태그가 없다
         s.AddCharacterTag(7001, 5);
@@ -87,10 +87,10 @@ public class TagInstanceTests
     {
         var s = Session();
         s.AddCharacterTag(7001, 5);
-        var sword = EquipRef.Unique(s.AddUniqueItem(8001)!.Value);
+        var sword = EquipRef.Unique(s.AddUniqueItem(8001)!);
         s.Equip(7001, 1, sword);
 
-        s.RemoveUniqueItemTag(sword.Code, 1);                      // 검 태그가 사라지면
+        s.RemoveUniqueItemTag(sword.Instance!, 1);                      // 검 태그가 사라지면
         Assert.Null(s.EquippedItemOf(7001, 1));
     }
 
@@ -99,8 +99,8 @@ public class TagInstanceTests
     {
         var s = Session();
         s.AddCharacterTag(7001, 5);
-        var first = s.AddUniqueItem(8001)!.Value;
-        var second = s.AddUniqueItem(8001)!.Value;
+        var first = s.AddUniqueItem(8001)!;
+        var second = s.AddUniqueItem(8001)!;
         s.RemoveUniqueItemTag(first, 1);                           // 첫 번째는 검이 아니게 되었다
 
         Assert.True(s.Equip(7001, 1, 8001));
@@ -112,7 +112,7 @@ public class TagInstanceTests
     {
         var s = Session();
         s.AddCharacterTag(7001, 5);
-        var id = s.AddUniqueItem(8001)!.Value;
+        var id = s.AddUniqueItem(8001)!;
         s.Equip(7001, 1, 8001);
         Assert.True(s.RemoveUniqueItem(id));
         Assert.Empty(s.EquippedItems);
@@ -182,7 +182,7 @@ public class TagInstanceTests
         var s = Session();
         s.AddCharacterTag(7001, 5);
         s.RemoveCharacterTag(7002, 6);
-        var id = s.AddUniqueItem(8001)!.Value;
+        var id = s.AddUniqueItem(8001)!;
         s.AddUniqueItemTag(id, 5);
         s.Equip(7001, 1, EquipRef.Unique(id));
 
@@ -203,11 +203,11 @@ public class TagInstanceTests
     [Fact]
     public void Missing_tags_in_a_save_are_copied_from_the_masters()
     {
-        var s = GameSession.FromSaveJson(Pack(), Head + Chars + "\"UniqueItems\":{\"4\":{\"ItemCode\":8002}}}");
-        Assert.Equal([1L], s.TagsOf(EquipRef.Unique(4)));
+        var s = GameSession.FromSaveJson(Pack(), Head + Chars + "\"UniqueItems\":{\"01H00000000000000000000004\":{\"ItemCode\":8002}}}");
+        Assert.Equal([1L], s.TagsOf(EquipRef.Unique("01H00000000000000000000004")));
         Assert.Equal([6L], s.CharacterTags(7002));
         Assert.Empty(s.CharacterTags(7001));
-        Assert.Equal(5, s.AddUniqueItem(8001));                    // 새 인스턴스 ID는 가장 큰 ID 다음
+        Assert.True(string.CompareOrdinal(s.AddUniqueItem(8001), "01H00000000000000000000004") > 0);   // 새 인스턴스 ID는 가장 큰 ID보다 뒤
     }
 
     [Fact]
@@ -215,13 +215,13 @@ public class TagInstanceTests
     {
         // 철검(검)만으로는 슬롯 1(검 AND 변신)에 맞지 않는다: 캐릭터 태그에 변신이 없다.
         Assert.Throws<SaveFormatException>(() => GameSession.FromSaveJson(Pack(), Head + Chars +
-            "\"UniqueItems\":{\"1\":{\"ItemCode\":8001}}," +
-            "\"EquippedItems\":{\"7001\":{\"1\":{\"Kind\":\"UniqueItem\",\"Code\":1}}}}"));
+            "\"UniqueItems\":{\"01H00000000000000000000001\":{\"ItemCode\":8001}}," +
+            "\"EquippedItems\":{\"7001\":{\"1\":{\"Kind\":\"UniqueItem\",\"Instance\":\"01H00000000000000000000001\"}}}}"));
 
         var ok = GameSession.FromSaveJson(Pack(), Head + Chars +
-            "\"UniqueItems\":{\"1\":{\"ItemCode\":8001}}," +
+            "\"UniqueItems\":{\"01H00000000000000000000001\":{\"ItemCode\":8001}}," +
             "\"CharacterTags\":{\"7001\":[5]}," +
-            "\"EquippedItems\":{\"7001\":{\"1\":{\"Kind\":\"UniqueItem\",\"Code\":1}}}}");
+            "\"EquippedItems\":{\"7001\":{\"1\":{\"Kind\":\"UniqueItem\",\"Instance\":\"01H00000000000000000000001\"}}}}");
         Assert.Equal(8001, ok.EquippedUniqueCode(7001, 1));
     }
 

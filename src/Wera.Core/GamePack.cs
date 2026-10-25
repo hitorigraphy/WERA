@@ -429,7 +429,7 @@ public sealed partial class GamePack
 
     /// <summary>
     /// 트레이드 마스터. 앞의 여섯 열 뒤에 선택 열 cost_kind, receive_kind(common_item / unique_item / character, 비우면 common_item)를
-    /// 둘 다 붙일 수 있다. 캐릭터의 어마운트는 1이어야 하고, 유니크 아이템을 받는 어마운트는 1000 이하여야 한다.
+    /// 둘 다 붙일 수 있다. 유니크 아이템과 캐릭터는 코스트로도 리시브로도 어마운트가 1이어야 한다.
     /// </summary>
     static List<ShopTrade>? LoadTrades(ZipArchive zip, List<FlatCondition> conditions)
     {
@@ -445,7 +445,7 @@ public sealed partial class GamePack
         return LoadTradeRows(zip, conditions);
     }
 
-    const long MaxUniqueReceive = 1000;
+    static string KindText(TradeKind kind) => kind == TradeKind.UniqueItem ? "유니크 아이템" : "캐릭터";
 
     static string CellOf(string[] r, int index) => index < r.Length ? r[index] : "";
 
@@ -472,12 +472,11 @@ public sealed partial class GamePack
                 var receiveKind = ParseTradeKind(file, $"{who} 리시브 종류", CellOf(r, 7));
                 var costAmount = ParsePositive(file, $"{who} 코스트 어마운트", r[3]);
                 var receiveAmount = ParsePositive(file, $"{who} 리시브 어마운트", r[5]);
-                if (costKind == TradeKind.Character && costAmount != 1)
-                    throw new PackFormatException($"{file}: {who} 코스트가 캐릭터면 어마운트는 1이어야 합니다 ({costAmount}).");
-                if (receiveKind == TradeKind.Character && receiveAmount != 1)
-                    throw new PackFormatException($"{file}: {who} 리시브가 캐릭터면 어마운트는 1이어야 합니다 ({receiveAmount}).");
-                if (receiveKind == TradeKind.UniqueItem && receiveAmount > MaxUniqueReceive)
-                    throw new PackFormatException($"{file}: {who} 리시브 유니크 아이템의 어마운트는 {MaxUniqueReceive} 이하여야 합니다 ({receiveAmount}).");
+                // 유니크 아이템과 캐릭터는 대가로도 결과로도 1개씩이다.
+                if (costKind != TradeKind.CommonItem && costAmount != 1)
+                    throw new PackFormatException($"{file}: {who} 코스트가 {KindText(costKind)}이면 어마운트는 1이어야 합니다 ({costAmount}).");
+                if (receiveKind != TradeKind.CommonItem && receiveAmount != 1)
+                    throw new PackFormatException($"{file}: {who} 리시브가 {KindText(receiveKind)}이면 어마운트는 1이어야 합니다 ({receiveAmount}).");
                 return new ShopTrade(
                     code,
                     ParseLong(file, $"{who} 상점 코드", r[1]),

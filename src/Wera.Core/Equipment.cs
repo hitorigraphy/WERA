@@ -22,7 +22,7 @@ public sealed record CharacterTag(long CharacterCode, long TagCode);
 [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<EquipKind>))]
 public enum EquipKind
 {
-    /// <summary>유니크 아이템 인스턴스(EquipRef.Code는 인스턴스 ID).</summary>
+    /// <summary>유니크 아이템 인스턴스(EquipRef.Instance가 인스턴스 ID, ULID 문자열).</summary>
     UniqueItem,
     /// <summary>커먼 아이템(아이템 인벤토리. 보유 개수는 인벤토리 수량).</summary>
     CommonItem,
@@ -31,14 +31,21 @@ public enum EquipKind
 }
 
 /// <summary>
-/// 장비 슬롯에 끼는 것 하나: 종류와 그 종류 안의 코드. 유니크 아이템은 아이템 코드가 아니라
-/// 인스턴스 ID(<see cref="UniqueItemInstance"/>)로 가리킨다.
+/// 장비 슬롯에 끼는 것 하나. 커먼 아이템과 캐릭터는 종류 안의 코드(Code)로, 유니크 아이템은 아이템 코드가 아니라
+/// 인스턴스 ID(<see cref="UniqueItemInstance"/>의 ULID 문자열, Instance)로 가리킨다(이때 Code는 쓰지 않는다).
 /// </summary>
-public readonly record struct EquipRef(EquipKind Kind, long Code)
+public readonly record struct EquipRef(
+    EquipKind Kind,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    long Code,
+    string? Instance = null)
 {
-    public static EquipRef Unique(long instanceId) => new(EquipKind.UniqueItem, instanceId);
+    public static EquipRef Unique(string instanceId) => new(EquipKind.UniqueItem, 0, instanceId);
     public static EquipRef Common(long code) => new(EquipKind.CommonItem, code);
     public static EquipRef Char(long code) => new(EquipKind.Character, code);
+
+    /// <summary>화면/메시지용 짧은 표기.</summary>
+    public string Key => Kind == EquipKind.UniqueItem ? Instance ?? "" : Code.ToString(System.Globalization.CultureInfo.InvariantCulture);
 }
 
 /// <summary>

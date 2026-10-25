@@ -94,7 +94,7 @@ public class MultiKindEquipmentTests
     public void The_slot_rules_decide_which_kinds_fit()
     {
         var s = Session();                                                   // 유니크 인스턴스 1 = 철검
-        var sword = EquipRef.Unique(1);
+        var sword = EquipRef.Unique(s.InstancesOf(8001)[0]);
         Assert.True(s.Equip(7001, 1, sword));
         Assert.True(s.Equip(7001, 3, EquipRef.Common(3)));
         Assert.True(s.Equip(7001, 3, EquipRef.Char(7002)));
@@ -198,7 +198,7 @@ public class MultiKindEquipmentTests
     public void Equipped_kinds_round_trip_through_the_save()
     {
         var s = Session();
-        s.Equip(7001, 1, EquipRef.Unique(1));
+        s.Equip(7001, 1, EquipRef.Unique(s.InstancesOf(8001)[0]));
         s.Equip(7001, 3, EquipRef.Char(7002));
 
         var json = s.ToSaveJson();

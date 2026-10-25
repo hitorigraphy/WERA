@@ -283,18 +283,18 @@ public class EquipmentOwnershipTests
         "\"7002\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xp\":0,\"XpMax\":10}},";
 
     [Theory]
-    [InlineData(@"""UniqueItems"":{""1"":{""ItemCode"":99999}}")]                                      // 유니크 아이템 마스터에 없는 아이템
+    [InlineData(@"""UniqueItems"":{""01H00000000000000000000001"":{""ItemCode"":99999}}")]                                      // 유니크 아이템 마스터에 없는 아이템
     [InlineData(@"""UniqueItems"":{""0"":{""ItemCode"":9001}}")]                                        // 인스턴스 ID가 1 미만
     [InlineData(@"""UniqueItems"":{""철검"":{""ItemCode"":9001}}")]                                      // 숫자가 아닌 키
-    [InlineData(@"""UniqueItems"":{""1"":{""ItemCode"":9001,""Tags"":[99]}}")]                          // 태그 마스터에 없는 태그
-    [InlineData(@"""UniqueItems"":{""1"":{""ItemCode"":9001,""Tags"":[1,1]}}")]                         // 같은 태그가 두 번
+    [InlineData(@"""UniqueItems"":{""01H00000000000000000000001"":{""ItemCode"":9001,""Tags"":[99]}}")]                          // 태그 마스터에 없는 태그
+    [InlineData(@"""UniqueItems"":{""01H00000000000000000000001"":{""ItemCode"":9001,""Tags"":[1,1]}}")]                         // 같은 태그가 두 번
     [InlineData(@"""CharacterTags"":{""7003"":[1]}")]                                                  // 보유하지 않은 캐릭터의 태그
-    [InlineData(@"""UniqueItems"":{""1"":{""ItemCode"":9001}},""EquippedItems"":{""7003"":{""1"":{""Kind"":""UniqueItem"",""Code"":1}}}")]  // 보유하지 않은 캐릭터
-    [InlineData(@"""UniqueItems"":{""1"":{""ItemCode"":9001}},""EquippedItems"":{""7001"":{""99"":{""Kind"":""UniqueItem"",""Code"":1}}}")]  // 그 캐릭터에게 없는 슬롯
-    [InlineData(@"""UniqueItems"":{""1"":{""ItemCode"":9001}},""EquippedItems"":{""7002"":{""2"":{""Kind"":""UniqueItem"",""Code"":1}}}")]   // 마법사는 방어구 슬롯이 없다
-    [InlineData(@"""EquippedItems"":{""7001"":{""1"":{""Kind"":""UniqueItem"",""Code"":1}}}")]          // 없는 인스턴스를 장착
-    [InlineData(@"""UniqueItems"":{""1"":{""ItemCode"":9002}},""EquippedItems"":{""7001"":{""1"":{""Kind"":""UniqueItem"",""Code"":1}}}")]  // 슬롯 태그에 부합하지 않는 장비(대검)
-    [InlineData(@"""UniqueItems"":{""1"":{""ItemCode"":9003}},""EquippedItems"":{""7001"":{""1"":{""Kind"":""UniqueItem"",""Code"":1}},""7002"":{""1"":{""Kind"":""UniqueItem"",""Code"":1}}}")]  // 한 개를 두 곳에
+    [InlineData(@"""UniqueItems"":{""01H00000000000000000000001"":{""ItemCode"":9001}},""EquippedItems"":{""7003"":{""1"":{""Kind"":""UniqueItem"",""Instance"":""01H00000000000000000000001""}}}")]  // 보유하지 않은 캐릭터
+    [InlineData(@"""UniqueItems"":{""01H00000000000000000000001"":{""ItemCode"":9001}},""EquippedItems"":{""7001"":{""99"":{""Kind"":""UniqueItem"",""Instance"":""01H00000000000000000000001""}}}")]  // 그 캐릭터에게 없는 슬롯
+    [InlineData(@"""UniqueItems"":{""01H00000000000000000000001"":{""ItemCode"":9001}},""EquippedItems"":{""7002"":{""2"":{""Kind"":""UniqueItem"",""Instance"":""01H00000000000000000000001""}}}")]   // 마법사는 방어구 슬롯이 없다
+    [InlineData(@"""EquippedItems"":{""7001"":{""1"":{""Kind"":""UniqueItem"",""Instance"":""01H00000000000000000000001""}}}")]          // 없는 인스턴스를 장착
+    [InlineData(@"""UniqueItems"":{""01H00000000000000000000001"":{""ItemCode"":9002}},""EquippedItems"":{""7001"":{""1"":{""Kind"":""UniqueItem"",""Instance"":""01H00000000000000000000001""}}}")]  // 슬롯 태그에 부합하지 않는 장비(대검)
+    [InlineData(@"""UniqueItems"":{""01H00000000000000000000001"":{""ItemCode"":9003}},""EquippedItems"":{""7001"":{""1"":{""Kind"":""UniqueItem"",""Instance"":""01H00000000000000000000001""}},""7002"":{""1"":{""Kind"":""UniqueItem"",""Instance"":""01H00000000000000000000001""}}}")]  // 한 개를 두 곳에
     public void Invalid_equipment_in_a_save_is_rejected(string body)
         => Assert.Throws<SaveFormatException>(() =>
             GameSession.FromSaveJson(EquipmentTests.Pack(), Head + Chars + body + "}"));
@@ -303,8 +303,8 @@ public class EquipmentOwnershipTests
     public void Two_copies_may_be_equipped_in_two_places_when_owned_twice()
     {
         var s = GameSession.FromSaveJson(EquipmentTests.Pack(),
-            Head + Chars + @"""UniqueItems"":{""1"":{""ItemCode"":9003},""2"":{""ItemCode"":9003}}," +
-            @"""EquippedItems"":{""7001"":{""1"":{""Kind"":""UniqueItem"",""Code"":1}},""7002"":{""1"":{""Kind"":""UniqueItem"",""Code"":2}}}}");
+            Head + Chars + @"""UniqueItems"":{""01H00000000000000000000001"":{""ItemCode"":9003},""01H00000000000000000000002"":{""ItemCode"":9003}}," +
+            @"""EquippedItems"":{""7001"":{""1"":{""Kind"":""UniqueItem"",""Instance"":""01H00000000000000000000001""}},""7002"":{""1"":{""Kind"":""UniqueItem"",""Instance"":""01H00000000000000000000002""}}}}");
         Assert.Equal(2, s.EquippedCount(9003));
         Assert.Equal(0, s.FreeCopies(9003));
     }
@@ -314,6 +314,6 @@ public class EquipmentOwnershipTests
     {
         var packWithoutEquipment = GamePack.Load(CoreTests.Zip(("pack.tsv", "id\tdemo\ntitle\t데모\n")));
         Assert.Throws<SaveFormatException>(() =>
-            GameSession.FromSaveJson(packWithoutEquipment, Head + @"""UniqueItems"":{""1"":{""ItemCode"":9001}}}"));
+            GameSession.FromSaveJson(packWithoutEquipment, Head + @"""UniqueItems"":{""01H00000000000000000000001"":{""ItemCode"":9001}}}"));
     }
 }

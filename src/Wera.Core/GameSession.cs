@@ -58,7 +58,7 @@ public sealed record SaveData(
     Dictionary<long, CharacterState>? Characters = null,
     long?[]? Party = null,
     Dictionary<long, List<ActiveStatusEffect>>? StatusEffects = null,
-    Dictionary<long, UniqueItemInstance>? UniqueItems = null,
+    Dictionary<string, UniqueItemInstance>? UniqueItems = null,
     Dictionary<long, List<long>>? CharacterTags = null,
     Dictionary<long, Dictionary<long, EquipRef>>? EquippedItems = null);
 
@@ -135,7 +135,7 @@ public sealed partial class GameSession
         GamePack pack, Screen screen, Dictionary<long, long> playerFlags,
         Dictionary<long, InventoryItem> inventoryItems, Dictionary<long, CharacterState> characters, long?[] party,
         Dictionary<long, List<ActiveStatusEffect>> statusEffects,
-        Dictionary<long, UniqueItemInstance> uniqueItems, Dictionary<long, List<long>> characterTags,
+        Dictionary<string, UniqueItemInstance> uniqueItems, Dictionary<long, List<long>> characterTags,
         Dictionary<long, Dictionary<long, EquipRef>> equippedItems)
     {
         Pack = pack;
@@ -459,7 +459,7 @@ public sealed partial class GameSession
     {
         // 커먼 아이템은 번치를 부품으로 풀어 한꺼번에 계산한다. 유니크 아이템과 캐릭터는 확인한 뒤 따로 처리한다.
         var net = new Dictionary<long, long>();
-        long[] paidInstances = [];
+        string[] paidInstances = [];
         long? paidCharacter = null;
 
         // 코스트는 받기 전의 보유량으로 판단한다.

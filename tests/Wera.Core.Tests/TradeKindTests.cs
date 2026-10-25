@@ -11,7 +11,7 @@ public class TradeKindTests
 
     const string Trades =
         Header +
-        "5001\t2001\t1\t100\t8001\t2\tcommon_item\tunique_item\n" +     // 금화 100 → 철검 ×2
+        "5001\t2001\t1\t100\t8001\t1\tcommon_item\tunique_item\n" +     // 금화 100 → 철검 ×1
         "5002\t2001\t8001\t1\t1\t50\tunique_item\t\n" +                // 철검 ×1 → 금화 50 (받는 쪽 종류 생략 = 커먼)
         "5003\t2001\t1\t500\t7002\t1\t\tcharacter\n" +                  // 금화 500 → 마법사
         "5004\t2001\t7002\t1\t1\t300\tcharacter\tcommon_item\n";         // 마법사 → 금화 300
@@ -76,9 +76,10 @@ public class TradeKindTests
     [InlineData("code\tshop_code\tcost_item_code\tcost_amount\treceive_item_code\treceive_amount\tcost_kind\n5001\t2001\t1\t1\t1\t1\tcommon_item\n", "cost_kind")]   // 한 열만
     [InlineData("code\tshop_code\tcost_item_code\tcost_amount\treceive_item_code\treceive_amount\treceive_kind\tcost_kind\n5001\t2001\t1\t1\t1\t1\t\t\n", "cost_kind")]  // 순서가 다름
     [InlineData(Header + "5001\t2001\t1\t1\t1\t1\tpet\tcommon_item\n", "pet")]                                // 알 수 없는 종류
-    [InlineData(Header + "5001\t2001\t7002\t2\t1\t1\tcharacter\tcommon_item\n", "캐릭터면 어마운트는 1")]       // 캐릭터 코스트 2개
-    [InlineData(Header + "5001\t2001\t1\t1\t7002\t2\tcommon_item\tcharacter\n", "캐릭터면 어마운트는 1")]       // 캐릭터 리시브 2개
-    [InlineData(Header + "5001\t2001\t1\t1\t8001\t1001\tcommon_item\tunique_item\n", "1000 이하")]            // 유니크 리시브가 너무 많다
+    [InlineData(Header + "5001\t2001\t7002\t2\t1\t1\tcharacter\tcommon_item\n", "캐릭터이면 어마운트는 1")]       // 캐릭터 코스트 2개
+    [InlineData(Header + "5001\t2001\t1\t1\t7002\t2\tcommon_item\tcharacter\n", "캐릭터이면 어마운트는 1")]       // 캐릭터 리시브 2개
+    [InlineData(Header + "5001\t2001\t8001\t2\t1\t1\tunique_item\tcommon_item\n", "유니크 아이템이면 어마운트는 1")]   // 유니크 코스트 2개
+    [InlineData(Header + "5001\t2001\t1\t1\t8001\t2\tcommon_item\tunique_item\n", "유니크 아이템이면 어마운트는 1")]   // 유니크 리시브 2개
     [InlineData(Header + "5001\t2001\t99\t1\t1\t1\tcharacter\tcommon_item\n", "코스트 '99'")]                 // 캐릭터 인벤토리에 없다
     [InlineData(Header + "5001\t2001\t1\t1\t99\t1\tcommon_item\tunique_item\n", "리시브 '99'")]               // 유니크 아이템 인벤토리에 없다
     [InlineData(Header + "5001\t2001\t8001\t1\t1\t1\tcommon_item\tcommon_item\n", "코스트 '8001'")]           // 8001은 커먼 아이템이 아니다
@@ -91,20 +92,24 @@ public class TradeKindTests
         var s = Session();
         s.Activate("102"); s.Activate("2001");
         Assert.Equal(
-            ["금화 ×100 → 철검 ×2", "철검 ×1 → 금화 ×50", "금화 ×500 → 마법사 ×1", "마법사 ×1 → 금화 ×300"],
+            ["금화 ×100 → 철검 ×1", "철검 ×1 → 금화 ×50", "금화 ×500 → 마법사 ×1", "마법사 ×1 → 금화 ×300"],
             s.CurrentShopTrades.Select(t => t.Text));
     }
 
     // ---- 유니크 아이템 받기 ----
 
     [Fact]
-    public void Receiving_unique_items_makes_that_many_instances_with_master_tags()
+    public void Receiving_a_unique_item_makes_one_instance_with_master_tags()
     {
         var s = Session();
-        Assert.Equal("교환 완료: 금화 ×100 → 철검 ×2", Trade(s, "5001"));
+        Assert.Equal("교환 완료: 금화 ×100 → 철검 ×1", Trade(s, "5001"));
         Assert.Equal(900, s.InventoryItems[1].Amount);
-        Assert.Equal([1L, 2L], s.InstancesOf(8001));
-        Assert.Equal([1L], s.TagsOf(EquipRef.Unique(1)));
+        var id = Assert.Single(s.InstancesOf(8001));
+        Assert.True(Ulid.TryParse(id, out _));                          // 인스턴스 ID는 ULID
+        Assert.Equal([1L], s.TagsOf(EquipRef.Unique(id)));
+
+        Trade(s, "5001");                                               // 또 받으면 다른 인스턴스
+        Assert.Equal(2, s.InstancesOf(8001).Count);
     }
 
     [Fact]
@@ -122,9 +127,10 @@ public class TradeKindTests
     public void Paying_with_a_unique_item_uses_up_one_unequipped_instance()
     {
         var s = Session(coins: 0);
-        s.AddUniqueItem(8001); s.AddUniqueItem(8001);
+        var first = s.AddUniqueItem(8001)!; var second = s.AddUniqueItem(8001)!;
         Assert.Equal("교환 완료: 철검 ×1 → 금화 ×50", Trade(s, "5002"));
-        Assert.Equal([2L], s.InstancesOf(8001));                      // 작은 ID부터 쓴다
+        Assert.Equal([second], s.InstancesOf(8001));                  // 작은 ID(먼저 얻은 것)부터 쓴다
+        Assert.DoesNotContain(first, s.InstancesOf(8001));
         Assert.Equal(50, s.InventoryItems[1].Amount);
     }
 
@@ -132,16 +138,16 @@ public class TradeKindTests
     public void An_equipped_unique_item_cannot_be_paid()
     {
         var s = Session(coins: 0);
-        s.AddUniqueItem(8001);
-        s.Equip(7001, 1, EquipRef.Unique(1));
+        var equipped = s.AddUniqueItem(8001)!;
+        s.Equip(7001, 1, EquipRef.Unique(equipped));
         Assert.StartsWith("교환 실패 - 부족: 철검 (보유 0 / 필요 1)", Trade(s, "5002"));
         Assert.Single(s.UniqueItemInstances);
         Assert.Equal(0, s.InventoryItems[1].Amount);
 
         s.AddUniqueItem(8001);                                        // 끼지 않은 것이 생기면 그것을 낸다
         Assert.StartsWith("교환 완료", Trade(s, "5002"));
-        Assert.Equal([1L], s.InstancesOf(8001));
-        Assert.Equal(EquipRef.Unique(1), s.EquippedItemOf(7001, 1));
+        Assert.Equal([equipped], s.InstancesOf(8001));
+        Assert.Equal(EquipRef.Unique(equipped), s.EquippedItemOf(7001, 1));
     }
 
     // ---- 캐릭터 받기 ----
