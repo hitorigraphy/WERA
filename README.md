@@ -120,7 +120,7 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
   - `PlayerFlags`: 플래그 코드 → `long` 값. 던전/상점/교환 조건이 이 값을 비교합니다.
   - `InventoryItems`: 아이템 코드 → 구조체 `{ "Amount": 수량 }`. 수량은 0 이상입니다.
 
-예시 게임팩 원본은 [`samples/sample-pack`](samples/sample-pack)이고, 배포용 zip은 `src/Wera.Web/wwwroot/sample-pack.zip`입니다(원본을 고치면 zip도 다시 만드세요). 페이지 하단의 "기본 게임팩 다운로드"는 이 zip을 내려받고, "기본 게임팩 실행"은 내려받지 않고 바로 이 게임팩으로 시작합니다. 튜토리얼을 마친 상태의 세이브 예시는 `src/Wera.Web/wwwroot/sample-tutorial-clear.sav`입니다(페이지에 버튼은 없고 테스트가 이 세이브를 샘플 게임팩과 함께 불러와 확인합니다).
+예시 게임팩 원본은 [`samples/sample-pack`](samples/sample-pack)이고, 배포용 zip은 `src/Wera.Web/wwwroot/sample-pack.zip`입니다(원본을 고치면 zip도 다시 만드세요). 게임팩을 고르기 전에 페이지 하단에 "기본 게임팩 다운로드"(이 zip을 내려받음)와 "기본 게임팩 실행"(내려받지 않고 바로 이 게임팩을 올림)이 나옵니다. 게임팩을 올린 뒤 시작 화면의 하단에는 "새 게임" 버튼이 나옵니다. 튜토리얼을 마친 상태의 세이브 예시는 `src/Wera.Web/wwwroot/sample-tutorial-clear.sav`입니다(페이지에 버튼은 없고 테스트가 이 세이브를 샘플 게임팩과 함께 불러와 확인합니다).
 
 ## 구조
 - `src/Wera.Core` — 게임팩 로딩, 세션, 세이브 (브라우저 비의존)
