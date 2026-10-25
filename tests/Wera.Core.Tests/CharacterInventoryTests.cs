@@ -16,7 +16,7 @@ public class CharacterInventoryTests
             ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
         };
         if (characters is not null) files.Add(("master/character_inventory_master_v1.tsv", characters));
-        if (items is not null) files.Add(("master/item_inventory_master_v1.tsv", items));
+        if (items is not null) files.Add(("master/common_item_inventory_master_v1.tsv", items));
         if (attributes is not null) files.Add(("master/attribute_master_v1.tsv", attributes));
         return GamePack.Load(CoreTests.Zip(files.ToArray()));
     }

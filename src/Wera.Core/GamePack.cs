@@ -13,7 +13,7 @@ public sealed class PackFormatException(string message) : Exception(message);
 ///   master/dungeon_flag_master_v1.tsv     (선택) dungeon_code, group_no, flag_code, condition_type, condition_value
 ///   master/shop_master_v1.tsv             (선택) code, name
 ///   master/shop_condition_master_v1.tsv   (선택) shop_code, group_no, flag_code, condition_type, condition_value
-///   master/item_inventory_master_v1.tsv      (선택) item_code, item_name, carry_limit
+///   master/common_item_inventory_master_v1.tsv      (선택) item_code, item_name, carry_limit
 ///   master/bunch_inventory_master_v1.tsv     (선택) item_code, item_name, part_item_code, part_amount
 ///   master/character_inventory_master_v1.tsv (선택) character_code, character_name, carry_limit, advantage_attribute_code, disadvantage_attribute_code
 ///   master/attribute_master_v1.tsv        (선택) attribute_code, attribute_name  (캐릭터 마스터가 있으면 필수)
@@ -33,7 +33,7 @@ public sealed partial class GamePack
     public const string DungeonFlagMasterPath = "master/dungeon_flag_master_v1.tsv";
     public const string ShopMasterPath = "master/shop_master_v1.tsv";
     public const string ShopConditionMasterPath = "master/shop_condition_master_v1.tsv";
-    public const string ItemInventoryMasterPath = "master/item_inventory_master_v1.tsv";
+    public const string CommonItemInventoryMasterPath = "master/common_item_inventory_master_v1.tsv";
     public const string CharacterInventoryMasterPath = "master/character_inventory_master_v1.tsv";
     public const string AttributeMasterPath = "master/attribute_master_v1.tsv";
     public const string StatusEffectMasterPath = "master/status_effect_master_v1.tsv";
@@ -329,7 +329,7 @@ public sealed partial class GamePack
         value.Length == 0 ? 0 : ParseLong(file, what, value);
 
     static List<ItemEntry>? LoadItemInventory(ZipArchive zip) =>
-        LoadLimitedInventory(zip, ItemInventoryMasterPath, "아이템", ["item_code", "item_name", "carry_limit"],
+        LoadLimitedInventory(zip, CommonItemInventoryMasterPath, "아이템", ["item_code", "item_name", "carry_limit"],
             (code, r, limit) => new ItemEntry(code, r[1], limit));
 
     /// <summary>캐릭터마다 유리속성과 불리속성이 있어야 하고, 둘 다 속성 마스터에 있어야 하며 서로 달라야 한다.</summary>

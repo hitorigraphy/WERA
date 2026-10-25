@@ -19,7 +19,7 @@ public class TradeTests
             ("pack.tsv", "id\tdemo\ntitle\t데모\nstart\ta\n"),
         };
         if (shops is not null) files.Add(("master/shop_master_v1.tsv", shops));
-        if (common is not null) files.Add(("master/item_inventory_master_v1.tsv", common));
+        if (common is not null) files.Add(("master/common_item_inventory_master_v1.tsv", common));
         if (bunch is not null) files.Add(("master/bunch_inventory_master_v1.tsv", bunch));
         if (trades is not null) files.Add(("master/shop_trade_master_v1.tsv", trades));
         if (tradeConditions is not null) files.Add(("master/shop_trade_condition_master_v1.tsv", tradeConditions));
@@ -37,7 +37,7 @@ public class TradeTests
         Assert.Null(pack.Trades);
     }
 
-    // ---- item_inventory_master ----
+    // ---- common_item_inventory_master ----
 
     [Fact]
     public void Item_inventory_loads_with_carry_limits()

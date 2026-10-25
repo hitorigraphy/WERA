@@ -18,7 +18,7 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
 | `master/dungeon_flag_master_v1.tsv` | (선택) `dungeon_code`, `group_no`, `flag_code`, `condition_type`, `condition_value` |
 | `master/shop_master_v1.tsv` | (선택) `code`, `name` |
 | `master/shop_condition_master_v1.tsv` | (선택) `shop_code`, `group_no`, `flag_code`, `condition_type`, `condition_value` |
-| `master/item_inventory_master_v1.tsv` | (선택) `item_code`, `item_name`, `carry_limit` |
+| `master/common_item_inventory_master_v1.tsv` | (선택) `item_code`, `item_name`, `carry_limit` |
 | `master/bunch_inventory_master_v1.tsv` | (선택) `item_code`, `item_name`, `part_item_code`, `part_amount` |
 | `master/character_inventory_master_v1.tsv` | (선택) `character_code`, `character_name`, `carry_limit`, `advantage_attribute_code`, `disadvantage_attribute_code` |
 | `master/attribute_master_v1.tsv` | (선택, 캐릭터 인벤토리가 있으면 필수) `attribute_code`, `attribute_name` |
@@ -26,18 +26,19 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
 | `master/status_effect_effect_master_v1.tsv` | (선택, 상태이상 마스터가 있어야 함) `status_effect_code`, `trigger_type`, `priority`, `effect_code`, `effect_value_1`, `effect_value_2`, `effect_value_3` |
 | `master/equipment_slot_master_v1.tsv` | (선택) `equipment_slot_code`, `equipment_slot_name` |
 | `master/tag_master_v1.tsv` | (선택) `tag_code`, `tag_name` |
-| `master/unique_item_master_v1.tsv` | (선택) `item_code`, `item_name` |
-| `master/unique_item_tag_master_v1.tsv` | (선택, 유니크 아이템/태그 마스터 필요) `item_code`, `tag_code` |
-| `master/common_item_tag_master_v1.tsv` | (선택, 아이템 인벤토리/태그 마스터 필요) `item_code`, `tag_code` |
-| `master/character_tag_master_v1.tsv` | (선택, 캐릭터 인벤토리/태그 마스터 필요) `character_code`, `tag_code` |
+| `master/unique_item_inventory_master_v1.tsv` | (선택) `item_code`, `item_name` |
+| `master/unique_item_inventory_tag_master_v1.tsv` | (선택, 유니크 아이템 인벤토리/태그 마스터 필요) `item_code`, `tag_code` |
+| `master/common_item_inventory_tag_master_v1.tsv` | (선택, 커먼 아이템 인벤토리/태그 마스터 필요) `item_code`, `tag_code` |
+| `master/character_inventory_tag_master_v1.tsv` | (선택, 캐릭터 인벤토리/태그 마스터 필요) `character_code`, `tag_code` |
 | `master/equipment_slot_tag_master_v1.tsv` | (선택, 캐릭터 인벤토리/장비 슬롯/태그 마스터 필요) `character_code`, `equipment_slot_code`, `tag_code`, `group_number`, `is_positive` |
 | `master/shop_trade_master_v1.tsv` | (선택) `code`, `shop_code`, `cost_item_code`, `cost_amount`, `receive_item_code`, `receive_amount` |
 | `master/shop_trade_condition_master_v1.tsv` | (선택) `trade_code`, `group_no`, `flag_code`, `condition_type`, `condition_value` |
 
 ### 아이템과 상점 교환
-- **아이템 인벤토리**(`item_inventory_master`)는 아이템 코드, 이름, 소지제한(`carry_limit`, 한 번에 소지할 수 있는 최대 수량, 1 이상의 정수)입니다.
+- **커먼 아이템 인벤토리**(`common_item_inventory_master`)는 아이템 코드, 이름, 소지제한(`carry_limit`, 한 번에 소지할 수 있는 최대 수량, 1 이상의 정수)입니다.
 - **번치 인벤토리**(`bunch_inventory_master`)는 여러 아이템을 묶은 것으로, 같은 `item_code`의 행들이 하나의 번치가 됩니다(행마다 `item_name`은 같아야 함). `part_item_code`는 아이템 인벤토리의 아이템만 가리킬 수 있고, 번치에는 소지제한이 없으며, `part_amount`는 1 이상입니다.
-- 아이템 코드는 아이템 인벤토리와 번치 인벤토리에서 겹치면 안 됩니다.
+- 아이템 코드는 커먼 아이템 인벤토리와 번치 인벤토리에서 겹치면 안 됩니다.
+- 인벤토리 계통은 **커먼 아이템 / 유니크 아이템 / 번치 아이템 / 캐릭터** 네 종류입니다(`common_item_inventory_master`, `unique_item_inventory_master`, `bunch_inventory_master`, `character_inventory_master`).
 - **캐릭터 인벤토리**(`character_inventory_master`)는 열이 `character_code`, `character_name`, `carry_limit`, `advantage_attribute_code`, `disadvantage_attribute_code`인 별도 마스터이고 코드 공간도 아이템과 따로입니다. 모든 캐릭터는 **유리속성**과 **불리속성**을 하나씩 가져야 하고, 둘 다 속성 마스터에 있어야 하며 서로 달라야 합니다.
 - **속성**(`attribute_master`)은 속성 코드와 이름입니다. 속성 아이콘 이미지는 아직 경로 규칙이 없어 `No Image`로 표시합니다.
 - **상태이상**(`status_effect_master`)은 상태이상 코드와 이름입니다. 캐릭터에 걸려 있는 상태이상은 세이브에 저장하며(아래 "상태이상 저장"), 파티 설정 슬롯의 아이콘 줄에 아이콘으로 나옵니다.
@@ -55,8 +56,8 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
   - `None`(조건 없음/시점 없음), `BeforeAttack`(공격하기 전), `AfterAttack`(공격한 후), `BeforeAttacked`(공격을 받기 전), `AfterAttacked`(공격을 받은 후), `AfterTurnStart`(턴 개시 후), `AfterTurnEnd`(턴 종료 후), `AfterBattleStart`(배틀 개시 후), `AfterBattleEnd`(배틀 종료 후), `AfterMove`(이동 후)
 - `GameSession.ApplyEffect(이펙트 코드, 캐릭터 코드, 밸류 1~3)`은 이펙트를 만들어(타겟과 밸류 저장) `Execute()`로 보유 캐릭터에게 실행하고, 바뀐 상태를 세이브가 받아들이는 범위(레벨 1 이상, HP 0~최대 HP, XP 0~필요 XP)로 보정해 저장합니다.
 - **장비**는 슬롯과 태그로 정합니다.
-  - `equipment_slot_master`는 장비 슬롯의 종류(무기, 방어구 등), `tag_master`는 태그(검, 갑옷, 중량 등), `unique_item_master`는 유니크 아이템(`item_code`, `item_name`)입니다. 유니크 아이템의 코드 공간은 아이템/번치 인벤토리와 따로입니다.
-  - `unique_item_tag_master`, `common_item_tag_master`, `character_tag_master`는 각각 유니크 아이템, 커먼 아이템(아이템 인벤토리), 캐릭터가 가진 태그입니다(대상과 태그가 각자의 마스터에 있어야 하고, 같은 `(대상 코드, tag_code)`를 두 번 쓸 수 없음). **장비 슬롯에는 이 세 종류가 모두 들어갈 수 있습니다**(예: 강령술사가 강시 캐릭터를 장비). 어느 종류가 들어가는지는 슬롯 태그 규칙에 그 종류의 태그를 쓰는 것으로 정합니다. **장비 가능 판정은 (장비하는 캐릭터의 태그 + 끼울 것의 태그)를 합친 태그 집합으로 슬롯 태그 규칙을 검사합니다**(캐릭터 태그는 `character_tag_master`).
+  - `equipment_slot_master`는 장비 슬롯의 종류(무기, 방어구 등), `tag_master`는 태그(검, 갑옷, 중량 등), `unique_item_inventory_master`는 유니크 아이템(`item_code`, `item_name`)입니다. 유니크 아이템의 코드 공간은 아이템/번치 인벤토리와 따로입니다.
+  - `unique_item_inventory_tag_master`, `common_item_inventory_tag_master`, `character_inventory_tag_master`는 각각 유니크 아이템, 커먼 아이템(아이템 인벤토리), 캐릭터가 가진 태그입니다(대상과 태그가 각자의 마스터에 있어야 하고, 같은 `(대상 코드, tag_code)`를 두 번 쓸 수 없음). **장비 슬롯에는 이 세 종류가 모두 들어갈 수 있습니다**(예: 강령술사가 강시 캐릭터를 장비). 어느 종류가 들어가는지는 슬롯 태그 규칙에 그 종류의 태그를 쓰는 것으로 정합니다. **장비 가능 판정은 (장비하는 캐릭터의 태그 + 끼울 것의 태그)를 합친 태그 집합으로 슬롯 태그 규칙을 검사합니다**(캐릭터 태그는 `character_inventory_tag_master`).
   - `equipment_slot_tag_master`는 **캐릭터의 장비 슬롯에 어떤 장비가 들어가는가**를 태그로 적습니다. **복합키는 앞의 네 열**(`character_code`, `equipment_slot_code`, `tag_code`, `group_number`)이고 `is_positive`는 값입니다. 같은 키를 두 번 쓰면 `is_positive`가 달라도 오류입니다. `is_positive`는 `true`/`false`(대소문자 무시) 또는 `1`/`0`입니다.
   - **부합 규칙**: 같은 (캐릭터, 슬롯)에서 같은 `group_number`가 한 그룹이고 **그룹 안은 모두 만족(AND), 그룹끼리는 하나만 만족해도 됨(OR)**입니다. `is_positive`가 참이면 장비가 그 태그를 **가져야** 하고, 거짓이면 **가지면 안 됩니다**. 규칙이 없으면 아무것도 낄 수 없습니다.
   - **캐릭터가 가진 장비 슬롯**은 이 마스터에 그 캐릭터로 나오는 슬롯입니다(처음 나온 순서). 행이 없는 캐릭터는 장비 슬롯이 없습니다.

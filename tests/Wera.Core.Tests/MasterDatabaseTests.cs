@@ -20,7 +20,7 @@ public class MasterDatabaseTests
         ("master/shop_master_v1.tsv", "code\tname\n2002\t무기점\n2001\t잡화점\n"),
         ("master/shop_condition_master_v1.tsv",
             "shop_code\tgroup_no\tflag_code\tcondition_type\tcondition_value\n2002\t1\t1002\tGreaterOrEqual\t3\n"),
-        ("master/item_inventory_master_v1.tsv", "item_code\titem_name\tcarry_limit\n3\t철광석\t99\n1\t금화\t99999\n2\t약초\t99\n"),
+        ("master/common_item_inventory_master_v1.tsv", "item_code\titem_name\tcarry_limit\n3\t철광석\t99\n1\t금화\t99999\n2\t약초\t99\n"),
         ("master/bunch_inventory_master_v1.tsv",
             "item_code\titem_name\tpart_item_code\tpart_amount\n9001\t초보자 세트\t3\t1\n9001\t초보자 세트\t2\t3\n"),
         ("master/shop_trade_master_v1.tsv",
@@ -34,8 +34,8 @@ public class MasterDatabaseTests
             "1\tAfterTurnEnd\t2\t1\t-3\t3\t0\n3\tAfterTurnStart\t1\t1\t5\t5\t0\n1\tBeforeAttack\t1\t1\t-1\t2\t9\n"),
         ("master/equipment_slot_master_v1.tsv", "equipment_slot_code\tequipment_slot_name\n2\t방어구\n1\t무기\n"),
         ("master/tag_master_v1.tsv", "tag_code\ttag_name\n4\t마법\n1\t검\n3\t중량\n2\t갑옷\n"),
-        ("master/unique_item_master_v1.tsv", "item_code\titem_name\n9003\t지팡이\n9001\t철검\n9002\t대검\n"),
-        ("master/unique_item_tag_master_v1.tsv", "item_code\ttag_code\n9002\t3\n9001\t1\n9002\t1\n9003\t4\n"),
+        ("master/unique_item_inventory_master_v1.tsv", "item_code\titem_name\n9003\t지팡이\n9001\t철검\n9002\t대검\n"),
+        ("master/unique_item_inventory_tag_master_v1.tsv", "item_code\ttag_code\n9002\t3\n9001\t1\n9002\t1\n9003\t4\n"),
         ("master/equipment_slot_tag_master_v1.tsv",
             "character_code\tequipment_slot_code\ttag_code\tgroup_number\tis_positive\n" +
             "7002\t1\t4\t1\ttrue\n7001\t1\t3\t1\tfalse\n7001\t1\t1\t1\ttrue\n7001\t2\t2\t1\ttrue\n")));

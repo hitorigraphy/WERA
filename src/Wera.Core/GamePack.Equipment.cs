@@ -8,10 +8,10 @@ public sealed partial class GamePack
 {
     public const string EquipmentSlotMasterPath = "master/equipment_slot_master_v1.tsv";
     public const string TagMasterPath = "master/tag_master_v1.tsv";
-    public const string UniqueItemMasterPath = "master/unique_item_master_v1.tsv";
-    public const string UniqueItemTagMasterPath = "master/unique_item_tag_master_v1.tsv";
-    public const string CommonItemTagMasterPath = "master/common_item_tag_master_v1.tsv";
-    public const string CharacterTagMasterPath = "master/character_tag_master_v1.tsv";
+    public const string UniqueItemInventoryMasterPath = "master/unique_item_inventory_master_v1.tsv";
+    public const string UniqueItemInventoryTagMasterPath = "master/unique_item_inventory_tag_master_v1.tsv";
+    public const string CommonItemInventoryTagMasterPath = "master/common_item_inventory_tag_master_v1.tsv";
+    public const string CharacterInventoryTagMasterPath = "master/character_inventory_tag_master_v1.tsv";
     public const string EquipmentSlotTagMasterPath = "master/equipment_slot_tag_master_v1.tsv";
 
     /// <summary>장비 슬롯 마스터가 없으면 null.</summary>
@@ -101,7 +101,7 @@ public sealed partial class GamePack
         LoadCodeNames(zip, TagMasterPath, "tag_code", "tag_name", "태그", (code, name) => new TagEntry(code, name));
 
     static List<UniqueItem>? LoadUniqueItems(ZipArchive zip) =>
-        LoadCodeNames(zip, UniqueItemMasterPath, "item_code", "item_name", "유니크 아이템",
+        LoadCodeNames(zip, UniqueItemInventoryMasterPath, "item_code", "item_name", "유니크 아이템",
             (code, name) => new UniqueItem(code, name));
 
     /// <summary>
@@ -136,15 +136,15 @@ public sealed partial class GamePack
     }
 
     static List<UniqueItemTag>? LoadUniqueItemTags(ZipArchive zip, List<UniqueItem>? items, List<TagEntry>? tags) =>
-        LoadTargetTags(zip, UniqueItemTagMasterPath, "item_code", "유니크 아이템", UniqueItemMasterPath,
+        LoadTargetTags(zip, UniqueItemInventoryTagMasterPath, "item_code", "유니크 아이템", UniqueItemInventoryMasterPath,
             items?.Select(i => i.ItemCode).ToHashSet(), tags, (c, t) => new UniqueItemTag(c, t));
 
     static List<CommonItemTag>? LoadCommonItemTags(ZipArchive zip, List<ItemEntry>? items, List<TagEntry>? tags) =>
-        LoadTargetTags(zip, CommonItemTagMasterPath, "item_code", "커먼 아이템", ItemInventoryMasterPath,
+        LoadTargetTags(zip, CommonItemInventoryTagMasterPath, "item_code", "커먼 아이템", CommonItemInventoryMasterPath,
             items?.Select(i => i.Code).ToHashSet(), tags, (c, t) => new CommonItemTag(c, t));
 
     static List<CharacterTag>? LoadCharacterTags(ZipArchive zip, List<CharacterEntry>? characters, List<TagEntry>? tags) =>
-        LoadTargetTags(zip, CharacterTagMasterPath, "character_code", "캐릭터", CharacterInventoryMasterPath,
+        LoadTargetTags(zip, CharacterInventoryTagMasterPath, "character_code", "캐릭터", CharacterInventoryMasterPath,
             characters?.Select(c => c.Code).ToHashSet(), tags, (c, t) => new CharacterTag(c, t));
 
     /// <summary>
