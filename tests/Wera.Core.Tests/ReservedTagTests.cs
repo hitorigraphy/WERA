@@ -5,9 +5,8 @@ namespace Wera.Core.Tests;
 // 태그 마스터: 플레이어(1)와 리더(2)는 엔진이 예약한 코드라 반드시 있어야 한다(이름은 자유).
 public class ReservedTagTests
 {
-    static GamePack Load(string? tags) => tags is null
-        ? GamePack.Load(CoreTests.Zip(("pack.tsv", "id\tdemo\ntitle\t데모\n")))
-        : GamePack.Load(CoreTests.Zip(("pack.tsv", "id\tdemo\ntitle\t데모\n"), ("master/tag_master_v1.tsv", tags)));
+    static GamePack Load(string tags) =>
+        GamePack.Load(CoreTests.PackZip(("pack.tsv", "id\tdemo\ntitle\t데모\n"), ("master/tag_master_v1.tsv", tags)));
 
     [Fact]
     public void The_reserved_codes_are_one_and_two()
@@ -39,10 +38,11 @@ public class ReservedTagTests
         Assert.Contains(message, Assert.Throws<PackFormatException>(() => Load(tags)).Message);
 
     [Fact]
-    public void A_pack_without_a_tag_master_is_not_checked()
+    public void The_tag_master_itself_is_required_when_the_pack_is_loaded()
     {
-        var pack = Load(null);
-        Assert.Null(pack.Tags);
+        var error = Assert.Throws<PackFormatException>(() =>
+            GamePack.Load(CoreTests.PackZipWithout(GamePack.TagMasterPath, ("pack.tsv", "id\tdemo\ntitle\t데모\n"))));
+        Assert.Contains("tag_master", error.Message);
     }
 
     [Fact]

@@ -18,19 +18,20 @@ public class CharacterInventoryTests
         if (characters is not null) files.Add(("master/character_inventory_master_v1.tsv", characters));
         if (items is not null) files.Add(("master/common_item_inventory_master_v1.tsv", items));
         if (attributes is not null) files.Add(("master/attribute_master_v1.tsv", attributes));
-        return GamePack.Load(CoreTests.Zip(files.ToArray()));
+        return GamePack.Load(CoreTests.PackZip(files.ToArray()));
     }
 
     [Fact]
-    public void Character_inventory_is_optional()
-        => Assert.Null(Pack(null).CharacterInventory);
+    public void Character_inventory_is_required_because_character_one_is_the_player()
+        => Assert.Contains("character_inventory_master", Assert.Throws<PackFormatException>(() =>
+            GamePack.Load(CoreTests.PackZipWithout(GamePack.CharacterInventoryMasterPath, ("pack.tsv", "id\tdemo\ntitle\t데모\n")))).Message);
 
     [Fact]
     public void Character_inventory_loads_code_name_carry_limit_and_attributes()
     {
         var pack = Pack(Header + "7001\t용사\t1\t1\t2\n7002\t마법사\t3\t3\t1\n");
         Assert.Equal(
-            [new CharacterEntry(7001, "용사", 1, 1, 2), new CharacterEntry(7002, "마법사", 3, 3, 1)],
+            [new CharacterEntry(7001, "용사", 1, 1, 2), new CharacterEntry(7002, "마법사", 3, 3, 1), new CharacterEntry(1, "당신", 1, 1, 2)],   // 플레이어(캐릭터 1)는 시험 도우미가 맨 끝에 붙인다
             pack.CharacterInventory);
     }
 
@@ -62,7 +63,9 @@ public class CharacterInventoryTests
 
     [Fact]
     public void Character_inventory_needs_the_attribute_master()
-        => Assert.Throws<PackFormatException>(() => Pack(Header + "7001\ta\t1\t1\t2\n", attributes: null));
+        => Assert.Throws<PackFormatException>(() => GamePack.Load(CoreTests.Zip(
+            ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
+            ("master/character_inventory_master_v1.tsv", Header + "7001\ta\t1\t1\t2\n"))));
 
     [Fact]
     public void Item_inventory_still_uses_item_code_and_item_name()

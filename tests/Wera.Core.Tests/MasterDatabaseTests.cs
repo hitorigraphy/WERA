@@ -7,7 +7,7 @@ namespace Wera.Core.Tests;
 public class MasterDatabaseTests
 {
     // 일부러 코드가 파일 순서와 다르게 정렬되도록(내림차순 등) 적어서, 파일 순서 유지와 키 정렬을 함께 확인한다.
-    static GamePack FullPack() => GamePack.Load(CoreTests.Zip(
+    static GamePack FullPack() => GamePack.Load(CoreTests.PackZip(
         ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
         ("master/attribute_master_v1.tsv", "attribute_code\tattribute_name\n3\t풀\n1\t불\n2\t물\n"),
         ("master/character_inventory_master_v1.tsv",
@@ -41,7 +41,7 @@ public class MasterDatabaseTests
             "character_code\tequipment_slot_code\ttag_code\tgroup_number\tis_positive\n" +
             "7002\t1\t6\t1\ttrue\n7001\t1\t5\t1\tfalse\n7001\t1\t3\t1\ttrue\n7001\t2\t4\t1\ttrue\n")));
 
-    static GamePack Empty() => GamePack.Load(CoreTests.Zip(("pack.tsv", "id\tdemo\ntitle\t데모\n")));
+    static GamePack Empty() => GamePack.Load(CoreTests.PackZip(("pack.tsv", "id\tdemo\ntitle\t데모\n")));
 
     // ---- 모든 마스터가 테이블로 올라간다 ----
 
@@ -89,7 +89,7 @@ public class MasterDatabaseTests
     {
         var db = Empty().Masters;
         Assert.Equal(0, db.EquipmentSlotTagRowTable.Count);
-        Assert.Equal(0, db.CharacterInventoryRowTable.Count);
+        Assert.Equal(1, db.CharacterInventoryRowTable.Count);                      // 필수 마스터의 기본값(플레이어)만
         Assert.False(db.CharacterInventoryRowTable.TryFindByCode(7001, out _));
         Assert.False(db.Validate().IsValidationFailed);
     }
@@ -238,7 +238,7 @@ public class MasterDatabaseTests
     [Fact]
     public void Duplicate_keys_in_the_tsv_are_still_rejected_with_a_message_before_the_database_is_built()
     {
-        var error = Assert.Throws<PackFormatException>(() => GamePack.Load(CoreTests.Zip(
+        var error = Assert.Throws<PackFormatException>(() => GamePack.Load(CoreTests.PackZip(
             ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
             ("master/attribute_master_v1.tsv", "attribute_code\tattribute_name\n1\t불\n2\t물\n"),
             ("master/character_inventory_master_v1.tsv",
@@ -257,7 +257,7 @@ public class MasterDatabaseTests
     public void Conditions_with_the_same_code_group_and_flag_are_rejected(string file, string rows, string noun)
     {
         // 복합키는 (코드, 그룹넘버, 플래그)라 타입과 밸류가 달라도 같은 키는 두 번 쓸 수 없다.
-        var error = Assert.Throws<PackFormatException>(() => GamePack.Load(CoreTests.Zip(
+        var error = Assert.Throws<PackFormatException>(() => GamePack.Load(CoreTests.PackZip(
             ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
             ("master/dungeon_master_v1.tsv", "code\tname\n1001\t초원\n"),
             ("master/shop_master_v1.tsv", "code\tname\n2001\t잡화점\n"),
@@ -269,7 +269,7 @@ public class MasterDatabaseTests
     [Fact]
     public void The_same_flag_in_different_groups_is_fine()
     {
-        var pack = GamePack.Load(CoreTests.Zip(
+        var pack = GamePack.Load(CoreTests.PackZip(
             ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
             ("master/dungeon_master_v1.tsv", "code\tname\n1001\t초원\n"),
             ("master/dungeon_flag_master_v1.tsv",
@@ -282,7 +282,7 @@ public class MasterDatabaseTests
     {
         // 복합키는 (상태이상, 트리거, 이펙트 코드). 우선순위나 밸류가 달라도 같은 키는 두 번 쓸 수 없다.
         const string header = "status_effect_code\ttrigger_type\tpriority\teffect_code\teffect_value_1\teffect_value_2\teffect_value_3\n";
-        GamePack Load(string rows) => GamePack.Load(CoreTests.Zip(
+        GamePack Load(string rows) => GamePack.Load(CoreTests.PackZip(
             ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
             ("master/status_effect_master_v1.tsv", "status_effect_code\tstatus_effect_name\n1\t독\n"),
             ("master/status_effect_effect_master_v1.tsv", header + rows)));

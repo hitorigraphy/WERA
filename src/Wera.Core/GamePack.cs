@@ -95,6 +95,17 @@ public sealed partial class GamePack
             : bunch.Parts.ToDictionary(p => p.ItemCode, p => checked(p.Amount * amount));
     }
 
+    /// <summary>
+    /// 반드시 있어야 하는 마스터: 엔진이 검증하는 마스터는 로드할 때 존재부터 확인한다(검증을 건너뛰는 일이 없도록).
+    /// 예약 코드가 있는 태그(1 플레이어, 2 리더)와 스테이터스(1 level, 2 hp), 플레이어 캐릭터(1)를 가진 캐릭터 인벤토리와 캐릭터 태그,
+    /// 모든 캐릭터의 level/hp 행을 확인하는 캐릭터 스테이터스, 캐릭터가 가리키는 속성.
+    /// </summary>
+    public static IReadOnlyList<string> RequiredMasterPaths { get; } =
+    [
+        AttributeMasterPath, TagMasterPath, StatusMasterPath,
+        CharacterInventoryMasterPath, CharacterTagMasterPath, CharacterStatusMasterPath,
+    ];
+
     /// <param name="embeddedEffects">상태이상 이펙트가 가리킬 수 있는 임베디드 이펙트들. 생략하면 구동기의 기본 마스터.</param>
     public static GamePack Load(Stream zipStream, EmbeddedEffectRegistry? embeddedEffects = null)
     {
@@ -109,6 +120,10 @@ public sealed partial class GamePack
             meta.TryGetValue(key, out var v) && v.Length > 0
                 ? v
                 : throw new PackFormatException($"pack.tsv에 '{key}' 항목이 없습니다.");
+
+        foreach (var path in RequiredMasterPaths)
+            if (FindEntry(zip, path) is null)
+                throw new PackFormatException($"{path}가 반드시 필요합니다.");
 
         var dungeonConditions = new List<FlatCondition>();
         var shopConditions = new List<FlatCondition>();

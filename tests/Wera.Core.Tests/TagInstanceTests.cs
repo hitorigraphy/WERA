@@ -8,7 +8,7 @@ namespace Wera.Core.Tests;
 //  캐릭터 7002 강시(소환수).
 public class TagInstanceTests
 {
-    static GamePack Pack() => GamePack.Load(CoreTests.Zip(
+    static GamePack Pack() => GamePack.Load(CoreTests.PackZip(
         ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
         ("master/attribute_master_v1.tsv", "attribute_code\tattribute_name\n1\t불\n2\t물\n"),
         ("master/common_item_inventory_master_v1.tsv", "item_code\titem_name\tcarry_limit\n3\t뼈 조각\t99\n"),

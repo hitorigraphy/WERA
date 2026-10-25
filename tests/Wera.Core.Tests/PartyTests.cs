@@ -24,7 +24,7 @@ public class PartyTests
             files.Add(("master/character_inventory_master_v1.tsv", characters));
             files.Add(("master/attribute_master_v1.tsv", Attributes));
         }
-        return GamePack.Load(CoreTests.Zip(files.ToArray()));
+        return GamePack.Load(CoreTests.PackZip(files.ToArray()));
     }
 
     /// <summary>용사 Lv5 36/40 3/30, 마법사 Lv3 10/25 12/30, 전사(사망) Lv8 0/50 40/80을 보유. 도적은 보유하지 않음.</summary>
@@ -243,7 +243,7 @@ public class PartyTests
         Assert.Equal(CharacterListColor.Green, colors[7002]);     // 다른 슬롯의 파티원
         Assert.Equal(CharacterListColor.White, colors[7003]);     // 배치 가능
         Assert.Equal(CharacterListColor.Gray, colors[7004]);      // 보유하지 않음 → 배치 불가
-        Assert.Equal([7001L, 7002L, 7003L, 7004L], s.CharacterList.Select(c => c.Code));
+        Assert.Equal([7001L, 7002L, 7003L, 7004L, 1L], s.CharacterList.Select(c => c.Code));   // 플레이어(캐릭터 1)는 마스터의 맨 끝, 보유하지 않아 회색
         Assert.False(s.CharacterList.Single(c => c.Code == 7004).Selectable);
     }
 
@@ -429,12 +429,13 @@ public class PartyTests
     }
 
     [Fact]
-    public void Character_list_is_empty_without_a_character_inventory_master()
+    public void Character_list_has_only_the_unowned_player_when_the_pack_defines_no_other_characters()
     {
         var s = GameSession.NewGame(Pack(null));
         s.Activate("103");
         s.Activate("1");
-        Assert.Empty(s.CharacterList);
+        Assert.Equal([1L], s.CharacterList.Select(c => c.Code));
+        Assert.False(s.CharacterList.Single().Selectable);                 // 보유하지 않아 고를 수 없다
         Assert.Equal(["999"], s.Entries.Select(e => e.Code));
     }
 
@@ -505,7 +506,7 @@ public class PartyTests
     [Fact]
     public void Home_has_empty_partner_and_assist_slots_for_later_extension()
     {
-        var s = GameSession.NewGame(GamePack.Load(CoreTests.Zip(("pack.tsv", PackText))));
+        var s = GameSession.NewGame(GamePack.Load(CoreTests.PackZip(("pack.tsv", PackText))));
         foreach (var slot in new[] { s.PartnerSlot, s.AssistSlot })
         {
             Assert.True(slot.IsEmpty);

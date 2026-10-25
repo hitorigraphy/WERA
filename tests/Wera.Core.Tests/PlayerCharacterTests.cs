@@ -13,7 +13,7 @@ public class PlayerCharacterTests
 
     static GamePack Load(
         string characters = CharacterHeader + "1\t당신\t1\t1\t2\n7001\t용사\t1\t1\t2\n",
-        string? tags = Tags, string? characterTags = "character_code\ttag_code\n1\t1\n",
+        string tags = Tags, string characterTags = "character_code\ttag_code\n1\t1\n",
         string? itemTags = null, string? commonItemTags = null)
     {
         var files = new List<(string, string)>
@@ -24,8 +24,12 @@ public class PlayerCharacterTests
             ("master/unique_item_inventory_master_v1.tsv", "item_code\titem_name\n8001\t철검\n"),
             ("master/common_item_inventory_master_v1.tsv", "item_code\titem_name\tcarry_limit\n3\t뼈\t9\n"),
         };
-        if (tags is not null) files.Add(("master/tag_master_v1.tsv", tags));
-        if (characterTags is not null) files.Add(("master/character_tag_master_v1.tsv", characterTags));
+        files.Add(("master/tag_master_v1.tsv", tags));
+        files.Add(("master/character_tag_master_v1.tsv", characterTags));
+        files.Add(("master/status_master_v1.tsv", "status_code\tstatus_name\n1\tlevel\n2\thp\n"));
+        files.Add(("master/character_status_master_v1.tsv",
+            "character_code\tstatus_code\tlevel\tinitial_value\tmin_value\tmax_value\n" +
+            "1\t1\t0\t1\t1\t99\n1\t2\t0\t1\t0\t1\n7001\t1\t0\t1\t1\t99\n7001\t2\t0\t1\t0\t1\n"));
         if (itemTags is not null) files.Add(("master/unique_item_tag_master_v1.tsv", itemTags));
         if (commonItemTags is not null) files.Add(("master/common_item_tag_master_v1.tsv", commonItemTags));
         return GamePack.Load(CoreTests.Zip(files.ToArray()));
@@ -38,7 +42,7 @@ public class PlayerCharacterTests
     {
         Assert.Equal(1, GamePack.PlayerCharacterCode);
         Assert.Equal("당신", Load().FindCharacter(1)!.Name);
-        var renamed = Load(CharacterHeader + "1\tHero\t1\t1\t2\n");
+        var renamed = Load(CharacterHeader + "1\tHero\t1\t1\t2\n7001\t용사\t1\t1\t2\n");
         Assert.Equal("Hero", renamed.FindCharacter(1)!.Name);
     }
 
@@ -57,11 +61,10 @@ public class PlayerCharacterTests
             Load(characters, characterTags: "character_code\ttag_code\n7001\t3\n")).Message);
 
     [Theory]
-    [InlineData(null)]                                                       // 캐릭터 태그 마스터가 없다
     [InlineData("character_code\ttag_code\n7001\t3\n")]                      // 캐릭터 1의 행이 없다
     [InlineData("character_code\ttag_code\n1\t3\n")]                         // 캐릭터 1에게 플레이어 태그가 없다
     [InlineData("character_code\ttag_code\n1\t2\n")]
-    public void Character_one_must_carry_the_player_tag(string? characterTags) =>
+    public void Character_one_must_carry_the_player_tag(string characterTags) =>
         Assert.Contains("플레이어 태그", Assert.Throws<PackFormatException>(() => Load(characterTags: characterTags)).Message);
 
     [Theory]
@@ -76,13 +79,6 @@ public class PlayerCharacterTests
             Load(itemTags: "item_code\ttag_code\n8001\t1\n")).Message);
         Assert.Contains("캐릭터 1만", Assert.Throws<PackFormatException>(() =>
             Load(commonItemTags: "item_code\ttag_code\n3\t1\n")).Message);
-    }
-
-    [Fact]
-    public void Packs_without_a_tag_master_or_without_a_character_master_are_not_checked()
-    {
-        Load(CharacterHeader + "7001\t용사\t1\t1\t2\n", tags: null, characterTags: null);                 // 태그 마스터 없음
-        GamePack.Load(CoreTests.Zip(("pack.tsv", Pack0), ("master/tag_master_v1.tsv", Tags)));            // 캐릭터 마스터 없음
     }
 
     [Fact]
@@ -150,7 +146,7 @@ public class PlayerCharacterTests
     [Fact]
     public void The_player_cannot_be_paid_in_a_shop_trade()
     {
-        var pack = GamePack.Load(CoreTests.Zip(
+        var pack = GamePack.Load(CoreTests.PackZip(
             ("pack.tsv", Pack0),
             ("master/attribute_master_v1.tsv", Attributes),
             ("master/common_item_inventory_master_v1.tsv", "item_code\titem_name\tcarry_limit\n3\t뼈\t999\n"),

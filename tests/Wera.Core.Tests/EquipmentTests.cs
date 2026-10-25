@@ -44,7 +44,7 @@ public class EquipmentTests
         if (items is not null) files.Add(("master/unique_item_inventory_master_v1.tsv", items));
         if (itemTags is not null) files.Add(("master/unique_item_tag_master_v1.tsv", itemTags));
         if (slotTags is not null) files.Add(("master/equipment_slot_tag_master_v1.tsv", slotTags));
-        return GamePack.Load(CoreTests.Zip(files.ToArray()));
+        return GamePack.Load(CoreTests.PackZip(files.ToArray()));
     }
 
     // ---- 마스터 로드 ----
@@ -54,7 +54,7 @@ public class EquipmentTests
     {
         var pack = Pack(null, null, null, null, null);
         Assert.Null(pack.EquipmentSlots);
-        Assert.Null(pack.Tags);
+        Assert.Equal([1L, 2L], pack.Tags!.Select(t => t.Code));   // 태그 마스터는 필수(예약 코드 1, 2만 있다)
         Assert.Null(pack.UniqueItems);
         Assert.Null(pack.UniqueItemTags);
         Assert.Null(pack.EquipmentSlotTags);

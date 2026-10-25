@@ -19,7 +19,9 @@ public class CharacterStatusTests
         "7001\t2\t0\t40\t0\t40\n" +      // 용사 hp: 기본값(레벨 0)
         "7001\t1\t0\t1\t1\t99\n" +       // 용사 level
         "7002\t2\t0\t20\t0\t20\n" +      // 마법사 hp
-        "7002\t1\t0\t1\t1\t99\n";        // 마법사 level
+        "7002\t1\t0\t1\t1\t99\n" +       // 마법사 level
+        "1\t2\t0\t10\t0\t10\n" +          // 플레이어(캐릭터 1, 시험 도우미가 캐릭터 마스터 끝에 붙인다) hp
+        "1\t1\t0\t1\t1\t99\n";           // 플레이어 level
 
     static GamePack Load(string? statuses, string? characterStatuses, string characters = Characters)
     {
@@ -31,7 +33,7 @@ public class CharacterStatusTests
         };
         if (statuses is not null) files.Add(("master/status_master_v1.tsv", statuses));
         if (characterStatuses is not null) files.Add(("master/character_status_master_v1.tsv", characterStatuses));
-        return GamePack.Load(CoreTests.Zip(files.ToArray()));
+        return GamePack.Load(CoreTests.PackZip(files.ToArray()));
     }
 
     // ---- 스테이터스 마스터 ----
@@ -77,7 +79,7 @@ public class CharacterStatusTests
         Assert.Equal(80, table.FindByCharacterCodeAndStatusCodeAndLevel((7001, 2, 5)).InitialValue);
         Assert.Equal(40, table.FindByCharacterCodeAndStatusCodeAndLevel((7001, 2, 0)).InitialValue);
         Assert.False(table.TryFindByCharacterCodeAndStatusCodeAndLevel((7001, 2, 6), out _));
-        Assert.Equal(5, table.Count);
+        Assert.Equal(7, table.Count);
         Assert.Equal(3, table.FindByCharacterCode(7001).Count);
         Assert.False(pack.Masters.Validate().IsValidationFailed);
     }
@@ -128,14 +130,20 @@ public class CharacterStatusTests
     }
 
     [Fact]
-    public void Both_masters_are_optional()
+    public void Both_masters_get_helper_defaults_and_the_defaults_make_a_minimal_living_player()
     {
-        var pack = Load(null, null);
-        Assert.Null(pack.Statuses);
-        Assert.Null(pack.CharacterStatuses);
-        Assert.Null(pack.InitialCharacterStatus(7001, 1));
-        Assert.Empty(pack.CharacterStatusesOf(7001));
+        var pack = Load(null, null);                                 // 시험 도우미가 기본값을 채운다(실제 게임팩은 직접 적어야 한다)
+        Assert.Equal([1L, 2L, 3L], pack.Statuses!.Select(s => s.Code));
+        Assert.Equal(new CharacterState(1, 1, 1, 0, 0), pack.NewCharacterState(7001));
+        Assert.Empty(pack.CharacterStatusesOf(9999));
     }
+
+    [Theory]
+    [InlineData("master/status_master_v1.tsv")]
+    [InlineData("master/character_status_master_v1.tsv")]
+    public void Both_masters_are_required_when_the_pack_is_loaded(string path) =>
+        Assert.Contains(path, Assert.Throws<PackFormatException>(() =>
+            GamePack.Load(CoreTests.PackZipWithout(path, ("pack.tsv", Pack0)))).Message);
 
     // ---- 검증 ----
 
@@ -158,7 +166,7 @@ public class CharacterStatusTests
     public void The_same_status_may_repeat_across_levels_and_characters()
     {
         var pack = Load(Statuses, Base + "7001\t1\t1\t2\t0\t5\n7001\t3\t0\t1\t0\t5\n7002\t3\t0\t1\t0\t5\n");
-        Assert.Equal(7, pack.Masters.CharacterStatusRowTable.Count);
+        Assert.Equal(9, pack.Masters.CharacterStatusRowTable.Count);
     }
 
     [Theory]
@@ -169,13 +177,13 @@ public class CharacterStatusTests
         Assert.Contains(message, Assert.Throws<PackFormatException>(() => Load(Statuses, Header + rows)).Message);
 
     [Fact]
-    public void Character_status_master_needs_the_character_and_status_masters()
+    public void Character_status_master_needs_the_character_and_status_masters_to_check_against()
     {
-        Assert.Throws<PackFormatException>(() => Load(null, Base));
-        Assert.Throws<PackFormatException>(() => GamePack.Load(CoreTests.Zip(
-            ("pack.tsv", Pack0),
-            ("master/status_master_v1.tsv", Statuses),
-            ("master/character_status_master_v1.tsv", Base))));
+        // 두 마스터 모두 필수라 어느 쪽이 없어도 로드 단계에서 거부된다.
+        Assert.Throws<PackFormatException>(() => GamePack.Load(CoreTests.PackZipWithout(GamePack.CharacterInventoryMasterPath,
+            ("pack.tsv", Pack0), ("master/character_status_master_v1.tsv", Base))));
+        Assert.Throws<PackFormatException>(() => GamePack.Load(CoreTests.PackZipWithout(GamePack.StatusMasterPath,
+            ("pack.tsv", Pack0), ("master/character_status_master_v1.tsv", Base))));
     }
 
     [Fact]
@@ -200,7 +208,7 @@ public class CharacterStatusTests
     public void A_character_may_start_hurt_or_with_experience()
     {
         var pack = Load(Statuses,
-            Header + "7001\t1\t0\t3\t1\t99\n7001\t2\t0\t10\t0\t40\n7001\t3\t0\t12\t0\t30\n7002\t1\t0\t1\t1\t99\n7002\t2\t0\t20\t0\t20\n");
+            Header + "7001\t1\t0\t3\t1\t99\n7001\t2\t0\t10\t0\t40\n7001\t3\t0\t12\t0\t30\n7002\t1\t0\t1\t1\t99\n7002\t2\t0\t20\t0\t20\n1\t1\t0\t1\t1\t99\n1\t2\t0\t10\t0\t10\n");
         Assert.Equal(new CharacterState(3, 10, 40, 12, 30), pack.NewCharacterState(7001));
     }
 

@@ -4,7 +4,7 @@ namespace Wera.Core.Tests;
 
 public class PlayerStateTests
 {
-    static GamePack Pack() => GamePack.Load(CoreTests.Zip(
+    static GamePack Pack() => GamePack.Load(CoreTests.PackZip(
         ("pack.tsv", "id\tdemo\ntitle\t데모\nstart\ta\n"),
         ("master/dungeon_master_v1.tsv", "code\tname\n1001\t초원\n"),
         ("master/dungeon_flag_master_v1.tsv",

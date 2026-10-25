@@ -15,7 +15,7 @@ public class DungeonTests
         var sep = backslashPaths ? '\\' : '/';
         if (dungeons is not null) files.Add(($"master{sep}dungeon_master_v1.tsv", dungeons));
         if (flags is not null) files.Add(($"master{sep}dungeon_flag_master_v1.tsv", flags));
-        return GamePack.Load(CoreTests.Zip(files.ToArray()));
+        return GamePack.Load(CoreTests.PackZip(files.ToArray()));
     }
 
     const string TwoDungeons = "code\tname\n1001\t초원\n1002\t동굴\n";

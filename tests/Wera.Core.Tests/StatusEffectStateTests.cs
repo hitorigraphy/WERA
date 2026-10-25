@@ -15,7 +15,7 @@ public class StatusEffectStateTests
         "3\tAfterTurnStart\t1\t1\t5\t5\t0\n";
 
     static GamePack Pack(string effects = DefaultEffects, EmbeddedEffectRegistry? registry = null)
-        => GamePack.Load(CoreTests.Zip(
+        => GamePack.Load(CoreTests.PackZip(
             ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
             ("master/attribute_master_v1.tsv", "attribute_code\tattribute_name\n1\t불\n2\t물\n"),
             ("master/character_inventory_master_v1.tsv",

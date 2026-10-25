@@ -10,12 +10,13 @@ public class AttributeTests
     {
         var files = new List<(string, string)> { ("pack.tsv", "id\tdemo\ntitle\t데모\n") };
         if (attributes is not null) files.Add(("master/attribute_master_v1.tsv", attributes));
-        return GamePack.Load(CoreTests.Zip(files.ToArray()));
+        return GamePack.Load(CoreTests.PackZip(files.ToArray()));
     }
 
     [Fact]
-    public void Attribute_master_is_optional()
-        => Assert.Null(Pack(null).Attributes);
+    public void Attribute_master_is_required_because_characters_point_at_it()
+        => Assert.Contains("attribute_master", Assert.Throws<PackFormatException>(() =>
+            GamePack.Load(CoreTests.PackZipWithout(GamePack.AttributeMasterPath, ("pack.tsv", "id\tdemo\ntitle\t데모\n")))).Message);
 
     [Fact]
     public void Attribute_master_loads_code_and_name_in_order()
@@ -37,8 +38,4 @@ public class AttributeTests
     [InlineData("attribute_code\n1\n")]
     public void Attribute_master_header_is_checked(string tsv)
         => Assert.Throws<PackFormatException>(() => Pack(tsv));
-
-    [Fact]
-    public void Attribute_master_alone_is_fine_without_a_character_master()
-        => Assert.Single(Pack(Header + "1\t불\n").Attributes!);
 }

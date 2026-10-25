@@ -35,7 +35,7 @@ public class TradeKindTests
             ("master/shop_master_v1.tsv", "code\tname\n2001\t상점\n"),
             ("master/shop_trade_master_v1.tsv", trades),
         };
-        return GamePack.Load(CoreTests.Zip(files.ToArray()));
+        return GamePack.Load(CoreTests.PackZip(files.ToArray()));
     }
 
     static GameSession Session(long coins = 1000)

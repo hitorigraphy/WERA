@@ -23,7 +23,7 @@ public class TradeTests
         if (bunch is not null) files.Add(("master/bunch_item_inventory_master_v1.tsv", bunch));
         if (trades is not null) files.Add(("master/shop_trade_master_v1.tsv", trades));
         if (tradeConditions is not null) files.Add(("master/shop_trade_condition_master_v1.tsv", tradeConditions));
-        return GamePack.Load(CoreTests.Zip(files.ToArray()));
+        return GamePack.Load(CoreTests.PackZip(files.ToArray()));
     }
 
     static Dictionary<long, long> F(params (long, long)[] kv) => kv.ToDictionary(x => x.Item1, x => x.Item2);

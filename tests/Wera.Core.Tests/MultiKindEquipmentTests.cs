@@ -7,7 +7,7 @@ namespace Wera.Core.Tests;
 //  유니크 아이템 8001 철검(검), 커먼 아이템 3 뼈 조각(소환수), 1 금화(태그 없음).
 public class MultiKindEquipmentTests
 {
-    static GamePack Pack() => GamePack.Load(CoreTests.Zip(
+    static GamePack Pack() => GamePack.Load(CoreTests.PackZip(
         ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
         ("master/attribute_master_v1.tsv", "attribute_code\tattribute_name\n1\t불\n2\t물\n"),
         ("master/common_item_inventory_master_v1.tsv", "item_code\titem_name\tcarry_limit\n1\t금화\t99999\n3\t뼈 조각\t99\n"),
@@ -71,18 +71,18 @@ public class MultiKindEquipmentTests
             ("master/unique_item_inventory_master_v1.tsv", "item_code\titem_name\n8001\t철검\n"),
             (file, content),
         };
-        var error = Assert.Throws<PackFormatException>(() => GamePack.Load(CoreTests.Zip(files.ToArray())));
+        var error = Assert.Throws<PackFormatException>(() => GamePack.Load(CoreTests.PackZip(files.ToArray())));
         Assert.Contains(message, error.Message);
     }
 
     [Fact]
     public void A_tag_master_needs_the_master_of_its_target_and_the_tag_master()
     {
-        Assert.Throws<PackFormatException>(() => GamePack.Load(CoreTests.Zip(
+        Assert.Throws<PackFormatException>(() => GamePack.Load(CoreTests.PackZip(
             ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
             ("master/tag_master_v1.tsv", "tag_code\ttag_name\n1\t플레이어\n2\t리더\n8\t소환수\n"),
             ("master/character_tag_master_v1.tsv", "character_code\ttag_code\n7002\t8\n"))));
-        Assert.Throws<PackFormatException>(() => GamePack.Load(CoreTests.Zip(
+        Assert.Throws<PackFormatException>(() => GamePack.Load(CoreTests.PackZip(
             ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
             ("master/common_item_inventory_master_v1.tsv", "item_code\titem_name\tcarry_limit\n3\t뼈 조각\t99\n"),
             ("master/common_item_tag_master_v1.tsv", "item_code\ttag_code\n3\t8\n"))));
@@ -150,7 +150,7 @@ public class MultiKindEquipmentTests
     [Fact]
     public void An_equipped_common_item_cannot_be_spent_in_a_shop_trade()
     {
-        var pack = GamePack.Load(CoreTests.Zip(
+        var pack = GamePack.Load(CoreTests.PackZip(
             ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
             ("master/attribute_master_v1.tsv", "attribute_code\tattribute_name\n1\t불\n2\t물\n"),
             ("master/common_item_inventory_master_v1.tsv", "item_code\titem_name\tcarry_limit\n1\t금화\t99999\n3\t뼈 조각\t99\n"),
@@ -238,7 +238,7 @@ public class MultiKindEquipmentTests
     public void The_equipping_characters_own_tags_are_combined_with_the_item_tags()
     {
         // 슬롯 규칙: 검 AND 소환수. 철검은 검 태그만 있고, 소환수 태그는 장비하는 캐릭터(7001)가 가진다.
-        GamePack Make(string characterTags) => GamePack.Load(CoreTests.Zip(
+        GamePack Make(string characterTags) => GamePack.Load(CoreTests.PackZip(
             ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
             ("master/attribute_master_v1.tsv", "attribute_code\tattribute_name\n1\t불\n2\t물\n"),
             ("master/character_inventory_master_v1.tsv",

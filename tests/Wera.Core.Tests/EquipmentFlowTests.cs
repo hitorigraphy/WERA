@@ -4,7 +4,7 @@ namespace Wera.Core.Tests;
 
 public class EquipmentFlowTests
 {
-    static GamePack Pack() => GamePack.Load(CoreTests.Zip(
+    static GamePack Pack() => GamePack.Load(CoreTests.PackZip(
         ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
         ("master/attribute_master_v1.tsv", "attribute_code\tattribute_name\n1\t불\n2\t물\n"),
         ("master/character_inventory_master_v1.tsv",

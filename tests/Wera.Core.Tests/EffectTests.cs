@@ -188,7 +188,7 @@ public class EffectTests
                 "character_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n" +
                 "7001\t용사\t1\t1\t2\n7002\t마법사\t1\t2\t1\n"));
         }
-        return GamePack.Load(CoreTests.Zip(files.ToArray()), embedded);
+        return GamePack.Load(CoreTests.PackZip(files.ToArray()), embedded);
     }
 
     [Fact]

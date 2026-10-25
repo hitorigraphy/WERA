@@ -5,7 +5,7 @@ namespace Wera.Core.Tests;
 // 홈 화면 위쪽의 슬롯: 당신(변경 불가), 파트너 [1], 어시스트 [2]. 파티 설정과 독립이다.
 public class SupportSlotTests
 {
-    static GamePack Pack() => GamePack.Load(CoreTests.Zip(
+    static GamePack Pack() => GamePack.Load(CoreTests.PackZip(
         ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
         ("master/attribute_master_v1.tsv", "attribute_code\tattribute_name\n1\t불\n2\t물\n"),
         ("master/character_inventory_master_v1.tsv",
@@ -69,7 +69,7 @@ public class SupportSlotTests
         Assert.Equal(SupportRole.Partner, s.CurrentSupportRole);
         Assert.Equal("파트너", s.CurrentSupportRoleName);
 
-        Assert.Equal([7001L, 7002L, 7003L, 7004L], s.SupportList.Select(c => c.Code));
+        Assert.Equal([7001L, 7002L, 7003L, 7004L, 1L], s.SupportList.Select(c => c.Code));
         Assert.Equal(CharacterListColor.Gray, s.SupportList.Single(c => c.Code == 7004).Color);
         Assert.Equal(["7001", "7002", "7003", "999"], s.Entries.Select(e => e.Code));    // 비우기는 비어 있으면 없다, 회색은 못 고른다
     }

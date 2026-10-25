@@ -312,7 +312,7 @@ public class EquipmentOwnershipTests
     [Fact]
     public void Equipment_in_a_save_needs_the_equipment_masters_of_the_pack()
     {
-        var packWithoutEquipment = GamePack.Load(CoreTests.Zip(("pack.tsv", "id\tdemo\ntitle\t데모\n")));
+        var packWithoutEquipment = GamePack.Load(CoreTests.PackZip(("pack.tsv", "id\tdemo\ntitle\t데모\n")));
         Assert.Throws<SaveFormatException>(() =>
             GameSession.FromSaveJson(packWithoutEquipment, Head + @"""UniqueItems"":{""01H00000000000000000000001"":{""ItemCode"":9001}}}"));
     }
