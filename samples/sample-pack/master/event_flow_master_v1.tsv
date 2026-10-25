@@ -1,2 +1,4 @@
-event_code	flow_number	group_number	flow_type	param_1	param_2	param_3	memo
-3001	1	1	None	0	0	0	테스트용
+event_code	flow_number	flow_type	param_1	param_2	param_3	memo
+3001	1	Adv	4001	0	0	테스트용
+3001	2	Battle	5001	0	0	테스트용
+3001	3	Finish	0	0	0	테스트용

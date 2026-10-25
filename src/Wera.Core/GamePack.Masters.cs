@@ -38,7 +38,7 @@ public sealed partial class GamePack
         List<EquipmentSlotTag>? equipmentSlotTags,
         List<StatusEntry>? statuses, List<CharacterStatus>? characterStatuses,
         List<TimeSlotEntry>? timeSlots, List<TurnEntry>? turns,
-        List<GameEvent>? events, List<FlatCondition> eventConditions, List<EventFlow>? eventFlows,
+        List<GameEvent>? events, List<FlatCondition> eventConditions, List<EventFlow>? eventFlows, List<FlatFlowCondition> eventFlowConditions,
         List<AdvEntry>? advs, List<BattleEntry>? battles)
     {
         var builder = new DatabaseBuilder();
@@ -120,8 +120,13 @@ public sealed partial class GamePack
         }).ToList());
         builder.Append((eventFlows ?? []).Select(f => new EventFlowRow
         {
-            EventCode = f.EventCode, FlowNumber = f.FlowNumber, GroupNumber = f.GroupNumber, FlowType = f.FlowType,
+            EventCode = f.EventCode, FlowNumber = f.FlowNumber, FlowType = f.FlowType,
             Param1 = f.Param1, Param2 = f.Param2, Param3 = f.Param3,
+        }).ToList());
+        builder.Append(eventFlowConditions.Select(c => new EventFlowConditionRow
+        {
+            EventCode = c.EventCode, FlowNumber = c.FlowNumber, GroupNumber = c.GroupNumber,
+            FlagCode = c.Condition.FlagCode, Type = c.Condition.Type, Value = c.Condition.Value,
         }).ToList());
         builder.Append((advs ?? []).Select(a => new AdvRow { Code = a.Code, Name = a.Name }).ToList());
         builder.Append((battles ?? []).Select(b => new BattleRow { Code = b.Code, Name = b.Name }).ToList());

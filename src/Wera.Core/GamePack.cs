@@ -160,9 +160,10 @@ public sealed partial class GamePack
         var eventConditions = new List<FlatCondition>();
         var events = LoadConditioned(zip, EventMasterPath, ["code", "name"], EventConditionMasterPath, "이벤트", "event_code",
             eventConditions, (code, r, groups) => new GameEvent(code, r[1], groups));
-        var eventFlows = LoadEventFlows(zip, events);
         var advs = LoadAdvs(zip);
         var battles = LoadBattles(zip);
+        var eventFlowConditions = new List<FlatFlowCondition>();
+        var eventFlows = LoadEventFlows(zip, events, advs, battles, eventFlowConditions);
 
         return new GamePack
         {
@@ -198,7 +199,7 @@ public sealed partial class GamePack
                 trades, tradeConditions, statusEffects, statusEffectEffects,
                 equipmentSlots, tags, uniqueItems, uniqueItemTags, commonItemTags, characterTags, equipmentSlotTags,
                 statuses, characterStatuses, timeSlots, turns,
-                events, eventConditions, eventFlows, advs, battles),
+                events, eventConditions, eventFlows, eventFlowConditions, advs, battles),
             EmbeddedEffects = embeddedEffects,
         };
     }

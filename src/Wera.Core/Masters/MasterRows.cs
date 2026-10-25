@@ -263,7 +263,7 @@ public record EventConditionRow
     public required long Value { get; init; }
 }
 
-/// <summary>이벤트 흐름: 복합키는 (이벤트, 흐름 번호, 그룹 넘버)이고, 보조키 이벤트 코드로 그 이벤트의 흐름 전부를 찾는다.</summary>
+/// <summary>이벤트 흐름: 복합키는 (이벤트, 흐름 번호)이고, 보조키 이벤트 코드로 그 이벤트의 흐름 전부를 찾는다.</summary>
 [MemoryTable("event_flow"), MessagePackObject(true)]
 public record EventFlowRow
 {
@@ -272,11 +272,30 @@ public record EventFlowRow
     public required long EventCode { get; init; }
 
     [PrimaryKey(keyOrder: 1)] public required long FlowNumber { get; init; }
-    [PrimaryKey(keyOrder: 2)] public required int GroupNumber { get; init; }
     public required EventFlowType FlowType { get; init; }
     public required long Param1 { get; init; }
     public required long Param2 { get; init; }
     public required long Param3 { get; init; }
+}
+
+/// <summary>
+/// 이벤트 흐름 조건: 복합키는 (이벤트, 흐름 번호, 그룹넘버, 플래그)이고, 보조키 (이벤트, 흐름 번호)로 그 흐름의 조건 전부를 찾는다.
+/// </summary>
+[MemoryTable("event_flow_condition"), MessagePackObject(true)]
+public record EventFlowConditionRow
+{
+    [PrimaryKey(keyOrder: 0)]
+    [SecondaryKey(0, keyOrder: 0), NonUnique]
+    public required long EventCode { get; init; }
+
+    [PrimaryKey(keyOrder: 1)]
+    [SecondaryKey(0, keyOrder: 1), NonUnique]
+    public required long FlowNumber { get; init; }
+
+    [PrimaryKey(keyOrder: 2)] public required int GroupNumber { get; init; }
+    [PrimaryKey(keyOrder: 3)] public required long FlagCode { get; init; }
+    public required ConditionType Type { get; init; }
+    public required long Value { get; init; }
 }
 
 [MemoryTable("adv"), MessagePackObject(true)]
