@@ -10,22 +10,22 @@ public class EquipmentTests
     const string ItemTagHeader = "item_code\ttag_code\n";
     const string SlotTagHeader = "character_code\tequipment_slot_code\ttag_code\tgroup_number\tis_positive\n";
 
-    // 슬롯: 1 무기, 2 방어구 / 태그: 1 검, 2 갑옷, 3 중량, 4 마법
+    // 슬롯: 1 무기, 2 방어구 / 태그: 1 플레이어, 2 리더(예약 코드), 3 검, 4 갑옷, 5 중량, 6 마법
     const string Slots = SlotHeader + "1\t무기\n2\t방어구\n";
-    const string Tags = TagHeader + "1\t검\n2\t갑옷\n3\t중량\n4\t마법\n";
+    const string Tags = TagHeader + "1\t플레이어\n2\t리더\n3\t검\n4\t갑옷\n5\t중량\n6\t마법\n";
 
     // 장비: 9001 철검(검), 9002 대검(검, 중량), 9003 지팡이(마법), 9004 판금갑옷(갑옷, 중량), 9005 천 옷(갑옷)
     const string Items = ItemHeader + "9001\t철검\n9002\t대검\n9003\t지팡이\n9004\t판금갑옷\n9005\t천 옷\n";
     const string ItemTags = ItemTagHeader +
-        "9001\t1\n9002\t1\n9002\t3\n9003\t4\n9004\t2\n9004\t3\n9005\t2\n";
+        "9001\t3\n9002\t3\n9002\t5\n9003\t6\n9004\t4\n9004\t5\n9005\t4\n";
 
     // 용사(7001): 무기 = (검 AND 중량 없음) OR 마법, 방어구 = 갑옷 / 마법사(7002): 무기 = 마법
     const string SlotTags = SlotTagHeader +
-        "7001\t1\t1\t1\ttrue\n" +
-        "7001\t1\t3\t1\tfalse\n" +
-        "7001\t1\t4\t2\ttrue\n" +
-        "7001\t2\t2\t1\ttrue\n" +
-        "7002\t1\t4\t1\ttrue\n";
+        "7001\t1\t3\t1\ttrue\n" +
+        "7001\t1\t5\t1\tfalse\n" +
+        "7001\t1\t6\t2\ttrue\n" +
+        "7001\t2\t4\t1\ttrue\n" +
+        "7002\t1\t6\t1\ttrue\n";
 
     internal static GamePack Pack(
         string? slots = Slots, string? tags = Tags, string? items = Items, string? itemTags = ItemTags, string? slotTags = SlotTags)
@@ -67,11 +67,11 @@ public class EquipmentTests
     {
         var pack = Pack();
         Assert.Equal([new EquipmentSlotEntry(1, "무기"), new EquipmentSlotEntry(2, "방어구")], pack.EquipmentSlots);
-        Assert.Equal(4, pack.Tags!.Count);
-        Assert.Equal(new TagEntry(3, "중량"), pack.Tags[2]);
+        Assert.Equal(6, pack.Tags!.Count);
+        Assert.Equal(new TagEntry(5, "중량"), pack.Tags[4]);
         Assert.Equal(new UniqueItem(9004, "판금갑옷"), pack.UniqueItems![3]);
         Assert.Equal(7, pack.UniqueItemTags!.Count);
-        Assert.Contains(new UniqueItemTag(9002, 3), pack.UniqueItemTags);
+        Assert.Contains(new UniqueItemTag(9002, 5), pack.UniqueItemTags);
     }
 
     [Fact]
@@ -79,9 +79,9 @@ public class EquipmentTests
     {
         var rows = Pack().EquipmentSlotTags!;
         Assert.Equal(5, rows.Count);
-        Assert.Equal(new EquipmentSlotTag(7001, 1, 1, 1, true), rows[0]);
-        Assert.Equal(new EquipmentSlotTag(7001, 1, 3, 1, false), rows[1]);
-        Assert.Equal(new EquipmentSlotTag(7001, 1, 4, 2, true), rows[2]);
+        Assert.Equal(new EquipmentSlotTag(7001, 1, 3, 1, true), rows[0]);
+        Assert.Equal(new EquipmentSlotTag(7001, 1, 5, 1, false), rows[1]);
+        Assert.Equal(new EquipmentSlotTag(7001, 1, 6, 2, true), rows[2]);
     }
 
     [Theory]

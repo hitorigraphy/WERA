@@ -14,6 +14,10 @@ public sealed partial class GamePack
     public const string CharacterTagMasterPath = "master/character_tag_master_v1.tsv";
     public const string EquipmentSlotTagMasterPath = "master/equipment_slot_tag_master_v1.tsv";
 
+    /// <summary>엔진이 예약한 태그 코드: 1 = 플레이어, 2 = 리더. 태그 마스터에 이 번호로 적어야 한다(이름은 자유).</summary>
+    public const long PlayerTagCode = 1;
+    public const long LeaderTagCode = 2;
+
     /// <summary>장비 슬롯 마스터가 없으면 null.</summary>
     public IReadOnlyList<EquipmentSlotEntry>? EquipmentSlots { get; init; }
 
@@ -97,8 +101,17 @@ public sealed partial class GamePack
         LoadCodeNames(zip, EquipmentSlotMasterPath, "equipment_slot_code", "equipment_slot_name", "장비 슬롯",
             (code, name) => new EquipmentSlotEntry(code, name));
 
-    static List<TagEntry>? LoadTags(ZipArchive zip) =>
-        LoadCodeNames(zip, TagMasterPath, "tag_code", "tag_name", "태그", (code, name) => new TagEntry(code, name));
+    /// <summary>태그 마스터: 플레이어(1)와 리더(2)는 엔진이 예약한 코드라 반드시 있어야 한다(이름은 자유).</summary>
+    static List<TagEntry>? LoadTags(ZipArchive zip)
+    {
+        var tags = LoadCodeNames(zip, TagMasterPath, "tag_code", "tag_name", "태그", (code, name) => new TagEntry(code, name));
+        if (tags is null) return null;
+        foreach (var (code, what) in new[] { (PlayerTagCode, "플레이어"), (LeaderTagCode, "리더") })
+            if (tags.All(t => t.Code != code))
+                throw new PackFormatException(
+                    $"{TagMasterPath}: 예약된 태그 코드 {code}({what})가 없습니다. 플레이어는 {PlayerTagCode}, 리더는 {LeaderTagCode}로 적어야 합니다.");
+        return tags;
+    }
 
     static List<UniqueItem>? LoadUniqueItems(ZipArchive zip) =>
         LoadCodeNames(zip, UniqueItemInventoryMasterPath, "item_code", "item_name", "유니크 아이템",

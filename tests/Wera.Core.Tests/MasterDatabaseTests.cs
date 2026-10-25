@@ -33,12 +33,12 @@ public class MasterDatabaseTests
             "status_effect_code\ttrigger_type\tpriority\teffect_code\teffect_value_1\teffect_value_2\teffect_value_3\n" +
             "1\tAfterTurnEnd\t2\t1\t-3\t3\t0\n3\tAfterTurnStart\t1\t1\t5\t5\t0\n1\tBeforeAttack\t1\t1\t-1\t2\t9\n"),
         ("master/equipment_slot_master_v1.tsv", "equipment_slot_code\tequipment_slot_name\n2\t방어구\n1\t무기\n"),
-        ("master/tag_master_v1.tsv", "tag_code\ttag_name\n4\t마법\n1\t검\n3\t중량\n2\t갑옷\n"),
+        ("master/tag_master_v1.tsv", "tag_code\ttag_name\n1\t플레이어\n2\t리더\n6\t마법\n3\t검\n5\t중량\n4\t갑옷\n"),
         ("master/unique_item_inventory_master_v1.tsv", "item_code\titem_name\n9003\t지팡이\n9001\t철검\n9002\t대검\n"),
-        ("master/unique_item_tag_master_v1.tsv", "item_code\ttag_code\n9002\t3\n9001\t1\n9002\t1\n9003\t4\n"),
+        ("master/unique_item_tag_master_v1.tsv", "item_code\ttag_code\n9002\t5\n9001\t3\n9002\t3\n9003\t6\n"),
         ("master/equipment_slot_tag_master_v1.tsv",
             "character_code\tequipment_slot_code\ttag_code\tgroup_number\tis_positive\n" +
-            "7002\t1\t4\t1\ttrue\n7001\t1\t3\t1\tfalse\n7001\t1\t1\t1\ttrue\n7001\t2\t2\t1\ttrue\n")));
+            "7002\t1\t6\t1\ttrue\n7001\t1\t5\t1\tfalse\n7001\t1\t3\t1\ttrue\n7001\t2\t4\t1\ttrue\n")));
 
     static GamePack Empty() => GamePack.Load(CoreTests.Zip(("pack.tsv", "id\tdemo\ntitle\t데모\n")));
 
@@ -167,11 +167,11 @@ public class MasterDatabaseTests
     {
         var table = FullPack().Masters.EquipmentSlotTagRowTable;
 
-        var row = table.FindByCharacterCodeAndEquipmentSlotCodeAndTagCodeAndGroupNumber((7001, 1, 3, 1));
+        var row = table.FindByCharacterCodeAndEquipmentSlotCodeAndTagCodeAndGroupNumber((7001, 1, 5, 1));
         Assert.False(row.IsPositive);
-        Assert.True(table.FindByCharacterCodeAndEquipmentSlotCodeAndTagCodeAndGroupNumber((7001, 1, 1, 1)).IsPositive);
-        Assert.False(table.TryFindByCharacterCodeAndEquipmentSlotCodeAndTagCodeAndGroupNumber((7001, 1, 1, 2), out _));   // 그룹만 다름
-        Assert.False(table.TryFindByCharacterCodeAndEquipmentSlotCodeAndTagCodeAndGroupNumber((7001, 2, 1, 1), out _));   // 슬롯만 다름
+        Assert.True(table.FindByCharacterCodeAndEquipmentSlotCodeAndTagCodeAndGroupNumber((7001, 1, 3, 1)).IsPositive);
+        Assert.False(table.TryFindByCharacterCodeAndEquipmentSlotCodeAndTagCodeAndGroupNumber((7001, 1, 3, 2), out _));   // 그룹만 다름
+        Assert.False(table.TryFindByCharacterCodeAndEquipmentSlotCodeAndTagCodeAndGroupNumber((7001, 2, 3, 1), out _));   // 슬롯만 다름
     }
 
     [Fact]
@@ -179,7 +179,7 @@ public class MasterDatabaseTests
     {
         var table = FullPack().Masters.EquipmentSlotTagRowTable;
         var rules = table.FindByCharacterCodeAndEquipmentSlotCode((7001, 1));
-        Assert.Equal([1L, 3L], rules.Select(r => r.TagCode).Order());
+        Assert.Equal([3L, 5L], rules.Select(r => r.TagCode).Order());
         Assert.Empty(table.FindByCharacterCodeAndEquipmentSlotCode((7001, 99)));
         Assert.Equal(4, table.FindRangeByCharacterCodeAndEquipmentSlotCode((7001, long.MinValue), (7002, long.MaxValue)).Count);
     }
@@ -191,8 +191,8 @@ public class MasterDatabaseTests
         Assert.Equal(3, db.BunchInventoryRowTable.FindByItemCodeAndPartItemCode((9001, 2)).PartAmount);
         Assert.False(db.BunchInventoryRowTable.TryFindByItemCodeAndPartItemCode((9001, 1), out _));
         Assert.Equal(2, db.UniqueItemTagRowTable.FindByItemCode(9002).Count);
-        Assert.True(db.UniqueItemTagRowTable.TryFindByItemCodeAndTagCode((9002, 3), out _));
-        Assert.False(db.UniqueItemTagRowTable.TryFindByItemCodeAndTagCode((9001, 3), out _));
+        Assert.True(db.UniqueItemTagRowTable.TryFindByItemCodeAndTagCode((9002, 5), out _));
+        Assert.False(db.UniqueItemTagRowTable.TryFindByItemCodeAndTagCode((9001, 5), out _));
     }
 
     [Fact]
@@ -243,7 +243,7 @@ public class MasterDatabaseTests
             ("master/character_inventory_master_v1.tsv",
                 "character_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n7001\t용사\t1\t1\t2\n"),
             ("master/equipment_slot_master_v1.tsv", "equipment_slot_code\tequipment_slot_name\n1\t무기\n"),
-            ("master/tag_master_v1.tsv", "tag_code\ttag_name\n1\t검\n"),
+            ("master/tag_master_v1.tsv", "tag_code\ttag_name\n1\t플레이어\n2\t리더\n"),
             ("master/equipment_slot_tag_master_v1.tsv",
                 "character_code\tequipment_slot_code\ttag_code\tgroup_number\tis_positive\n7001\t1\t1\t1\ttrue\n7001\t1\t1\t1\tfalse\n"))));
         Assert.Contains("같은 키", error.Message);
