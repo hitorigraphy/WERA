@@ -27,7 +27,7 @@ public sealed partial class GamePack
         List<EquipmentSlotEntry>? equipmentSlots, List<TagEntry>? tags, List<UniqueItem>? uniqueItems,
         List<UniqueItemTag>? uniqueItemTags, List<CommonItemTag>? commonItemTags, List<CharacterTag>? characterTags,
         List<EquipmentSlotTag>? equipmentSlotTags,
-        List<CharacterStatusEntry>? characterStatuses, List<CharacterInitialStatus>? characterInitialStatuses)
+        List<StatusEntry>? statuses, List<CharacterStatus>? characterStatuses)
     {
         var builder = new DatabaseBuilder();
 
@@ -93,9 +93,12 @@ public sealed partial class GamePack
             GroupNumber = t.GroupNumber, IsPositive = t.IsPositive, Order = i,
         }).ToList());
 
-        builder.Append((characterStatuses ?? []).Select((s, i) => new CharacterStatusRow { Code = s.Code, Name = s.Name, Order = i }).ToList());
-        builder.Append((characterInitialStatuses ?? []).Select((s, i) => new CharacterInitialStatusRow
-            { CharacterCode = s.CharacterCode, StatusCode = s.StatusCode, InitialValue = s.InitialValue, Order = i }).ToList());
+        builder.Append((statuses ?? []).Select((s, i) => new StatusRow { Code = s.Code, Name = s.Name, Order = i }).ToList());
+        builder.Append((characterStatuses ?? []).Select((s, i) => new CharacterStatusRow
+        {
+            CharacterCode = s.CharacterCode, StatusCode = s.StatusCode, Level = s.Level,
+            InitialValue = s.InitialValue, MinValue = s.MinValue, MaxValue = s.MaxValue, Order = i,
+        }).ToList());
 
         var db = new MemoryDatabase(builder.Build());
         var result = db.Validate();

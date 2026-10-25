@@ -21,8 +21,8 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
 | `master/common_item_inventory_master_v1.tsv` | (선택) `item_code`, `item_name`, `carry_limit` |
 | `master/bunch_item_inventory_master_v1.tsv` | (선택) `item_code`, `item_name`, `part_item_code`, `part_amount` |
 | `master/character_inventory_master_v1.tsv` | (선택) `character_code`, `character_name`, `carry_limit`, `advantage_attribute_code`, `disadvantage_attribute_code` |
-| `master/character_status_master_v1.tsv` | (선택) `status_code`, `status_name` |
-| `master/character_initial_status_master_v1.tsv` | (선택, 캐릭터 인벤토리/캐릭터 스테이터스 마스터 필요) `character_code`, `status_code`, `initial_value` |
+| `master/status_master_v1.tsv` | (선택) `status_code`, `status_name` |
+| `master/character_status_master_v1.tsv` | (선택, 캐릭터 인벤토리/스테이터스 마스터 필요) `character_code`, `status_code`, `level`, `initial_value`, `min_value`, `max_value` |
 | `master/attribute_master_v1.tsv` | (선택, 캐릭터 인벤토리가 있으면 필수) `attribute_code`, `attribute_name` |
 | `master/status_effect_master_v1.tsv` | (선택) `status_effect_code`, `status_effect_name` |
 | `master/status_effect_effect_master_v1.tsv` | (선택, 상태이상 마스터가 있어야 함) `status_effect_code`, `trigger_type`, `priority`, `effect_code`, `effect_value_1`, `effect_value_2`, `effect_value_3` |
@@ -42,7 +42,7 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
 - 아이템 코드는 커먼 아이템 인벤토리와 번치 인벤토리에서 겹치면 안 됩니다.
 - 인벤토리 계통은 **커먼 아이템 / 유니크 아이템 / 번치 아이템 / 캐릭터** 네 종류입니다(`common_item_inventory_master`, `unique_item_inventory_master`, `bunch_item_inventory_master`, `character_inventory_master`).
 - **캐릭터 인벤토리**(`character_inventory_master`)는 열이 `character_code`, `character_name`, `carry_limit`, `advantage_attribute_code`, `disadvantage_attribute_code`인 별도 마스터이고 코드 공간도 아이템과 따로입니다. 모든 캐릭터는 **유리속성**과 **불리속성**을 하나씩 가져야 하고, 둘 다 속성 마스터에 있어야 하며 서로 달라야 합니다.
-- **캐릭터 스테이터스**(`character_status_master`)는 스테이터스의 종류(레벨, 최대 HP 등)이고, **캐릭터 초기 스테이터스**(`character_initial_status_master`)는 캐릭터별 초깃값(`initial_value`, 정수)입니다. 복합키는 `(character_code, status_code)`라 같은 쌍을 두 번 쓸 수 없고, 캐릭터와 스테이터스는 각자의 마스터에 있어야 합니다. 아직 게임 진행에는 쓰이지 않습니다.
+- **스테이터스**(`status_master`)는 스테이터스의 종류(level, hp, xp, exp 등)이고, **캐릭터 스테이터스**(`character_status_master`)는 캐릭터 × 스테이터스 × 레벨별 값입니다. 복합키는 `(character_code, status_code, level)`이고 값은 `initial_value`, `min_value`, `max_value`(모두 정수)입니다. `min_value <= initial_value <= max_value`여야 하고, `level`은 0 이상입니다. **폴백**: 현재 레벨의 행을 먼저 찾고, 없으면 `level` 0의 행을 씁니다. 캐릭터를 만들 때는 레벨이 정해지지 않았으므로 `level` 0의 행을 읽습니다. 아직 게임 진행에는 쓰이지 않습니다.
 - **속성**(`attribute_master`)은 속성 코드와 이름입니다. 속성 아이콘 이미지는 아직 경로 규칙이 없어 `No Image`로 표시합니다.
 - **상태이상**(`status_effect_master`)은 상태이상 코드와 이름입니다. 캐릭터에 걸려 있는 상태이상은 세이브에 저장하며(아래 "상태이상 저장"), 파티 설정 슬롯의 아이콘 줄에 아이콘으로 나옵니다.
 - **임베디드 이펙트**는 TSV로 정의하는 마스터가 아니라 **구동기에 하드코딩된 클래스**입니다. `EmbeddedEffect`(추상 클래스)를 상속해서 만들고 `EmbeddedEffectRegistry.Default`(등록부)에 등록합니다.

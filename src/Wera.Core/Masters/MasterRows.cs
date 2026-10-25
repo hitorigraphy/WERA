@@ -227,17 +227,17 @@ public record EquipmentSlotTagRow
     public required int Order { get; init; }
 }
 
-[MemoryTable("character_status"), MessagePackObject(true)]
-public record CharacterStatusRow
+[MemoryTable("status"), MessagePackObject(true)]
+public record StatusRow
 {
     [PrimaryKey] public required long Code { get; init; }
     public required string Name { get; init; }
     public required int Order { get; init; }
 }
 
-/// <summary>캐릭터 초기 스테이터스 마스터: 복합키 (캐릭터, 스테이터스), 보조키 캐릭터로 그 캐릭터의 초깃값 전부를 찾는다.</summary>
-[MemoryTable("character_initial_status"), MessagePackObject(true)]
-public record CharacterInitialStatusRow
+/// <summary>캐릭터 스테이터스 마스터: 복합키 (캐릭터, 스테이터스, 레벨), 보조키 캐릭터로 그 캐릭터의 행 전부를 찾는다.</summary>
+[MemoryTable("character_status"), MessagePackObject(true)]
+public record CharacterStatusRow
 {
     [PrimaryKey(keyOrder: 0)]
     [SecondaryKey(0), NonUnique]
@@ -246,6 +246,11 @@ public record CharacterInitialStatusRow
     [PrimaryKey(keyOrder: 1)]
     public required long StatusCode { get; init; }
 
+    [PrimaryKey(keyOrder: 2)]
+    public required long Level { get; init; }
+
     public required long InitialValue { get; init; }
+    public required long MinValue { get; init; }
+    public required long MaxValue { get; init; }
     public required int Order { get; init; }
 }
