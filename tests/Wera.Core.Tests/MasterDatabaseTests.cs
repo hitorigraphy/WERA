@@ -249,15 +249,46 @@ public class MasterDatabaseTests
         Assert.Contains("같은 키", error.Message);
     }
 
-    [Fact]
-    public void An_identical_condition_row_written_twice_is_rejected_by_the_composite_key()
+    [Theory]
+    [InlineData("master/dungeon_flag_master_v1.tsv", "dungeon_code\tgroup_no\tflag_code\tcondition_type\tcondition_value\n1001\t1\t1001\tGreaterOrEqual\t1\n1001\t1\t1001\tLessThan\t5\n", "던전")]
+    [InlineData("master/shop_condition_master_v1.tsv", "shop_code\tgroup_no\tflag_code\tcondition_type\tcondition_value\n2001\t1\t1001\tGreaterOrEqual\t1\n2001\t1\t1001\tGreaterOrEqual\t1\n", "상점")]
+    public void Conditions_with_the_same_code_group_and_flag_are_rejected(string file, string rows, string noun)
     {
-        // 조건표의 키는 모든 열이라 같은 행을 두 번 쓰면 Validate가 거부한다(키 순서로만 저장하고 파일 순서는 기억하지 않는다).
+        // 복합키는 (코드, 그룹넘버, 플래그)라 타입과 밸류가 달라도 같은 키는 두 번 쓸 수 없다.
         var error = Assert.Throws<PackFormatException>(() => GamePack.Load(CoreTests.Zip(
             ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
             ("master/dungeon_master_v1.tsv", "code\tname\n1001\t초원\n"),
+            ("master/shop_master_v1.tsv", "code\tname\n2001\t잡화점\n"),
+            (file, rows))));
+        Assert.Contains(noun, error.Message);
+        Assert.Contains("두 번", error.Message);
+    }
+
+    [Fact]
+    public void The_same_flag_in_different_groups_is_fine()
+    {
+        var pack = GamePack.Load(CoreTests.Zip(
+            ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
+            ("master/dungeon_master_v1.tsv", "code\tname\n1001\t초원\n"),
             ("master/dungeon_flag_master_v1.tsv",
-                "dungeon_code\tgroup_no\tflag_code\tcondition_type\tcondition_value\n1001\t1\t1001\tGreaterOrEqual\t1\n1001\t1\t1001\tGreaterOrEqual\t1\n"))));
-        Assert.Contains("마스터 검증에 실패했습니다", error.Message);
+                "dungeon_code\tgroup_no\tflag_code\tcondition_type\tcondition_value\n1001\t1\t1001\tGreaterOrEqual\t1\n1001\t2\t1001\tLessThan\t5\n")));
+        Assert.Equal(2, pack.Masters.DungeonFlagRowTable.Count);
+    }
+
+    [Fact]
+    public void Status_effect_effects_with_the_same_status_trigger_and_effect_code_are_rejected()
+    {
+        // 복합키는 (상태이상, 트리거, 이펙트 코드). 우선순위나 밸류가 달라도 같은 키는 두 번 쓸 수 없다.
+        const string header = "status_effect_code\ttrigger_type\tpriority\teffect_code\teffect_value_1\teffect_value_2\teffect_value_3\n";
+        GamePack Load(string rows) => GamePack.Load(CoreTests.Zip(
+            ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
+            ("master/status_effect_master_v1.tsv", "status_effect_code\tstatus_effect_name\n1\t독\n"),
+            ("master/status_effect_effect_master_v1.tsv", header + rows)));
+
+        var error = Assert.Throws<PackFormatException>(() =>
+            Load("1\tAfterTurnEnd\t1\t1\t-3\t3\t0\n1\tAfterTurnEnd\t2\t1\t-5\t3\t0\n"));
+        Assert.Contains("두 번", error.Message);
+
+        Assert.Equal(2, Load("1\tAfterTurnEnd\t1\t1\t-3\t3\t0\n1\tBeforeAttack\t1\t1\t-3\t3\t0\n").StatusEffectEffects!.Count);   // 트리거가 다르면 괜찮다
     }
 }

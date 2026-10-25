@@ -215,6 +215,7 @@ public sealed partial class GamePack
         if (conditionText is not null)
         {
             var file = conditionPath;
+            var seenKeys = new HashSet<(long, int, long)>();       // 복합키는 (코드, 그룹넘버, 플래그 코드)
             foreach (var r in Body(file, conditionText, codeColumn, "group_no", "flag_code", "condition_type", "condition_value"))
             {
                 var code = ParseLong(file, $"{noun} 코드", r[0]);
@@ -235,6 +236,9 @@ public sealed partial class GamePack
                     value = ParseLong(file, $"{noun} '{code}'의 컨디션 밸류", r[4]);
                 }
 
+                if (!seenKeys.Add((code, groupNo, flagCode)))
+                    throw new PackFormatException(
+                        $"{file}: {noun} '{code}'의 그룹 {groupNo}에 플래그 '{flagCode}'가 두 번 있습니다.");
                 if (!byGroup.TryGetValue(groupNo, out var list)) byGroup[groupNo] = list = [];
                 var condition = new FlagCondition(flagCode, type, value);
                 list.Add(condition);
@@ -301,6 +305,7 @@ public sealed partial class GamePack
 
         var statusCodes = statusEffects.Select(s => s.Code).ToHashSet();
         var rows = new List<StatusEffectEffect>();
+        var seen = new HashSet<(long, TriggerType, long)>();
         foreach (var r in Body(file, text, "status_effect_code", "trigger_type", "priority", "effect_code",
                      "effect_value_1", "effect_value_2", "effect_value_3"))
         {
@@ -319,6 +324,10 @@ public sealed partial class GamePack
             var effectCode = ParseLong(file, $"{who} 이펙트 코드", r[3]);
             if (!embeddedEffects.Contains(effectCode))
                 throw new PackFormatException($"{file}: {who} 이펙트 코드 '{effectCode}'가 임베디드 이펙트에 없습니다.");
+            // 복합키는 (상태이상, 트리거, 이펙트 코드)다.
+            if (!seen.Add((statusCode, trigger, effectCode)))
+                throw new PackFormatException(
+                    $"{file}: {who} 트리거 {trigger}에 이펙트 코드 '{effectCode}'가 두 번 있습니다.");
 
             rows.Add(new StatusEffectEffect(
                 statusCode, trigger, priority, effectCode,

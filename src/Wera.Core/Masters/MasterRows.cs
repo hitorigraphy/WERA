@@ -9,7 +9,7 @@ namespace Wera.Core.Masters;
 // MasterMemory 테이블 정의. 게임팩의 TSV 마스터 한 개가 테이블 한 개이고, 행 한 개가 TSV의 한 줄이다.
 // 행 순서를 따로 기억하지 않는다(int 순번은 long 코드보다 범위가 좁다). MasterMemory가 기본키 순서로 정렬해 두고,
 // 순서가 필요한 곳은 조회하는 쪽에서 키 순서대로 OrderBy/ThenBy 한다. 화면에 나오는 목록은 로더가 만든 목록(게임팩 파일 순서)을 쓴다.
-// 조건표처럼 자연스러운 키가 없는 마스터는 모든 열을 합친 복합키를 쓴다(같은 행을 두 번 쓸 수 없다).
+// 복합키가 있는 마스터는 키가 같은 행을 두 번 쓸 수 없다.
 
 [MemoryTable("attribute"), MessagePackObject(true)]
 public record AttributeRow
@@ -25,7 +25,7 @@ public record StatusEffectRow
     public required string Name { get; init; }
 }
 
-/// <summary>상태이상의 이펙트: 키는 모든 열이고, 보조키 상태이상 코드로 그 상태이상의 이펙트 전부를 찾는다.</summary>
+/// <summary>상태이상의 이펙트: 복합키는 (상태이상, 트리거, 이펙트 코드)이고, 보조키 상태이상 코드로 그 상태이상의 이펙트 전부를 찾는다.</summary>
 [MemoryTable("status_effect_effect"), MessagePackObject(true)]
 public record StatusEffectEffectRow
 {
@@ -34,11 +34,11 @@ public record StatusEffectEffectRow
     public required long StatusEffectCode { get; init; }
 
     [PrimaryKey(keyOrder: 1)] public required TriggerType Trigger { get; init; }
-    [PrimaryKey(keyOrder: 2)] public required long Priority { get; init; }
-    [PrimaryKey(keyOrder: 3)] public required long EffectCode { get; init; }
-    [PrimaryKey(keyOrder: 4)] public required long Value1 { get; init; }
-    [PrimaryKey(keyOrder: 5)] public required long Value2 { get; init; }
-    [PrimaryKey(keyOrder: 6)] public required long Value3 { get; init; }
+    [PrimaryKey(keyOrder: 2)] public required long EffectCode { get; init; }
+    public required long Priority { get; init; }
+    public required long Value1 { get; init; }
+    public required long Value2 { get; init; }
+    public required long Value3 { get; init; }
 }
 
 [MemoryTable("dungeon"), MessagePackObject(true)]
@@ -48,7 +48,7 @@ public record DungeonRow
     public required string Name { get; init; }
 }
 
-/// <summary>던전 입장 조건: 키는 모든 열이고, 보조키 던전 코드로 그 던전의 조건 전부를 찾는다.</summary>
+/// <summary>던전 입장 조건: 복합키는 (던전, 그룹넘버, 플래그)이고, 보조키 던전 코드로 그 던전의 조건 전부를 찾는다.</summary>
 [MemoryTable("dungeon_flag"), MessagePackObject(true)]
 public record DungeonFlagRow
 {
@@ -58,8 +58,8 @@ public record DungeonFlagRow
 
     [PrimaryKey(keyOrder: 1)] public required int GroupNo { get; init; }
     [PrimaryKey(keyOrder: 2)] public required long FlagCode { get; init; }
-    [PrimaryKey(keyOrder: 3)] public required ConditionType Type { get; init; }
-    [PrimaryKey(keyOrder: 4)] public required long Value { get; init; }
+    public required ConditionType Type { get; init; }
+    public required long Value { get; init; }
 }
 
 [MemoryTable("shop"), MessagePackObject(true)]
@@ -69,7 +69,7 @@ public record ShopRow
     public required string Name { get; init; }
 }
 
-/// <summary>상점 입장 조건: 키는 모든 열이고, 보조키 상점 코드로 그 상점의 조건 전부를 찾는다.</summary>
+/// <summary>상점 입장 조건: 복합키는 (상점, 그룹넘버, 플래그)이고, 보조키 상점 코드로 그 상점의 조건 전부를 찾는다.</summary>
 [MemoryTable("shop_condition"), MessagePackObject(true)]
 public record ShopConditionRow
 {
@@ -79,8 +79,8 @@ public record ShopConditionRow
 
     [PrimaryKey(keyOrder: 1)] public required int GroupNo { get; init; }
     [PrimaryKey(keyOrder: 2)] public required long FlagCode { get; init; }
-    [PrimaryKey(keyOrder: 3)] public required ConditionType Type { get; init; }
-    [PrimaryKey(keyOrder: 4)] public required long Value { get; init; }
+    public required ConditionType Type { get; init; }
+    public required long Value { get; init; }
 }
 
 [MemoryTable("common_item_inventory"), MessagePackObject(true)]
@@ -129,7 +129,7 @@ public record ShopTradeRow
     public required TradeKind ReceiveKind { get; init; }
 }
 
-/// <summary>교환 조건: 키는 모든 열이고, 보조키 교환 코드로 그 교환의 조건 전부를 찾는다.</summary>
+/// <summary>교환 조건: 복합키는 (교환, 그룹넘버, 플래그)이고, 보조키 교환 코드로 그 교환의 조건 전부를 찾는다.</summary>
 [MemoryTable("shop_trade_condition"), MessagePackObject(true)]
 public record ShopTradeConditionRow
 {
@@ -139,8 +139,8 @@ public record ShopTradeConditionRow
 
     [PrimaryKey(keyOrder: 1)] public required int GroupNo { get; init; }
     [PrimaryKey(keyOrder: 2)] public required long FlagCode { get; init; }
-    [PrimaryKey(keyOrder: 3)] public required ConditionType Type { get; init; }
-    [PrimaryKey(keyOrder: 4)] public required long Value { get; init; }
+    public required ConditionType Type { get; init; }
+    public required long Value { get; init; }
 }
 
 [MemoryTable("equipment_slot"), MessagePackObject(true)]

@@ -125,7 +125,7 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
 ## 구조
 - `src/Wera.Core` — 게임팩 로딩, 세션, 세이브 (브라우저 비의존)
 - `src/Wera.Web` — Blazor WASM UI
-- 마스터 데이터는 [MasterMemory](https://github.com/Cysharp/MasterMemory)(인메모리 읽기 전용 DB)에 올립니다. 테이블 정의는 `src/Wera.Core/Masters/MasterRows.cs`, 조회는 `GamePack.Masters.cs`(`GamePack.Masters`, `FindCharacter` 등)입니다. TSV 파싱과 외래키 검증은 기존 로더가 하고, 결과를 테이블로 올린 뒤 `Validate()`로 기본키 중복을 한 번 더 확인합니다. 테이블은 행 순서(int 순번)를 따로 기억하지 않고 기본키 순서로 저장되며, 순서가 필요한 조회(번치 부품, 상태이상 이펙트, 슬롯 규칙, 태그 등)는 키 순서대로 `OrderBy`/`ThenBy` 합니다. 화면에 나오는 목록(던전, 상점, 캐릭터 등)은 게임팩 파일 순서 그대로입니다. 조건표처럼 자연스러운 키가 없는 마스터는 모든 열이 복합키라 같은 행을 두 번 쓰면 오류입니다.
+- 마스터 데이터는 [MasterMemory](https://github.com/Cysharp/MasterMemory)(인메모리 읽기 전용 DB)에 올립니다. 테이블 정의는 `src/Wera.Core/Masters/MasterRows.cs`, 조회는 `GamePack.Masters.cs`(`GamePack.Masters`, `FindCharacter` 등)입니다. TSV 파싱과 외래키 검증은 기존 로더가 하고, 결과를 테이블로 올린 뒤 `Validate()`로 기본키 중복을 한 번 더 확인합니다. 테이블은 행 순서(int 순번)를 따로 기억하지 않고 기본키 순서로 저장되며, 순서가 필요한 조회(번치 부품, 상태이상 이펙트, 슬롯 규칙, 태그 등)는 키 순서대로 `OrderBy`/`ThenBy` 합니다. 화면에 나오는 목록(던전, 상점, 캐릭터 등)은 게임팩 파일 순서 그대로입니다. 복합키가 같은 행은 두 번 쓸 수 없고(오류), 던전/상점/교환 조건표는 `(코드, group_no, flag_code)`, 상태이상 이펙트는 `(status_effect_code, trigger_type, effect_code)`가 복합키입니다.
 - `tests/Wera.Core.Tests` — xUnit 테스트
 
 ## 개발

@@ -134,11 +134,10 @@ public sealed partial class GamePack
     public UniqueItem? FindUniqueItem(long itemCode) =>
         Masters.UniqueItemRowTable.TryFindByItemCode(itemCode, out var r) ? new UniqueItem(r.ItemCode, r.ItemName) : null;
 
-    /// <summary>상태이상이 가진 이펙트 행들(키 순서: 트리거, 우선순위, 이펙트 코드, 값1~3).</summary>
+    /// <summary>상태이상이 가진 이펙트 행들(키 순서: 트리거, 이펙트 코드).</summary>
     public IReadOnlyList<StatusEffectEffect> StatusEffectEffectsOf(long statusEffectCode) =>
         Masters.StatusEffectEffectRowTable.FindByStatusEffectCode(statusEffectCode)
-            .OrderBy(r => r.Trigger).ThenBy(r => r.Priority).ThenBy(r => r.EffectCode)
-            .ThenBy(r => r.Value1).ThenBy(r => r.Value2).ThenBy(r => r.Value3)
+            .OrderBy(r => r.Trigger).ThenBy(r => r.EffectCode)
             .Select(r => new StatusEffectEffect(
                 r.StatusEffectCode, r.Trigger, r.Priority, r.EffectCode, r.Value1, r.Value2, r.Value3))
             .ToList();
