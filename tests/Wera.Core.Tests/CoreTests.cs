@@ -37,6 +37,8 @@ public class CoreTests
         AddIfMissing(GamePack.CharacterInventoryMasterPath,
             "character_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n1\t당신\t1\t1\t2\n");
         AddIfMissing(GamePack.CharacterTagMasterPath, "character_code\ttag_code\n1\t1\n");
+        AddIfMissing(GamePack.TimeSlotMasterPath, "code\tname\n1\t아침\n");
+        AddIfMissing(GamePack.TurnMasterPath, "turn_count\tyear\tmonth\tday\ttime_slot_code\n1\t1\t1\t1\t1\n");
 
         // 직접 적은 캐릭터 마스터에 플레이어(캐릭터 1)가 없으면 맨 끝에 붙인다(보유하지 않으면 목록에서 회색이라 대부분의 시험에 영향이 없다).
         var characterIndex = all.FindIndex(f => f.name == GamePack.CharacterInventoryMasterPath);
@@ -121,7 +123,8 @@ public class CoreTests
     {
         Assert.Equal(
             ["master/attribute_master_v1.tsv", "master/tag_master_v1.tsv", "master/status_master_v1.tsv",
-             "master/character_inventory_master_v1.tsv", "master/character_tag_master_v1.tsv", "master/character_status_master_v1.tsv"],
+             "master/character_inventory_master_v1.tsv", "master/character_tag_master_v1.tsv", "master/character_status_master_v1.tsv",
+             "master/time_slot_master_v1.tsv", "master/turn_master_v1.tsv"],
             GamePack.RequiredMasterPaths);
     }
 

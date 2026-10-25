@@ -224,6 +224,24 @@ public record EquipmentSlotTagRow
     public required bool IsPositive { get; init; }
 }
 
+[MemoryTable("time_slot"), MessagePackObject(true)]
+public record TimeSlotRow
+{
+    [PrimaryKey] public required long Code { get; init; }
+    public required string Name { get; init; }
+}
+
+/// <summary>턴 마스터: 기본키는 턴 카운트다(키 순서가 곧 턴 순서).</summary>
+[MemoryTable("turn"), MessagePackObject(true)]
+public record TurnRow
+{
+    [PrimaryKey] public required long TurnCount { get; init; }
+    public required long Year { get; init; }
+    public required long Month { get; init; }
+    public required long Day { get; init; }
+    public required long TimeSlotCode { get; init; }
+}
+
 [MemoryTable("status"), MessagePackObject(true)]
 public record StatusRow
 {

@@ -123,7 +123,8 @@ input.command { background: #111; color: #fff; border: 1px solid #666; }
 a.button, button.button { border-color: #666; }
 
 /* ---- 파티 설정: 3×3 슬롯 ---- */
-.home-slots { display: flex; justify-content: space-between; gap: 1.5rem; margin: 1rem 0; overflow-x: auto; }
+.home-slots { display: flex; justify-content: space-between; gap: 1.5rem; margin: 1rem 0 0; padding: .8rem 0; overflow-x: auto; border-top: 1px solid #888; border-bottom: 1px solid #888; }
+.home-date { padding: .8rem 0 1rem; }
 .home-slots > div { min-width: max-content; }
 .party-grid { display: grid; grid-template-columns: repeat(3, max-content); gap: .9rem 1.5rem; margin: 1rem 0; overflow-x: auto; }
 .slot { display: flex; gap: .5rem; align-items: flex-start; }

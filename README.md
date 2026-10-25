@@ -22,6 +22,8 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
 | `master/bunch_item_inventory_master_v1.tsv` | (선택) `item_code`, `item_name`, `part_item_code`, `part_amount` |
 | `master/character_inventory_master_v1.tsv` | **(필수)** `character_code`, `character_name`, `carry_limit`, `advantage_attribute_code`, `disadvantage_attribute_code` |
 | `master/status_master_v1.tsv` | **(필수)** `status_code`, `status_name` |
+| `master/time_slot_master_v1.tsv` | **(필수)** `code`, `name` (code가 키) |
+| `master/turn_master_v1.tsv` | **(필수, 시간대 마스터 필요)** `turn_count`(키), `year`, `month`, `day`, `time_slot_code` |
 | `master/character_status_master_v1.tsv` | **(필수)** `character_code`, `status_code`, `level`, `initial_value`, `min_value`, `max_value` |
 | `master/attribute_master_v1.tsv` | **(필수)** `attribute_code`, `attribute_name` |
 | `master/status_effect_master_v1.tsv` | (선택) `status_effect_code`, `status_effect_name` |
@@ -38,7 +40,7 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
 
 **memo 열:** 모든 마스터 TSV는 헤더에 `memo` 열을 둘 수 있고(위치 자유) 사람이 보는 메모일 뿐이라 엔진은 읽지 않으며 마스터메모리에도 올리지 않습니다. 기본 게임팩은 엔진이 요구하는 필수 행(예약 태그와 스테이터스, 플레이어 캐릭터와 그 속성/태그, 모든 캐릭터의 level/hp 레벨 0 행)의 메모에 "필수"라고 적어 두었고, 테스트용 던전(`1999`)과 상점(`2999`, 커먼/유니크/캐릭터 교환 포함)은 필수가 아니며 조건이 없어 새 게임부터 열려 있습니다.
 
-**필수 마스터 방침:** 엔진이 검증하는 마스터(예약 코드나 필수 항목이 있는 마스터)는 로드할 때 존재부터 확인합니다. 없으면 "`...`가 반드시 필요합니다" 오류로 로드되지 않습니다. 필수 마스터는 `attribute_master`, `tag_master`(예약 태그 1 플레이어, 2 리더), `status_master`(예약 스테이터스 1 level, 2 hp), `character_inventory_master`(캐릭터 1 = 플레이어), `character_tag_master`(캐릭터 1의 플레이어 태그), `character_status_master`(모든 캐릭터의 level/hp 레벨 0 행)입니다. 나머지는 선택이고, 선택 마스터가 있으면 가리키는 상위 마스터도 있어야 합니다.
+**필수 마스터 방침:** 엔진이 검증하는 마스터(예약 코드나 필수 항목이 있는 마스터)는 로드할 때 존재부터 확인합니다. 없으면 "`...`가 반드시 필요합니다" 오류로 로드되지 않습니다. 필수 마스터는 `attribute_master`, `tag_master`(예약 태그 1 플레이어, 2 리더), `status_master`(예약 스테이터스 1 level, 2 hp), `character_inventory_master`(캐릭터 1 = 플레이어), `character_tag_master`(캐릭터 1의 플레이어 태그), `character_status_master`(모든 캐릭터의 level/hp 레벨 0 행), `time_slot_master`와 `turn_master`(시간대 FK, 시작 턴 한 행 이상)입니다. 나머지는 선택이고, 선택 마스터가 있으면 가리키는 상위 마스터도 있어야 합니다.
 
 ### 아이템과 상점 교환
 - **커먼 아이템 인벤토리**(`common_item_inventory_master`)는 아이템 코드, 이름, 소지제한(`carry_limit`, 한 번에 소지할 수 있는 최대 수량, 1 이상의 정수)입니다.
@@ -119,6 +121,7 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
     - 불러올 때 캐릭터는 보유 캐릭터여야 하고, 상태이상 코드는 상태이상 마스터에, 이펙트 코드는 임베디드 이펙트에 있어야 합니다. 같은 캐릭터에 같은 상태이상을 두 번 걸 수 없고, 트리거 이름이 올바라야 하며 카운터는 0 이상이어야 합니다.
     - 코드에서는 `GameSession.ApplyStatusEffect(캐릭터 코드, 상태이상 코드)`(이미 걸려 있으면 새로 걸어 갱신), `RemoveStatusEffect`, `StatusEffectsOf`로 다룹니다. 저장한 이펙트는 `ActiveEffect.Restore(등록부, 타겟)`로 카운터와 유효 플래그까지 그대로 가진 임베디드 이펙트 인스턴스로 되살리고, `ActiveEffect.Capture(...)`로 실행 중인 이펙트의 현재 값을 다시 저장용으로 뜹니다.
 - 홈 화면에는 `[200] 세이브`(현재 상태를 `.sav`로 내려받기)와 `[300] 로드`(로드 화면에서 `.sav`를 드롭)도 항상 있습니다. 로드 화면과 던전 선택 화면의 돌아가기는 `[999]`입니다.
+- 홈 화면 위쪽의 슬롯 영역(위아래로 선)이 있고, 그 아래에 게임상 날짜와 시간대(`1년 1월 1일 아침`)가 나옵니다. **턴**: 게임은 `turn_master`의 가장 작은 `turn_count`에서 시작하고(세이브에는 `Turn`으로 저장), 턴이 넘어가면(`GameSession.AdvanceTurn`) 다음으로 큰 `turn_count`의 날짜와 시간대로 바뀝니다. 마지막 턴에서는 그대로입니다. 날짜는 게임팩이 정하는 달력이라 범위를 검증하지 않고, 아직 턴을 넘기는 행동은 연결되어 있지 않습니다.
 - 홈 화면 위쪽에는 슬롯이 셋 있습니다: **당신**(플레이어 = 캐릭터 1을 보여 주며 눌러도 바뀌지 않음; 새 게임은 플레이어를 보유한 채로 시작하고, 플레이어가 없는 세이브는 불러올 때 채워 넣으며, 파트너/어시스트로는 지정할 수 없음), **`[1]` 파트너**, **`[2]` 어시스트**. 파트너와 어시스트는 이미지나 이름을 클릭하거나 `1`/`2`를 입력하면 보유 캐릭터 목록이 나오고(`[0] 비우기`는 그 슬롯에 캐릭터가 있을 때만, 회색은 보유하지 않은 캐릭터, 하늘색은 이 슬롯의 캐릭터, 초록은 다른 쪽 슬롯의 캐릭터로 고르면 서로 바뀝니다), 고르면 지정됩니다. **파티 설정과는 독립**이라 파티에 있는 캐릭터도 지정할 수 있고 파티는 그대로입니다. 세이브에는 `Partner`, `Assist`(캐릭터 코드)로 저장됩니다. 지정만 할 뿐 아직 쓰이는 기능은 없습니다(추후 확장).
 - 플레이어 상태는 세이브에 두 배열로 저장됩니다. 세이브 버전은 릴리스 전이라 1로 유지합니다.
   - 세이브 JSON의 코드 키(`"1001"` 등)는 정수를 문자열로 적은 것이고, `Party`의 코드는 숫자입니다. 숫자가 아닌 키는 세이브 오류입니다.

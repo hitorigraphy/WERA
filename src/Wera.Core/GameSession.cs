@@ -68,7 +68,8 @@ public sealed record SaveData(
     Dictionary<long, List<long>>? CharacterTags = null,
     Dictionary<long, Dictionary<long, EquipRef>>? EquippedItems = null,
     long? Partner = null,
-    long? Assist = null);
+    long? Assist = null,
+    long? Turn = null);
 
 [JsonSerializable(typeof(SaveData))]
 [JsonSourceGenerationOptions(WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
@@ -175,6 +176,7 @@ public sealed partial class GameSession
     {
         var session = new GameSession(pack, Screen.Home, [], [], [], new long?[PartySlotCount], [], [], [], []);
         session.AddCharacter(GamePack.PlayerCharacterCode);      // 플레이어(캐릭터 1)는 처음부터 보유한다
+        session.TurnCount = pack.FirstTurn.TurnCount;            // 가장 작은 턴에서 시작한다
         return session;
     }
 
@@ -667,7 +669,7 @@ public sealed partial class GameSession
                 CopyUniqueItems(),
                 CopyCharacterTags(),
                 CopyEquippedItems(),
-                PartnerCode, AssistCode),
+                PartnerCode, AssistCode, TurnCount),
             SaveJsonContext.Default.SaveData);
 
     public static GameSession FromSaveJson(GamePack pack, string json)
@@ -718,6 +720,8 @@ public sealed partial class GameSession
         foreach (var (what, code) in new[] { ("파트너", save.Partner), ("어시스트", save.Assist) })
             if (code is { } support && !characters.ContainsKey(support))
                 throw new SaveFormatException($"세이브의 {what} 캐릭터 '{support}'가 보유 캐릭터에 없습니다.");
+        if (save.Turn is { } turn && pack.FindTurn(turn) is null)
+            throw new SaveFormatException($"세이브의 턴 '{turn}'이(가) 턴 마스터에 없습니다.");
         if (save.Partner is not null && save.Partner == save.Assist)
             throw new SaveFormatException("세이브의 파트너와 어시스트가 같은 캐릭터입니다.");
 
@@ -726,6 +730,7 @@ public sealed partial class GameSession
         {
             PartnerCode = save.Partner,
             AssistCode = save.Assist,
+            TurnCount = save.Turn ?? pack.FirstTurn.TurnCount,
         };
     }
 }

@@ -27,6 +27,8 @@ public class PlayerCharacterTests
         files.Add(("master/tag_master_v1.tsv", tags));
         files.Add(("master/character_tag_master_v1.tsv", characterTags));
         files.Add(("master/status_master_v1.tsv", "status_code\tstatus_name\n1\tlevel\n2\thp\n"));
+        files.Add(("master/time_slot_master_v1.tsv", "code\tname\n1\t아침\n"));
+        files.Add(("master/turn_master_v1.tsv", "turn_count\tyear\tmonth\tday\ttime_slot_code\n1\t1\t1\t1\t1\n"));
         files.Add(("master/character_status_master_v1.tsv",
             "character_code\tstatus_code\tlevel\tinitial_value\tmin_value\tmax_value\n" +
             "1\t1\t0\t1\t1\t99\n1\t2\t0\t1\t0\t1\n7001\t1\t0\t1\t1\t99\n7001\t2\t0\t1\t0\t1\n"));

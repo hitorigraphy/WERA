@@ -145,6 +145,8 @@
                         @homeSlot((session.AssistSlot, GameSession.AssistEntryCode))
                     </div>
                 </div>
+                @* 슬롯 영역 아래: 게임상 날짜와 시간대(턴이 넘어가면 다음 턴의 날짜와 시간대로 바뀐다) *@
+                <div class="home-date" aria-label="게임상 날짜와 시간대">@session.CurrentDateText</div>
                 @commands
                 break;
 
