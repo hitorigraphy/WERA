@@ -26,7 +26,8 @@ public sealed partial class GamePack
         List<StatusEffectEntry>? statusEffects, List<StatusEffectEffect>? statusEffectEffects,
         List<EquipmentSlotEntry>? equipmentSlots, List<TagEntry>? tags, List<UniqueItem>? uniqueItems,
         List<UniqueItemTag>? uniqueItemTags, List<CommonItemTag>? commonItemTags, List<CharacterTag>? characterTags,
-        List<EquipmentSlotTag>? equipmentSlotTags)
+        List<EquipmentSlotTag>? equipmentSlotTags,
+        List<CharacterStatusEntry>? characterStatuses, List<CharacterInitialStatus>? characterInitialStatuses)
     {
         var builder = new DatabaseBuilder();
 
@@ -91,6 +92,10 @@ public sealed partial class GamePack
             CharacterCode = t.CharacterCode, EquipmentSlotCode = t.EquipmentSlotCode, TagCode = t.TagCode,
             GroupNumber = t.GroupNumber, IsPositive = t.IsPositive, Order = i,
         }).ToList());
+
+        builder.Append((characterStatuses ?? []).Select((s, i) => new CharacterStatusRow { Code = s.Code, Name = s.Name, Order = i }).ToList());
+        builder.Append((characterInitialStatuses ?? []).Select((s, i) => new CharacterInitialStatusRow
+            { CharacterCode = s.CharacterCode, StatusCode = s.StatusCode, InitialValue = s.InitialValue, Order = i }).ToList());
 
         var db = new MemoryDatabase(builder.Build());
         var result = db.Validate();

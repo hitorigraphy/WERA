@@ -69,3 +69,9 @@ public static class EquipmentRules
         rules.GroupBy(r => r.GroupNumber)
             .Any(group => group.All(r => equipmentTags.Contains(r.TagCode) == r.IsPositive));
 }
+
+/// <summary>캐릭터 스테이터스 마스터의 한 행(예: 레벨, 최대 HP, 경험치 상한).</summary>
+public sealed record CharacterStatusEntry(long Code, string Name);
+
+/// <summary>캐릭터 초기 스테이터스 마스터의 한 행: 캐릭터(CharacterCode)의 스테이터스(StatusCode) 초깃값.</summary>
+public sealed record CharacterInitialStatus(long CharacterCode, long StatusCode, long InitialValue);
