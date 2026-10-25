@@ -121,12 +121,12 @@ public class EventMasterTests
         var pack = Load(flows: FlowHeader +
             "3001\t1\tAdv\t4001\t7\t8\n" +
             "3001\t2\tbattle\t5001\t0\t5000000000\n" +
-            "3001\t3\tJump\t1\t\t\n" +
+            "3001\t3\tJump\t4\t\t\n" +
             "3001\t4\tFinish\t0\t0\t0\n" +
             "3001\t5\tNone\t-1\t2\t3\n");
         Assert.Equal(new EventFlow(3001, 1, EventFlowType.Adv, 4001, 7, 8, []), pack.EventFlows![0] with { Groups = [] });
         Assert.Equal(new EventFlow(3001, 2, EventFlowType.Battle, 5001, 0, 5000000000, []), pack.EventFlows[1] with { Groups = [] });
-        Assert.Equal((1, 0, 0), (pack.EventFlows[2].Param1, pack.EventFlows[2].Param2, pack.EventFlows[2].Param3));   // 빈 인자는 0
+        Assert.Equal((4, 0, 0), (pack.EventFlows[2].Param1, pack.EventFlows[2].Param2, pack.EventFlows[2].Param3));   // 빈 인자는 0
         Assert.Equal(EventFlowType.Finish, pack.EventFlows[3].FlowType);
         Assert.Equal(-1, pack.EventFlows[4].Param1);                          // None은 인자를 보지 않는다
     }
@@ -170,14 +170,38 @@ public class EventMasterTests
     // ---- 종류별 param_1 검증 ----
 
     [Fact]
-    public void Jump_needs_a_flow_number_of_the_same_event()
+    public void Jump_goes_only_to_a_larger_flow_number_of_the_same_event()
     {
-        Load(flows: FlowHeader + "3001\t1\tJump\t2\t0\t0\n3001\t2\tFinish\t0\t0\t0\n");                         // 뒤로 점프해도 된다
-        Load(flows: FlowHeader + "3001\t1\tFinish\t0\t0\t0\n3001\t2\tJump\t1\t0\t0\n");                         // 앞으로도
-        Assert.Contains("점프할 흐름 번호 '9'", Assert.Throws<PackFormatException>(() =>
-            Load(flows: FlowHeader + "3001\t1\tJump\t9\t0\t0\n")).Message);
+        Load(flows: FlowHeader + "3001\t1\tJump\t2\t0\t0\n3001\t2\tFinish\t0\t0\t0\n");                         // 뒤로(큰 번호로) 점프
+        Load(flows: FlowHeader + "3001\t1\tJump\t3\t0\t0\n3001\t2\tFinish\t0\t0\t0\n3001\t3\tFinish\t0\t0\t0\n");   // 중간 칸을 건너뛰어도 된다
+        Load(flows: FlowHeader + "3001\t5\tJump\t9\t0\t0\n3001\t9\tFinish\t0\t0\t0\n");                         // 번호가 띄엄띄엄이어도
+
+        Assert.Contains("점프할 흐름 번호 '9'가 같은 이벤트의 흐름에 없습니다", Assert.Throws<PackFormatException>(() =>
+            Load(flows: FlowHeader + "3001\t1\tJump\t9\t0\t0\n")).Message);                                    // 없는 흐름
         Assert.Throws<PackFormatException>(() =>                                                               // 다른 이벤트의 흐름은 안 된다
-            Load(flows: FlowHeader + "3001\t1\tJump\t1\t0\t0\n3002\t1\tJump\t2\t0\t0\n3001\t2\tFinish\t0\t0\t0\n"));
+            Load(flows: FlowHeader + "3001\t1\tJump\t2\t0\t0\n3002\t2\tFinish\t0\t0\t0\n"));
+    }
+
+    [Theory]
+    [InlineData("3001\t1\tJump\t1\t0\t0\n3001\t2\tFinish\t0\t0\t0\n")]                  // 자기 자신
+    [InlineData("3001\t1\tFinish\t0\t0\t0\n3001\t2\tJump\t1\t0\t0\n")]                  // 앞쪽(작은 번호)으로
+    [InlineData("3001\t3\tJump\t2\t0\t0\n3001\t2\tFinish\t0\t0\t0\n")]                  // 파일에 적힌 순서와 상관없이 번호가 기준
+    [InlineData("3001\t2\tJump\t0\t0\t0\n3001\t0\tFinish\t0\t0\t0\n")]
+    [InlineData("3001\t-1\tJump\t-1\t0\t0\n")]
+    public void Jumping_to_the_same_or_a_smaller_flow_number_is_rejected_so_loops_cannot_happen(string rows)
+    {
+        var error = Assert.Throws<PackFormatException>(() => Load(flows: FlowHeader + rows));
+        Assert.Contains("보다 커야 합니다", error.Message);
+    }
+
+    [Fact]
+    public void Two_jumps_can_never_form_a_loop_because_every_jump_moves_forward()
+    {
+        // 서로를 가리키는 점프(1→2, 2→1)는 두 번째가 거부되므로 만들 수 없다.
+        Assert.Throws<PackFormatException>(() => Load(flows: FlowHeader + "3001\t1\tJump\t2\t0\t0\n3001\t2\tJump\t1\t0\t0\n"));
+        // 같은 방향의 점프 사슬은 괜찮다.
+        var pack = Load(flows: FlowHeader + "3001\t1\tJump\t2\t0\t0\n3001\t2\tJump\t3\t0\t0\n3001\t3\tFinish\t0\t0\t0\n");
+        Assert.Equal(3, pack.EventFlows!.Count);
     }
 
     [Fact]

@@ -13,7 +13,10 @@ public enum EventFlowType
     None = 0,
     /// <summary>이벤트를 끝낸다.</summary>
     Finish = 1,
-    /// <summary>다른 흐름 칸으로 점프한다. param_1이 점프할 flow_number(같은 이벤트의 흐름)다.</summary>
+    /// <summary>
+    /// 뒤쪽의 흐름 칸으로 점프한다. param_1이 점프할 flow_number이고, 같은 이벤트에 있어야 하며 자신의 flow_number보다 커야 한다
+    /// (뒤로만 점프하므로 무한 반복이 생기지 않는다).
+    /// </summary>
     Jump = 2,
     /// <summary>ADV를 재생한다. param_1이 재생할 adv_code(ADV 마스터)다.</summary>
     Adv = 3,
@@ -81,7 +84,7 @@ public sealed partial class GamePack
     /// <summary>
     /// 이벤트 흐름 마스터와 흐름 조건 마스터를 읽는다.
     /// 흐름: 이벤트는 이벤트 마스터에 있어야 하고, 키 (이벤트, 흐름 번호)를 두 번 쓸 수 없다. 흐름 번호와 인자는 정수(long, 인자는 비우면 0),
-    /// 종류는 이름으로 적는다. 종류별 인자 검증: Jump의 param_1은 같은 이벤트의 흐름 번호, Adv의 param_1은 ADV 마스터의 코드,
+    /// 종류는 이름으로 적는다. 종류별 인자 검증: Jump의 param_1은 자신의 흐름 번호보다 큰 같은 이벤트의 흐름 번호(뒤로만 점프해 무한 반복이 없다), Adv의 param_1은 ADV 마스터의 코드,
     /// Battle의 param_1은 전투 마스터의 코드여야 한다(Adv와 Battle은 그 마스터가 있어야 한다). Finish와 None은 인자를 보지 않는다.
     /// 흐름 조건: (이벤트, 흐름)은 흐름 마스터에 있어야 하고 키 (이벤트, 흐름, 그룹넘버, 플래그)를 두 번 쓸 수 없다.
     /// </summary>
@@ -132,6 +135,9 @@ public sealed partial class GamePack
             var where = $"{file}: 이벤트 '{eventCode}'의 흐름 {flow}의";
             switch (type)
             {
+                case EventFlowType.Jump when p1 <= flow:
+                    throw new PackFormatException(
+                        $"{where} 점프할 흐름 번호 '{p1}'는 자신의 흐름 번호 {flow}보다 커야 합니다(뒤로만 점프할 수 있어 무한 반복이 생기지 않습니다).");
                 case EventFlowType.Jump when !seen.Contains((eventCode, p1)):
                     throw new PackFormatException($"{where} 점프할 흐름 번호 '{p1}'가 같은 이벤트의 흐름에 없습니다.");
                 case EventFlowType.Adv when advCodes is null:
