@@ -208,8 +208,8 @@ public class MasterDatabaseTests
         Assert.False(pack.CanEquip(7001, 1, 9002));                    // 대검은 중량
         Assert.True(pack.CanEquip(7002, 1, 9003));                     // 마법
         Assert.False(pack.CanEquip(7001, 1, 99999));
-        Assert.Equal(["지팡이"], pack.EquippableTargets(7002, 1).Select(i => i.Name));
-        Assert.Equal(["철검"], pack.EquippableTargets(7001, 1).Select(i => i.Name));        // 장비 마스터 순서
+        Assert.Equal(["지팡이"], pack.EquippableItems(7002, 1).Select(i => i.ItemName));
+        Assert.Equal(["철검"], pack.EquippableItems(7001, 1).Select(i => i.ItemName));        // 장비 마스터 순서
     }
 
     // ---- 검증기와 직렬화 ----

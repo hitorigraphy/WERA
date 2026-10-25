@@ -58,7 +58,8 @@ public sealed record SaveData(
     Dictionary<long, CharacterState>? Characters = null,
     long?[]? Party = null,
     Dictionary<long, List<ActiveStatusEffect>>? StatusEffects = null,
-    Dictionary<long, long>? OwnedEquipment = null,
+    Dictionary<long, UniqueItemInstance>? UniqueItems = null,
+    Dictionary<long, List<long>>? CharacterTags = null,
     Dictionary<long, Dictionary<long, EquipRef>>? EquippedItems = null);
 
 [JsonSerializable(typeof(SaveData))]
@@ -134,7 +135,8 @@ public sealed partial class GameSession
         GamePack pack, Screen screen, Dictionary<long, long> playerFlags,
         Dictionary<long, InventoryItem> inventoryItems, Dictionary<long, CharacterState> characters, long?[] party,
         Dictionary<long, List<ActiveStatusEffect>> statusEffects,
-        Dictionary<long, long> ownedEquipment, Dictionary<long, Dictionary<long, EquipRef>> equippedItems)
+        Dictionary<long, UniqueItemInstance> uniqueItems, Dictionary<long, List<long>> characterTags,
+        Dictionary<long, Dictionary<long, EquipRef>> equippedItems)
     {
         Pack = pack;
         Screen = screen;
@@ -143,13 +145,14 @@ public sealed partial class GameSession
         Characters = characters;
         Party = party;
         CharacterStatusEffects = statusEffects;
-        OwnedEquipment = ownedEquipment;
+        UniqueItemInstances = uniqueItems;
+        CharacterTagInstances = characterTags;
         EquippedItems = equippedItems;
     }
 
     /// <summary>튜토리얼이 구현될 때까지 새 게임은 홈 화면으로 직행한다.</summary>
     public static GameSession NewGame(GamePack pack) =>
-        new(pack, Screen.Home, [], [], [], new long?[PartySlotCount], [], [], []);
+        new(pack, Screen.Home, [], [], [], new long?[PartySlotCount], [], [], [], []);
 
     /// <summary>입장 조건을 하나라도 만족하는 던전.</summary>
     public IReadOnlyList<Dungeon> AvailableDungeons =>
@@ -564,7 +567,8 @@ public sealed partial class GameSession
                 new Dictionary<long, CharacterState>(Characters),
                 (long?[])Party.Clone(),
                 CopyStatusEffects(CharacterStatusEffects),
-                CopyOwnedEquipment(),
+                CopyUniqueItems(),
+                CopyCharacterTags(),
                 CopyEquippedItems()),
             SaveJsonContext.Default.SaveData);
 
@@ -606,9 +610,10 @@ public sealed partial class GameSession
             throw new SaveFormatException("세이브의 파티에 같은 캐릭터가 두 번 이상 있습니다.");
 
         var statusEffects = ValidateStatusEffects(pack, characters, save.StatusEffects);
-        var (ownedEquipment, equippedItems) = ValidateEquipment(pack, characters, inventory, save.OwnedEquipment, save.EquippedItems);
+        var (uniqueItems, characterTags, equippedItems) =
+            ValidateEquipment(pack, characters, inventory, save.UniqueItems, save.CharacterTags, save.EquippedItems);
 
         // 불러오기는 저장된 화면과 상관없이 항상 홈으로 들어간다.
-        return new GameSession(pack, Screen.Home, playerFlags, inventory, characters, party, statusEffects, ownedEquipment, equippedItems);
+        return new GameSession(pack, Screen.Home, playerFlags, inventory, characters, party, statusEffects, uniqueItems, characterTags, equippedItems);
     }
 }

@@ -33,7 +33,7 @@ public class MultiKindEquipmentTests
         s.Party[0] = 7001;
         s.InventoryItems[3] = new InventoryItem(2);
         s.InventoryItems[1] = new InventoryItem(500);
-        s.OwnedEquipment[8001] = 1;
+        s.AddUniqueItem(8001);
         return s;
     }
 
@@ -93,13 +93,15 @@ public class MultiKindEquipmentTests
     [Fact]
     public void The_slot_rules_decide_which_kinds_fit()
     {
-        var pack = Pack();
-        Assert.Equal([EquipRef.Unique(8001)], pack.EquippableTargets(7001, 1).Select(c => c.Ref));
-        Assert.Equal([EquipRef.Common(3), EquipRef.Char(7002)], pack.EquippableTargets(7001, 3).Select(c => c.Ref));
-        Assert.False(pack.CanEquip(7001, 3, EquipRef.Common(1)));         // 태그 없는 커먼 아이템
-        Assert.False(pack.CanEquip(7001, 3, EquipRef.Char(7003)));        // 태그 없는 캐릭터
-        Assert.False(pack.CanEquip(7001, 3, EquipRef.Unique(8001)));
-        Assert.False(pack.CanEquip(7001, 3, EquipRef.Common(7002)));      // 코드가 같아도 종류가 다르면 다른 것(아이템 7002는 없다)
+        var s = Session();                                                   // 유니크 인스턴스 1 = 철검
+        var sword = EquipRef.Unique(1);
+        Assert.True(s.Equip(7001, 1, sword));
+        Assert.True(s.Equip(7001, 3, EquipRef.Common(3)));
+        Assert.True(s.Equip(7001, 3, EquipRef.Char(7002)));
+        Assert.False(s.Equip(7001, 3, EquipRef.Common(1)));                  // 태그 없는 커먼 아이템
+        Assert.False(s.Equip(7001, 3, EquipRef.Char(7003)));                 // 태그 없는 캐릭터
+        Assert.False(s.Equip(7001, 3, sword));                               // 소환 슬롯에 검은 안 맞는다
+        Assert.False(s.Equip(7001, 3, EquipRef.Common(7002)));               // 코드가 같아도 종류가 다르면 다른 것(아이템 7002는 없다)
     }
 
     // ---- 장착 ----
@@ -196,13 +198,13 @@ public class MultiKindEquipmentTests
     public void Equipped_kinds_round_trip_through_the_save()
     {
         var s = Session();
-        s.Equip(7001, 1, EquipRef.Unique(8001));
+        s.Equip(7001, 1, EquipRef.Unique(1));
         s.Equip(7001, 3, EquipRef.Char(7002));
 
         var json = s.ToSaveJson();
         Assert.Contains("\"Kind\": \"Character\"", json);
         var loaded = GameSession.FromSaveJson(Pack(), json);
-        Assert.Equal(EquipRef.Unique(8001), loaded.EquippedItemOf(7001, 1));
+        Assert.Equal(8001, loaded.EquippedUniqueCode(7001, 1));
         Assert.Equal(EquipRef.Char(7002), loaded.EquippedItemOf(7001, 3));
     }
 

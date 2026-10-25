@@ -14,7 +14,8 @@ public class EquipmentOwnershipTests
         s.Characters[7002] = new CharacterState(3, 10, 25, 12, 30);
         s.Party[0] = 7001;
         s.Party[4] = 7002;
-        foreach (var (item, count) in owned) s.OwnedEquipment[item] = count;
+        foreach (var (item, count) in owned)
+            for (var i = 0; i < count; i++) s.AddUniqueItem(item);
         return s;
     }
 
@@ -35,9 +36,9 @@ public class EquipmentOwnershipTests
         Assert.False(s.Equip(7001, 1, 9001));                    // 보유하지 않음
         Assert.Null(s.EquippedItemOf(7001, 1));
 
-        s.OwnedEquipment[9001] = 1;
+        s.AddUniqueItem(9001);
         Assert.True(s.Equip(7001, 1, 9001));
-        Assert.Equal(EquipRef.Unique(9001), s.EquippedItemOf(7001, 1));
+        Assert.Equal(9001, s.EquippedUniqueCode(7001, 1));
     }
 
     [Fact]
@@ -68,10 +69,10 @@ public class EquipmentOwnershipTests
         var s = Session((9003, 1));
         Assert.True(s.Equip(7001, 1, 9003));
         Assert.False(s.Equip(7002, 1, 9003));                    // 남는 개수가 없다
-        Assert.Equal(EquipRef.Unique(9003), s.EquippedItemOf(7001, 1));
+        Assert.Equal(9003, s.EquippedUniqueCode(7001, 1));
         Assert.Null(s.EquippedItemOf(7002, 1));
 
-        s.OwnedEquipment[9003] = 2;                              // 한 개 더 보유하면 가능
+        s.AddUniqueItem(9003);                                   // 한 개 더 보유하면 가능
         Assert.True(s.Equip(7002, 1, 9003));
         Assert.Equal((2L, 0L), (s.EquippedCount(9003), s.FreeCopies(9003)));
     }
@@ -85,7 +86,7 @@ public class EquipmentOwnershipTests
 
         Assert.True(s.Equip(7001, 1, 9003));
 
-        Assert.Equal(EquipRef.Unique(9003), s.EquippedItemOf(7001, 1));
+        Assert.Equal(9003, s.EquippedUniqueCode(7001, 1));
         Assert.Equal(1, s.FreeCopies(9001));                     // 철검은 빠져 보유로 돌아갔다
         Assert.Equal(0, s.FreeCopies(9003));
     }
@@ -108,7 +109,7 @@ public class EquipmentOwnershipTests
 
         Assert.True(s.Unequip(7001, 1));
         Assert.Null(s.EquippedItemOf(7001, 1));
-        Assert.Equal(EquipRef.Unique(9004), s.EquippedItemOf(7001, 2));
+        Assert.Equal(9004, s.EquippedUniqueCode(7001, 2));
         Assert.Equal(1, s.FreeCopies(9001));
 
         Assert.False(s.Unequip(7001, 1));                        // 이미 비어 있음
@@ -123,7 +124,7 @@ public class EquipmentOwnershipTests
         var s = Session((9001, 1));
         s.Equip(7001, 1, 9001);
         s.Party[0] = null;
-        Assert.Equal(EquipRef.Unique(9001), s.EquippedItemOf(7001, 1));
+        Assert.Equal(9001, s.EquippedUniqueCode(7001, 1));
     }
 
     // ---- 화면 ----
@@ -169,7 +170,7 @@ public class EquipmentOwnershipTests
         Assert.Equal(Screen.EquipmentList, s.Screen);
         Assert.Equal(7001, s.CurrentCharacterCode);
         Assert.Null(s.CurrentEquipmentSlotCode);
-        Assert.Equal(EquipRef.Unique(9001), s.EquippedItemOf(7001, 1));
+        Assert.Equal(9001, s.EquippedUniqueCode(7001, 1));
         Assert.Equal("장착: 용사의 무기 ← 철검", s.Message);
         Assert.Equal("무기 : 철검", s.Entries[0].Label);
     }
@@ -186,7 +187,7 @@ public class EquipmentOwnershipTests
 
         s.Activate("2");
         Assert.Equal("장착: 용사의 무기 철검 → 지팡이", s.Message);
-        Assert.Equal(EquipRef.Unique(9003), s.EquippedItemOf(7001, 1));
+        Assert.Equal(9003, s.EquippedUniqueCode(7001, 1));
         Assert.Equal(1, s.FreeCopies(9001));
     }
 
@@ -257,27 +258,23 @@ public class EquipmentOwnershipTests
         s.Equip(7002, 1, 9003);
 
         var json = s.ToSaveJson();
-        Assert.Contains("\"OwnedEquipment\"", json);
+        Assert.Contains("\"UniqueItems\"", json);
         Assert.Contains("\"EquippedItems\"", json);
 
         var loaded = GameSession.FromSaveJson(s.Pack, json);
-        Assert.Equal(new Dictionary<long, long> { [9001] = 2, [9003] = 1, [9004] = 1 }, loaded.OwnedEquipment);
-        Assert.Equal(EquipRef.Unique(9001), loaded.EquippedItemOf(7001, 1));
-        Assert.Equal(EquipRef.Unique(9004), loaded.EquippedItemOf(7001, 2));
-        Assert.Equal(EquipRef.Unique(9003), loaded.EquippedItemOf(7002, 1));
+        Assert.Equal([9001L, 9001L, 9003L, 9004L], loaded.UniqueItemInstances.Values.Select(i => i.ItemCode).Order());
+        Assert.Equal(9001, loaded.EquippedUniqueCode(7001, 1));
+        Assert.Equal(9004, loaded.EquippedUniqueCode(7001, 2));
+        Assert.Equal(9003, loaded.EquippedUniqueCode(7002, 1));
         Assert.Equal(1, loaded.FreeCopies(9001));
     }
 
     [Fact]
-    public void Save_without_equipment_fields_loads_as_empty_and_zero_counts_are_dropped()
+    public void Save_without_equipment_fields_loads_as_empty()
     {
-        var pack = EquipmentTests.Pack();
-        var s = GameSession.FromSaveJson(pack, "{\"Version\":1,\"PackId\":\"demo\"}");
-        Assert.Empty(s.OwnedEquipment);
+        var s = GameSession.FromSaveJson(EquipmentTests.Pack(), "{\"Version\":1,\"PackId\":\"demo\"}");
+        Assert.Empty(s.UniqueItemInstances);
         Assert.Empty(s.EquippedItems);
-
-        var zero = GameSession.FromSaveJson(pack, "{\"Version\":1,\"PackId\":\"demo\",\"OwnedEquipment\":{\"9001\":0}}");
-        Assert.Empty(zero.OwnedEquipment);
     }
 
     const string Head = "{\"Version\":1,\"PackId\":\"demo\",";
@@ -286,16 +283,18 @@ public class EquipmentOwnershipTests
         "\"7002\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xp\":0,\"XpMax\":10}},";
 
     [Theory]
-    [InlineData("\"OwnedEquipment\":{\"99999\":1}")]                                           // 장비 마스터에 없는 장비
-    [InlineData("\"OwnedEquipment\":{\"9001\":-1}")]                                           // 음수 개수
-    [InlineData("\"OwnedEquipment\":{\"철검\":1}")]                                            // 숫자가 아닌 키
-    [InlineData("\"OwnedEquipment\":{\"9001\":1},\"EquippedItems\":{\"7003\":{\"1\":{\"Kind\":\"UniqueItem\",\"Code\":9001}}}")]  // 보유하지 않은 캐릭터
-    [InlineData("\"OwnedEquipment\":{\"9001\":1},\"EquippedItems\":{\"7001\":{\"99\":{\"Kind\":\"UniqueItem\",\"Code\":9001}}}")]  // 그 캐릭터에게 없는 슬롯
-    [InlineData("\"OwnedEquipment\":{\"9001\":1},\"EquippedItems\":{\"7002\":{\"2\":{\"Kind\":\"UniqueItem\",\"Code\":9001}}}")]   // 마법사는 방어구 슬롯이 없다
-    [InlineData("\"EquippedItems\":{\"7001\":{\"1\":{\"Kind\":\"UniqueItem\",\"Code\":99999}}}")]                                 // 장비 마스터에 없는 장비를 장착
-    [InlineData("\"OwnedEquipment\":{\"9002\":1},\"EquippedItems\":{\"7001\":{\"1\":{\"Kind\":\"UniqueItem\",\"Code\":9002}}}")]  // 슬롯 태그에 부합하지 않는 장비(대검)
-    [InlineData("\"EquippedItems\":{\"7001\":{\"1\":{\"Kind\":\"UniqueItem\",\"Code\":9001}}}")]                                  // 보유하지 않은 장비를 장착(보유 0 < 장착 1)
-    [InlineData("\"OwnedEquipment\":{\"9003\":1},\"EquippedItems\":{\"7001\":{\"1\":{\"Kind\":\"UniqueItem\",\"Code\":9003}},\"7002\":{\"1\":{\"Kind\":\"UniqueItem\",\"Code\":9003}}}")]  // 한 개를 두 곳에
+    [InlineData(@"""UniqueItems"":{""1"":{""ItemCode"":99999}}")]                                      // 유니크 아이템 마스터에 없는 아이템
+    [InlineData(@"""UniqueItems"":{""0"":{""ItemCode"":9001}}")]                                        // 인스턴스 ID가 1 미만
+    [InlineData(@"""UniqueItems"":{""철검"":{""ItemCode"":9001}}")]                                      // 숫자가 아닌 키
+    [InlineData(@"""UniqueItems"":{""1"":{""ItemCode"":9001,""Tags"":[99]}}")]                          // 태그 마스터에 없는 태그
+    [InlineData(@"""UniqueItems"":{""1"":{""ItemCode"":9001,""Tags"":[1,1]}}")]                         // 같은 태그가 두 번
+    [InlineData(@"""CharacterTags"":{""7003"":[1]}")]                                                  // 보유하지 않은 캐릭터의 태그
+    [InlineData(@"""UniqueItems"":{""1"":{""ItemCode"":9001}},""EquippedItems"":{""7003"":{""1"":{""Kind"":""UniqueItem"",""Code"":1}}}")]  // 보유하지 않은 캐릭터
+    [InlineData(@"""UniqueItems"":{""1"":{""ItemCode"":9001}},""EquippedItems"":{""7001"":{""99"":{""Kind"":""UniqueItem"",""Code"":1}}}")]  // 그 캐릭터에게 없는 슬롯
+    [InlineData(@"""UniqueItems"":{""1"":{""ItemCode"":9001}},""EquippedItems"":{""7002"":{""2"":{""Kind"":""UniqueItem"",""Code"":1}}}")]   // 마법사는 방어구 슬롯이 없다
+    [InlineData(@"""EquippedItems"":{""7001"":{""1"":{""Kind"":""UniqueItem"",""Code"":1}}}")]          // 없는 인스턴스를 장착
+    [InlineData(@"""UniqueItems"":{""1"":{""ItemCode"":9002}},""EquippedItems"":{""7001"":{""1"":{""Kind"":""UniqueItem"",""Code"":1}}}")]  // 슬롯 태그에 부합하지 않는 장비(대검)
+    [InlineData(@"""UniqueItems"":{""1"":{""ItemCode"":9003}},""EquippedItems"":{""7001"":{""1"":{""Kind"":""UniqueItem"",""Code"":1}},""7002"":{""1"":{""Kind"":""UniqueItem"",""Code"":1}}}")]  // 한 개를 두 곳에
     public void Invalid_equipment_in_a_save_is_rejected(string body)
         => Assert.Throws<SaveFormatException>(() =>
             GameSession.FromSaveJson(EquipmentTests.Pack(), Head + Chars + body + "}"));
@@ -304,7 +303,8 @@ public class EquipmentOwnershipTests
     public void Two_copies_may_be_equipped_in_two_places_when_owned_twice()
     {
         var s = GameSession.FromSaveJson(EquipmentTests.Pack(),
-            Head + Chars + "\"OwnedEquipment\":{\"9003\":2},\"EquippedItems\":{\"7001\":{\"1\":{\"Kind\":\"UniqueItem\",\"Code\":9003}},\"7002\":{\"1\":{\"Kind\":\"UniqueItem\",\"Code\":9003}}}}");
+            Head + Chars + @"""UniqueItems"":{""1"":{""ItemCode"":9003},""2"":{""ItemCode"":9003}}," +
+            @"""EquippedItems"":{""7001"":{""1"":{""Kind"":""UniqueItem"",""Code"":1}},""7002"":{""1"":{""Kind"":""UniqueItem"",""Code"":2}}}}");
         Assert.Equal(2, s.EquippedCount(9003));
         Assert.Equal(0, s.FreeCopies(9003));
     }
@@ -314,6 +314,6 @@ public class EquipmentOwnershipTests
     {
         var packWithoutEquipment = GamePack.Load(CoreTests.Zip(("pack.tsv", "id\tdemo\ntitle\t데모\n")));
         Assert.Throws<SaveFormatException>(() =>
-            GameSession.FromSaveJson(packWithoutEquipment, Head + "\"OwnedEquipment\":{\"9001\":1}}"));
+            GameSession.FromSaveJson(packWithoutEquipment, Head + @"""UniqueItems"":{""1"":{""ItemCode"":9001}}}"));
     }
 }

@@ -145,14 +145,17 @@ public sealed partial class GamePack
             .Select(r => new EquipmentSlotTag(r.CharacterCode, r.EquipmentSlotCode, r.TagCode, r.GroupNumber, r.IsPositive))
             .ToList();
 
-    /// <summary>끼울 것이 가진 태그 코드들. 종류에 맞는 태그 마스터에서 보조키(대상 코드)로 찾는다.</summary>
-    IReadOnlySet<long> TagsOf(EquipRef target) => target.Kind switch
-    {
-        EquipKind.UniqueItem => Masters.UniqueItemTagRowTable.FindByItemCode(target.Code).Select(r => r.TagCode).ToHashSet(),
-        EquipKind.CommonItem => Masters.CommonItemTagRowTable.FindByItemCode(target.Code).Select(r => r.TagCode).ToHashSet(),
-        EquipKind.Character => Masters.CharacterTagRowTable.FindByCharacterCode(target.Code).Select(r => r.TagCode).ToHashSet(),
-        _ => new HashSet<long>(),
-    };
+    /// <summary>유니크 아이템 마스터에 적힌 태그 코드들(인스턴스가 만들어질 때 복사되는 태그).</summary>
+    public IReadOnlyList<long> MasterTagsOfUniqueItem(long itemCode) =>
+        Masters.UniqueItemTagRowTable.FindByItemCode(itemCode).OrderBy(r => r.Order).Select(r => r.TagCode).ToList();
+
+    /// <summary>커먼 아이템의 태그 코드들. 커먼 아이템은 인스턴스가 없어 늘 마스터의 태그다.</summary>
+    public IReadOnlyList<long> MasterTagsOfCommonItem(long itemCode) =>
+        Masters.CommonItemTagRowTable.FindByItemCode(itemCode).OrderBy(r => r.Order).Select(r => r.TagCode).ToList();
+
+    /// <summary>캐릭터 태그 마스터에 적힌 태그 코드들(캐릭터를 얻을 때 복사되는 태그).</summary>
+    public IReadOnlyList<long> MasterTagsOfCharacter(long characterCode) =>
+        Masters.CharacterTagRowTable.FindByCharacterCode(characterCode).OrderBy(r => r.Order).Select(r => r.TagCode).ToList();
 
     string CodeText(long code) => code.ToString(CultureInfo.InvariantCulture);
 }

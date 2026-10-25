@@ -45,54 +45,32 @@ public sealed partial class GamePack
         return rows.Select(r => r.EquipmentSlotCode).Distinct().Select(code => FindEquipmentSlot(code)!).ToList();
     }
 
-    /// <summary>끼울 것이 마스터에 있는가: 유니크 아이템 마스터, 아이템 인벤토리, 캐릭터 인벤토리.</summary>
-    public bool Exists(EquipRef target) => target.Kind switch
-    {
-        EquipKind.UniqueItem => FindUniqueItem(target.Code) is not null,
-        EquipKind.CommonItem => FindItem(target.Code) is not null,
-        EquipKind.Character => FindCharacter(target.Code) is not null,
-        _ => false,
-    };
-
-    /// <summary>이름. 마스터에 없으면 코드 그대로.</summary>
-    public string NameOf(EquipRef target) => (target.Kind switch
-    {
-        EquipKind.UniqueItem => FindUniqueItem(target.Code)?.ItemName,
-        EquipKind.CommonItem => FindItem(target.Code)?.Name,
-        EquipKind.Character => FindCharacter(target.Code)?.Name,
-        _ => null,
-    }) ?? CodeText(target.Code);
-
     /// <summary>
-    /// 이 캐릭터의 이 슬롯에 낄 수 있는가: 슬롯 태그 마스터의 규칙에 (장비하는 캐릭터의 태그 + 끼울 것의 태그)를 합친 태그가 부합해야 한다.
-    /// 캐릭터는 자기 자신을 낄 수 없다.
+    /// 합친 태그(장비하는 캐릭터의 태그 + 끼울 것의 태그)가 이 캐릭터의 이 슬롯 규칙에 부합하는가.
+    /// 규칙이 하나도 없는 슬롯에는 아무것도 낄 수 없다. 게임 중에는 캐릭터와 유니크 아이템의 태그가 바뀔 수 있어서
+    /// (인스턴스의 태그) 호출하는 쪽이 현재 태그를 모아 넘긴다.
     /// </summary>
-    public bool CanEquip(long characterCode, long equipmentSlotCode, EquipRef target)
+    public bool Fits(long characterCode, long equipmentSlotCode, IReadOnlySet<long> tags)
     {
-        if (target.Kind == EquipKind.Character && target.Code == characterCode) return false;
         var rules = SlotTagRulesOf(characterCode, equipmentSlotCode);
-        if (rules.Count == 0 || !Exists(target)) return false;
-
-        // 장비하는 캐릭터의 태그와 끼울 것의 태그를 합쳐서 규칙에 맞춰 본다.
-        var tags = TagsOf(target).ToHashSet();
-        tags.UnionWith(TagsOf(EquipRef.Char(characterCode)));
-        return EquipmentRules.Matches(rules, tags);
+        return rules.Count > 0 && EquipmentRules.Matches(rules, tags);
     }
 
-    /// <summary>유니크 아이템을 이 캐릭터의 이 슬롯에 낄 수 있는가.</summary>
-    public bool CanEquip(long characterCode, long equipmentSlotCode, long uniqueItemCode) =>
-        CanEquip(characterCode, equipmentSlotCode, EquipRef.Unique(uniqueItemCode));
-
     /// <summary>
-    /// 이 캐릭터의 이 슬롯에 낄 수 있는 것들(보유와 무관). 유니크 아이템(마스터 순서), 커먼 아이템(아이템 인벤토리 순서),
-    /// 캐릭터(캐릭터 인벤토리 순서) 순이다.
+    /// 마스터에 적힌 태그 그대로(인스턴스가 생길 때의 태그)로 유니크 아이템을 이 캐릭터의 이 슬롯에 낄 수 있는가.
+    /// 캐릭터의 태그도 마스터의 것을 합친다. 게임 중의 판정은 <see cref="GameSession"/>이 인스턴스의 현재 태그로 한다.
     /// </summary>
-    public IReadOnlyList<EquipCandidate> EquippableTargets(long characterCode, long equipmentSlotCode) =>
-        (UniqueItems ?? []).Select(i => new EquipCandidate(EquipRef.Unique(i.ItemCode), i.ItemName))
-            .Concat((ItemInventory ?? []).Select(i => new EquipCandidate(EquipRef.Common(i.Code), i.Name)))
-            .Concat((CharacterInventory ?? []).Select(c => new EquipCandidate(EquipRef.Char(c.Code), c.Name)))
-            .Where(c => CanEquip(characterCode, equipmentSlotCode, c.Ref))
-            .ToList();
+    public bool CanEquip(long characterCode, long equipmentSlotCode, long uniqueItemCode)
+    {
+        if (FindUniqueItem(uniqueItemCode) is null) return false;
+        var tags = MasterTagsOfUniqueItem(uniqueItemCode).ToHashSet();
+        tags.UnionWith(MasterTagsOfCharacter(characterCode));
+        return Fits(characterCode, equipmentSlotCode, tags);
+    }
+
+    /// <summary>마스터 태그 기준으로 이 캐릭터의 이 슬롯에 낄 수 있는 유니크 아이템들(유니크 아이템 마스터 순서).</summary>
+    public IReadOnlyList<UniqueItem> EquippableItems(long characterCode, long equipmentSlotCode) =>
+        (UniqueItems ?? []).Where(i => CanEquip(characterCode, equipmentSlotCode, i.ItemCode)).ToList();
 
     // ---- 로더 ----
 

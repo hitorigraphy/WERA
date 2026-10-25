@@ -58,7 +58,7 @@ public class EquipmentTests
         Assert.Null(pack.UniqueItemTags);
         Assert.Null(pack.EquipmentSlotTags);
         Assert.Empty(pack.EquipmentSlotsOf(7001));
-        Assert.Empty(pack.EquippableTargets(7001, 1));
+        Assert.Empty(pack.EquippableItems(7001, 1));
         Assert.False(pack.CanEquip(7001, 1, 9001));
     }
 
@@ -292,10 +292,10 @@ public class EquipmentTests
     public void Equippable_items_come_in_equipment_master_order()
     {
         var pack = Pack();
-        Assert.Equal(["철검", "지팡이"], pack.EquippableTargets(7001, 1).Select(i => i.Name));
-        Assert.Equal(["판금갑옷", "천 옷"], pack.EquippableTargets(7001, 2).Select(i => i.Name));
-        Assert.Equal(["지팡이"], pack.EquippableTargets(7002, 1).Select(i => i.Name));
-        Assert.Empty(pack.EquippableTargets(7003, 1));
+        Assert.Equal(["철검", "지팡이"], pack.EquippableItems(7001, 1).Select(i => i.ItemName));
+        Assert.Equal(["판금갑옷", "천 옷"], pack.EquippableItems(7001, 2).Select(i => i.ItemName));
+        Assert.Equal(["지팡이"], pack.EquippableItems(7002, 1).Select(i => i.ItemName));
+        Assert.Empty(pack.EquippableItems(7003, 1));
     }
 
     // ---- 화면 흐름 ----
@@ -308,7 +308,7 @@ public class EquipmentTests
         s.Characters[7003] = new CharacterState(2, 5, 20, 1, 10);
         s.Party[0] = 7001;
         s.Party[4] = 7002;
-        foreach (var item in new long[] { 9001, 9002, 9003, 9004, 9005 }) s.OwnedEquipment[item] = 1;   // 장비는 하나씩 보유
+        foreach (var item in new long[] { 9001, 9002, 9003, 9004, 9005 }) s.AddUniqueItem(item);   // 장비는 하나씩 보유
         s.Party[8] = 7003;
         s.Activate("103");
         s.Activate("11");

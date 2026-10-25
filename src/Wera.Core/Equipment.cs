@@ -22,7 +22,7 @@ public sealed record CharacterTag(long CharacterCode, long TagCode);
 [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<EquipKind>))]
 public enum EquipKind
 {
-    /// <summary>유니크 아이템(보유 개수는 세이브의 OwnedEquipment).</summary>
+    /// <summary>유니크 아이템 인스턴스(EquipRef.Code는 인스턴스 ID).</summary>
     UniqueItem,
     /// <summary>커먼 아이템(아이템 인벤토리. 보유 개수는 인벤토리 수량).</summary>
     CommonItem,
@@ -30,13 +30,22 @@ public enum EquipKind
     Character,
 }
 
-/// <summary>장비 슬롯에 끼는 것 하나: 종류와 그 종류 안의 코드.</summary>
+/// <summary>
+/// 장비 슬롯에 끼는 것 하나: 종류와 그 종류 안의 코드. 유니크 아이템은 아이템 코드가 아니라
+/// 인스턴스 ID(<see cref="UniqueItemInstance"/>)로 가리킨다.
+/// </summary>
 public readonly record struct EquipRef(EquipKind Kind, long Code)
 {
-    public static EquipRef Unique(long code) => new(EquipKind.UniqueItem, code);
+    public static EquipRef Unique(long instanceId) => new(EquipKind.UniqueItem, instanceId);
     public static EquipRef Common(long code) => new(EquipKind.CommonItem, code);
     public static EquipRef Char(long code) => new(EquipKind.Character, code);
 }
+
+/// <summary>
+/// 유니크 아이템 인스턴스: 보유한 유니크 아이템 한 개. 만들어질 때 유니크 아이템 태그 마스터의 태그를 복사해 가지고,
+/// 게임 중에 태그가 사라지거나 추가될 수 있다(그 태그가 세이브에 저장된다).
+/// </summary>
+public sealed record UniqueItemInstance(long ItemCode, List<long>? Tags = null);
 
 /// <summary>낄 수 있는 것의 목록 항목.</summary>
 public sealed record EquipCandidate(EquipRef Ref, string Name);

@@ -34,16 +34,17 @@
       }
     ]
   },
-  "OwnedEquipment": {
-    "8001": 2,
-    "8002": 1,
-    "8003": 1,
-    "8004": 1,
-    "8005": 1,
-    "8006": 1
+  "UniqueItems": {
+    "1": { "ItemCode": 8001 },
+    "2": { "ItemCode": 8001 },
+    "3": { "ItemCode": 8002 },
+    "4": { "ItemCode": 8003 },
+    "5": { "ItemCode": 8004 },
+    "6": { "ItemCode": 8005 },
+    "7": { "ItemCode": 8006 }
   },
   "EquippedItems": {
-    "7001": { "1": { "Kind": "UniqueItem", "Code": 8001 }, "2": { "Kind": "UniqueItem", "Code": 8004 } },
-    "7003": { "1": { "Kind": "UniqueItem", "Code": 8001 } }
+    "7001": { "1": { "Kind": "UniqueItem", "Code": 1 }, "2": { "Kind": "UniqueItem", "Code": 5 } },
+    "7003": { "1": { "Kind": "UniqueItem", "Code": 2 } }
   }
 }
