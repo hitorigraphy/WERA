@@ -35,13 +35,13 @@ public sealed partial class GamePack
     /// <summary>장비 슬롯 태그 마스터가 없으면 null. 게임팩에 적힌 순서 그대로다.</summary>
     public IReadOnlyList<EquipmentSlotTag>? EquipmentSlotTags { get; init; }
 
-    /// <summary>캐릭터가 가진 장비 슬롯들. 장비 슬롯 태그 마스터에 그 캐릭터로 나오는 슬롯이며, 처음 나온 순서다.</summary>
+    /// <summary>캐릭터가 가진 장비 슬롯들. 장비 슬롯 태그 마스터에 그 캐릭터로 나오는 슬롯이며, 슬롯 코드 순이다.</summary>
     public IReadOnlyList<EquipmentSlotEntry> EquipmentSlotsOf(long characterCode)
     {
-        // 보조키 (캐릭터, 슬롯)의 범위 조회로 그 캐릭터의 규칙 행들을 모은 뒤, 파일에 처음 나온 순서로 슬롯을 고른다.
+        // 보조키 (캐릭터, 슬롯)의 범위 조회로 그 캐릭터의 규칙 행들을 모은 뒤, 슬롯 코드 순으로 슬롯을 고른다.
         var rows = Masters.EquipmentSlotTagRowTable
             .FindRangeByCharacterCodeAndEquipmentSlotCode((characterCode, long.MinValue), (characterCode, long.MaxValue))
-            .OrderBy(r => r.Order);
+            .OrderBy(r => r.EquipmentSlotCode).ThenBy(r => r.TagCode).ThenBy(r => r.GroupNumber);
         return rows.Select(r => r.EquipmentSlotCode).Distinct().Select(code => FindEquipmentSlot(code)!).ToList();
     }
 

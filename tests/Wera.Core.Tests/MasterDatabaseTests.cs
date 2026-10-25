@@ -67,15 +67,16 @@ public class MasterDatabaseTests
     }
 
     [Fact]
-    public void Condition_tables_keep_every_row_in_file_order()
+    public void Condition_tables_store_every_row_sorted_by_their_composite_key()
     {
         var db = FullPack().Masters;
 
+        // 파일에는 (1002,그룹2), (1002,그룹1), (1001,그룹1) 순으로 적혀 있지만 테이블은 키 순서다.
         Assert.Equal(3, db.DungeonFlagRowTable.Count);
-        var dungeonRows = db.DungeonFlagRowTable.All.OrderBy(r => r.Order).ToList();
-        Assert.Equal([(1002L, 2, 1003L), (1002L, 1, 1001L), (1001L, 1, 1001L)],
+        var dungeonRows = db.DungeonFlagRowTable.All.ToList();
+        Assert.Equal([(1001L, 1, 1001L), (1002L, 1, 1001L), (1002L, 2, 1003L)],
             dungeonRows.Select(r => (r.DungeonCode, r.GroupNo, r.FlagCode)));
-        Assert.Equal(ConditionType.Equal, dungeonRows[0].Type);
+        Assert.Equal(ConditionType.Equal, dungeonRows[2].Type);
 
         Assert.Single(db.ShopConditionRowTable.All);
         Assert.Equal(3, db.ShopConditionRowTable.All.Single().Value);
@@ -95,18 +96,15 @@ public class MasterDatabaseTests
     // ---- 파일 순서는 그대로, 키 조회는 키 순서와 무관 ----
 
     [Fact]
-    public void Lists_keep_the_file_order_even_though_tables_are_sorted_by_key()
+    public void Lists_keep_the_file_order_while_tables_are_sorted_by_key()
     {
         var pack = FullPack();
         Assert.Equal([7003L, 7001L, 7002L], pack.CharacterInventory!.Select(c => c.Code));       // 파일 순서
         Assert.Equal([3L, 1L, 2L], pack.ItemInventory!.Select(i => i.Code));
         Assert.Equal([1002L, 1001L], pack.Dungeons!.Select(d => d.Code));
 
-        // 테이블의 기본키 순서는 코드 순서이고, Order가 파일 순서를 기억한다.
+        // 테이블은 기본키(코드) 순서다. 파일 순서는 따로 기억하지 않는다.
         Assert.Equal([7001L, 7002L, 7003L], pack.Masters.CharacterInventoryRowTable.All.Select(r => r.Code));
-        Assert.Equal([7001L, 7002L, 7003L],
-            pack.Masters.CharacterInventoryRowTable.All.OrderBy(r => r.Order).Select(r => r.Code).Order());
-        Assert.Equal([7003L, 7001L, 7002L], pack.Masters.CharacterInventoryRowTable.All.OrderBy(r => r.Order).Select(r => r.Code));
     }
 
     // ---- 키로 찾기 ----
@@ -132,11 +130,11 @@ public class MasterDatabaseTests
     }
 
     [Fact]
-    public void Bunch_is_found_by_its_item_code_with_parts_in_file_order()
+    public void Bunch_is_found_by_its_item_code_with_parts_in_part_code_order()
     {
         var bunch = FullPack().FindBunch(9001)!;
         Assert.Equal("초보자 세트", bunch.Name);
-        Assert.Equal([new BunchPart(3, 1), new BunchPart(2, 3)], bunch.Parts);          // 파일 순서(3 다음 2)
+        Assert.Equal([new BunchPart(2, 3), new BunchPart(3, 1)], bunch.Parts);          // 부품 코드 순(파일에는 3 다음 2)
         Assert.Null(FullPack().FindBunch(1));                                             // 일반 아이템은 번치가 아니다
     }
 
@@ -152,11 +150,11 @@ public class MasterDatabaseTests
     }
 
     [Fact]
-    public void Status_effect_effects_of_one_status_are_found_by_secondary_key_in_file_order()
+    public void Status_effect_effects_of_one_status_are_found_by_secondary_key_in_key_order()
     {
         var pack = FullPack();
         Assert.Equal(
-            [new StatusEffectEffect(1, TriggerType.AfterTurnEnd, 2, 1, -3, 3, 0), new StatusEffectEffect(1, TriggerType.BeforeAttack, 1, 1, -1, 2, 9)],
+            [new StatusEffectEffect(1, TriggerType.BeforeAttack, 1, 1, -1, 2, 9), new StatusEffectEffect(1, TriggerType.AfterTurnEnd, 2, 1, -3, 3, 0)],
             pack.StatusEffectEffectsOf(1));
         Assert.Single(pack.StatusEffectEffectsOf(3));
         Assert.Empty(pack.StatusEffectEffectsOf(99));
@@ -231,8 +229,8 @@ public class MasterDatabaseTests
     {
         // MasterMemory의 동작 문서화: Build/로드는 중복 기본키를 거부하지 않고 Validate()가 잡는다.
         // 그래서 GamePack은 항상 Validate()를 호출하고, 로더도 TSV 단계에서 중복을 먼저 거부한다.
-        var row = new EquipmentSlotTagRow { CharacterCode = 1, EquipmentSlotCode = 1, TagCode = 1, GroupNumber = 1, IsPositive = true, Order = 0 };
-        var duplicated = new MemoryDatabase(new DatabaseBuilder().Append([row, row with { IsPositive = false, Order = 1 }]).Build());
+        var row = new EquipmentSlotTagRow { CharacterCode = 1, EquipmentSlotCode = 1, TagCode = 1, GroupNumber = 1, IsPositive = true };
+        var duplicated = new MemoryDatabase(new DatabaseBuilder().Append([row, row with { IsPositive = false }]).Build());
         Assert.True(duplicated.Validate().IsValidationFailed);
     }
 
@@ -249,5 +247,17 @@ public class MasterDatabaseTests
             ("master/equipment_slot_tag_master_v1.tsv",
                 "character_code\tequipment_slot_code\ttag_code\tgroup_number\tis_positive\n7001\t1\t1\t1\ttrue\n7001\t1\t1\t1\tfalse\n"))));
         Assert.Contains("같은 키", error.Message);
+    }
+
+    [Fact]
+    public void An_identical_condition_row_written_twice_is_rejected_by_the_composite_key()
+    {
+        // 조건표의 키는 모든 열이라 같은 행을 두 번 쓰면 Validate가 거부한다(키 순서로만 저장하고 파일 순서는 기억하지 않는다).
+        var error = Assert.Throws<PackFormatException>(() => GamePack.Load(CoreTests.Zip(
+            ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
+            ("master/dungeon_master_v1.tsv", "code\tname\n1001\t초원\n"),
+            ("master/dungeon_flag_master_v1.tsv",
+                "dungeon_code\tgroup_no\tflag_code\tcondition_type\tcondition_value\n1001\t1\t1001\tGreaterOrEqual\t1\n1001\t1\t1001\tGreaterOrEqual\t1\n"))));
+        Assert.Contains("마스터 검증에 실패했습니다", error.Message);
     }
 }

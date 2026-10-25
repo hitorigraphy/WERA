@@ -111,10 +111,10 @@ public sealed partial class GamePack
             ? new CharacterStatus(r.CharacterCode, r.StatusCode, r.Level, r.InitialValue, r.MinValue, r.MaxValue)
             : null;
 
-    /// <summary>캐릭터에게 적힌 모든 행(모든 스테이터스, 모든 레벨. 게임팩 파일 순서). 보조키 캐릭터 코드로 찾는다.</summary>
+    /// <summary>캐릭터에게 적힌 모든 행(모든 스테이터스, 모든 레벨. 키 순서: 스테이터스, 레벨). 보조키 캐릭터 코드로 찾는다.</summary>
     public IReadOnlyList<CharacterStatus> CharacterStatusesOf(long characterCode) =>
         Masters.CharacterStatusRowTable.FindByCharacterCode(characterCode)
-            .OrderBy(r => r.Order)
+            .OrderBy(r => r.StatusCode).ThenBy(r => r.Level)
             .Select(r => new CharacterStatus(r.CharacterCode, r.StatusCode, r.Level, r.InitialValue, r.MinValue, r.MaxValue))
             .ToList();
 

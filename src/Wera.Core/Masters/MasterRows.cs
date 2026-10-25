@@ -7,15 +7,15 @@ using MessagePack;
 namespace Wera.Core.Masters;
 
 // MasterMemory 테이블 정의. 게임팩의 TSV 마스터 한 개가 테이블 한 개이고, 행 한 개가 TSV의 한 줄이다.
-// Order는 게임팩 파일에서의 행 순서다(MasterMemory는 키 순서로 정렬해 두므로, 파일 순서가 필요한 목록은 Order로 다시 정렬한다).
-// 키가 따로 정해지지 않은 조건표는 Order를 기본키로 쓴다.
+// 행 순서를 따로 기억하지 않는다(int 순번은 long 코드보다 범위가 좁다). MasterMemory가 기본키 순서로 정렬해 두고,
+// 순서가 필요한 곳은 조회하는 쪽에서 키 순서대로 OrderBy/ThenBy 한다. 화면에 나오는 목록은 로더가 만든 목록(게임팩 파일 순서)을 쓴다.
+// 조건표처럼 자연스러운 키가 없는 마스터는 모든 열을 합친 복합키를 쓴다(같은 행을 두 번 쓸 수 없다).
 
 [MemoryTable("attribute"), MessagePackObject(true)]
 public record AttributeRow
 {
     [PrimaryKey] public required long Code { get; init; }
     public required string Name { get; init; }
-    public required int Order { get; init; }
 }
 
 [MemoryTable("status_effect"), MessagePackObject(true)]
@@ -23,20 +23,22 @@ public record StatusEffectRow
 {
     [PrimaryKey] public required long Code { get; init; }
     public required string Name { get; init; }
-    public required int Order { get; init; }
 }
 
+/// <summary>상태이상의 이펙트: 키는 모든 열이고, 보조키 상태이상 코드로 그 상태이상의 이펙트 전부를 찾는다.</summary>
 [MemoryTable("status_effect_effect"), MessagePackObject(true)]
 public record StatusEffectEffectRow
 {
-    [PrimaryKey] public required int Order { get; init; }
-    [SecondaryKey(0), NonUnique] public required long StatusEffectCode { get; init; }
-    public required TriggerType Trigger { get; init; }
-    public required long Priority { get; init; }
-    public required long EffectCode { get; init; }
-    public required long Value1 { get; init; }
-    public required long Value2 { get; init; }
-    public required long Value3 { get; init; }
+    [PrimaryKey(keyOrder: 0)]
+    [SecondaryKey(0), NonUnique]
+    public required long StatusEffectCode { get; init; }
+
+    [PrimaryKey(keyOrder: 1)] public required TriggerType Trigger { get; init; }
+    [PrimaryKey(keyOrder: 2)] public required long Priority { get; init; }
+    [PrimaryKey(keyOrder: 3)] public required long EffectCode { get; init; }
+    [PrimaryKey(keyOrder: 4)] public required long Value1 { get; init; }
+    [PrimaryKey(keyOrder: 5)] public required long Value2 { get; init; }
+    [PrimaryKey(keyOrder: 6)] public required long Value3 { get; init; }
 }
 
 [MemoryTable("dungeon"), MessagePackObject(true)]
@@ -44,18 +46,20 @@ public record DungeonRow
 {
     [PrimaryKey] public required long Code { get; init; }
     public required string Name { get; init; }
-    public required int Order { get; init; }
 }
 
+/// <summary>던전 입장 조건: 키는 모든 열이고, 보조키 던전 코드로 그 던전의 조건 전부를 찾는다.</summary>
 [MemoryTable("dungeon_flag"), MessagePackObject(true)]
 public record DungeonFlagRow
 {
-    [PrimaryKey] public required int Order { get; init; }
-    [SecondaryKey(0), NonUnique] public required long DungeonCode { get; init; }
-    public required int GroupNo { get; init; }
-    public required long FlagCode { get; init; }
-    public required ConditionType Type { get; init; }
-    public required long Value { get; init; }
+    [PrimaryKey(keyOrder: 0)]
+    [SecondaryKey(0), NonUnique]
+    public required long DungeonCode { get; init; }
+
+    [PrimaryKey(keyOrder: 1)] public required int GroupNo { get; init; }
+    [PrimaryKey(keyOrder: 2)] public required long FlagCode { get; init; }
+    [PrimaryKey(keyOrder: 3)] public required ConditionType Type { get; init; }
+    [PrimaryKey(keyOrder: 4)] public required long Value { get; init; }
 }
 
 [MemoryTable("shop"), MessagePackObject(true)]
@@ -63,18 +67,20 @@ public record ShopRow
 {
     [PrimaryKey] public required long Code { get; init; }
     public required string Name { get; init; }
-    public required int Order { get; init; }
 }
 
+/// <summary>상점 입장 조건: 키는 모든 열이고, 보조키 상점 코드로 그 상점의 조건 전부를 찾는다.</summary>
 [MemoryTable("shop_condition"), MessagePackObject(true)]
 public record ShopConditionRow
 {
-    [PrimaryKey] public required int Order { get; init; }
-    [SecondaryKey(0), NonUnique] public required long ShopCode { get; init; }
-    public required int GroupNo { get; init; }
-    public required long FlagCode { get; init; }
-    public required ConditionType Type { get; init; }
-    public required long Value { get; init; }
+    [PrimaryKey(keyOrder: 0)]
+    [SecondaryKey(0), NonUnique]
+    public required long ShopCode { get; init; }
+
+    [PrimaryKey(keyOrder: 1)] public required int GroupNo { get; init; }
+    [PrimaryKey(keyOrder: 2)] public required long FlagCode { get; init; }
+    [PrimaryKey(keyOrder: 3)] public required ConditionType Type { get; init; }
+    [PrimaryKey(keyOrder: 4)] public required long Value { get; init; }
 }
 
 [MemoryTable("common_item_inventory"), MessagePackObject(true)]
@@ -83,10 +89,9 @@ public record ItemInventoryRow
     [PrimaryKey] public required long Code { get; init; }
     public required string Name { get; init; }
     public required long CarryLimit { get; init; }
-    public required int Order { get; init; }
 }
 
-/// <summary>번치 인벤토리: 한 행이 번치의 부품 하나다. 같은 (번치, 부품)은 한 번만 쓸 수 있다.</summary>
+/// <summary>번치 아이템 인벤토리: 한 행이 번치의 부품 하나다. 같은 (번치, 부품)은 한 번만 쓸 수 있다.</summary>
 [MemoryTable("bunch_item_inventory"), MessagePackObject(true)]
 public record BunchInventoryRow
 {
@@ -99,7 +104,6 @@ public record BunchInventoryRow
 
     public required string ItemName { get; init; }
     public required long PartAmount { get; init; }
-    public required int Order { get; init; }
 }
 
 [MemoryTable("character_inventory"), MessagePackObject(true)]
@@ -110,7 +114,6 @@ public record CharacterInventoryRow
     public required long CarryLimit { get; init; }
     public required long AdvantageAttributeCode { get; init; }
     public required long DisadvantageAttributeCode { get; init; }
-    public required int Order { get; init; }
 }
 
 [MemoryTable("shop_trade"), MessagePackObject(true)]
@@ -124,18 +127,20 @@ public record ShopTradeRow
     public required long ReceiveAmount { get; init; }
     public required TradeKind CostKind { get; init; }
     public required TradeKind ReceiveKind { get; init; }
-    public required int Order { get; init; }
 }
 
+/// <summary>교환 조건: 키는 모든 열이고, 보조키 교환 코드로 그 교환의 조건 전부를 찾는다.</summary>
 [MemoryTable("shop_trade_condition"), MessagePackObject(true)]
 public record ShopTradeConditionRow
 {
-    [PrimaryKey] public required int Order { get; init; }
-    [SecondaryKey(0), NonUnique] public required long TradeCode { get; init; }
-    public required int GroupNo { get; init; }
-    public required long FlagCode { get; init; }
-    public required ConditionType Type { get; init; }
-    public required long Value { get; init; }
+    [PrimaryKey(keyOrder: 0)]
+    [SecondaryKey(0), NonUnique]
+    public required long TradeCode { get; init; }
+
+    [PrimaryKey(keyOrder: 1)] public required int GroupNo { get; init; }
+    [PrimaryKey(keyOrder: 2)] public required long FlagCode { get; init; }
+    [PrimaryKey(keyOrder: 3)] public required ConditionType Type { get; init; }
+    [PrimaryKey(keyOrder: 4)] public required long Value { get; init; }
 }
 
 [MemoryTable("equipment_slot"), MessagePackObject(true)]
@@ -143,7 +148,6 @@ public record EquipmentSlotRow
 {
     [PrimaryKey] public required long Code { get; init; }
     public required string Name { get; init; }
-    public required int Order { get; init; }
 }
 
 [MemoryTable("tag"), MessagePackObject(true)]
@@ -151,7 +155,6 @@ public record TagRow
 {
     [PrimaryKey] public required long Code { get; init; }
     public required string Name { get; init; }
-    public required int Order { get; init; }
 }
 
 [MemoryTable("unique_item_inventory"), MessagePackObject(true)]
@@ -159,7 +162,6 @@ public record UniqueItemRow
 {
     [PrimaryKey] public required long ItemCode { get; init; }
     public required string ItemName { get; init; }
-    public required int Order { get; init; }
 }
 
 /// <summary>유니크 아이템 태그 마스터: 같은 (아이템, 태그)는 한 번만 쓸 수 있다. 보조키로 아이템의 태그 전부를 찾는다.</summary>
@@ -172,8 +174,6 @@ public record UniqueItemTagRow
 
     [PrimaryKey(keyOrder: 1)]
     public required long TagCode { get; init; }
-
-    public required int Order { get; init; }
 }
 
 /// <summary>커먼 아이템(아이템 인벤토리) 태그 마스터: 같은 (아이템, 태그)는 한 번만 쓸 수 있다.</summary>
@@ -186,8 +186,6 @@ public record CommonItemTagRow
 
     [PrimaryKey(keyOrder: 1)]
     public required long TagCode { get; init; }
-
-    public required int Order { get; init; }
 }
 
 /// <summary>캐릭터 태그 마스터: 같은 (캐릭터, 태그)는 한 번만 쓸 수 있다.</summary>
@@ -200,8 +198,6 @@ public record CharacterTagRow
 
     [PrimaryKey(keyOrder: 1)]
     public required long TagCode { get; init; }
-
-    public required int Order { get; init; }
 }
 
 /// <summary>
@@ -226,7 +222,6 @@ public record EquipmentSlotTagRow
     public required int GroupNumber { get; init; }
 
     public required bool IsPositive { get; init; }
-    public required int Order { get; init; }
 }
 
 [MemoryTable("status"), MessagePackObject(true)]
@@ -234,7 +229,6 @@ public record StatusRow
 {
     [PrimaryKey] public required long Code { get; init; }
     public required string Name { get; init; }
-    public required int Order { get; init; }
 }
 
 /// <summary>캐릭터 스테이터스 마스터: 복합키 (캐릭터, 스테이터스, 레벨), 보조키 캐릭터로 그 캐릭터의 행 전부를 찾는다.</summary>
@@ -254,5 +248,4 @@ public record CharacterStatusRow
     public required long InitialValue { get; init; }
     public required long MinValue { get; init; }
     public required long MaxValue { get; init; }
-    public required int Order { get; init; }
 }

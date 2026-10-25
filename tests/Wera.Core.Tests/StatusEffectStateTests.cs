@@ -44,7 +44,7 @@ public class StatusEffectStateTests
 
         var status = Assert.Single(s.StatusEffectsOf(7001));
         Assert.Equal(1, status.StatusEffectCode);
-        Assert.Equal([Poison1, Poison2], status.EffectList);
+        Assert.Equal([Poison2, Poison1], status.EffectList);          // 키 순서: 트리거(BeforeAttack, AfterTurnEnd)
         Assert.All(status.EffectList, e =>
         {
             Assert.Equal(0, e.Counter);

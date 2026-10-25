@@ -112,10 +112,10 @@ public class CharacterStatusTests
     }
 
     [Fact]
-    public void A_characters_rows_are_listed_in_file_order()
+    public void A_characters_rows_are_listed_in_key_order()
     {
         var pack = Load(Statuses, Base + "7001\t2\t5\t80\t0\t80\n");
-        Assert.Equal([(2L, 0L), (1L, 0L), (2L, 5L)], pack.CharacterStatusesOf(7001).Select(s => (s.StatusCode, s.Level)));
+        Assert.Equal([(1L, 0L), (2L, 0L), (2L, 5L)], pack.CharacterStatusesOf(7001).Select(s => (s.StatusCode, s.Level)));
         Assert.Empty(pack.CharacterStatusesOf(9999));
     }
 

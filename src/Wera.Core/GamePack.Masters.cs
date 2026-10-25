@@ -31,74 +31,69 @@ public sealed partial class GamePack
     {
         var builder = new DatabaseBuilder();
 
-        builder.Append((attributes ?? []).Select((a, i) => new AttributeRow { Code = a.Code, Name = a.Name, Order = i }).ToList());
-        builder.Append((statusEffects ?? []).Select((s, i) => new StatusEffectRow { Code = s.Code, Name = s.Name, Order = i }).ToList());
-        builder.Append((statusEffectEffects ?? []).Select((e, i) => new StatusEffectEffectRow
-        {
-            Order = i, StatusEffectCode = e.StatusEffectCode, Trigger = e.Trigger, Priority = e.Priority,
+        builder.Append((attributes ?? []).Select(a => new AttributeRow { Code = a.Code, Name = a.Name }).ToList());
+        builder.Append((statusEffects ?? []).Select(s => new StatusEffectRow { Code = s.Code, Name = s.Name }).ToList());
+        builder.Append((statusEffectEffects ?? []).Select(e => new StatusEffectEffectRow
+        { StatusEffectCode = e.StatusEffectCode, Trigger = e.Trigger, Priority = e.Priority,
             EffectCode = e.EffectCode, Value1 = e.Value1, Value2 = e.Value2, Value3 = e.Value3,
         }).ToList());
 
-        builder.Append((dungeons ?? []).Select((d, i) => new DungeonRow { Code = d.Code, Name = d.Name, Order = i }).ToList());
-        builder.Append(dungeonConditions.Select((c, i) => new DungeonFlagRow
-        {
-            Order = i, DungeonCode = c.Code, GroupNo = c.GroupNo,
+        builder.Append((dungeons ?? []).Select(d => new DungeonRow { Code = d.Code, Name = d.Name }).ToList());
+        builder.Append(dungeonConditions.Select(c => new DungeonFlagRow
+        { DungeonCode = c.Code, GroupNo = c.GroupNo,
             FlagCode = c.Condition.FlagCode, Type = c.Condition.Type, Value = c.Condition.Value,
         }).ToList());
 
-        builder.Append((shops ?? []).Select((s, i) => new ShopRow { Code = s.Code, Name = s.Name, Order = i }).ToList());
-        builder.Append(shopConditions.Select((c, i) => new ShopConditionRow
-        {
-            Order = i, ShopCode = c.Code, GroupNo = c.GroupNo,
+        builder.Append((shops ?? []).Select(s => new ShopRow { Code = s.Code, Name = s.Name }).ToList());
+        builder.Append(shopConditions.Select(c => new ShopConditionRow
+        { ShopCode = c.Code, GroupNo = c.GroupNo,
             FlagCode = c.Condition.FlagCode, Type = c.Condition.Type, Value = c.Condition.Value,
         }).ToList());
 
-        builder.Append((items ?? []).Select((x, i) => new ItemInventoryRow
-            { Code = x.Code, Name = x.Name, CarryLimit = x.CarryLimit, Order = i }).ToList());
+        builder.Append((items ?? []).Select(x => new ItemInventoryRow
+            { Code = x.Code, Name = x.Name, CarryLimit = x.CarryLimit }).ToList());
 
-        var order = 0;
         builder.Append((bunches ?? []).SelectMany(b => b.Parts.Select(p => new BunchInventoryRow
-            { ItemCode = b.Code, PartItemCode = p.ItemCode, ItemName = b.Name, PartAmount = p.Amount, Order = order++ })).ToList());
+            { ItemCode = b.Code, PartItemCode = p.ItemCode, ItemName = b.Name, PartAmount = p.Amount })).ToList());
 
-        builder.Append((characters ?? []).Select((c, i) => new CharacterInventoryRow
+        builder.Append((characters ?? []).Select(c => new CharacterInventoryRow
         {
             Code = c.Code, Name = c.Name, CarryLimit = c.CarryLimit,
-            AdvantageAttributeCode = c.AdvantageAttributeCode, DisadvantageAttributeCode = c.DisadvantageAttributeCode, Order = i,
+            AdvantageAttributeCode = c.AdvantageAttributeCode, DisadvantageAttributeCode = c.DisadvantageAttributeCode,
         }).ToList());
 
-        builder.Append((trades ?? []).Select((t, i) => new ShopTradeRow
+        builder.Append((trades ?? []).Select(t => new ShopTradeRow
         {
             Code = t.Code, ShopCode = t.ShopCode, CostItemCode = t.CostItemCode, CostAmount = t.CostAmount,
             ReceiveItemCode = t.ReceiveItemCode, ReceiveAmount = t.ReceiveAmount,
-            CostKind = t.CostKind, ReceiveKind = t.ReceiveKind, Order = i,
+            CostKind = t.CostKind, ReceiveKind = t.ReceiveKind,
         }).ToList());
-        builder.Append(tradeConditions.Select((c, i) => new ShopTradeConditionRow
-        {
-            Order = i, TradeCode = c.Code, GroupNo = c.GroupNo,
+        builder.Append(tradeConditions.Select(c => new ShopTradeConditionRow
+        { TradeCode = c.Code, GroupNo = c.GroupNo,
             FlagCode = c.Condition.FlagCode, Type = c.Condition.Type, Value = c.Condition.Value,
         }).ToList());
 
-        builder.Append((equipmentSlots ?? []).Select((s, i) => new EquipmentSlotRow { Code = s.Code, Name = s.Name, Order = i }).ToList());
-        builder.Append((tags ?? []).Select((t, i) => new TagRow { Code = t.Code, Name = t.Name, Order = i }).ToList());
-        builder.Append((uniqueItems ?? []).Select((e, i) => new UniqueItemRow
-            { ItemCode = e.ItemCode, ItemName = e.ItemName, Order = i }).ToList());
-        builder.Append((uniqueItemTags ?? []).Select((t, i) => new UniqueItemTagRow
-            { ItemCode = t.ItemCode, TagCode = t.TagCode, Order = i }).ToList());
-        builder.Append((commonItemTags ?? []).Select((t, i) => new CommonItemTagRow
-            { ItemCode = t.ItemCode, TagCode = t.TagCode, Order = i }).ToList());
-        builder.Append((characterTags ?? []).Select((t, i) => new CharacterTagRow
-            { CharacterCode = t.CharacterCode, TagCode = t.TagCode, Order = i }).ToList());
-        builder.Append((equipmentSlotTags ?? []).Select((t, i) => new EquipmentSlotTagRow
+        builder.Append((equipmentSlots ?? []).Select(s => new EquipmentSlotRow { Code = s.Code, Name = s.Name }).ToList());
+        builder.Append((tags ?? []).Select(t => new TagRow { Code = t.Code, Name = t.Name }).ToList());
+        builder.Append((uniqueItems ?? []).Select(e => new UniqueItemRow
+            { ItemCode = e.ItemCode, ItemName = e.ItemName }).ToList());
+        builder.Append((uniqueItemTags ?? []).Select(t => new UniqueItemTagRow
+            { ItemCode = t.ItemCode, TagCode = t.TagCode }).ToList());
+        builder.Append((commonItemTags ?? []).Select(t => new CommonItemTagRow
+            { ItemCode = t.ItemCode, TagCode = t.TagCode }).ToList());
+        builder.Append((characterTags ?? []).Select(t => new CharacterTagRow
+            { CharacterCode = t.CharacterCode, TagCode = t.TagCode }).ToList());
+        builder.Append((equipmentSlotTags ?? []).Select(t => new EquipmentSlotTagRow
         {
             CharacterCode = t.CharacterCode, EquipmentSlotCode = t.EquipmentSlotCode, TagCode = t.TagCode,
-            GroupNumber = t.GroupNumber, IsPositive = t.IsPositive, Order = i,
+            GroupNumber = t.GroupNumber, IsPositive = t.IsPositive,
         }).ToList());
 
-        builder.Append((statuses ?? []).Select((s, i) => new StatusRow { Code = s.Code, Name = s.Name, Order = i }).ToList());
-        builder.Append((characterStatuses ?? []).Select((s, i) => new CharacterStatusRow
+        builder.Append((statuses ?? []).Select(s => new StatusRow { Code = s.Code, Name = s.Name }).ToList());
+        builder.Append((characterStatuses ?? []).Select(s => new CharacterStatusRow
         {
             CharacterCode = s.CharacterCode, StatusCode = s.StatusCode, Level = s.Level,
-            InitialValue = s.InitialValue, MinValue = s.MinValue, MaxValue = s.MaxValue, Order = i,
+            InitialValue = s.InitialValue, MinValue = s.MinValue, MaxValue = s.MaxValue,
         }).ToList());
 
         var db = new MemoryDatabase(builder.Build());
@@ -124,10 +119,10 @@ public sealed partial class GamePack
     public ItemEntry? FindItem(long code) =>
         Masters.ItemInventoryRowTable.TryFindByCode(code, out var r) ? new ItemEntry(r.Code, r.Name, r.CarryLimit) : null;
 
-    /// <summary>번치(부품은 게임팩 파일 순서). 없으면 null.</summary>
+    /// <summary>번치(부품은 부품 아이템 코드 순). 없으면 null.</summary>
     public BunchEntry? FindBunch(long code)
     {
-        var rows = Masters.BunchInventoryRowTable.FindByItemCode(code).OrderBy(r => r.Order).ToList();
+        var rows = Masters.BunchInventoryRowTable.FindByItemCode(code).OrderBy(r => r.PartItemCode).ToList();
         return rows.Count == 0
             ? null
             : new BunchEntry(code, rows[0].ItemName, rows.Select(r => new BunchPart(r.PartItemCode, r.PartAmount)).ToList());
@@ -139,32 +134,33 @@ public sealed partial class GamePack
     public UniqueItem? FindUniqueItem(long itemCode) =>
         Masters.UniqueItemRowTable.TryFindByItemCode(itemCode, out var r) ? new UniqueItem(r.ItemCode, r.ItemName) : null;
 
-    /// <summary>상태이상이 가진 이펙트 행들(게임팩 파일 순서).</summary>
+    /// <summary>상태이상이 가진 이펙트 행들(키 순서: 트리거, 우선순위, 이펙트 코드, 값1~3).</summary>
     public IReadOnlyList<StatusEffectEffect> StatusEffectEffectsOf(long statusEffectCode) =>
         Masters.StatusEffectEffectRowTable.FindByStatusEffectCode(statusEffectCode)
-            .OrderBy(r => r.Order)
+            .OrderBy(r => r.Trigger).ThenBy(r => r.Priority).ThenBy(r => r.EffectCode)
+            .ThenBy(r => r.Value1).ThenBy(r => r.Value2).ThenBy(r => r.Value3)
             .Select(r => new StatusEffectEffect(
                 r.StatusEffectCode, r.Trigger, r.Priority, r.EffectCode, r.Value1, r.Value2, r.Value3))
             .ToList();
 
-    /// <summary>한 캐릭터의 한 장비 슬롯에 걸린 태그 규칙(게임팩 파일 순서). 보조키 (캐릭터, 슬롯)로 찾는다.</summary>
+    /// <summary>한 캐릭터의 한 장비 슬롯에 걸린 태그 규칙(키 순서: 태그, 그룹). 보조키 (캐릭터, 슬롯)로 찾는다.</summary>
     IReadOnlyList<EquipmentSlotTag> SlotTagRulesOf(long characterCode, long equipmentSlotCode) =>
         Masters.EquipmentSlotTagRowTable.FindByCharacterCodeAndEquipmentSlotCode((characterCode, equipmentSlotCode))
-            .OrderBy(r => r.Order)
+            .OrderBy(r => r.TagCode).ThenBy(r => r.GroupNumber)
             .Select(r => new EquipmentSlotTag(r.CharacterCode, r.EquipmentSlotCode, r.TagCode, r.GroupNumber, r.IsPositive))
             .ToList();
 
     /// <summary>유니크 아이템 마스터에 적힌 태그 코드들(인스턴스가 만들어질 때 복사되는 태그).</summary>
     public IReadOnlyList<long> MasterTagsOfUniqueItem(long itemCode) =>
-        Masters.UniqueItemTagRowTable.FindByItemCode(itemCode).OrderBy(r => r.Order).Select(r => r.TagCode).ToList();
+        Masters.UniqueItemTagRowTable.FindByItemCode(itemCode).OrderBy(r => r.TagCode).Select(r => r.TagCode).ToList();
 
     /// <summary>커먼 아이템의 태그 코드들. 커먼 아이템은 인스턴스가 없어 늘 마스터의 태그다.</summary>
     public IReadOnlyList<long> MasterTagsOfCommonItem(long itemCode) =>
-        Masters.CommonItemTagRowTable.FindByItemCode(itemCode).OrderBy(r => r.Order).Select(r => r.TagCode).ToList();
+        Masters.CommonItemTagRowTable.FindByItemCode(itemCode).OrderBy(r => r.TagCode).Select(r => r.TagCode).ToList();
 
     /// <summary>캐릭터 태그 마스터에 적힌 태그 코드들(캐릭터를 얻을 때 복사되는 태그).</summary>
     public IReadOnlyList<long> MasterTagsOfCharacter(long characterCode) =>
-        Masters.CharacterTagRowTable.FindByCharacterCode(characterCode).OrderBy(r => r.Order).Select(r => r.TagCode).ToList();
+        Masters.CharacterTagRowTable.FindByCharacterCode(characterCode).OrderBy(r => r.TagCode).Select(r => r.TagCode).ToList();
 
     /// <summary>교환의 코스트/리시브 이름: 커먼·번치 아이템, 유니크 아이템, 캐릭터. 마스터에 없으면 코드 그대로.</summary>
     public string TradeTargetName(TradeKind kind, long code) => kind switch
