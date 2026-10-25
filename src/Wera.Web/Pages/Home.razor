@@ -130,6 +130,10 @@
                 {
                     <p class="end">장비 슬롯이 없습니다.</p>
                 }
+                @if (session.Message is not null)
+                {
+                    <p class="message" role="status">@session.Message</p>
+                }
                 @entryList(session.Entries)
                 @commandBox
                 break;
@@ -140,12 +144,6 @@
                 {
                     <p class="end">장비할 수 있는 장비가 없습니다.</p>
                 }
-                <ul class="dungeons">
-                    @foreach (var item in session.EquippableItems)
-                    {
-                        <li>[@item.ItemCode] @item.ItemName</li>
-                    }
-                </ul>
                 @entryList(session.Entries)
                 @commandBox
                 break;

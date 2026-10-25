@@ -37,6 +37,10 @@ public enum EntryAction
     PlaceCharacter,
     /// <summary>선택한 슬롯의 캐릭터를 파티에서 뺀다(슬롯이 빈다).</summary>
     ClearSlot,
+    /// <summary>항목의 코드에 해당하는 보유 장비를 선택한 캐릭터의 선택한 장비 슬롯에 끼운다(이미 끼고 있던 장비는 빠진다).</summary>
+    EquipItem,
+    /// <summary>선택한 캐릭터의 선택한 장비 슬롯의 장비를 뺀다.</summary>
+    Unequip,
 }
 
 /// <summary>화면에 나오는 클릭 가능한 텍스트. 클릭하거나 Code를 입력하면 Action을 수행한다.</summary>
@@ -53,7 +57,9 @@ public sealed record SaveData(
     Dictionary<long, InventoryItem>? InventoryItems = null,
     Dictionary<long, CharacterState>? Characters = null,
     long?[]? Party = null,
-    Dictionary<long, List<ActiveStatusEffect>>? StatusEffects = null);
+    Dictionary<long, List<ActiveStatusEffect>>? StatusEffects = null,
+    Dictionary<long, long>? OwnedEquipment = null,
+    Dictionary<long, Dictionary<long, long>>? EquippedItems = null);
 
 [JsonSerializable(typeof(SaveData))]
 [JsonSourceGenerationOptions(WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
@@ -61,7 +67,7 @@ internal sealed partial class SaveJsonContext : JsonSerializerContext;
 
 public sealed class SaveFormatException(string message) : Exception(message);
 
-public sealed class GameSession
+public sealed partial class GameSession
 {
     public const int SaveVersion = 1;
 
@@ -124,14 +130,11 @@ public sealed class GameSession
     IReadOnlyList<EquipmentSlotEntry> CurrentEquipmentSlots =>
         CurrentCharacterCode is { } character ? Pack.EquipmentSlotsOf(character) : [];
 
-    /// <summary>선택한 캐릭터의 선택한 장비 슬롯에 낄 수 있는 장비들(슬롯 태그 마스터에 부합하는 것).</summary>
-    public IReadOnlyList<EquipmentItem> EquippableItems =>
-        CurrentCharacterCode is { } c && CurrentEquipmentSlotCode is { } s ? Pack.EquippableItems(c, s) : [];
-
     GameSession(
         GamePack pack, Screen screen, Dictionary<long, long> playerFlags,
         Dictionary<long, InventoryItem> inventoryItems, Dictionary<long, CharacterState> characters, long?[] party,
-        Dictionary<long, List<ActiveStatusEffect>> statusEffects)
+        Dictionary<long, List<ActiveStatusEffect>> statusEffects,
+        Dictionary<long, long> ownedEquipment, Dictionary<long, Dictionary<long, long>> equippedItems)
     {
         Pack = pack;
         Screen = screen;
@@ -140,11 +143,13 @@ public sealed class GameSession
         Characters = characters;
         Party = party;
         CharacterStatusEffects = statusEffects;
+        OwnedEquipment = ownedEquipment;
+        EquippedItems = equippedItems;
     }
 
     /// <summary>튜토리얼이 구현될 때까지 새 게임은 홈 화면으로 직행한다.</summary>
     public static GameSession NewGame(GamePack pack) =>
-        new(pack, Screen.Home, [], [], [], new long?[PartySlotCount], []);
+        new(pack, Screen.Home, [], [], [], new long?[PartySlotCount], [], [], []);
 
     /// <summary>입장 조건을 하나라도 만족하는 던전.</summary>
     public IReadOnlyList<Dungeon> AvailableDungeons =>
@@ -283,12 +288,11 @@ public sealed class GameSession
                 case Screen.EquipmentList:
                     // 그 캐릭터가 가진 장비 슬롯(슬롯 코드를 입력하거나 클릭하면 그 슬롯에 낄 수 있는 장비 목록으로 간다).
                     return CurrentEquipmentSlots
-                        .Select(s => new ScreenEntry(Text(s.Code), s.Name, Screen.EquipmentSelect))
+                        .Select(s => new ScreenEntry(Text(s.Code), EquipmentSlotLabel(s), Screen.EquipmentSelect))
                         .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen.EquipmentSetup))
                         .ToList();
                 case Screen.EquipmentSelect:
-                    // 같은 캐릭터의 장비 슬롯 목록으로 돌아간다(Arg로 캐릭터가 있는 파티 슬롯을 넘겨 유지한다).
-                    return [new ScreenEntry(BackEntryCode, "돌아가기", Screen.EquipmentList, Arg: CurrentSlot!.Value.ToString(CultureInfo.InvariantCulture))];
+                    return EquipmentSelectEntries();
                 case Screen.CharacterSelect:
                     // 맨 위에 "[0] 비우기"(이 슬롯에 캐릭터가 있을 때만), 그다음 고를 수 있는 캐릭터(회색 제외)를 코드로 입력하거나 클릭하면 배치한다.
                     return ClearEntries()
@@ -362,6 +366,16 @@ public sealed class GameSession
             case EntryAction.ClearSlot:
                 Party[CurrentSlot!.Value] = null;
                 CurrentSlot = null;
+                Screen = entry.Target;
+                break;
+            case EntryAction.EquipItem:
+                Message = EquipFromScreen(CodeOf(entry));
+                CurrentEquipmentSlotCode = null;
+                Screen = entry.Target;                  // 같은 캐릭터의 장비 슬롯 목록(CurrentSlot 유지)
+                break;
+            case EntryAction.Unequip:
+                Message = UnequipFromScreen();
+                CurrentEquipmentSlotCode = null;
                 Screen = entry.Target;
                 break;
         }
@@ -551,7 +565,9 @@ public sealed class GameSession
                 new Dictionary<long, InventoryItem>(InventoryItems),
                 new Dictionary<long, CharacterState>(Characters),
                 (long?[])Party.Clone(),
-                CopyStatusEffects(CharacterStatusEffects)),
+                CopyStatusEffects(CharacterStatusEffects),
+                CopyOwnedEquipment(),
+                CopyEquippedItems()),
             SaveJsonContext.Default.SaveData);
 
     public static GameSession FromSaveJson(GamePack pack, string json)
@@ -592,8 +608,9 @@ public sealed class GameSession
             throw new SaveFormatException("세이브의 파티에 같은 캐릭터가 두 번 이상 있습니다.");
 
         var statusEffects = ValidateStatusEffects(pack, characters, save.StatusEffects);
+        var (ownedEquipment, equippedItems) = ValidateEquipment(pack, characters, save.OwnedEquipment, save.EquippedItems);
 
         // 불러오기는 저장된 화면과 상관없이 항상 홈으로 들어간다.
-        return new GameSession(pack, Screen.Home, playerFlags, inventory, characters, party, statusEffects);
+        return new GameSession(pack, Screen.Home, playerFlags, inventory, characters, party, statusEffects, ownedEquipment, equippedItems);
     }
 }

@@ -27,7 +27,7 @@ public class EquipmentTests
         "7001\t2\t2\t1\ttrue\n" +
         "7002\t1\t4\t1\ttrue\n";
 
-    static GamePack Pack(
+    internal static GamePack Pack(
         string? slots = Slots, string? tags = Tags, string? items = Items, string? itemTags = ItemTags, string? slotTags = SlotTags)
     {
         var files = new List<(string, string)>
@@ -308,6 +308,7 @@ public class EquipmentTests
         s.Characters[7003] = new CharacterState(2, 5, 20, 1, 10);
         s.Party[0] = 7001;
         s.Party[4] = 7002;
+        foreach (var item in new long[] { 9001, 9002, 9003, 9004, 9005 }) s.OwnedEquipment[item] = 1;   // 장비는 하나씩 보유
         s.Party[8] = 7003;
         s.Activate("103");
         s.Activate("11");
@@ -323,7 +324,7 @@ public class EquipmentTests
         Assert.Equal(Screen.EquipmentList, s.Screen);
         Assert.Equal(7001, s.CurrentCharacterCode);
         Assert.Equal(
-            [new ScreenEntry("1", "무기", Screen.EquipmentSelect), new ScreenEntry("2", "방어구", Screen.EquipmentSelect),
+            [new ScreenEntry("1", "무기 : (없음)", Screen.EquipmentSelect), new ScreenEntry("2", "방어구 : (없음)", Screen.EquipmentSelect),
              new ScreenEntry("999", "돌아가기", Screen.EquipmentSetup)],
             s.Entries);
     }
@@ -367,7 +368,7 @@ public class EquipmentTests
     {
         var s = Session();
         s.Activate("1"); s.Activate("1");
-        Assert.Equal(["999"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["9001", "9003", "999"], s.Entries.Select(e => e.Code));   // 낄 수 있는 보유 장비(철검, 지팡이) + 돌아가기
 
         s.Activate("999");
         Assert.Equal(Screen.EquipmentList, s.Screen);
