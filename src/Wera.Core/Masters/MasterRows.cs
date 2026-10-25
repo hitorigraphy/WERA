@@ -242,6 +242,57 @@ public record TurnRow
     public required long TimeSlotCode { get; init; }
 }
 
+[MemoryTable("event"), MessagePackObject(true)]
+public record EventRow
+{
+    [PrimaryKey] public required long Code { get; init; }
+    public required string Name { get; init; }
+}
+
+/// <summary>이벤트 조건: 복합키는 (이벤트, 그룹넘버, 플래그)이고, 보조키 이벤트 코드로 그 이벤트의 조건 전부를 찾는다.</summary>
+[MemoryTable("event_condition"), MessagePackObject(true)]
+public record EventConditionRow
+{
+    [PrimaryKey(keyOrder: 0)]
+    [SecondaryKey(0), NonUnique]
+    public required long EventCode { get; init; }
+
+    [PrimaryKey(keyOrder: 1)] public required int GroupNumber { get; init; }
+    [PrimaryKey(keyOrder: 2)] public required long FlagCode { get; init; }
+    public required ConditionType Type { get; init; }
+    public required long Value { get; init; }
+}
+
+/// <summary>이벤트 흐름: 복합키는 (이벤트, 흐름 번호, 그룹 넘버)이고, 보조키 이벤트 코드로 그 이벤트의 흐름 전부를 찾는다.</summary>
+[MemoryTable("event_flow"), MessagePackObject(true)]
+public record EventFlowRow
+{
+    [PrimaryKey(keyOrder: 0)]
+    [SecondaryKey(0), NonUnique]
+    public required long EventCode { get; init; }
+
+    [PrimaryKey(keyOrder: 1)] public required long FlowNumber { get; init; }
+    [PrimaryKey(keyOrder: 2)] public required int GroupNumber { get; init; }
+    public required EventFlowType FlowType { get; init; }
+    public required long Param1 { get; init; }
+    public required long Param2 { get; init; }
+    public required long Param3 { get; init; }
+}
+
+[MemoryTable("adv"), MessagePackObject(true)]
+public record AdvRow
+{
+    [PrimaryKey] public required long Code { get; init; }
+    public required string Name { get; init; }
+}
+
+[MemoryTable("battle"), MessagePackObject(true)]
+public record BattleRow
+{
+    [PrimaryKey] public required long Code { get; init; }
+    public required string Name { get; init; }
+}
+
 [MemoryTable("status"), MessagePackObject(true)]
 public record StatusRow
 {

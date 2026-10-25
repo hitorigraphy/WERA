@@ -37,6 +37,13 @@ TSV 파일 묶음 zip. 첫 줄은 헤더입니다.
 | `master/equipment_slot_tag_master_v1.tsv` | (선택, 캐릭터 인벤토리/장비 슬롯/태그 마스터 필요) `character_code`, `equipment_slot_code`, `tag_code`, `group_number`, `is_positive` |
 | `master/shop_trade_master_v1.tsv` | (선택) `code`, `shop_code`, `cost_item_code`, `cost_amount`, `receive_item_code`, `receive_amount` + 선택 열 `cost_kind`, `receive_kind` |
 | `master/shop_trade_condition_master_v1.tsv` | (선택) `trade_code`, `group_number`, `flag_code`, `condition_type`, `condition_value` |
+| `master/event_master_v1.tsv` | (선택) `code`, `name` |
+| `master/event_condition_master_v1.tsv` | (선택, 이벤트 마스터 필요) `event_code`, `group_number`, `flag_code`, `condition_type`, `condition_value` |
+| `master/event_flow_master_v1.tsv` | (선택, 이벤트 마스터 필요) `event_code`, `flow_number`, `group_number`, `flow_type`, `param_1`, `param_2`, `param_3` |
+| `master/adv_master_v1.tsv` | (선택) `code`, `name` |
+| `master/battle_master_v1.tsv` | (선택) `code`, `name` |
+
+**이벤트, ADV, 전투 마스터**(모두 선택, 아직 게임 진행에는 쓰이지 않음): `event_master`와 `adv_master`, `battle_master`는 `code`(키), `name`입니다. `event_condition_master`는 던전/상점과 같은 조건표 규칙(그룹 안 AND, 그룹끼리 OR, `condition_type`은 `None` 등, 복합키 `(event_code, group_number, flag_code)`)이고 조건이 없는 이벤트는 늘 열립니다. `event_flow_master`의 복합키는 `(event_code, flow_number, group_number)`이고 `flow_type`(enum, 이름으로 적음, 지금은 `None`=0 하나)과 정수 `param_1`~`param_3`(비우면 0)가 값입니다. 이벤트는 이벤트 마스터에 있어야 하고 같은 키를 두 번 쓸 수 없습니다.
 
 **memo 열:** 모든 마스터 TSV는 헤더에 `memo` 열을 둘 수 있고(위치 자유) 사람이 보는 메모일 뿐이라 엔진은 읽지 않으며 마스터메모리에도 올리지 않습니다. 기본 게임팩은 엔진이 요구하는 필수 행(예약 태그와 스테이터스, 플레이어 캐릭터와 그 속성/태그, 모든 캐릭터의 level/hp 레벨 0 행)의 메모에 "필수"라고 적어 두었고, 테스트용 던전(`1999`)과 상점(`2999`, 커먼/유니크/캐릭터 교환 포함)은 필수가 아니며 조건이 없어 새 게임부터 열려 있습니다.
 

@@ -157,6 +157,12 @@ public sealed partial class GamePack
         var characterStatuses = LoadCharacterStatuses(zip, characterInventory, statuses);
         var timeSlots = LoadTimeSlots(zip);
         var turns = LoadTurns(zip, timeSlots);
+        var eventConditions = new List<FlatCondition>();
+        var events = LoadConditioned(zip, EventMasterPath, ["code", "name"], EventConditionMasterPath, "이벤트", "event_code",
+            eventConditions, (code, r, groups) => new GameEvent(code, r[1], groups));
+        var eventFlows = LoadEventFlows(zip, events);
+        var advs = LoadAdvs(zip);
+        var battles = LoadBattles(zip);
 
         return new GamePack
         {
@@ -183,11 +189,16 @@ public sealed partial class GamePack
             CharacterStatuses = characterStatuses,
             TimeSlots = timeSlots,
             Turns = turns,
+            Events = events,
+            EventFlows = eventFlows,
+            Advs = advs,
+            Battles = battles,
             Masters = BuildMasters(
                 dungeons, dungeonConditions, shops, shopConditions, itemInventory, bunchInventory, characterInventory, attributes,
                 trades, tradeConditions, statusEffects, statusEffectEffects,
                 equipmentSlots, tags, uniqueItems, uniqueItemTags, commonItemTags, characterTags, equipmentSlotTags,
-                statuses, characterStatuses, timeSlots, turns),
+                statuses, characterStatuses, timeSlots, turns,
+                events, eventConditions, eventFlows, advs, battles),
             EmbeddedEffects = embeddedEffects,
         };
     }
