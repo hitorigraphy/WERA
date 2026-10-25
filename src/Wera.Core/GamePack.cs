@@ -137,13 +137,13 @@ public sealed partial class GamePack
         var bunchInventory = LoadBunchInventory(zip, itemInventory);
         var attributes = LoadAttributes(zip);
         var characterInventory = LoadCharacterInventory(zip, attributes);
-        CheckItemCodesAreUnique(itemInventory, bunchInventory);
-        var trades = LoadTrades(zip, tradeConditions);
+        var uniqueItems = LoadUniqueItems(zip);
+        var inventory = BuildInventory(itemInventory, uniqueItems, bunchInventory, characterInventory);
+        var trades = LoadTrades(zip, tradeConditions, inventory);
         var statusEffects = LoadStatusEffects(zip);
         var statusEffectEffects = LoadStatusEffectEffects(zip, statusEffects, embeddedEffects);
         var equipmentSlots = LoadEquipmentSlots(zip);
         var tags = LoadTags(zip);
-        var uniqueItems = LoadUniqueItems(zip);
         var uniqueItemTags = LoadUniqueItemTags(zip, uniqueItems, tags);
         var commonItemTags = LoadCommonItemTags(zip, itemInventory, tags);
         var characterTags = LoadCharacterTags(zip, characterInventory, tags);
@@ -159,6 +159,7 @@ public sealed partial class GamePack
         {
             Id = Need("id"),
             Title = Need("title"),
+            Inventory = inventory,
             Dungeons = dungeons,
             Shops = shops,
             ItemInventory = itemInventory,
@@ -364,7 +365,7 @@ public sealed partial class GamePack
         value.Length == 0 ? 0 : ParseLong(file, what, value);
 
     static List<ItemEntry>? LoadItemInventory(ZipArchive zip) =>
-        LoadLimitedInventory(zip, CommonItemInventoryMasterPath, "아이템", ["item_code", "item_name", "carry_limit"],
+        LoadLimitedInventory(zip, CommonItemInventoryMasterPath, "아이템", ["inventory_code", "item_name", "carry_limit"],
             (code, r, limit) => new ItemEntry(code, r[1], limit));
 
     /// <summary>캐릭터마다 유리속성과 불리속성이 있어야 하고, 둘 다 속성 마스터에 있어야 하며 서로 달라야 한다.</summary>
@@ -373,7 +374,7 @@ public sealed partial class GamePack
         const string file = CharacterInventoryMasterPath;
         var attributeCodes = attributes?.Select(a => a.Code).ToHashSet() ?? [];
         return LoadLimitedInventory(zip, file, "캐릭터",
-            ["character_code", "character_name", "carry_limit", "advantage_attribute_code", "disadvantage_attribute_code"],
+            ["inventory_code", "character_name", "carry_limit", "advantage_attribute_code", "disadvantage_attribute_code"],
             (code, r, limit) =>
             {
                 var advantage = ParseLong(file, $"캐릭터 '{code}'의 유리속성 코드", r[3]);
@@ -421,7 +422,7 @@ public sealed partial class GamePack
         var names = new Dictionary<long, string>();
         var parts = new Dictionary<long, List<BunchPart>>();
         var order = new List<long>();
-        foreach (var r in Body(file, text, "item_code", "item_name", "part_item_code", "part_amount"))
+        foreach (var r in Body(file, text, "inventory_code", "item_name", "part_item_code", "part_amount"))
         {
             var code = ParseLong(file, "번치 아이템 코드", r[0]);
             var partCode = ParseLong(file, $"번치 '{code}'의 파트 아이템 코드", r[2]);
@@ -448,20 +449,62 @@ public sealed partial class GamePack
         return order.Select(code => new BunchEntry(code, names[code], parts[code])).ToList();
     }
 
-    static void CheckItemCodesAreUnique(List<ItemEntry>? common, List<BunchEntry>? bunch)
+    /// <summary>
+    /// 인벤토리 마스터 네 개(커먼, 유니크, 번치, 캐릭터)를 인벤토리 코드로 찾는 하나의 사전으로 합친다.
+    /// 인벤토리 코드는 네 마스터를 통틀어 겹치면 안 된다(겹치면 어느 마스터와 어느 마스터인지 알려 주고 읽지 않는다).
+    /// </summary>
+    static Dictionary<long, InventoryEntry> BuildInventory(
+        List<ItemEntry>? common, List<UniqueItem>? unique, List<BunchEntry>? bunch, List<CharacterEntry>? characters)
     {
-        if (common is null || bunch is null) return;
-        var commonCodes = common.Select(i => i.Code).ToHashSet();
-        foreach (var b in bunch)
-            if (commonCodes.Contains(b.Code))
-                throw new PackFormatException($"아이템 코드 '{b.Code}'가 아이템 인벤토리와 번치 인벤토리 마스터에 모두 있습니다.");
+        var inventory = new Dictionary<long, InventoryEntry>();
+        var paths = new Dictionary<InventoryKind, string>
+        {
+            [InventoryKind.CommonItem] = CommonItemInventoryMasterPath,
+            [InventoryKind.UniqueItem] = UniqueItemInventoryMasterPath,
+            [InventoryKind.BunchItem] = BunchItemInventoryMasterPath,
+            [InventoryKind.Character] = CharacterInventoryMasterPath,
+        };
+
+        void Add(long code, InventoryKind kind, string name)
+        {
+            if (inventory.TryGetValue(code, out var other))
+                throw new PackFormatException(
+                    $"인벤토리 코드 '{code}'가 {paths[other.Kind]}('{other.Name}')와 {paths[kind]}('{name}')에 모두 있습니다. 인벤토리 코드는 모든 인벤토리 마스터를 통틀어 겹치면 안 됩니다.");
+            inventory[code] = new InventoryEntry(code, kind, name);
+        }
+
+        foreach (var i in common ?? []) Add(i.Code, InventoryKind.CommonItem, i.Name);
+        foreach (var u in unique ?? []) Add(u.ItemCode, InventoryKind.UniqueItem, u.ItemName);
+        foreach (var b in bunch ?? []) Add(b.Code, InventoryKind.BunchItem, b.Name);
+        foreach (var c in characters ?? []) Add(c.Code, InventoryKind.Character, c.Name);
+        return inventory;
+    }
+
+    /// <summary>
+    /// 교환의 종류를 정한다: 비워 두면 인벤토리 코드가 속한 마스터로 알아내고(번치는 커먼 아이템), 적었으면 그 코드의 마스터와 같아야 한다.
+    /// 인벤토리에 없는 코드는 종류를 적은 대로(비었으면 커먼 아이템) 두고 뒤에서 "마스터에 없습니다"로 거른다.
+    /// </summary>
+    static TradeKind ResolveTradeKind(
+        string file, string who, string side, TradeKind? declared, long code, IReadOnlyDictionary<long, InventoryEntry> inventory)
+    {
+        if (!inventory.TryGetValue(code, out var entry)) return declared ?? TradeKind.CommonItem;
+        var actual = entry.Kind switch
+        {
+            InventoryKind.UniqueItem => TradeKind.UniqueItem,
+            InventoryKind.Character => TradeKind.Character,
+            _ => TradeKind.CommonItem,
+        };
+        if (declared is { } d && d != actual)
+            throw new PackFormatException(
+                $"{file}: {who} {side} 코드 '{code}'는 {entry.Kind}인데 종류가 {d}(으)로 적혀 있습니다.");
+        return actual;
     }
 
     /// <summary>
     /// 트레이드 마스터. 앞의 여섯 열 뒤에 선택 열 cost_kind, receive_kind(common_item / unique_item / character, 비우면 common_item)를
     /// 둘 다 붙일 수 있다. 유니크 아이템과 캐릭터는 코스트로도 리시브로도 어마운트가 1이어야 한다.
     /// </summary>
-    static List<ShopTrade>? LoadTrades(ZipArchive zip, List<FlatCondition> conditions)
+    static List<ShopTrade>? LoadTrades(ZipArchive zip, List<FlatCondition> conditions, IReadOnlyDictionary<long, InventoryEntry> inventory)
     {
         var text = TryReadEntry(zip, ShopTradeMasterPath);
         if (text is not null)
@@ -472,23 +515,24 @@ public sealed partial class GamePack
                 throw new PackFormatException(
                     $"{ShopTradeMasterPath}: 여섯 열 뒤에는 'cost_kind\treceive_kind' 두 열만 붙일 수 있습니다.");
         }
-        return LoadTradeRows(zip, conditions);
+        return LoadTradeRows(zip, conditions, inventory);
     }
 
     static string KindText(TradeKind kind) => kind == TradeKind.UniqueItem ? "유니크 아이템" : "캐릭터";
 
     static string CellOf(string[] r, int index) => index < r.Length ? r[index] : "";
 
-    static TradeKind ParseTradeKind(string file, string what, string value) =>
+    static TradeKind? ParseTradeKind(string file, string what, string value) =>
         value.Trim().ToLowerInvariant() switch
         {
-            "" or "common_item" => TradeKind.CommonItem,
+            "" => null,                                       // 비우면 코드가 속한 인벤토리 마스터로 알아낸다
+            "common_item" => TradeKind.CommonItem,
             "unique_item" => TradeKind.UniqueItem,
             "character" => TradeKind.Character,
             _ => throw new PackFormatException($"{file}: {what} '{value}'이(가) common_item/unique_item/character가 아닙니다."),
         };
 
-    static List<ShopTrade>? LoadTradeRows(ZipArchive zip, List<FlatCondition> conditions) =>
+    static List<ShopTrade>? LoadTradeRows(ZipArchive zip, List<FlatCondition> conditions, IReadOnlyDictionary<long, InventoryEntry> inventory) =>
         LoadConditioned(
             zip, ShopTradeMasterPath,
             ["code", "shop_code", "cost_item_code", "cost_amount", "receive_item_code", "receive_amount"],
@@ -498,8 +542,10 @@ public sealed partial class GamePack
             {
                 const string file = ShopTradeMasterPath;
                 var who = $"트레이드 '{code}'의";
-                var costKind = ParseTradeKind(file, $"{who} 코스트 종류", CellOf(r, 6));
-                var receiveKind = ParseTradeKind(file, $"{who} 리시브 종류", CellOf(r, 7));
+                var costCode = ParseLong(file, $"{who} 코스트 코드", r[2]);
+                var receiveCode = ParseLong(file, $"{who} 리시브 코드", r[4]);
+                var costKind = ResolveTradeKind(file, who, "코스트", ParseTradeKind(file, $"{who} 코스트 종류", CellOf(r, 6)), costCode, inventory);
+                var receiveKind = ResolveTradeKind(file, who, "리시브", ParseTradeKind(file, $"{who} 리시브 종류", CellOf(r, 7)), receiveCode, inventory);
                 var costAmount = ParsePositive(file, $"{who} 코스트 어마운트", r[3]);
                 var receiveAmount = ParsePositive(file, $"{who} 리시브 어마운트", r[5]);
                 // 유니크 아이템과 캐릭터는 대가로도 결과로도 1개씩이다.
@@ -510,9 +556,9 @@ public sealed partial class GamePack
                 return new ShopTrade(
                     code,
                     ParseLong(file, $"{who} 상점 코드", r[1]),
-                    ParseLong(file, $"{who} 코스트 코드", r[2]),
+                    costCode,
                     costAmount,
-                    ParseLong(file, $"{who} 리시브 코드", r[4]),
+                    receiveCode,
                     receiveAmount,
                     groups,
                     costKind,

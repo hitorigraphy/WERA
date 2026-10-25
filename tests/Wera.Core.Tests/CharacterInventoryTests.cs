@@ -5,8 +5,8 @@ namespace Wera.Core.Tests;
 public class CharacterInventoryTests
 {
     const string Header =
-        "character_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n";
-    const string ItemHeader = "item_code\titem_name\tcarry_limit\n";
+        "inventory_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n";
+    const string ItemHeader = "inventory_code\titem_name\tcarry_limit\n";
     const string Attributes = "attribute_code\tattribute_name\n1\t불\n2\t물\n3\t풀\n";
 
     static GamePack Pack(string? characters, string? items = null, string? attributes = Attributes)
@@ -54,9 +54,9 @@ public class CharacterInventoryTests
         => Assert.Throws<PackFormatException>(() => Pack(Header + rows));
 
     [Theory]
-    [InlineData("character_code\tcharacter_name\tcarry_limit\n7001\ta\t1\n")]                                // 속성 열 없음(옛 형식)
-    [InlineData("character_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\n7001\ta\t1\t1\n")]   // 불리속성 열 없음
-    [InlineData("item_code\titem_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n7001\ta\t1\t1\t2\n")]
+    [InlineData("inventory_code\tcharacter_name\tcarry_limit\n7001\ta\t1\n")]                                // 속성 열 없음(옛 형식)
+    [InlineData("inventory_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\n7001\ta\t1\t1\n")]   // 불리속성 열 없음
+    [InlineData("inventory_code\titem_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n7001\ta\t1\t1\t2\n")]
     [InlineData("code\tname\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n7001\ta\t1\t1\t2\n")]
     public void Character_inventory_header_is_checked(string tsv)
         => Assert.Throws<PackFormatException>(() => Pack(tsv));
@@ -68,19 +68,28 @@ public class CharacterInventoryTests
             ("master/character_inventory_master_v1.tsv", Header + "7001\ta\t1\t1\t2\n"))));
 
     [Fact]
-    public void Item_inventory_still_uses_item_code_and_item_name()
+    public void Item_inventory_uses_the_inventory_code_and_item_name_columns()
     {
-        Assert.NotNull(Pack(null, ItemHeader + "1\t금화\t99999\n").ItemInventory);
-        Assert.Throws<PackFormatException>(() => Pack(null, Header + "1\t금화\t99999\t1\t2\n"));
+        Assert.NotNull(Pack(null, ItemHeader + "11\t금화\t99999\n").ItemInventory);
+        Assert.Throws<PackFormatException>(() => Pack(null, Header + "11\t금화\t99999\t1\t2\n"));          // 열 이름이 맞지 않는다
+        Assert.Throws<PackFormatException>(() => Pack(null, "item_code\titem_name\tcarry_limit\n11\t금화\t99\n"));   // 예전 열 이름
+        Assert.Throws<PackFormatException>(() => Pack("character_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n7001\ta\t1\t1\t2\n"));
     }
 
     [Fact]
-    public void Character_and_item_inventories_are_separate_code_spaces()
+    public void Character_and_item_inventories_share_one_inventory_code_space()
     {
-        // 같은 코드가 양쪽에 있어도 충돌하지 않고, 아이템 이름 조회는 캐릭터를 보지 않는다.
-        var pack = Pack(Header + "1\t용사\t1\t1\t2\n", ItemHeader + "1\t금화\t99999\n");
+        // 캐릭터와 아이템이 같은 인벤토리 코드를 쓰면 읽지 못한다(코드 1은 플레이어).
+        var error = Assert.Throws<PackFormatException>(() => Pack(Header + "1\t용사\t1\t1\t2\n", ItemHeader + "1\t금화\t99999\n"));
+        Assert.Contains("인벤토리 코드 '1'", error.Message);
+        Assert.Contains("common_item_inventory_master", error.Message);
+        Assert.Contains("character_inventory_master", error.Message);
+
+        // 코드가 다르면 괜찮고 아이템 이름 조회는 캐릭터를 보지 않는다.
+        var pack = Pack(Header + "1\t용사\t1\t1\t2\n", ItemHeader + "11\t금화\t99999\n");
         Assert.Equal("용사", pack.CharacterInventory![0].Name);
-        Assert.Equal("금화", pack.ItemName(1));
+        Assert.Equal("금화", pack.ItemName(11));
+        Assert.Equal("1", pack.ItemName(1));
         Assert.Equal("77", pack.ItemName(77));
     }
 

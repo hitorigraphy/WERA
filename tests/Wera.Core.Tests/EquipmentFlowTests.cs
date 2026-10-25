@@ -8,7 +8,7 @@ public class EquipmentFlowTests
         ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
         ("master/attribute_master_v1.tsv", "attribute_code\tattribute_name\n1\t불\n2\t물\n"),
         ("master/character_inventory_master_v1.tsv",
-            "character_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n" +
+            "inventory_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n" +
             "7001\t용사\t1\t1\t2\n7002\t마법사\t1\t2\t1\n")));
 
     /// <summary>용사는 슬롯 1(인덱스 0), 마법사는 슬롯 5(인덱스 4)에 배치.</summary>

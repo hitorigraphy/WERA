@@ -9,7 +9,7 @@ public class CharacterStatusTests
     const string Pack0 = "id\tdemo\ntitle\t데모\n";
     const string Attributes = "attribute_code\tattribute_name\n1\t불\n2\t물\n";
     const string Characters =
-        "character_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n7001\t용사\t1\t1\t2\n7002\t마법사\t1\t2\t1\n";
+        "inventory_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n7001\t용사\t1\t1\t2\n7002\t마법사\t1\t2\t1\n";
     const string Statuses = "status_code\tstatus_name\n3\txp\n1\tlevel\n2\thp\n4\texp\n";
     const string Header = "character_code\tstatus_code\tlevel\tinitial_value\tmin_value\tmax_value\n";
 

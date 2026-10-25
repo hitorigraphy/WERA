@@ -35,7 +35,7 @@ public class CoreTests
         AddIfMissing(GamePack.TagMasterPath, "tag_code\ttag_name\n1\t플레이어\n2\t리더\n");
         AddIfMissing(GamePack.StatusMasterPath, "status_code\tstatus_name\n1\tlevel\n2\thp\n3\txp\n");
         AddIfMissing(GamePack.CharacterInventoryMasterPath,
-            "character_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n1\t당신\t1\t1\t2\n");
+            "inventory_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n1\t당신\t1\t1\t2\n");
         AddIfMissing(GamePack.CharacterTagMasterPath, "character_code\ttag_code\n1\t1\n");
         AddIfMissing(GamePack.TimeSlotMasterPath, "code\tname\n1\t아침\n");
         AddIfMissing(GamePack.TurnMasterPath, "turn_count\tyear\tmonth\tday\ttime_slot_code\n1\t1\t1\t1\t1\n");

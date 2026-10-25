@@ -11,7 +11,7 @@ public class MasterDatabaseTests
         ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
         ("master/attribute_master_v1.tsv", "attribute_code\tattribute_name\n3\t풀\n1\t불\n2\t물\n"),
         ("master/character_inventory_master_v1.tsv",
-            "character_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n" +
+            "inventory_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n" +
             "1\t당신\t1\t1\t2\n7003\t도적\t1\t3\t1\n7001\t용사\t1\t1\t2\n7002\t마법사\t2\t2\t3\n"),
         ("master/dungeon_master_v1.tsv", "code\tname\n1002\t동굴\n1001\t초원\n"),
         ("master/dungeon_flag_master_v1.tsv",
@@ -20,12 +20,12 @@ public class MasterDatabaseTests
         ("master/shop_master_v1.tsv", "code\tname\n2002\t무기점\n2001\t잡화점\n"),
         ("master/shop_condition_master_v1.tsv",
             "shop_code\tgroup_number\tflag_code\tcondition_type\tcondition_value\n2002\t1\t1002\tGreaterOrEqual\t3\n"),
-        ("master/common_item_inventory_master_v1.tsv", "item_code\titem_name\tcarry_limit\n3\t철광석\t99\n1\t금화\t99999\n2\t약초\t99\n"),
+        ("master/common_item_inventory_master_v1.tsv", "inventory_code\titem_name\tcarry_limit\n3\t철광석\t99\n11\t금화\t99999\n2\t약초\t99\n"),
         ("master/bunch_item_inventory_master_v1.tsv",
-            "item_code\titem_name\tpart_item_code\tpart_amount\n9001\t초보자 세트\t3\t1\n9001\t초보자 세트\t2\t3\n"),
+            "inventory_code\titem_name\tpart_item_code\tpart_amount\n9501\t초보자 세트\t3\t1\n9501\t초보자 세트\t2\t3\n"),
         ("master/shop_trade_master_v1.tsv",
             "code\tshop_code\tcost_item_code\tcost_amount\treceive_item_code\treceive_amount\n" +
-            "5003\t2002\t3\t3\t9001\t1\n5001\t2001\t1\t100\t2\t5\n5002\t2001\t2\t10\t1\t30\n"),
+            "5003\t2002\t3\t3\t9501\t1\n5001\t2001\t11\t100\t2\t5\n5002\t2001\t2\t10\t11\t30\n"),
         ("master/shop_trade_condition_master_v1.tsv",
             "trade_code\tgroup_number\tflag_code\tcondition_type\tcondition_value\n5002\t1\t1001\tGreaterOrEqual\t1\n"),
         ("master/status_effect_master_v1.tsv", "status_effect_code\tstatus_effect_name\n3\t재생\n1\t독\n"),
@@ -35,7 +35,7 @@ public class MasterDatabaseTests
         ("master/equipment_slot_master_v1.tsv", "equipment_slot_code\tequipment_slot_name\n2\t방어구\n1\t무기\n"),
         ("master/tag_master_v1.tsv", "tag_code\ttag_name\n1\t플레이어\n2\t리더\n6\t마법\n3\t검\n5\t중량\n4\t갑옷\n"),
         ("master/character_tag_master_v1.tsv", "character_code\ttag_code\n1\t1\n"),
-        ("master/unique_item_inventory_master_v1.tsv", "item_code\titem_name\n9003\t지팡이\n9001\t철검\n9002\t대검\n"),
+        ("master/unique_item_inventory_master_v1.tsv", "inventory_code\titem_name\n9003\t지팡이\n9001\t철검\n9002\t대검\n"),
         ("master/unique_item_tag_master_v1.tsv", "item_code\ttag_code\n9002\t5\n9001\t3\n9002\t3\n9003\t6\n"),
         ("master/equipment_slot_tag_master_v1.tsv",
             "character_code\tequipment_slot_code\ttag_code\tgroup_number\tis_positive\n" +
@@ -101,7 +101,7 @@ public class MasterDatabaseTests
     {
         var pack = FullPack();
         Assert.Equal([1L, 7003L, 7001L, 7002L], pack.CharacterInventory!.Select(c => c.Code));       // 파일 순서
-        Assert.Equal([3L, 1L, 2L], pack.ItemInventory!.Select(i => i.Code));
+        Assert.Equal([3L, 11L, 2L], pack.ItemInventory!.Select(i => i.Code));
         Assert.Equal([1002L, 1001L], pack.Dungeons!.Select(d => d.Code));
 
         // 테이블은 기본키(코드) 순서다. 파일 순서는 따로 기억하지 않는다.
@@ -133,7 +133,7 @@ public class MasterDatabaseTests
     [Fact]
     public void Bunch_is_found_by_its_item_code_with_parts_in_part_code_order()
     {
-        var bunch = FullPack().FindBunch(9001)!;
+        var bunch = FullPack().FindBunch(9501)!;
         Assert.Equal("초보자 세트", bunch.Name);
         Assert.Equal([new BunchPart(2, 3), new BunchPart(3, 1)], bunch.Parts);          // 부품 코드 순(파일에는 3 다음 2)
         Assert.Null(FullPack().FindBunch(1));                                             // 일반 아이템은 번치가 아니다
@@ -143,11 +143,11 @@ public class MasterDatabaseTests
     public void Item_names_and_bunch_expansion_come_from_the_tables()
     {
         var pack = FullPack();
-        Assert.Equal("금화", pack.ItemName(1));
-        Assert.Equal("초보자 세트", pack.ItemName(9001));
+        Assert.Equal("금화", pack.ItemName(11));
+        Assert.Equal("초보자 세트", pack.ItemName(9501));
         Assert.Equal("77", pack.ItemName(77));
-        Assert.Equal(new Dictionary<long, long> { [3] = 2, [2] = 6 }, pack.Expand(9001, 2));
-        Assert.Equal(new Dictionary<long, long> { [1] = 5 }, pack.Expand(1, 5));
+        Assert.Equal(new Dictionary<long, long> { [3] = 2, [2] = 6 }, pack.Expand(9501, 2));
+        Assert.Equal(new Dictionary<long, long> { [11] = 5 }, pack.Expand(11, 5));
     }
 
     [Fact]
@@ -189,8 +189,8 @@ public class MasterDatabaseTests
     public void Bunch_and_equipment_tag_tables_have_two_column_composite_keys()
     {
         var db = FullPack().Masters;
-        Assert.Equal(3, db.BunchInventoryRowTable.FindByItemCodeAndPartItemCode((9001, 2)).PartAmount);
-        Assert.False(db.BunchInventoryRowTable.TryFindByItemCodeAndPartItemCode((9001, 1), out _));
+        Assert.Equal(3, db.BunchInventoryRowTable.FindByItemCodeAndPartItemCode((9501, 2)).PartAmount);
+        Assert.False(db.BunchInventoryRowTable.TryFindByItemCodeAndPartItemCode((9501, 1), out _));
         Assert.Equal(2, db.UniqueItemTagRowTable.FindByItemCode(9002).Count);
         Assert.True(db.UniqueItemTagRowTable.TryFindByItemCodeAndTagCode((9002, 5), out _));
         Assert.False(db.UniqueItemTagRowTable.TryFindByItemCodeAndTagCode((9001, 5), out _));
@@ -242,7 +242,7 @@ public class MasterDatabaseTests
             ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
             ("master/attribute_master_v1.tsv", "attribute_code\tattribute_name\n1\t불\n2\t물\n"),
             ("master/character_inventory_master_v1.tsv",
-                "character_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n1\t당신\t1\t1\t2\n7001\t용사\t1\t1\t2\n"),
+                "inventory_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n1\t당신\t1\t1\t2\n7001\t용사\t1\t1\t2\n"),
             ("master/equipment_slot_master_v1.tsv", "equipment_slot_code\tequipment_slot_name\n1\t무기\n"),
             ("master/tag_master_v1.tsv", "tag_code\ttag_name\n1\t플레이어\n2\t리더\n"),
             ("master/character_tag_master_v1.tsv", "character_code\ttag_code\n1\t1\n"),

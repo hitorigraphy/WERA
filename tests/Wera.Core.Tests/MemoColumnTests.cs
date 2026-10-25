@@ -37,18 +37,18 @@ public class MemoColumnTests
     {
         const string header = "code\tshop_code\tcost_item_code\tcost_amount\treceive_item_code\treceive_amount\tcost_kind\treceive_kind\tmemo\n";
         var pack = Load(
-            ("master/common_item_inventory_master_v1.tsv", "item_code\titem_name\tcarry_limit\tmemo\n1\t금화\t99999\t\n2\t약초\t99\t\n"),
+            ("master/common_item_inventory_master_v1.tsv", "inventory_code\titem_name\tcarry_limit\tmemo\n11\t금화\t99999\t\n2\t약초\t99\t\n"),
             ("master/shop_master_v1.tsv", "code\tname\tmemo\n2001\t상점\t\n"),
-            ("master/shop_trade_master_v1.tsv", header + "5001\t2001\t1\t1\t2\t1\t\t\t테스트용\n5002\t2001\t1\t2\t2\t2\tcommon_item\tcommon_item\t\n"));
+            ("master/shop_trade_master_v1.tsv", header + "5001\t2001\t11\t1\t2\t1\t\t\t테스트용\n5002\t2001\t11\t2\t2\t2\tcommon_item\tcommon_item\t\n"));
         Assert.Equal(2, pack.Trades!.Count);
         Assert.All(pack.Trades, t => Assert.Equal(TradeKind.CommonItem, t.CostKind));
 
         // 종류 열 한 개만 있으면 메모가 있어도 여전히 거부한다.
         Assert.Throws<PackFormatException>(() => Load(
             ("master/shop_master_v1.tsv", "code\tname\n2001\t상점\n"),
-            ("master/common_item_inventory_master_v1.tsv", "item_code\titem_name\tcarry_limit\n1\t금화\t99\n"),
+            ("master/common_item_inventory_master_v1.tsv", "inventory_code\titem_name\tcarry_limit\n11\t금화\t99\n"),
             ("master/shop_trade_master_v1.tsv",
-                "code\tshop_code\tcost_item_code\tcost_amount\treceive_item_code\treceive_amount\tcost_kind\tmemo\n5001\t2001\t1\t1\t1\t1\t\t메모\n")));
+                "code\tshop_code\tcost_item_code\tcost_amount\treceive_item_code\treceive_amount\tcost_kind\tmemo\n5001\t2001\t11\t1\t11\t1\t\t메모\n")));
     }
 
     [Fact]
@@ -88,7 +88,7 @@ public class MemoColumnTests
     public void The_test_shop_trades_cover_common_unique_and_character_kinds()
     {
         var s = GameSession.NewGame(Sample());
-        s.InventoryItems[1] = new InventoryItem(200);
+        s.InventoryItems[101] = new InventoryItem(200);
         s.Activate("102"); s.Activate("2999");
         Assert.Equal(
             ["금화 ×1 → 약초 ×1", "금화 ×10 → 철검 ×1", "금화 ×100 → 도적 ×1", "철검 ×1 → 금화 ×5"],

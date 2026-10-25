@@ -8,7 +8,7 @@ public class PlayerCharacterTests
     const string Pack0 = "id\tdemo\ntitle\t데모\n";
     const string Attributes = "attribute_code\tattribute_name\n1\t불\n2\t물\n";
     const string CharacterHeader =
-        "character_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n";
+        "inventory_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n";
     const string Tags = "tag_code\ttag_name\n1\t플레이어\n2\t리더\n3\t검\n";
 
     static GamePack Load(
@@ -21,8 +21,8 @@ public class PlayerCharacterTests
             ("pack.tsv", Pack0),
             ("master/attribute_master_v1.tsv", Attributes),
             ("master/character_inventory_master_v1.tsv", characters),
-            ("master/unique_item_inventory_master_v1.tsv", "item_code\titem_name\n8001\t철검\n"),
-            ("master/common_item_inventory_master_v1.tsv", "item_code\titem_name\tcarry_limit\n3\t뼈\t9\n"),
+            ("master/unique_item_inventory_master_v1.tsv", "inventory_code\titem_name\n8001\t철검\n"),
+            ("master/common_item_inventory_master_v1.tsv", "inventory_code\titem_name\tcarry_limit\n3\t뼈\t9\n"),
         };
         files.Add(("master/tag_master_v1.tsv", tags));
         files.Add(("master/character_tag_master_v1.tsv", characterTags));
@@ -151,7 +151,7 @@ public class PlayerCharacterTests
         var pack = GamePack.Load(CoreTests.PackZip(
             ("pack.tsv", Pack0),
             ("master/attribute_master_v1.tsv", Attributes),
-            ("master/common_item_inventory_master_v1.tsv", "item_code\titem_name\tcarry_limit\n3\t뼈\t999\n"),
+            ("master/common_item_inventory_master_v1.tsv", "inventory_code\titem_name\tcarry_limit\n3\t뼈\t999\n"),
             ("master/character_inventory_master_v1.tsv", CharacterHeader + "1\t당신\t1\t1\t2\n"),
             ("master/tag_master_v1.tsv", Tags),
             ("master/character_tag_master_v1.tsv", "character_code\ttag_code\n1\t1\n"),

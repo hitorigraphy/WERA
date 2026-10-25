@@ -10,7 +10,7 @@ public class PartyTests
 
     // 7001 용사(유리 빛, 불리 어둠), 7002 마법사(불/물), 7003 전사(풀/불), 7004 도적(보유하지 않음)
     const string Characters =
-        "character_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n" +
+        "inventory_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n" +
         "7001\t용사\t1\t4\t5\n7002\t마법사\t1\t1\t2\n7003\t전사\t1\t3\t1\n7004\t도적\t1\t5\t4\n";
 
     static GamePack Pack(string? characters = Characters)

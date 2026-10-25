@@ -120,7 +120,7 @@ public sealed partial class GamePack
     }
 
     static List<UniqueItem>? LoadUniqueItems(ZipArchive zip) =>
-        LoadCodeNames(zip, UniqueItemInventoryMasterPath, "item_code", "item_name", "유니크 아이템",
+        LoadCodeNames(zip, UniqueItemInventoryMasterPath, "inventory_code", "item_name", "유니크 아이템",
             (code, name) => new UniqueItem(code, name));
 
     /// <summary>

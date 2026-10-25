@@ -9,7 +9,7 @@ public class SupportSlotTests
         ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
         ("master/attribute_master_v1.tsv", "attribute_code\tattribute_name\n1\t불\n2\t물\n"),
         ("master/character_inventory_master_v1.tsv",
-            "character_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n" +
+            "inventory_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n" +
             "7001\t용사\t1\t1\t2\n7002\t마법사\t1\t2\t1\n7003\t전사\t1\t1\t2\n7004\t도적\t1\t2\t1\n")));
 
     // 용사, 마법사, 전사를 보유(도적은 보유하지 않음). 파티에는 용사가 첫 칸에 있다.

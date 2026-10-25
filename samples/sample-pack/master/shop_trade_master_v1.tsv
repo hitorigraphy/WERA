@@ -1,8 +1,8 @@
 code	shop_code	cost_item_code	cost_amount	receive_item_code	receive_amount	cost_kind	receive_kind	memo
-5001	2001	1	100	2	5			
-5002	2001	2	10	1	30			
-5003	2002	3	3	9001	1			
-5991	2999	1	1	2	1	common_item	common_item	테스트용
-5992	2999	1	10	8001	1	common_item	unique_item	테스트용
-5993	2999	1	100	7004	1	common_item	character	테스트용
-5994	2999	8001	1	1	5	unique_item	common_item	테스트용
+5001	2001	101	100	102	5			
+5002	2001	102	10	101	30			
+5003	2002	103	3	9001	1			
+5991	2999	101	1	102	1	common_item	common_item	테스트용
+5992	2999	101	10	8001	1	common_item	unique_item	테스트용
+5993	2999	101	100	7004	1	common_item	character	테스트용
+5994	2999	8001	1	101	5	unique_item	common_item	테스트용

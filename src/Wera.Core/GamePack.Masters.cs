@@ -15,6 +15,15 @@ public sealed partial class GamePack
     public required MemoryDatabase Masters { get; init; }
 
     /// <summary>
+    /// 인벤토리 코드로 찾는 공통 사전: 커먼 아이템, 유니크 아이템, 번치 아이템, 캐릭터 인벤토리 마스터의 모든 항목이 들어 있고
+    /// 코드는 겹치지 않는다. 읽지 않은(없는) 마스터의 항목은 없다.
+    /// </summary>
+    public required IReadOnlyDictionary<long, InventoryEntry> Inventory { get; init; }
+
+    /// <summary>인벤토리 코드의 항목. 어느 인벤토리 마스터에도 없으면 null.</summary>
+    public InventoryEntry? FindInventory(long inventoryCode) => Inventory.GetValueOrDefault(inventoryCode);
+
+    /// <summary>
     /// 로더가 만든 마스터들을 테이블로 올려 데이터베이스를 만든다. 기본키 중복 같은 위반은 Build/로드 단계에서는 잡히지 않으므로
     /// 반드시 Validate()를 호출한다. 로더가 이미 검증하므로 여기서 실패하면 로더나 테이블 정의의 버그다.
     /// </summary>

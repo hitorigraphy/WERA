@@ -185,7 +185,7 @@ public class EffectTests
         {
             files.Add(("master/attribute_master_v1.tsv", "attribute_code\tattribute_name\n1\t불\n2\t물\n"));
             files.Add(("master/character_inventory_master_v1.tsv",
-                "character_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n" +
+                "inventory_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n" +
                 "7001\t용사\t1\t1\t2\n7002\t마법사\t1\t2\t1\n"));
         }
         return GamePack.Load(CoreTests.PackZip(files.ToArray()), embedded);

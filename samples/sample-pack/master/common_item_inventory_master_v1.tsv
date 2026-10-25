@@ -1,4 +1,4 @@
-item_code	item_name	carry_limit	memo
-1	금화	99999	
-2	약초	99	
-3	철광석	99	
+inventory_code	item_name	carry_limit	memo
+101	금화	99999	
+102	약초	99	
+103	철광석	99	

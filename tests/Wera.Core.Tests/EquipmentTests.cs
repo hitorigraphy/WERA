@@ -6,7 +6,7 @@ public class EquipmentTests
 {
     const string SlotHeader = "equipment_slot_code\tequipment_slot_name\n";
     const string TagHeader = "tag_code\ttag_name\n";
-    const string ItemHeader = "item_code\titem_name\n";
+    const string ItemHeader = "inventory_code\titem_name\n";
     const string ItemTagHeader = "item_code\ttag_code\n";
     const string SlotTagHeader = "character_code\tequipment_slot_code\ttag_code\tgroup_number\tis_positive\n";
 
@@ -35,7 +35,7 @@ public class EquipmentTests
             ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
             ("master/attribute_master_v1.tsv", "attribute_code\tattribute_name\n1\t불\n2\t물\n"),
             ("master/character_inventory_master_v1.tsv",
-                "character_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n" +
+                "inventory_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n" +
                 "1\t당신\t1\t1\t2\n7001\t용사\t1\t1\t2\n7002\t마법사\t1\t2\t1\n7003\t도적\t1\t1\t2\n"),
         };
         if (slots is not null) files.Add(("master/equipment_slot_master_v1.tsv", slots));
