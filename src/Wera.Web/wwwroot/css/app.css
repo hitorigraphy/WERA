@@ -166,6 +166,10 @@ body { width: 960px; margin: 0 auto; }
 main.game { height: 720px; margin: 0 auto; padding: 0; display: flex; flex-direction: column; overflow: hidden; }
 /* 게임 화면은 페이지 맨 위에 붙는다(위쪽의 회색 여백 없음) */
 .screen { flex: 1; min-height: 0; overflow-y: auto; padding: 1rem; }
+/* 게임팩 고르기와 세이브 고르기 화면: 끌어다 놓는 영역이 남는 높이를 모두 채운다 */
+.screen.pregame { display: flex; flex-direction: column; }
+.screen.pregame .drop { flex: 1; display: flex; flex-direction: column; justify-content: center; margin-bottom: 0; }
+.screen.pregame .error { flex: none; }
 main.game > .site-footer { flex: none; box-sizing: border-box; width: 100%; max-width: none; margin: 0; padding: .6rem 1rem; border-top: 1px solid #666; text-align: center; }
 .command-bar { flex: none; border-top: 1px solid #666; }
 .command-bar input.command { display: block; width: 100%; box-sizing: border-box; margin: 0; padding: .6rem 1rem; border: 0; outline: none; }

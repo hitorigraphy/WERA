@@ -134,7 +134,7 @@
     @* 게임팩 고르기와 세이브 고르기 화면도 게임 화면과 같은 960×720 틀을 쓴다: 위쪽 화면 영역 + 맨 아래 한 줄(버튼 또는 코드 입력칸) *@
     @if (pack is null)
     {
-        <div class="screen">
+        <div class="screen pregame">
             <div class="drop" @ondragenter="() => dragging = true" @ondragleave="() => dragging = false" @ondrop="() => dragging = false"
                  data-dragging="@dragging">
                 <p>게임팩(.zip)을 여기에 끌어다 놓으세요</p>
@@ -152,7 +152,7 @@
     }
     else if (session is null)
     {
-        <div class="screen">
+        <div class="screen pregame">
             <h1>@pack.Title</h1>
             <div class="drop" @ondragenter="() => dragging = true" @ondragleave="() => dragging = false" @ondrop="() => dragging = false"
                  data-dragging="@dragging">
