@@ -307,7 +307,11 @@
                         </div>
                         break;
                     case { Kind: AdvStepKind.TextYou } you:
-                        <div class="adv-line adv-you"><div class="adv-box"><p class="adv-text">@you.Text</p></div></div>
+                        @* 나의 대사의 좌우 반전: 왼쪽에 이름이 왼쪽 위에 걸친 텍스트 상자, 오른쪽에 이미지 *@
+                        <div class="adv-line adv-you">
+                            <div class="adv-box"><span class="adv-name">[ @session.OpponentSpeakerName ]</span><p class="adv-text">@you.Text</p></div>
+                            <div class="adv-icon">@noImage</div>
+                        </div>
                         break;
                     case { Kind: AdvStepKind.TextNormal } normal:
                         <p class="adv-normal">@normal.Text</p>

@@ -170,3 +170,15 @@ public class AdvScreenTests
         Assert.Null(s.CurrentAdvStep);
     }
 }
+
+public class AdvSpeakerNameTests
+{
+    [Fact]
+    public void The_opponent_is_named_after_the_partner_for_now_and_the_player_after_character_one()
+    {
+        var pack = GamePack.Load(CoreTests.PackZip(("pack.tsv", "id\tdemo\ntitle\t데모\n")));
+        var s = GameSession.NewGame(pack);
+        Assert.Equal("당신", s.PlayerSpeakerName);
+        Assert.Equal("상대", s.OpponentSpeakerName);
+    }
+}

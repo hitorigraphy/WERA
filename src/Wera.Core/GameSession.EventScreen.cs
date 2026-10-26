@@ -32,6 +32,9 @@ public sealed partial class GameSession
     /// <summary>TextMe 장면의 화자 이름: 플레이어 캐릭터(캐릭터 1)의 이름.</summary>
     public string PlayerSpeakerName => Pack.FindCharacter(GamePack.PlayerCharacterCode)?.Name ?? PlayerSlotName;
 
+    /// <summary>TextYou 장면의 화자 이름. 아직 상대를 정하는 데이터가 없어 파트너 슬롯의 캐릭터 이름을 쓰고, 비어 있으면 "상대".</summary>
+    public string OpponentSpeakerName => PartnerCode is { } code ? Pack.FindCharacter(code)?.Name ?? "상대" : "상대";
+
     /// <summary>이벤트를 시작해 첫 장면으로 간다. 시작할 수 없으면 이벤트 화면에 머문다.</summary>
     void BeginEvent(long eventCode)
     {
