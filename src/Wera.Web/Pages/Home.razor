@@ -156,8 +156,8 @@
             <h1>@pack.Title</h1>
             <div class="drop" @ondragenter="() => dragging = true" @ondragleave="() => dragging = false" @ondrop="() => dragging = false"
                  data-dragging="@dragging">
-                <p>세이브(.sav)를 여기에 끌어다 놓으세요</p>
-                <InputFile OnChange="OnSaveSelected" accept=".sav,.json" />
+                <p>세이브(.wsv)를 여기에 끌어다 놓으세요</p>
+                <InputFile OnChange="OnSaveSelected" accept=".wsv" />
             </div>
             @if (error is not null)
             {
@@ -377,8 +377,8 @@
                 <h2>로드</h2>
                 <div class="drop" @ondragenter="() => dragging = true" @ondragleave="() => dragging = false" @ondrop="() => dragging = false"
                      data-dragging="@dragging">
-                    <p>세이브(.sav)를 여기에 끌어다 놓으세요</p>
-                    <InputFile OnChange="OnSaveSelected" accept=".sav,.json" />
+                    <p>세이브(.wsv)를 여기에 끌어다 놓으세요</p>
+                    <InputFile OnChange="OnSaveSelected" accept=".wsv" />
                 </div>
                 @commands
                 break;
@@ -480,6 +480,11 @@
     async Task OnSaveSelected(InputFileChangeEventArgs e)
     {
         error = null;
+        if (!e.File.Name.EndsWith(".wsv", StringComparison.OrdinalIgnoreCase))
+        {
+            error = $"세이브는 .wsv 파일이어야 합니다: {e.File.Name}";
+            return;
+        }
         try
         {
             using var reader = new StreamReader(e.File.OpenReadStream(16 * 1024 * 1024), Encoding.UTF8);
@@ -523,6 +528,6 @@
     }
 
     async Task SaveGame() =>
-        await JS.InvokeVoidAsync("wera.download", $"{pack!.Id}.sav", session!.ToSaveJson());
+        await JS.InvokeVoidAsync("wera.download", $"{pack!.Id}.wsv", session!.ToSaveJson());
 
 }

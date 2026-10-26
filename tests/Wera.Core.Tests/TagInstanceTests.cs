@@ -234,7 +234,7 @@ public class TagInstanceTests
 
         using var zip = File.OpenRead(Path.Combine(wwwroot, "sample-pack.wra"));
         var pack = GamePack.Load(zip);
-        var s = GameSession.FromSaveJson(pack, File.ReadAllText(Path.Combine(wwwroot, "sample-tutorial-clear.sav")));
+        var s = GameSession.FromSaveJson(pack, File.ReadAllText(Path.Combine(wwwroot, "sample-tutorial-clear.wsv")));
 
         Assert.Equal(7, s.UniqueItemInstances.Count);
         Assert.Equal(8001, s.EquippedUniqueCode(7001, 1));
