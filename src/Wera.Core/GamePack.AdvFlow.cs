@@ -105,6 +105,7 @@ public sealed partial class GamePack
         foreach (var (advCode, flow, type, p1, p2, _, line, _) in rows)
         {
             var where = $"{file}: ADV '{advCode}'의 흐름 {flow}의";
+            if (type == AdvFlowType.Choice) CheckChoiceText(where, line);
             switch (type)
             {
                 case AdvFlowType.TextMe or AdvFlowType.TextYou or AdvFlowType.TextPlain when string.IsNullOrWhiteSpace(line):
@@ -199,6 +200,14 @@ public sealed partial class GamePack
         if (lines > AdvLayout.BoxLines)
             throw new PackFormatException(
                 $"{where} text가 대사 상자에 들어가지 않습니다: {lines}줄입니다(최대 {AdvLayout.BoxLines}줄, 한 줄 {AdvLayout.BoxColumns}칸, 한글은 2칸).");
+    }
+
+    /// <summary>선택지 문구도 꾸밈 문법(<see cref="RichText"/>)을 쓸 수 있다. 목록의 한 줄로 나오므로 줄바꿈(\n)은 쓸 수 없다.</summary>
+    static void CheckChoiceText(string where, string text)
+    {
+        var rich = RichText.TryParse(text, out var error);
+        if (rich is null) throw new PackFormatException($"{where} 선택지 text가 올바르지 않습니다: {error}");
+        if (rich.Lines.Count > 1) throw new PackFormatException($"{where} 선택지 text에는 줄바꿈(\\n)을 쓸 수 없습니다.");
     }
 
     /// <summary>ADV의 흐름 칸 하나(조건 포함). 없으면 null.</summary>

@@ -107,11 +107,19 @@ public sealed partial class GameSession
     /// </summary>
     public bool AdvanceOnAnyKey => Screen == Screen.EventPlay && CurrentAdvStep is not { Kind: AdvStepKind.Choice };
 
+    /// <summary>선택지 항목. 문구는 꾸밈 문법을 적용해 보여 주고(Label은 꾸밈을 뗀 글), 로드 때 문법을 검증하므로 늘 읽힌다.</summary>
+    ScreenEntry ChoiceEntry(int index, AdvChoice choice)
+    {
+        var rich = RichText.TryParse(choice.Text, out _);
+        return new ScreenEntry(Text(index + 1), rich?.PlainText ?? choice.Text, Screen.EventPlay, EntryAction.ChooseAdv,
+            Arg: index.ToString(), LabelHtml: rich?.ToHtml());
+    }
+
     /// <summary>이벤트 진행 화면의 항목: 선택지 장면이면 [1]부터 선택지들, 아니면 [1] 다음.</summary>
     IReadOnlyList<ScreenEntry> EventPlayEntries() =>
         CurrentAdvStep is { Kind: AdvStepKind.Choice } choice
             ? choice.Choices
-                .Select((c, i) => new ScreenEntry(Text(i + 1), c.Text, Screen.EventPlay, EntryAction.ChooseAdv, Arg: i.ToString()))
+                .Select((c, i) => ChoiceEntry(i, c))
                 .ToList()
             : [new ScreenEntry(NextEventStepCode, "다음", Screen.EventPlay, EntryAction.NextEventStep)];
 }

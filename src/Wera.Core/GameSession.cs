@@ -69,8 +69,9 @@ public enum EntryAction
 
 /// <summary>화면에 나오는 클릭 가능한 텍스트. 클릭하거나 Code를 입력하면 Action을 수행한다.</summary>
 /// <param name="Arg">항목이 가리키는 추가 값(파티 슬롯 항목에서는 슬롯 번호 0~8).</param>
+/// <param name="LabelHtml">꾸밈 문법(굵게, 색)이 적용된 문구의 HTML. 없으면 Label을 그대로 보여 준다(ADV 선택지가 쓴다).</param>
 public sealed record ScreenEntry(
-    string Code, string Label, Screen Target, EntryAction Action = EntryAction.Navigate, string? Arg = null);
+    string Code, string Label, Screen Target, EntryAction Action = EntryAction.Navigate, string? Arg = null, string? LabelHtml = null);
 
 /// <param name="Version">릴리스 전이라 1로 유지한다. 지시가 있을 때까지 올리지 않는다.</param>
 public sealed record SaveData(

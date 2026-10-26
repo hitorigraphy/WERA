@@ -321,3 +321,44 @@ public class AdvLogTests
         Assert.Equal(Screen.Event, s.Screen);
     }
 }
+
+public class AdvChoiceMarkupTests
+{
+    static GameSession Session(string choiceText)
+    {
+        var files = new (string, string)[]
+        {
+            ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
+            ("master/event_master_v1.tsv", "code\tname\n3001\t이벤트\n"),
+            ("master/adv_master_v1.tsv", "code\tname\n4001\t첫째\n"),
+            ("master/event_flow_master_v1.tsv", "event_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\n3001\t1\tAdv\t4001\t0\t0\n"),
+            ("master/adv_flow_master_v1.tsv", "adv_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\ttext\tforce_name\n" +
+                $"4001\t1\tChoice\t1\t2\t0\t{choiceText}\t\n4001\t2\tTextPlain\t0\t0\t0\t끝\t\n"),
+        };
+        return GameSession.NewGame(GamePack.Load(CoreTests.PackZip(files)));
+    }
+
+    [Fact]
+    public void Choice_text_may_use_markup_and_the_entry_carries_the_html_and_the_plain_label()
+    {
+        var s = Session("[b]강하게[/b] [color=red]나선다[/color]");
+        s.Activate("103");
+        s.Activate("3001");
+        var entry = s.Entries.Single();
+        Assert.Equal("강하게 나선다", entry.Label);
+        Assert.Equal("<b>강하게</b> <span style=\"color:#ff5555\">나선다</span>", entry.LabelHtml);
+
+        s.Activate("1");                                                  // 고른 선택지도 같은 꾸밈으로 로그에 남는다
+        var chosen = s.AdvLog[0];
+        Assert.Equal(AdvStepKind.Chosen, chosen.Kind);
+        Assert.Equal(entry.LabelHtml, chosen.Rich.ToHtml());
+    }
+
+    [Fact]
+    public void Choice_text_with_bad_markup_or_a_line_break_fails_the_load()
+    {
+        Assert.Contains("선택지 text가 올바르지 않습니다", Assert.Throws<PackFormatException>(() => Session("[i]기울임[/i]")).Message);
+        Assert.Contains("줄바꿈", Assert.Throws<PackFormatException>(() => Session(@"한 줄\n두 줄")).Message);
+        Assert.NotNull(Session(@"대괄호 \[그대로\]"));
+    }
+}

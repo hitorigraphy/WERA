@@ -191,5 +191,8 @@ input.command { width: min(100%, 26rem); }
 .adv-box { position: relative; flex: 1; min-width: 0; height: calc(4 * var(--lh)); box-sizing: border-box; padding: calc(.5 * var(--lh)) 1ch 0; border: 1px solid #888; line-height: var(--lh); }
 .adv-name { position: absolute; top: calc(-.5 * var(--lh)); left: 1ch; padding: 0 .5ch; background: #000; line-height: var(--lh); white-space: nowrap; }
 .adv-text { margin: 0; height: 100%; overflow-y: auto; white-space: pre-wrap; word-break: break-all; line-break: anywhere; }   /* 어느 글자에서나 줄을 바꾼다(AdvLayout의 줄 수 계산과 같은 규칙) */
-.adv-chosen { margin: .6rem 0; text-align: right; color: #7ab7ff; line-height: var(--lh); overflow-wrap: anywhere; }
+.adv-item.dim { color: #999; }   /* 이전 항목의 기본 글자색(최신 항목은 흰색) */
+.adv-item.dim .adv-box { border-color: #666; }
+.adv-chosen { margin: .6rem 0; text-align: left; line-height: var(--lh); overflow-wrap: anywhere; }
+.adv-choices .textlink { color: #fff; }   /* ADV 선택지의 기본 글자색은 흰색 */
 .adv-normal { margin: 1.2rem 0 .6rem; white-space: pre-wrap; line-height: var(--lh); }

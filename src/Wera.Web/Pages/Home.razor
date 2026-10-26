@@ -12,7 +12,7 @@
         @foreach (var entry in entries)
         {
             var code = entry.Code;
-            <div><button class="textlink" @onclick="() => Activate(code)">[@entry.Code] @entry.Label</button></div>
+            <div><button class="textlink" @onclick="() => Activate(code)">[@entry.Code] @if (entry.LabelHtml is { } html) { @((MarkupString)html) } else { @entry.Label }</button></div>
         }
     </div>;
 
@@ -124,7 +124,7 @@
                 <p class="adv-normal">@((MarkupString)line.Rich.ToHtml())</p>
                 break;
             case AdvStepKind.Chosen:
-                <p class="adv-chosen">▶ @line.Text</p>
+                <p class="adv-chosen">▶ @((MarkupString)line.Rich.ToHtml())</p>
                 break;
         }
     </text>;
@@ -316,14 +316,16 @@
                     {
                         <p class="end">전투는 아직 준비되지 않아 바로 다음으로 넘어갑니다.</p>
                     }
-                    @foreach (var line in session.AdvLog)
+                    @* 기본 글자색: 최신 항목은 흰색, 이전 항목은 회색(선택지 목록이 떠 있으면 목록이 최신이다). [color=…]로 정한 색은 그대로다 *@
+                    @for (var i = 0; i < session.AdvLog.Count; i++)
                     {
-                        @advLine(line)
+                        var latest = i == session.AdvLog.Count - 1 && session.CurrentAdvStep is not { Kind: AdvStepKind.Choice };
+                        <div class="@(latest ? "adv-item" : "adv-item dim")">@advLine(session.AdvLog[i])</div>
                     }
                 </div>
                 @if (!session.AdvanceOnAnyKey)
                 {
-                    @commands
+                    <div class="adv-choices">@commands</div>
                 }
                 break;
 
