@@ -88,10 +88,10 @@ public sealed class AdvExecution
                     JumpTo(flow.Param1);
                     break;
                 case AdvFlowType.SetFlag:
-                    flags[flow.Param1] = flow.Param2;
+                    PlayerFlagOps.Set(flags, flow.Param1, flow.Param2);
                     break;
                 case AdvFlowType.ModFlag:
-                    flags[flow.Param1] = SaturatingAdd(flags.GetValueOrDefault(flow.Param1), flow.Param2);
+                    PlayerFlagOps.Mod(flags, flow.Param1, flow.Param2);
                     break;
                 case AdvFlowType.TextMe:
                     return Line(AdvStepKind.TextMe, flow);
@@ -135,14 +135,6 @@ public sealed class AdvExecution
         var speaker = pack.FindCharacter(flow.Param1);
         return new AdvStep(kind, flow.FlowNumber, flow.Text, [],
             Named(flow, speaker?.Name ?? "???"), speaker?.Code ?? 0, speaker is null ? 0 : flow.Param2);
-    }
-
-    static long SaturatingAdd(long a, long b)
-    {
-        var sum = unchecked(a + b);
-        if (b > 0 && sum < a) return long.MaxValue;
-        if (b < 0 && sum > a) return long.MinValue;
-        return sum;
     }
 
     /// <summary>force_name이 비어 있지 않으면 그 이름, 아니면 기본 이름.</summary>

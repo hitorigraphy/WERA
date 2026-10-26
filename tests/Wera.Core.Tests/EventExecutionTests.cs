@@ -453,3 +453,68 @@ public class AdvFlowMasterTests
         Assert.False(pack.FindAdvFlow(4001, 5)!.IsAvailable(new Dictionary<long, long>()));          // 튜토리얼 플래그가 있어야 세 번째 선택지
     }
 }
+
+// 이벤트 흐름의 SetFlag, ModFlag: 화면에 나오지 않는 칸
+public class EventFlagFlowTests
+{
+    static GameSession Session(string flows, string? conditions = null)
+    {
+        var files = new List<(string, string)>
+        {
+            ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
+            ("master/event_master_v1.tsv", "code\tname\n3001\t이벤트\n"),
+            ("master/adv_master_v1.tsv", "code\tname\n4001\tA\n"),
+            ("master/event_flow_master_v1.tsv", "event_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\n" + flows),
+        };
+        if (conditions is not null)
+            files.Add(("master/event_flow_condition_master_v1.tsv", "event_code\tflow_number\tgroup_number\tflag_code\tcondition_type\tcondition_value\n" + conditions));
+        return GameSession.NewGame(GamePack.Load(CoreTests.PackZip(files.ToArray())));
+    }
+
+    [Fact]
+    public void SetFlag_and_ModFlag_change_the_flags_and_the_event_goes_on_to_the_next_step()
+    {
+        var s = Session("3001\t1\tSetFlag\t1001\t5\t0\n3001\t2\tModFlag\t1001\t-2\t0\n3001\t3\tModFlag\t2002\t7\t0\n3001\t4\tAdv\t4001\t0\t0\n");
+        s.PlayerFlags[1001] = 100;
+        var run = s.StartEvent(3001)!;
+
+        Assert.Equal(new EventStep(EventStepKind.Adv, 4, 4001), run.Advance());      // 플래그 칸에서는 멈추지 않는다
+        Assert.Equal(3, s.PlayerFlags[1001]);                                        // 100 → Set 5 → Mod -2
+        Assert.Equal(7, s.PlayerFlags[2002]);                                        // 없던 플래그는 0에서 시작
+    }
+
+    [Fact]
+    public void A_false_condition_skips_the_flag_flow_and_later_flows_see_the_new_value()
+    {
+        var s = Session(
+            "3001\t1\tSetFlag\t1001\t1\t0\n3001\t2\tSetFlag\t3003\t9\t0\n3001\t3\tAdv\t4001\t0\t0\n",
+            "3001\t2\t1\t9999\tEqual\t1\n3001\t3\t1\t1001\tGreaterOrEqual\t1\n");
+        var run = s.StartEvent(3001)!;
+
+        Assert.Equal(EventStepKind.Adv, run.Advance().Kind);                         // 1번이 바꾼 플래그를 3번의 조건이 바로 본다
+        Assert.False(s.PlayerFlags.ContainsKey(3003));                               // 조건이 거짓인 2번은 실행되지 않았다
+    }
+
+    [Fact]
+    public void ModFlag_stops_at_the_ends_of_the_long_range()
+    {
+        var s = Session($"3001\t1\tModFlag\t1\t{long.MaxValue}\t0\n3001\t2\tModFlag\t1\t5\t0\n3001\t3\tModFlag\t2\t{long.MinValue}\t0\n3001\t4\tModFlag\t2\t-5\t0\n");
+        Assert.Equal(EventStepKind.Finished, s.StartEvent(3001)!.Advance().Kind);
+        Assert.Equal(long.MaxValue, s.PlayerFlags[1]);
+        Assert.Equal(long.MinValue, s.PlayerFlags[2]);
+    }
+
+    [Fact]
+    public void Flag_flows_take_any_integers_and_work_through_the_event_screen()
+    {
+        Assert.NotNull(Session("3001\t1\tSetFlag\t0\t0\t0\n3001\t2\tModFlag\t-5\t-5\t0\n"));
+        Assert.Throws<PackFormatException>(() => Session("3001\t1\tSetFlag\tabc\t0\t0\n"));
+
+        var s = Session("3001\t1\tSetFlag\t1001\t1\t0\n3001\t2\tAdv\t4001\t0\t0\n");
+        s.Activate("103");
+        s.Activate("3001");                                                          // 플래그 칸을 지나 ADV(흐름 없음)까지 바로 지나가 이벤트가 끝난다
+        Assert.Equal(1, s.PlayerFlags[1001]);
+        Assert.Equal(Screen.Event, s.Screen);
+        Assert.Equal(1, GameSession.FromSaveJson(s.Pack, s.ToSaveJson()).PlayerFlags[1001]);
+    }
+}

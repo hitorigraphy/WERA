@@ -5,7 +5,7 @@ namespace Wera.Core;
 
 /// <summary>
 /// 이벤트 흐름 한 칸이 하는 일의 종류. TSV에는 이름(대소문자 무시)으로 적는다.
-/// 숫자 값은 정해진 번호다: None 0, Finish 1, Jump 2, Adv 3, Battle 4.
+/// 숫자 값은 정해진 번호다: None 0, Finish 1, Jump 2, Adv 3, Battle 4, SetFlag 5, ModFlag 6.
 /// </summary>
 public enum EventFlowType
 {
@@ -22,6 +22,10 @@ public enum EventFlowType
     Adv = 3,
     /// <summary>전투를 개시한다. param_1이 개시할 battle_code(전투 마스터)다.</summary>
     Battle = 4,
+    /// <summary>플레이어 플래그를 정한 값으로 바꾼다. param_1이 flag_code, param_2가 value다. 화면에는 아무것도 나오지 않고 바로 다음 칸으로 간다.</summary>
+    SetFlag = 5,
+    /// <summary>플레이어 플래그에 값을 더한다(음수면 뺀다). param_1이 flag_code, param_2가 더할 value다. 없던 플래그는 0에서 시작하고, 값이 long 범위를 넘으면 끝값에 멈춘다.</summary>
+    ModFlag = 6,
 }
 
 /// <summary>이벤트 마스터의 한 행. 이벤트 조건 마스터의 그룹 규칙(그룹 안은 AND, 그룹끼리는 OR)으로 열리고, 조건이 없으면 늘 열린다.</summary>
@@ -33,8 +37,8 @@ public sealed record GameEvent(long Code, string Name, IReadOnlyList<IReadOnlyLi
 
 /// <summary>
 /// 이벤트 흐름 마스터의 한 행. 이벤트(EventCode)의 흐름 번호(FlowNumber) 칸이 하는 일(FlowType)과 그 인자. 키는 (EventCode, FlowNumber)다.
-/// Param1은 종류에 따라 점프할 흐름 번호(Jump), 재생할 adv 코드(Adv), 개시할 전투 코드(Battle)로 쓰이고,
-/// Param2와 Param3은 지금은 쓰이지 않는다(앞으로를 위해 남겨 둔다). 흐름 조건 마스터의 조건을 만족해야 실행할 수 있고, 조건이 없으면 늘 실행할 수 있다.
+/// Param1은 종류에 따라 점프할 흐름 번호(Jump), 재생할 adv 코드(Adv), 개시할 전투 코드(Battle), 플래그 코드(SetFlag, ModFlag)로 쓰이고,
+/// Param2는 SetFlag, ModFlag의 값이며 그 외에는 쓰이지 않고, Param3은 지금은 쓰이지 않는다(앞으로를 위해 남겨 둔다). 흐름 조건 마스터의 조건을 만족해야 실행할 수 있고, 조건이 없으면 늘 실행할 수 있다.
 /// </summary>
 /// <param name="Groups">그룹넘버 순으로 정렬된 조건 묶음.</param>
 public sealed record EventFlow(
@@ -85,7 +89,7 @@ public sealed partial class GamePack
     /// 이벤트 흐름 마스터와 흐름 조건 마스터를 읽는다.
     /// 흐름: 이벤트는 이벤트 마스터에 있어야 하고, 키 (이벤트, 흐름 번호)를 두 번 쓸 수 없다. 흐름 번호와 인자는 정수(long, 인자는 비우면 0),
     /// 종류는 이름으로 적는다. 종류별 인자 검증: Jump의 param_1은 자신의 흐름 번호보다 큰 같은 이벤트의 흐름 번호(뒤로만 점프해 무한 반복이 없다), Adv의 param_1은 ADV 마스터의 코드,
-    /// Battle의 param_1은 전투 마스터의 코드여야 한다(Adv와 Battle은 그 마스터가 있어야 한다). Finish와 None은 인자를 보지 않는다.
+    /// Battle의 param_1은 전투 마스터의 코드여야 한다(Adv와 Battle은 그 마스터가 있어야 한다). Finish와 None은 인자를 보지 않고, SetFlag와 ModFlag의 param_1(플래그 코드)과 param_2(값)는 어떤 정수든 된다.
     /// 흐름 조건: (이벤트, 흐름)은 흐름 마스터에 있어야 하고 키 (이벤트, 흐름, 그룹넘버, 플래그)를 두 번 쓸 수 없다.
     /// </summary>
     static List<EventFlow>? LoadEventFlows(
