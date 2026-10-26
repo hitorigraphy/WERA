@@ -63,6 +63,8 @@ public enum EntryAction
     StartEvent,
     /// <summary>진행 중인 이벤트를 다음 장면으로 이어 간다(더 없으면 이벤트 화면으로).</summary>
     NextEventStep,
+    /// <summary>ADV의 선택지 장면에서 항목이 가리키는(Arg = 0부터 센 번호) 선택지를 고른다.</summary>
+    ChooseAdv,
 }
 
 /// <summary>화면에 나오는 클릭 가능한 텍스트. 클릭하거나 Code를 입력하면 Action을 수행한다.</summary>
@@ -395,7 +397,7 @@ public sealed partial class GameSession
                         .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home))
                         .ToList();
                 case Screen.EventPlay:
-                    return [new ScreenEntry(NextEventStepCode, "다음", Screen.EventPlay, EntryAction.NextEventStep)];
+                    return EventPlayEntries();
                 case Screen.Load:
                 case Screen.Interaction:
                 case Screen.CompanionCheck:
@@ -491,7 +493,10 @@ public sealed partial class GameSession
                 BeginEvent(CodeOf(entry));
                 break;
             case EntryAction.NextEventStep:
-                ShowNextEventStep();
+                ContinueEvent();
+                break;
+            case EntryAction.ChooseAdv:
+                ChooseAdv(int.Parse(entry.Arg!, CultureInfo.InvariantCulture));
                 break;
         }
         return entry;

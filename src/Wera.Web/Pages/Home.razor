@@ -297,6 +297,22 @@
                 {
                     <p class="end">전투는 아직 준비되지 않아 바로 다음으로 넘어갑니다.</p>
                 }
+                @switch (session.CurrentAdvStep)
+                {
+                    case { Kind: AdvStepKind.TextMe } me:
+                        @* 왼쪽에 슬롯 크기의 이미지, 오른쪽에 이름 자리가 왼쪽 위에 걸친 텍스트 상자 *@
+                        <div class="adv-line adv-me">
+                            <div class="adv-icon">@noImage</div>
+                            <div class="adv-box"><span class="adv-name">[ @session.PlayerSpeakerName ]</span><p class="adv-text">@me.Text</p></div>
+                        </div>
+                        break;
+                    case { Kind: AdvStepKind.TextYou } you:
+                        <div class="adv-line adv-you"><div class="adv-box"><p class="adv-text">@you.Text</p></div></div>
+                        break;
+                    case { Kind: AdvStepKind.TextNormal } normal:
+                        <p class="adv-normal">@normal.Text</p>
+                        break;
+                }
                 @commands
                 break;
 

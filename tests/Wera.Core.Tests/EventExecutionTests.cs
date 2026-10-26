@@ -245,6 +245,7 @@ public class EventScreenTests
             ("master/event_master_v1.tsv", "code\tname\n3001\t첫 이벤트\n3002\t조건 이벤트\n"),
             ("master/adv_master_v1.tsv", "code\tname\n4001\t인사\n"),
             ("master/battle_master_v1.tsv", "code\tname\n5001\t슬라임\n"),
+            ("master/adv_flow_master_v1.tsv", "adv_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\ttext\n4001\t1\tTextNormal\t0\t0\t0\t안녕\n"),
             ("master/event_flow_master_v1.tsv", "event_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\n" + flows),
         };
         if (eventConditions is not null)
