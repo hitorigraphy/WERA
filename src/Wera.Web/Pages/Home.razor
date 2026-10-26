@@ -130,23 +130,43 @@
     </text>;
 }
 
-<main class="@(session is null ? null : "game")">
+<main class="game">
+    @* 게임팩 고르기와 세이브 고르기 화면도 게임 화면과 같은 960×720 틀을 쓴다: 위쪽 화면 영역 + 맨 아래 한 줄(버튼 또는 코드 입력칸) *@
     @if (pack is null)
     {
-        <div class="drop" @ondragenter="() => dragging = true" @ondragleave="() => dragging = false" @ondrop="() => dragging = false"
-             data-dragging="@dragging">
-            <p>게임팩(.zip)을 여기에 끌어다 놓으세요</p>
-            <InputFile OnChange="OnPackSelected" accept=".zip" />
+        <div class="screen">
+            <div class="drop" @ondragenter="() => dragging = true" @ondragleave="() => dragging = false" @ondrop="() => dragging = false"
+                 data-dragging="@dragging">
+                <p>게임팩(.zip)을 여기에 끌어다 놓으세요</p>
+                <InputFile OnChange="OnPackSelected" accept=".zip" />
+            </div>
+            @if (error is not null)
+            {
+                <p class="error" role="alert">@error</p>
+            }
         </div>
+        <footer class="site-footer">
+            <a class="button" href="sample-pack.zip" download="sample-pack.zip">기본 게임팩 다운로드</a>
+            <button type="button" class="button" @onclick="RunSamplePack">기본 게임팩 실행</button>
+        </footer>
     }
     else if (session is null)
     {
-        <h1>@pack.Title</h1>
-        <div class="drop" @ondragenter="() => dragging = true" @ondragleave="() => dragging = false" @ondrop="() => dragging = false"
-             data-dragging="@dragging">
-            <p>세이브(.sav)를 여기에 끌어다 놓으세요</p>
-            <InputFile OnChange="OnSaveSelected" accept=".sav,.json" />
+        <div class="screen">
+            <h1>@pack.Title</h1>
+            <div class="drop" @ondragenter="() => dragging = true" @ondragleave="() => dragging = false" @ondrop="() => dragging = false"
+                 data-dragging="@dragging">
+                <p>세이브(.sav)를 여기에 끌어다 놓으세요</p>
+                <InputFile OnChange="OnSaveSelected" accept=".sav,.json" />
+            </div>
+            @if (error is not null)
+            {
+                <p class="error" role="alert">@error</p>
+            }
         </div>
+        <footer class="site-footer">
+            <button type="button" class="button" @onclick="NewGame">새 게임</button>
+        </footer>
     }
     else
     {
@@ -374,30 +394,7 @@
                    @bind="command" @bind:event="oninput" @onkeydown="OnCommandKey" />
         </div>
     }
-
-    @if (pack is null || session is null)
-    {
-        @if (error is not null)
-        {
-            <p class="error" role="alert">@error</p>
-        }
-    }
 </main>
-
-@* 게임팩을 고르기 전에는 기본 게임팩을 받거나 바로 실행하는 버튼, 고른 뒤 게임을 시작하기 전에는 새 게임 버튼. 게임 중에는 없다(세이브는 [200], 게임팩을 다시 고르려면 새로 고침). *@
-@if (pack is null)
-{
-    <footer class="site-footer">
-        <a class="button" href="sample-pack.zip" download="sample-pack.zip">기본 게임팩 다운로드</a>
-        <button type="button" class="button" @onclick="RunSamplePack">기본 게임팩 실행</button>
-    </footer>
-}
-else if (session is null)
-{
-    <footer class="site-footer">
-        <button type="button" class="button" @onclick="NewGame">새 게임</button>
-    </footer>
-}
 
 @code {
     const long MaxBytes = 2L * 1024 * 1024 * 1024 - 1;
