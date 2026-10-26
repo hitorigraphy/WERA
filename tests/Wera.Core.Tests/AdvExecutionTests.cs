@@ -502,13 +502,13 @@ public class JumpFlagTests
     }
 
     [Fact]
-    public void The_jump_flows_are_the_only_jumps_and_the_old_Jump_type_is_gone()
+    public void Jump_is_the_unconditional_jump_and_is_not_a_JumpFlag_comparison()
     {
         Assert.All(Kinds, k => Assert.NotNull(FlagJump.Of("JumpFlag" + k)));
         Assert.Null(FlagJump.Of("Jump"));
         Assert.Null(FlagJump.Of("TextMe"));
         Assert.Null(FlagJump.Of("JumpFlagNope"));
-        Assert.Throws<PackFormatException>(() => GamePack.Load(CoreTests.PackZip(
+        Assert.NotNull(GamePack.Load(CoreTests.PackZip(
             ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
             ("master/adv_master_v1.tsv", "code\tname\n4001\tA\n"),
             ("master/adv_flow_master_v1.tsv", "adv_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\ttext\tforce_name\n4001\t1\tJump\t2\t0\t0\t\t\n4001\t2\tFinish\t0\t0\t0\t\t\n"))));
@@ -550,5 +550,57 @@ public class JumpFlagTests
         Assert.Contains("없습니다", Load(Row(1, 1, 9)));                               // 없는 흐름
         Assert.Contains("없습니다", Load(Row(1, 1, 5), Fin(2, 5)));                    // 다른 이벤트/ADV의 흐름
         Assert.Equal("", Load(Row(1, 1, 3) + Row(1, 3, 5), Fin(1, 5)));               // 이어서 점프해도 늘 앞으로라 끝난다
+    }
+}
+
+// Jump: 조건 없이 param_1의 흐름 번호로 점프(이벤트와 ADV 공통)
+public class UnconditionalJumpTests
+{
+    static GameSession Session(bool viaAdv, string rows)
+    {
+        var eventRows = viaAdv ? "3001\t1\tAdv\t4001\t0\t0\n" : rows;
+        var advRows = viaAdv ? rows : "";
+        var files = new (string, string)[]
+        {
+            ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
+            ("master/event_master_v1.tsv", "code\tname\n3001\t이벤트\n"),
+            ("master/adv_master_v1.tsv", "code\tname\n4001\tA\n4002\tB\n4003\tC\n"),
+            ("master/event_flow_master_v1.tsv", "event_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\n" + eventRows),
+            ("master/adv_flow_master_v1.tsv", "adv_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\ttext\tforce_name\n" + advRows),
+        };
+        return GameSession.NewGame(GamePack.Load(CoreTests.PackZip(files)));
+    }
+
+    [Fact]
+    public void Jump_goes_to_param_1_without_looking_at_any_flag_in_an_event()
+    {
+        var s = Session(false, "3001\t1\tJump\t3\t0\t0\n3001\t2\tAdv\t4001\t0\t0\n3001\t3\tAdv\t4002\t0\t0\n");
+        Assert.Equal(4002, s.StartEvent(3001)!.Advance().Code);
+    }
+
+    [Fact]
+    public void Jump_goes_to_param_1_without_looking_at_any_flag_in_an_adv()
+    {
+        var s = Session(true, "4001\t1\tJump\t3\t9\t9\t\t\n4001\t2\tTextPlain\t0\t0\t0\t건너뜀\t\n4001\t3\tTextPlain\t0\t0\t0\t도착\t\n");
+        Assert.Equal("도착", new AdvExecution(s.Pack, 4001, s.PlayerFlags).Advance().Text);       // param_2, param_3은 보지 않는다
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Jump_must_go_to_a_larger_flow_number_of_the_same_event_or_adv(bool viaAdv)
+    {
+        string Row(long owner, long flow, long target) => viaAdv
+            ? $"{4000 + owner}\t{flow}\tJump\t{target}\t0\t0\t\t\n"
+            : $"{3000 + owner}\t{flow}\tJump\t{target}\t0\t0\n";
+        string Fin(long owner, long flow) => viaAdv ? $"{4000 + owner}\t{flow}\tFinish\t0\t0\t0\t\t\n" : $"{3000 + owner}\t{flow}\tFinish\t0\t0\t0\n";
+        string Error(string rows) => Assert.Throws<PackFormatException>(() => Session(viaAdv, rows)).Message;
+
+        Assert.NotNull(Session(viaAdv, Row(1, 1, 5) + Fin(1, 5)));
+        Assert.NotNull(Session(viaAdv, Row(1, 1, 2) + Row(1, 2, 3) + Fin(1, 3)));
+        Assert.Contains("보다 커야", Error(Row(1, 1, 1)));
+        Assert.Contains("보다 커야", Error(Fin(1, 1) + Row(1, 2, 1)));
+        Assert.Contains("없습니다", Error(Row(1, 1, 9)));
+        Assert.Contains("없습니다", Error(Row(1, 1, 5) + Fin(2, 5)));
     }
 }

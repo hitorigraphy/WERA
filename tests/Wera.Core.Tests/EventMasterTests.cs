@@ -110,6 +110,7 @@ public class EventMasterTests
     {
         Assert.Equal(0, (int)EventFlowType.None);
         Assert.Equal(1, (int)EventFlowType.Finish);
+        Assert.Equal(2, (int)EventFlowType.Jump);
         Assert.Equal(3, (int)EventFlowType.Adv);
         Assert.Equal(4, (int)EventFlowType.Battle);
         Assert.Equal(5, (int)EventFlowType.SetFlag);

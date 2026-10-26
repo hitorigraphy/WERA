@@ -36,7 +36,7 @@ public readonly record struct AdvStep(
 
 /// <summary>
 /// ADV 하나를 흐름 번호 순서대로 실행한다. 이벤트 실행과 같은 규칙이다: 조건이 거짓인 칸은 건너뛰고(조건이 없으면 참),
-/// 더 진행할 칸이 없거나 Finish를 만나면 끝나며, None은 아무 일도 없고, JumpFlag*는 플래그를 견주어 참이면 param_3 번호부터 이어 가고 거짓이면 다음 칸으로 간다.
+/// 더 진행할 칸이 없거나 Finish를 만나면 끝나며, None은 아무 일도 없고, Jump는 param_1 번호부터 이어 가고, JumpFlag*는 플래그를 견주어 참이면 param_3 번호부터 이어 가고 거짓이면 다음 칸으로 간다.
 /// SetFlag와 ModFlag는 플레이어 플래그를 바꾸고 멈추지 않고 다음 칸으로 간다(바뀐 플래그는 뒤의 칸 조건에 바로 보인다).
 /// TextMe/TextYou/TextPlain은 <see cref="Advance"/>가 그 대사를 돌려주고 멈춘다.
 /// Choice는 같은 선택지 그룹(param_1)의 이어진 행들 중 조건을 만족하는 것을 한 묶음으로 돌려주고 멈추며(만족하는 것이 없으면 건너뛴다),
@@ -86,6 +86,9 @@ public sealed class AdvExecution
             {
                 case AdvFlowType.Finish:
                     IsFinished = true;
+                    break;
+                case AdvFlowType.Jump:
+                    JumpTo(flow.Param1);
                     break;
                 case var jump when FlagJump.Of(jump) is { } comparison:
                     if (FlagJump.Test(comparison, flags.GetValueOrDefault(flow.Param1), flow.Param2)) JumpTo(flow.Param3);

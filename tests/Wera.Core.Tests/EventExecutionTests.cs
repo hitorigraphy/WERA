@@ -336,14 +336,12 @@ public class AdvFlowMasterTests
     [Fact]
     public void The_enum_numbers_are_fixed()
     {
-        Assert.Equal([0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
-            new[] { AdvFlowType.None, AdvFlowType.Finish, AdvFlowType.TextMe, AdvFlowType.Choice, AdvFlowType.TextYou, AdvFlowType.TextPlain,
+        Assert.Equal([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+            new[] { AdvFlowType.None, AdvFlowType.Finish, AdvFlowType.Jump, AdvFlowType.TextMe, AdvFlowType.Choice, AdvFlowType.TextYou, AdvFlowType.TextPlain,
                     AdvFlowType.SetFlag, AdvFlowType.ModFlag, AdvFlowType.AddInventory,
                     AdvFlowType.JumpFlagEqual, AdvFlowType.JumpFlagNotEqual, AdvFlowType.JumpFlagGreaterThan,
                     AdvFlowType.JumpFlagGreaterOrEqual, AdvFlowType.JumpFlagLessThan, AdvFlowType.JumpFlagLessOrEqual }
                 .Select(t => (int)t));
-        Assert.False(Enum.GetNames<AdvFlowType>().Contains("Jump"));
-        Assert.False(Enum.GetNames<EventFlowType>().Contains("Jump"));
     }
 
     [Fact]

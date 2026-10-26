@@ -15,7 +15,7 @@ public enum FlagComparison
 /// 이벤트와 ADV의 JumpFlag* 칸이 함께 쓰는 규칙. 칸의 param_1이 flag_code, param_2가 flag_value, param_3이 target_flow_number다:
 /// 플레이어 플래그(없으면 0)를 flag_value와 견주어 참이면 target_flow_number로 점프하고, 거짓이면 다음 칸으로 간다.
 /// 점프는 뒤로(자신의 흐름 번호보다 큰, 같은 이벤트/ADV의 흐름 번호로)만 갈 수 있어 무한 반복이 생기지 않는다.
-/// 조건 없이 점프하려면 늘 참인 비교를 쓴다(예: JumpFlagGreaterOrEqual의 flag_value를 long.MinValue로).
+/// 조건 없이 점프하려면 Jump를 쓴다(param_1이 target_flow_number).
 /// </summary>
 public static class FlagJump
 {
