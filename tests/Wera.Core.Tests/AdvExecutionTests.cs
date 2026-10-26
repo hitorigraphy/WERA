@@ -28,7 +28,7 @@ public class AdvExecutionTests
     [Fact]
     public void Text_lines_come_back_one_at_a_time_with_their_speaker_kind_and_the_adv_ends_after_the_last()
     {
-        var s = Session("4001\t1\tTextMe\t1\t0\t0\t안녕\n4001\t2\tTextYou\t0\t0\t0\t반가워\n4001\t3\tTextPlane\t0\t0\t0\t밤이 되었다\n");
+        var s = Session("4001\t1\tTextMe\t1\t0\t0\t안녕\n4001\t2\tTextYou\t0\t0\t0\t반가워\n4001\t3\tTextPlain\t0\t0\t0\t밤이 되었다\n");
         var run = Run(s);
 
         Assert.Equal(new AdvStep(AdvStepKind.TextMe, 1, "안녕", [], "당신", 1), run.Advance());
@@ -138,7 +138,7 @@ public class AdvScreenTests
     {
         var s = Session(
             "4001\t1\tTextMe\t1\t0\t0\t안녕\n4001\t2\tChoice\t1\t4\t0\t네\n4001\t3\tChoice\t1\t5\t0\t아니오\n" +
-            "4001\t4\tTextYou\t0\t0\t0\t좋아요\n4001\t5\tTextPlane\t0\t0\t0\t침묵\n");
+            "4001\t4\tTextYou\t0\t0\t0\t좋아요\n4001\t5\tTextPlain\t0\t0\t0\t침묵\n");
         s.Activate("103");
         s.Activate("3001");                                               // 첫 ADV(4002)는 보여 줄 것이 없어 건너뛰고 둘째 ADV로 간다
 
