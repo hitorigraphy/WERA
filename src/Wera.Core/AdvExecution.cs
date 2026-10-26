@@ -20,8 +20,8 @@ public readonly record struct AdvChoice(long FlowNumber, string Text, long JumpT
 
 /// <summary>ADV를 실행하다 만난 장면 하나. 대사면 Text, 선택지 묶음이면 Choices가 차 있다.</summary>
 /// <param name="SpeakerName">화자 이름(TextMe, TextYou). force_name이 있으면 그것, 없으면 캐릭터 이름, 캐릭터를 알 수 없으면 ???.</param>
-/// <param name="CharacterCode">TextYou의 화자 캐릭터 코드. 없거나 유효하지 않으면 0(이미지는 No Image).</param>
-/// <param name="Variation">TextYou의 화자 이미지 variation_number.</param>
+/// <param name="CharacterCode">TextMe와 TextYou의 화자 캐릭터 코드. 없거나 유효하지 않으면 0(이미지는 No Image).</param>
+/// <param name="Variation">TextMe와 TextYou의 화자 이미지 variation_number.</param>
 public readonly record struct AdvStep(
     AdvStepKind Kind, long FlowNumber, string Text, IReadOnlyList<AdvChoice> Choices,
     string SpeakerName = "", long CharacterCode = 0, long Variation = 0)
@@ -81,13 +81,9 @@ public sealed class AdvExecution
                     JumpTo(flow.Param1);
                     break;
                 case AdvFlowType.TextMe:
-                    return new AdvStep(AdvStepKind.TextMe, flow.FlowNumber, flow.Text, [],
-                        Named(flow, pack.FindCharacter(GamePack.PlayerCharacterCode)?.Name ?? GameSession.PlayerSlotName));
+                    return Line(AdvStepKind.TextMe, flow);
                 case AdvFlowType.TextYou:
-                    // param_1이 캐릭터 코드, param_2가 그 이미지의 variation_number. 0이거나 없는 캐릭터면 이름 ???와 No Image.
-                    var speaker = pack.FindCharacter(flow.Param1);
-                    return new AdvStep(AdvStepKind.TextYou, flow.FlowNumber, flow.Text, [],
-                        Named(flow, speaker?.Name ?? "???"), speaker?.Code ?? 0, speaker is null ? 0 : flow.Param2);
+                    return Line(AdvStepKind.TextYou, flow);
                 case AdvFlowType.TextNormal:
                     return new AdvStep(AdvStepKind.TextNormal, flow.FlowNumber, flow.Text, []);
                 case AdvFlowType.Choice:
@@ -115,6 +111,17 @@ public sealed class AdvExecution
         pending = null;
         JumpTo(target);
         return true;
+    }
+
+    /// <summary>
+    /// 대사 장면. TextMe와 TextYou는 같은 규칙으로 화자를 정한다: param_1이 캐릭터 코드, param_2가 그 이미지의 variation_number이고,
+    /// 0이거나 없는 캐릭터면 이름은 ???, 이미지는 No Image다. force_name이 있으면 그것이 이름이 된다.
+    /// </summary>
+    AdvStep Line(AdvStepKind kind, AdvFlow flow)
+    {
+        var speaker = pack.FindCharacter(flow.Param1);
+        return new AdvStep(kind, flow.FlowNumber, flow.Text, [],
+            Named(flow, speaker?.Name ?? "???"), speaker?.Code ?? 0, speaker is null ? 0 : flow.Param2);
     }
 
     /// <summary>force_name이 비어 있지 않으면 그 이름, 아니면 기본 이름.</summary>

@@ -28,10 +28,10 @@ public class AdvExecutionTests
     [Fact]
     public void Text_lines_come_back_one_at_a_time_with_their_speaker_kind_and_the_adv_ends_after_the_last()
     {
-        var s = Session("4001\t1\tTextMe\t0\t0\t0\t안녕\n4001\t2\tTextYou\t0\t0\t0\t반가워\n4001\t3\tTextNormal\t0\t0\t0\t밤이 되었다\n");
+        var s = Session("4001\t1\tTextMe\t1\t0\t0\t안녕\n4001\t2\tTextYou\t0\t0\t0\t반가워\n4001\t3\tTextNormal\t0\t0\t0\t밤이 되었다\n");
         var run = Run(s);
 
-        Assert.Equal(new AdvStep(AdvStepKind.TextMe, 1, "안녕", [], "당신"), run.Advance());
+        Assert.Equal(new AdvStep(AdvStepKind.TextMe, 1, "안녕", [], "당신", 1), run.Advance());
         Assert.Equal(AdvStepKind.TextYou, run.Advance().Kind);
         Assert.Equal("밤이 되었다", run.Advance().Text);
         Assert.Equal(AdvStepKind.Finished, run.Advance().Kind);
@@ -137,7 +137,7 @@ public class AdvScreenTests
     public void The_adv_shows_each_line_then_choices_and_hands_back_to_the_event_when_it_ends()
     {
         var s = Session(
-            "4001\t1\tTextMe\t0\t0\t0\t안녕\n4001\t2\tChoice\t1\t4\t0\t네\n4001\t3\tChoice\t1\t5\t0\t아니오\n" +
+            "4001\t1\tTextMe\t1\t0\t0\t안녕\n4001\t2\tChoice\t1\t4\t0\t네\n4001\t3\tChoice\t1\t5\t0\t아니오\n" +
             "4001\t4\tTextYou\t0\t0\t0\t좋아요\n4001\t5\tTextNormal\t0\t0\t0\t침묵\n");
         s.Activate("103");
         s.Activate("3001");                                               // 첫 ADV(4002)는 보여 줄 것이 없어 건너뛰고 둘째 ADV로 간다
@@ -188,9 +188,10 @@ public class AdvSpeakerNameTests
     }
 
     [Fact]
-    public void TextMe_is_the_player_character_and_TextYou_is_param_1_with_its_variation()
+    public void TextMe_and_TextYou_both_speak_as_param_1_with_its_variation()
     {
-        Assert.Equal("당신", First("4001\t1\tTextMe\t0\t0\t0\t안녕\t\n").SpeakerName);
+        var me = First("4001\t1\tTextMe\t1\t2\t0\t안녕\t\n");
+        Assert.Equal(("당신", 1L, 2L), (me.SpeakerName, me.CharacterCode, me.Variation));
 
         var you = First("4001\t1\tTextYou\t7001\t3\t0\t안녕\t\n");
         Assert.Equal(("용사", 7001L, 3L), (you.SpeakerName, you.CharacterCode, you.Variation));
@@ -199,12 +200,15 @@ public class AdvSpeakerNameTests
     [Fact]
     public void TextYou_with_zero_or_an_unknown_character_is_question_marks_and_no_image()
     {
-        foreach (var code in new[] { "0", "9999", "-5" })
+        foreach (var type in new[] { "TextMe", "TextYou" })
         {
-            var you = First($"4001\t1\tTextYou\t{code}\t3\t0\t안녕\t\n");
-            Assert.Equal(("???", 0L, 0L), (you.SpeakerName, you.CharacterCode, you.Variation));
-        }
-        Assert.Equal("???", First("4001\t1\tTextYou\t\t\t\t안녕\t\n").SpeakerName);          // 비워 둔 인자도 같다
+            foreach (var code in new[] { "0", "9999", "-5" })
+            {
+                var step = First($"4001\t1\t{type}\t{code}\t3\t0\t안녕\t\n");
+                Assert.Equal(("???", 0L, 0L), (step.SpeakerName, step.CharacterCode, step.Variation));
+            }
+            Assert.Equal("???", First($"4001\t1\t{type}\t\t\t\t안녕\t\n").SpeakerName);
+        }          // 비워 둔 인자도 같다
     }
 
     [Fact]
@@ -212,6 +216,7 @@ public class AdvSpeakerNameTests
     {
         Assert.Equal("복면인", First("4001\t1\tTextYou\t7001\t0\t0\t안녕\t복면인\n").SpeakerName);
         Assert.Equal("복면인", First("4001\t1\tTextYou\t0\t0\t0\t안녕\t복면인\n").SpeakerName);      // 캐릭터가 없어도 강제 이름이 이긴다
+        Assert.Equal("가면", First("4001\t1\tTextMe\t1\t0\t0\t안녕\t가면\n").SpeakerName);
         Assert.Equal("가면", First("4001\t1\tTextMe\t0\t0\t0\t안녕\t가면\n").SpeakerName);
         Assert.Equal("용사", First("4001\t1\tTextYou\t7001\t0\t0\t안녕\t\n").SpeakerName);
         Assert.Equal("용사", First("4001\t1\tTextYou\t7001\t0\t0\t안녕\n").SpeakerName);          // 칸이 아예 없어도 같다
