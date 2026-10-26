@@ -84,6 +84,12 @@ public sealed partial class GameSession
         if (CurrentAdv?.Choose(index) == true) ShowNextAdvStep();
     }
 
+    /// <summary>
+    /// 지금 장면이 아무 키나 누르면(또는 눌러서) 다음으로 넘어가는 장면인가: 이벤트 진행 화면이고 선택지 장면이 아닐 때.
+    /// 이런 장면은 "[1] 다음"을 화면에 보여 주지 않지만, 코드 1을 <see cref="Activate"/>하면 넘어간다.
+    /// </summary>
+    public bool AdvanceOnAnyKey => Screen == Screen.EventPlay && CurrentAdvStep is not { Kind: AdvStepKind.Choice };
+
     /// <summary>이벤트 진행 화면의 항목: 선택지 장면이면 [1]부터 선택지들, 아니면 [1] 다음.</summary>
     IReadOnlyList<ScreenEntry> EventPlayEntries() =>
         CurrentAdvStep is { Kind: AdvStepKind.Choice } choice

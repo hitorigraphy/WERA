@@ -238,3 +238,33 @@ public class AdvSpeakerNameTests
             ("master/adv_flow_master_v1.tsv", "adv_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\ttext\n4001\t1\tTextMe\t0\t0\t0\t안녕\n"))));
     }
 }
+
+public class AdvanceOnAnyKeyTests
+{
+    [Fact]
+    public void Only_non_choice_scenes_of_the_event_play_screen_advance_on_any_key()
+    {
+        var files = new (string, string)[]
+        {
+            ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
+            ("master/event_master_v1.tsv", "code\tname\n3001\t이벤트\n"),
+            ("master/adv_master_v1.tsv", "code\tname\n4001\t인사\n"),
+            ("master/event_flow_master_v1.tsv", "event_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\n3001\t1\tAdv\t4001\t0\t0\n"),
+            ("master/adv_flow_master_v1.tsv", "adv_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\ttext\tforce_name\n" +
+                "4001\t1\tTextPlain\t0\t0\t0\t안녕\t\n4001\t2\tChoice\t1\t3\t0\t네\t\n4001\t3\tTextPlain\t0\t0\t0\t끝\t\n"),
+        };
+        var s = GameSession.NewGame(GamePack.Load(CoreTests.PackZip(files)));
+        Assert.False(s.AdvanceOnAnyKey);                                  // 홈
+        s.Activate("103");
+        Assert.False(s.AdvanceOnAnyKey);                                  // 이벤트 목록
+
+        s.Activate("3001");
+        Assert.True(s.AdvanceOnAnyKey);                                   // 대사
+        s.Activate("1");
+        Assert.False(s.AdvanceOnAnyKey);                                  // 선택지
+        s.Activate("1");
+        Assert.True(s.AdvanceOnAnyKey);
+        s.Activate("1");                                                  // 이벤트가 끝나 목록으로
+        Assert.False(s.AdvanceOnAnyKey);
+    }
+}

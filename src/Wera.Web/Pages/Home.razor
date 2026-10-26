@@ -292,6 +292,8 @@
                 break;
 
             case Screen.EventPlay:
+                @* 선택지가 아닌 장면은 "[1] 다음"을 보여 주지 않고, 아무 키나 누르거나 장면을 누르면 다음으로 넘어간다 *@
+                <div class="advance-area" @ref="advanceArea" tabindex="@(session.AdvanceOnAnyKey ? 0 : -1)" @onkeydown="OnAdvanceKey" @onclick="OnAdvanceClick">
                 <h2>@session.CurrentStepText</h2>
                 @if (session.CurrentStep is { Kind: EventStepKind.Battle })
                 {
@@ -317,7 +319,11 @@
                         <p class="adv-normal">@((MarkupString)normal.Rich.ToHtml())</p>
                         break;
                 }
-                @commands
+                </div>
+                @if (!session.AdvanceOnAnyKey)
+                {
+                    @commands
+                }
                 break;
 
             case Screen.Interaction:
@@ -386,6 +392,7 @@ else if (session is null)
     bool dragging;
     string command = "";
     ElementReference commandInput;
+    ElementReference advanceArea;
     bool focusCommand;
 
     string CommandPlaceholder => session?.Screen switch
@@ -398,7 +405,9 @@ else if (session is null)
     {
         if (!focusCommand) return;
         focusCommand = false;
-        if (session is { Entries.Count: > 0 } or { Screen: Screen.DungeonSelect })
+        if (session is { AdvanceOnAnyKey: true })
+            await advanceArea.FocusAsync();                  // 아무 키나 누르면 넘어가는 장면은 장면 영역이 키를 받는다
+        else if (session is { Entries.Count: > 0 } or { Screen: Screen.DungeonSelect })
             await commandInput.FocusAsync();
     }
 
@@ -456,6 +465,19 @@ else if (session is null)
         else if (entry.Action == EntryAction.Save) await SaveGame();
         command = "";
         focusCommand = true;
+    }
+
+    /// <summary>아무 키나 누르면 다음 장면으로(키를 누르고 있어 반복되는 입력과 Shift, Ctrl, Alt, Meta 같은 조합 키만 누른 것은 무시한다).</summary>
+    async Task OnAdvanceKey(KeyboardEventArgs e)
+    {
+        if (session is not { AdvanceOnAnyKey: true } || e.Repeat || e.CtrlKey || e.AltKey || e.MetaKey) return;
+        if (e.Key is "Shift" or "Control" or "Alt" or "Meta" or "CapsLock" or "NumLock" or "Tab" or "Escape") return;
+        await Activate(GameSession.NextEventStepCode);
+    }
+
+    async Task OnAdvanceClick()
+    {
+        if (session is { AdvanceOnAnyKey: true }) await Activate(GameSession.NextEventStepCode);
     }
 
     async Task OnCommandKey(KeyboardEventArgs e)
