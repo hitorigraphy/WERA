@@ -80,7 +80,6 @@ public sealed class AdvExecution
             }
 
             var flow = flows[next++];
-            if (!flow.IsAvailable(flags)) continue;
 
             switch (flow.FlowType)
             {
@@ -109,15 +108,13 @@ public sealed class AdvExecution
                 case AdvFlowType.TextPlain:
                     return new AdvStep(AdvStepKind.TextPlain, flow.FlowNumber, flow.Text, []);
                 case AdvFlowType.Choice:
-                    // 이 칸부터 같은 그룹의 이어진 선택지를 모은다(조건이 거짓인 선택지는 빠진다).
+                    // 이 칸부터 같은 그룹의 이어진 선택지를 모은다(조건에 따라 숨기려면 JumpFlag*로 다른 선택지 묶음으로 뛴다).
                     var group = flow.Param1;
                     var choices = new List<AdvChoice>();
                     var at = next - 1;
                     for (; at < flows.Count && flows[at].FlowType == AdvFlowType.Choice && flows[at].Param1 == group; at++)
-                        if (flows[at].IsAvailable(flags))
-                            choices.Add(new AdvChoice(flows[at].FlowNumber, flows[at].Text, flows[at].Param2));
+                        choices.Add(new AdvChoice(flows[at].FlowNumber, flows[at].Text, flows[at].Param2));
                     next = at;                           // 묶음 전체를 지나쳤다
-                    if (choices.Count == 0) break;       // 고를 수 있는 선택지가 없으면 건너뛴다
                     pending = choices;
                     return new AdvStep(AdvStepKind.Choice, choices[0].FlowNumber, "", choices);
             }

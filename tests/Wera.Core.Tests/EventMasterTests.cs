@@ -3,7 +3,6 @@ using Wera.Core;
 namespace Wera.Core.Tests;
 
 // event_master(code, name), event_condition_master(조건표), event_flow_master(키 (event_code, flow_number), flow_type enum과 long param_1~3),
-// event_flow_condition_master(키 (event_code, flow_number, group_number, flag_code), condition_type, value),
 // adv_master(code, name), battle_master(code, name). 모두 선택이고 아직 게임 진행에는 쓰이지 않는다.
 public class EventMasterTests
 {
@@ -11,18 +10,16 @@ public class EventMasterTests
     const string Advs = "code\tname\n4001\t첫째\n";
     const string Battles = "code\tname\n5001\t첫 전투\n";
     const string FlowHeader = "event_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\n";
-    const string FlowCondHeader = "event_code\tflow_number\tgroup_number\tflag_code\tcondition_type\tcondition_value\n";
     const string CondHeader = "event_code\tgroup_number\tflag_code\tcondition_type\tcondition_value\n";
 
     static GamePack Load(
-        string? events = Events, string? conditions = null, string? flows = null, string? flowConditions = null,
+        string? events = Events, string? conditions = null, string? flows = null,
         string? advs = Advs, string? battles = Battles)
     {
         var files = new List<(string, string)> { ("pack.tsv", "id\tdemo\ntitle\t데모\n") };
         if (events is not null) files.Add(("master/event_master_v1.tsv", events));
         if (conditions is not null) files.Add(("master/event_condition_master_v1.tsv", conditions));
         if (flows is not null) files.Add(("master/event_flow_master_v1.tsv", flows));
-        if (flowConditions is not null) files.Add(("master/event_flow_condition_master_v1.tsv", flowConditions));
         if (advs is not null) files.Add(("master/adv_master_v1.tsv", advs));
         if (battles is not null) files.Add(("master/battle_master_v1.tsv", battles));
         return GamePack.Load(CoreTests.PackZip(files.ToArray()));
@@ -130,8 +127,8 @@ public class EventMasterTests
             "3001\t3\tJumpFlagGreaterOrEqual\t0\t-9223372036854775808\t4\n" +
             "3001\t4\tFinish\t0\t0\t0\n" +
             "3001\t5\tNone\t-1\t2\t3\n");
-        Assert.Equal(new EventFlow(3001, 1, EventFlowType.Adv, 4001, 7, 8, []), pack.EventFlows![0] with { Groups = [] });
-        Assert.Equal(new EventFlow(3001, 2, EventFlowType.Battle, 5001, 0, 5000000000, []), pack.EventFlows[1] with { Groups = [] });
+        Assert.Equal(new EventFlow(3001, 1, EventFlowType.Adv, 4001, 7, 8), pack.EventFlows![0]);
+        Assert.Equal(new EventFlow(3001, 2, EventFlowType.Battle, 5001, 0, 5000000000), pack.EventFlows[1]);
         Assert.Equal((0, long.MinValue, 4), (pack.EventFlows[2].Param1, pack.EventFlows[2].Param2, pack.EventFlows[2].Param3));   // param_1 flag_code, param_2 flag_value, param_3 target_flow_number
         Assert.Equal((0, 0, 0), (pack.EventFlows[3].Param1, pack.EventFlows[3].Param2, pack.EventFlows[3].Param3));
         Assert.Equal(EventFlowType.Finish, pack.EventFlows[3].FlowType);
@@ -238,68 +235,21 @@ public class EventMasterTests
         Load(flows: FlowHeader + "3001\t1\tAdv\t4001\t999\t-1\n");                     // param_2, param_3은 무엇이든
     }
 
-    // ---- event_flow_condition_master ----
-
-    [Fact]
-    public void A_flow_without_conditions_is_always_available_and_groups_are_and_or()
-    {
-        var pack = Load(
-            flows: FlowHeader + "3001\t1\tFinish\t0\t0\t0\n3001\t2\tFinish\t0\t0\t0\n",
-            flowConditions: FlowCondHeader +
-                "3001\t2\t1\t1001\tGreaterOrEqual\t1\n" +
-                "3001\t2\t1\t1002\tEqual\t3\n" +
-                "3001\t2\t2\t1003\tEqual\t1\n");
-        var open = pack.FindEventFlow(3001, 1)!;
-        var gated = pack.FindEventFlow(3001, 2)!;
-
-        Assert.True(open.IsAvailable(new Dictionary<long, long>()));
-        Assert.False(gated.IsAvailable(new Dictionary<long, long> { [1001] = 1 }));
-        Assert.True(gated.IsAvailable(new Dictionary<long, long> { [1001] = 1, [1002] = 3 }));
-        Assert.True(gated.IsAvailable(new Dictionary<long, long> { [1003] = 1 }));
-        Assert.Equal(2, gated.Groups.Count);
-    }
-
-    [Fact]
-    public void Flow_conditions_have_a_four_column_key_and_a_secondary_key_per_flow()
-    {
-        var pack = Load(
-            flows: FlowHeader + "3001\t1\tFinish\t0\t0\t0\n3001\t2\tFinish\t0\t0\t0\n",
-            flowConditions: FlowCondHeader +
-                "3001\t1\t1\t1001\tEqual\t1\n3001\t1\t2\t1001\tEqual\t2\n3001\t2\t1\t1001\tLessThan\t5\n");
-        var table = pack.Masters.EventFlowConditionRowTable;
-        Assert.Equal(3, table.Count);
-        Assert.Equal(2, table.FindByEventCodeAndFlowNumber((3001, 1)).Count);
-        Assert.Equal(2, table.FindByEventCodeAndFlowNumberAndGroupNumberAndFlagCode((3001, 1, 2, 1001)).Value);
-        Assert.Equal(ConditionType.LessThan, table.FindByEventCodeAndFlowNumberAndGroupNumberAndFlagCode((3001, 2, 1, 1001)).Type);
-    }
-
-    [Fact]
-    public void The_same_flow_condition_key_twice_is_rejected_even_with_a_different_value()
-    {
-        var error = Assert.Throws<PackFormatException>(() => Load(
-            flows: FlowHeader + "3001\t1\tFinish\t0\t0\t0\n",
-            flowConditions: FlowCondHeader + "3001\t1\t1\t1001\tEqual\t1\n3001\t1\t1\t1001\tLessThan\t5\n"));
-        Assert.Contains("두 번", error.Message);
-    }
+    // ---- 없어진 event_flow_condition_master / adv_flow_condition_master ----
 
     [Theory]
-    [InlineData("3001\t9\t1\t1001\tEqual\t1\n", "알 수 없는 흐름")]                  // 흐름 마스터에 없는 흐름
-    [InlineData("9999\t1\t1\t1001\tEqual\t1\n", "알 수 없는 흐름")]                  // 없는 이벤트
-    [InlineData("3001\t1\tx\t1001\tEqual\t1\n", "그룹넘버")]
-    [InlineData("3001\t1\t1\t1001\tBigger\t1\n", "컨디션 타입")]
-    [InlineData("3001\t1\t1\t\tEqual\t1\n", "플래그 코드")]
-    [InlineData("3001\t1\t1\t1001\tEqual\t\n", "컨디션 밸류")]
-    public void Bad_flow_conditions_are_rejected(string row, string message) =>
-        Assert.Contains(message, Assert.Throws<PackFormatException>(() => Load(
-            flows: FlowHeader + "3001\t1\tFinish\t0\t0\t0\n", flowConditions: FlowCondHeader + row)).Message);
-
-    [Fact]
-    public void A_none_condition_may_leave_flag_and_value_empty_and_the_master_needs_the_flow_master()
+    [InlineData("master/event_flow_condition_master_v1.tsv")]
+    [InlineData("master/adv_flow_condition_master_v1.tsv")]
+    public void The_removed_flow_condition_masters_are_rejected_with_or_without_the_flow_master(string path)
     {
-        var pack = Load(flows: FlowHeader + "3001\t1\tFinish\t0\t0\t0\n", flowConditions: FlowCondHeader + "3001\t1\t1\t\tNone\t\n");
-        Assert.True(pack.FindEventFlow(3001, 1)!.IsAvailable(new Dictionary<long, long>()));
+        const string condition = "event_code\tflow_number\tgroup_number\tflag_code\tcondition_type\tcondition_value\n3001\t1\t1\t1001\tEqual\t1\n";
+        var basic = new[] { ("pack.tsv", "id\tdemo\ntitle\t데모\n"), ("master/event_master_v1.tsv", Events), ("master/adv_master_v1.tsv", Advs) };
 
-        Assert.Throws<PackFormatException>(() => Load(flowConditions: FlowCondHeader + "3001\t1\t1\t1001\tEqual\t1\n"));   // 흐름 마스터가 없다
+        var alone = basic.Append((path, condition)).ToArray();
+        Assert.Contains("더 이상 쓰이지 않습니다", Assert.Throws<PackFormatException>(() => GamePack.Load(CoreTests.PackZip(alone))).Message);
+
+        var withFlows = basic.Append(("master/event_flow_master_v1.tsv", FlowHeader + "3001\t1\tFinish\t0\t0\t0\n")).Append((path, condition)).ToArray();
+        Assert.Contains("더 이상 쓰이지 않습니다", Assert.Throws<PackFormatException>(() => GamePack.Load(CoreTests.PackZip(withFlows))).Message);
     }
 
     // ---- adv_master, battle_master ----
@@ -335,11 +285,9 @@ public class EventMasterTests
         var pack = Load(
             events: "code\tname\tmemo\n3001\t이벤트\t메모\n",
             flows: "event_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\tmemo\n3001\t1\tFinish\t0\t0\t0\t메모\n",
-            flowConditions: "event_code\tflow_number\tgroup_number\tflag_code\tcondition_type\tcondition_value\tmemo\n3001\t1\t1\t1001\tEqual\t1\t메모\n",
             advs: "code\tname\tmemo\n4001\tadv\t메모\n", battles: "code\tname\tmemo\n5001\tbattle\t메모\n");
         Assert.Single(pack.Events!);
         Assert.Single(pack.EventFlows!);
-        Assert.Single(pack.Masters.EventFlowConditionRowTable.All);
         Assert.Single(pack.Advs!);
         Assert.Single(pack.Battles!);
     }
@@ -354,12 +302,10 @@ public class EventMasterTests
 
         Assert.Equal("테스트 이벤트", pack.FindEvent(3001)!.Name);
         Assert.Equal(
-            [(1L, EventFlowType.Adv, 4001L), (2L, EventFlowType.Battle, 5001L), (3L, EventFlowType.Finish, 0L)],
+            [(1L, EventFlowType.Adv, 4001L), (2L, EventFlowType.JumpFlagLessThan, 1001L), (3L, EventFlowType.Battle, 5001L), (4L, EventFlowType.Finish, 0L)],
             pack.FlowsOf(3001).Select(f => (f.FlowNumber, f.FlowType, f.Param1)));
+        Assert.Equal((1L, 4L), (pack.FindEventFlow(3001, 2)!.Param2, pack.FindEventFlow(3001, 2)!.Param3));   // 플래그 1001이 1 미만이면 4번(종료)으로
         Assert.Equal("테스트 ADV", pack.FindAdv(4001)!.Name);
         Assert.Equal("테스트 전투", pack.FindBattle(5001)!.Name);
-        Assert.True(pack.FindEventFlow(3001, 1)!.IsAvailable(new Dictionary<long, long>()));                       // 조건이 없다
-        Assert.False(pack.FindEventFlow(3001, 2)!.IsAvailable(new Dictionary<long, long>()));                      // 전투는 플래그 1001이 필요
-        Assert.True(pack.FindEventFlow(3001, 2)!.IsAvailable(new Dictionary<long, long> { [1001] = 1 }));
     }
 }

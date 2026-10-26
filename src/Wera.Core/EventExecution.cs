@@ -18,7 +18,7 @@ public readonly record struct EventStep(EventStepKind Kind, long FlowNumber, lon
 /// <summary>
 /// 이벤트 하나를 흐름 번호 순서대로 실행한다.
 /// 이벤트는 두 경우에 끝난다: (1) 더 진행할 흐름 번호가 없을 때, (2) 흐름 종류가 Finish인 칸을 만났을 때.
-/// 흐름의 조건(event_flow_condition_master)이 거짓이면 그 칸은 건너뛰고, 조건이 없으면 참으로 본다.
+/// 칸에는 조건이 없다(조건에 따라 건너뛰려면 JumpFlag*로 뛰어넘는다).
 /// 칸마다 종류에 따라: None은 아무 일도 없고, Jump는 param_1 번호부터 이어 가고, JumpFlag*는 플래그를 견주어 참이면 뒤쪽의 칸으로 점프하고 거짓이면 다음 칸으로 가고, SetFlag와 ModFlag는 플레이어 플래그를 바꾸고(멈추지 않고 다음 칸으로, 바뀐 플래그는 뒤의 칸 조건에 바로 보인다), Jump는 param_1 번호로 건너가 거기서부터 이어 가고,
 /// Adv와 Battle은 바깥이 해야 하는 일이라 <see cref="Advance"/>가 그 일을 돌려주고 멈춘다(다음 호출이 그 뒤부터 이어 간다).
 /// 조건은 그 칸에 닿을 때마다 현재 플래그로 판정하므로, ADV나 전투 사이에 플래그가 바뀌면 그 뒤의 칸에 반영된다.
@@ -61,7 +61,6 @@ public sealed class EventExecution
             }
 
             var flow = flows[next++];
-            if (!flow.IsAvailable(flags)) continue;     // 조건이 거짓이면 건너뛴다
 
             switch (flow.FlowType)
             {

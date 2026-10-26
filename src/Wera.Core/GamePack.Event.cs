@@ -54,16 +54,11 @@ public sealed record GameEvent(long Code, string Name, IReadOnlyList<IReadOnlyLi
 
 /// <summary>
 /// 이벤트 흐름 마스터의 한 행. 이벤트(EventCode)의 흐름 번호(FlowNumber) 칸이 하는 일(FlowType)과 그 인자. 키는 (EventCode, FlowNumber)다.
-/// Param1은 종류에 따라 점프할 흐름 번호(Jump), 플래그 코드(JumpFlag*, 점프할 흐름 번호는 Param3), 재생할 adv 코드(Adv), 개시할 전투 코드(Battle), 플래그 코드(SetFlag, ModFlag)로 쓰이고,
-/// Param2는 SetFlag, ModFlag의 값이며 그 외에는 쓰이지 않고, Param3은 지금은 쓰이지 않는다(앞으로를 위해 남겨 둔다). 흐름 조건 마스터의 조건을 만족해야 실행할 수 있고, 조건이 없으면 늘 실행할 수 있다.
+/// Param1은 종류에 따라 점프할 흐름 번호(Jump), 플래그 코드(JumpFlag*, SetFlag, ModFlag), 재생할 adv 코드(Adv), 개시할 전투 코드(Battle), 인벤토리 코드(AddInventory)로 쓰이고,
+/// Param2는 JumpFlag*, SetFlag, ModFlag, AddInventory의 값이며, Param3은 JumpFlag*의 점프할 흐름 번호다. 칸에는 조건이 없다(조건은 JumpFlag*로 건너뛰어 낸다).
 /// </summary>
-/// <param name="Groups">그룹넘버 순으로 정렬된 조건 묶음.</param>
 public sealed record EventFlow(
-    long EventCode, long FlowNumber, EventFlowType FlowType, long Param1, long Param2, long Param3,
-    IReadOnlyList<IReadOnlyList<FlagCondition>> Groups)
-{
-    public bool IsAvailable(IReadOnlyDictionary<long, long> playerFlags) => ConditionGroups.IsMet(Groups, playerFlags);
-}
+    long EventCode, long FlowNumber, EventFlowType FlowType, long Param1, long Param2, long Param3);
 
 /// <summary>ADV 마스터의 한 행.</summary>
 public sealed record AdvEntry(long Code, string Name);
@@ -71,10 +66,7 @@ public sealed record AdvEntry(long Code, string Name);
 /// <summary>전투 마스터의 한 행.</summary>
 public sealed record BattleEntry(long Code, string Name);
 
-/// <summary>흐름 조건표의 한 행(파일 순서 그대로): 어느 (이벤트, 흐름)의 몇 번 그룹에 어떤 조건이 있는가.</summary>
-internal readonly record struct FlatFlowCondition(long EventCode, long FlowNumber, int GroupNumber, FlagCondition Condition);
-
-// 이벤트, 이벤트 조건, 이벤트 흐름, 이벤트 흐름 조건, ADV, 전투 마스터. 이 마스터들은 선택이고, 아직 게임 진행에 쓰이지 않는다.
+// 이벤트, 이벤트 조건, 이벤트 흐름, ADV, 전투 마스터. 이 마스터들은 선택이고, 아직 게임 진행에 쓰이지 않는다.
 public sealed partial class GamePack
 {
     public const string EventMasterPath = "master/event_master_v1.tsv";
@@ -107,21 +99,18 @@ public sealed partial class GamePack
     /// 흐름: 이벤트는 이벤트 마스터에 있어야 하고, 키 (이벤트, 흐름 번호)를 두 번 쓸 수 없다. 흐름 번호와 인자는 정수(long, 인자는 비우면 0),
     /// 종류는 이름으로 적는다. 종류별 인자 검증: Jump의 param_1과 JumpFlag*의 param_3(점프할 흐름 번호)은 자신의 흐름 번호보다 큰 같은 이벤트의 흐름 번호(뒤로만 점프해 무한 반복이 없다), Adv의 param_1은 ADV 마스터의 코드,
     /// Battle의 param_1은 전투 마스터의 코드여야 한다(Adv와 Battle은 그 마스터가 있어야 한다). Finish와 None은 인자를 보지 않고, SetFlag와 ModFlag의 param_1(플래그 코드)과 param_2(값)는 어떤 정수든 되고, AddInventory는 param_1이 인벤토리 마스터에 있는 코드여야 하며 유니크 아이템과 캐릭터는 param_2가 1 또는 -1이어야 한다.
-    /// 흐름 조건: (이벤트, 흐름)은 흐름 마스터에 있어야 하고 키 (이벤트, 흐름, 그룹넘버, 플래그)를 두 번 쓸 수 없다.
+    /// 흐름 조건 마스터(event_flow_condition_master)는 없어졌다. 그 파일이 게임팩에 있으면 로드 오류다.
     /// </summary>
     static List<EventFlow>? LoadEventFlows(
-        ZipArchive zip, List<GameEvent>? events, List<AdvEntry>? advs, List<BattleEntry>? battles, List<FlatFlowCondition> flat,
-        IReadOnlyDictionary<long, InventoryEntry> inventory)
+        ZipArchive zip, List<GameEvent>? events, List<AdvEntry>? advs, List<BattleEntry>? battles, IReadOnlyDictionary<long, InventoryEntry> inventory)
     {
         const string file = EventFlowMasterPath;
         const string conditionFile = EventFlowConditionMasterPath;
         var text = TryReadEntry(zip, file);
-        if (text is null)
-        {
-            if (FindEntry(zip, conditionFile) is not null)
-                throw new PackFormatException($"{conditionFile}가 있으려면 {file}도 필요합니다.");
-            return null;
-        }
+        // 흐름 조건 마스터는 없어졌다: 조건에 따라 칸을 건너뛰려면 JumpFlag*로 뛰어넘는다. 조용히 무시하면 조건이 사라지므로 오류로 알린다.
+        if (FindEntry(zip, conditionFile) is not null)
+            throw new PackFormatException($"{conditionFile}는 더 이상 쓰이지 않습니다(조건은 JumpFlag* 칸으로 건너뛰어 냅니다). 이 파일을 지워 주세요.");
+        if (text is null) return null;
         if (events is null) throw new PackFormatException($"{file}가 있으려면 {EventMasterPath}도 필요합니다.");
 
         var eventCodes = events.Select(e => e.Code).ToHashSet();
@@ -179,50 +168,7 @@ public sealed partial class GamePack
             }
         }
 
-        // 흐름 조건: (이벤트, 흐름) → (그룹넘버 → 조건들)
-        var groups = rows.ToDictionary(r => (r.Event, r.Flow), _ => new SortedDictionary<int, List<FlagCondition>>());
-        var conditionText = TryReadEntry(zip, conditionFile);
-        if (conditionText is not null)
-        {
-            var seenKeys = new HashSet<(long, long, int, long)>();       // 복합키는 (이벤트, 흐름, 그룹넘버, 플래그 코드)
-            foreach (var r in Body(conditionFile, conditionText,
-                         "event_code", "flow_number", "group_number", "flag_code", "condition_type", "condition_value"))
-            {
-                var eventCode = ParseLong(conditionFile, "이벤트 코드", r[0]);
-                var flow = ParseLong(conditionFile, $"이벤트 '{eventCode}'의 흐름 번호", r[1]);
-                var who = $"이벤트 '{eventCode}'의 흐름 {flow}의";
-                if (!groups.TryGetValue((eventCode, flow), out var byGroup))
-                    throw new PackFormatException($"{conditionFile}: 알 수 없는 흐름(이벤트 '{eventCode}', 흐름 {flow}).");
-                if (!int.TryParse(r[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out var groupNumber))
-                    throw new PackFormatException($"{conditionFile}: {who} 그룹넘버 '{r[2]}'이(가) 정수가 아닙니다.");
-                // 숫자("1")도 Enum.TryParse를 통과하므로 이름 목록으로 먼저 거른다.
-                if (!Enum.GetNames<ConditionType>().Contains(r[4], StringComparer.OrdinalIgnoreCase)
-                    || !Enum.TryParse<ConditionType>(r[4], ignoreCase: true, out var conditionType))
-                    throw new PackFormatException(
-                        $"{conditionFile}: {who} 컨디션 타입 '{r[4]}'을(를) 알 수 없습니다. ({string.Join(", ", Enum.GetNames<ConditionType>())})");
-                // None은 조건 없음이므로 플래그 코드와 밸류를 비워 둘 수 있다.
-                long flagCode = 0, value = 0;
-                if (conditionType != ConditionType.None)
-                {
-                    flagCode = ParseLong(conditionFile, $"{who} 플래그 코드", r[3]);
-                    value = ParseLong(conditionFile, $"{who} 컨디션 밸류", r[5]);
-                }
-
-                if (!seenKeys.Add((eventCode, flow, groupNumber, flagCode)))
-                    throw new PackFormatException(
-                        $"{conditionFile}: {who} 그룹 {groupNumber}에 플래그 '{flagCode}'가 두 번 있습니다.");
-                if (!byGroup.TryGetValue(groupNumber, out var list)) byGroup[groupNumber] = list = [];
-                var condition = new FlagCondition(flagCode, conditionType, value);
-                list.Add(condition);
-                flat.Add(new FlatFlowCondition(eventCode, flow, groupNumber, condition));
-            }
-        }
-
-        return rows
-            .Select(r => new EventFlow(
-                r.Event, r.Flow, r.Type, r.P1, r.P2, r.P3,
-                groups[(r.Event, r.Flow)].Values.Select(l => (IReadOnlyList<FlagCondition>)l).ToList()))
-            .ToList();
+        return rows.Select(r => new EventFlow(r.Event, r.Flow, r.Type, r.P1, r.P2, r.P3)).ToList();
     }
 
     /// <summary>

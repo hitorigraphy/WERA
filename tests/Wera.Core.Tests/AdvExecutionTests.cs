@@ -2,13 +2,12 @@ using Wera.Core;
 
 namespace Wera.Core.Tests;
 
-// ADV 실행: 대사는 하나씩, 선택지는 묶음으로, 조건·점프·종료는 이벤트 실행과 같은 규칙
+// ADV 실행: 대사는 하나씩, 선택지는 묶음으로, 점프·종료는 이벤트 실행과 같은 규칙(조건은 JumpFlag* 흐름으로)
 public class AdvExecutionTests
 {
     const string FlowHeader = "adv_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\ttext\tforce_name\n";
-    const string CondHeader = "adv_code\tflow_number\tgroup_number\tflag_code\tcondition_type\tcondition_value\n";
 
-    static GameSession Session(string flows, string? conditions = null)
+    static GameSession Session(string flows)
     {
         var files = new List<(string, string)>
         {
@@ -19,7 +18,6 @@ public class AdvExecutionTests
                 "event_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\n3001\t1\tAdv\t4001\t0\t0\n3001\t2\tAdv\t4002\t0\t0\n"),
             ("master/adv_flow_master_v1.tsv", FlowHeader + flows),
         };
-        if (conditions is not null) files.Add(("master/adv_flow_condition_master_v1.tsv", CondHeader + conditions));
         return GameSession.NewGame(GamePack.Load(CoreTests.PackZip(files.ToArray())));
     }
 
@@ -40,18 +38,28 @@ public class AdvExecutionTests
     }
 
     [Fact]
-    public void Finish_ends_the_adv_and_flows_with_false_conditions_are_skipped()
+    public void Finish_ends_the_adv_and_a_jump_flag_can_skip_over_a_flow_before_it()
     {
         var s = Session(
-            "4001\t1\tTextMe\t0\t0\t0\ta\n4001\t2\tTextMe\t0\t0\t0\tb\n4001\t3\tFinish\t0\t0\t0\t\n4001\t4\tTextMe\t0\t0\t0\tc\n",
-            "4001\t2\t1\t1001\tGreaterOrEqual\t1\n");
+            "4001\t1\tTextMe\t0\t0\t0\ta\n4001\t2\tJumpFlagLessThan\t1001\t1\t4\t\n4001\t3\tTextMe\t0\t0\t0\tb\n4001\t4\tFinish\t0\t0\t0\t\n4001\t5\tTextMe\t0\t0\t0\tc\n");
         var run = Run(s);
         Assert.Equal("a", run.Advance().Text);
-        Assert.Equal(AdvStepKind.Finished, run.Advance().Kind);           // 2번은 건너뛰고 3번 Finish에서 끝난다
+        Assert.Equal(AdvStepKind.Finished, run.Advance().Kind);           // 3번은 건너뛰고 4번 Finish에서 끝난다
 
         s.PlayerFlags[1001] = 1;
         run = Run(s);
         Assert.Equal(["a", "b"], new[] { run.Advance().Text, run.Advance().Text });
+    }
+
+    [Fact]
+    public void A_finish_can_be_jumped_over_with_a_jump_flag()
+    {
+        var s = Session(
+            "4001\t1\tJumpFlagLessThan\t1001\t1\t3\t\n4001\t2\tFinish\t0\t0\t0\t\n4001\t3\tTextMe\t0\t0\t0\t이어짐\n");
+        Assert.Equal("이어짐", Run(s).Advance().Text);                    // 플래그가 1 미만이라 Finish를 건너뛴다
+
+        s.PlayerFlags[1001] = 1;
+        Assert.Equal(AdvStepKind.Finished, Run(s).Advance().Kind);        // 점프하지 않으면 Finish에서 끝난다
     }
 
     [Fact]
@@ -82,19 +90,17 @@ public class AdvExecutionTests
     }
 
     [Fact]
-    public void Choices_with_false_conditions_are_left_out_and_a_group_with_none_left_is_skipped()
+    public void A_choice_group_always_shows_all_its_rows_and_a_jump_flag_picks_another_group()
     {
+        // 선택지 칸마다 숨길 수는 없다. 숨기려면 앞에서 JumpFlag로 다른 선택지 묶음으로 건너뛴다.
         var s = Session(
-            "4001\t1\tChoice\t1\t3\t0\t늘 있다\n4001\t2\tChoice\t1\t3\t0\t조건부\n4001\t3\tTextMe\t0\t0\t0\t끝\n",
-            "4001\t2\t1\t1001\tGreaterOrEqual\t1\n");
-        Assert.Equal(["늘 있다"], Run(s).Advance().Choices.Select(c => c.Text));
+            "4001\t1\tJumpFlagGreaterOrEqual\t1001\t1\t10\t\n" +
+            "4001\t2\tChoice\t1\t20\t0\t늘 있다\n4001\t3\tChoice\t1\t20\t0\t기본\n4001\t4\tFinish\t0\t0\t0\t\n" +
+            "4001\t10\tChoice\t2\t20\t0\t늘 있다\n4001\t11\tChoice\t2\t20\t0\t기본\n4001\t12\tChoice\t2\t20\t0\t조건부\n4001\t13\tFinish\t0\t0\t0\t\n" +
+            "4001\t20\tTextMe\t0\t0\t0\t끝\n");
+        Assert.Equal(["늘 있다", "기본"], Run(s).Advance().Choices.Select(c => c.Text));
         s.PlayerFlags[1001] = 1;
-        Assert.Equal(["늘 있다", "조건부"], Run(s).Advance().Choices.Select(c => c.Text));
-
-        var none = Session(
-            "4001\t1\tChoice\t1\t3\t0\ta\n4001\t2\tChoice\t1\t3\t0\tb\n4001\t3\tTextMe\t0\t0\t0\t끝\n",
-            "4001\t1\t1\t1001\tEqual\t1\n4001\t2\t1\t1001\tEqual\t1\n");
-        Assert.Equal("끝", Run(none).Advance().Text);                     // 고를 수 있는 선택지가 없으면 묶음째 건너뛴다
+        Assert.Equal(["늘 있다", "기본", "조건부"], Run(s).Advance().Choices.Select(c => c.Text));
     }
 
     [Fact]
@@ -365,7 +371,7 @@ public class AdvChoiceMarkupTests
 
 public class AdvFlagFlowTests
 {
-    static GameSession Session(string flows, string? conditions = null)
+    static GameSession Session(string flows)
     {
         var files = new List<(string, string)>
         {
@@ -375,8 +381,6 @@ public class AdvFlagFlowTests
             ("master/event_flow_master_v1.tsv", "event_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\n3001\t1\tAdv\t4001\t0\t0\n"),
             ("master/adv_flow_master_v1.tsv", "adv_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\ttext\tforce_name\n" + flows),
         };
-        if (conditions is not null)
-            files.Add(("master/adv_flow_condition_master_v1.tsv", "adv_code\tflow_number\tgroup_number\tflag_code\tcondition_type\tcondition_value\n" + conditions));
         return GameSession.NewGame(GamePack.Load(CoreTests.PackZip(files.ToArray())));
     }
 
@@ -393,15 +397,15 @@ public class AdvFlagFlowTests
     }
 
     [Fact]
-    public void A_flag_flow_with_a_false_condition_is_skipped_and_later_flows_see_the_new_value()
+    public void A_jumped_over_flag_flow_is_not_run_and_later_flows_see_the_new_value()
     {
         var s = Session(
-            "4001\t1\tSetFlag\t1001\t1\t0\t\t\n4001\t2\tSetFlag\t3003\t9\t0\t\t\n4001\t3\tTextPlain\t0\t0\t0\t조건부\t\n4001\t4\tTextPlain\t0\t0\t0\t끝\t\n",
-            "4001\t2\t1\t9999\tEqual\t1\n4001\t3\t1\t1001\tGreaterOrEqual\t1\n");
+            "4001\t1\tSetFlag\t1001\t1\t0\t\t\n4001\t2\tJumpFlagEqual\t9999\t0\t4\t\n4001\t3\tSetFlag\t3003\t9\t0\t\t\n" +
+            "4001\t4\tJumpFlagLessThan\t1001\t1\t6\t\n4001\t5\tTextPlain\t0\t0\t0\t조건부\t\n4001\t6\tTextPlain\t0\t0\t0\t끝\t\n");
         var run = new AdvExecution(s.Pack, 4001, s.PlayerFlags);
 
-        Assert.Equal("조건부", run.Advance().Text);                       // 1번이 바꾼 플래그를 3번의 조건이 바로 본다
-        Assert.False(s.PlayerFlags.ContainsKey(3003));                    // 조건이 거짓인 2번은 실행되지 않았다
+        Assert.Equal("조건부", run.Advance().Text);                       // 1번이 바꾼 플래그를 4번의 JumpFlag가 바로 보고 건너뛰지 않는다
+        Assert.False(s.PlayerFlags.ContainsKey(3003));                    // 2번이 3번을 건너뛰어 실행되지 않았다
     }
 
     [Fact]

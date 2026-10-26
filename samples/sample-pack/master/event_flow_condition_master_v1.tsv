@@ -1,2 +1,0 @@
-event_code	flow_number	group_number	flag_code	condition_type	condition_value	memo
-3001	2	1	1001	GreaterOrEqual	1	테스트용(튜토리얼을 마쳐야 전투)

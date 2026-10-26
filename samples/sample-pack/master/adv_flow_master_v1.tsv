@@ -1,13 +1,17 @@
 adv_code	flow_number	flow_type	param_1	param_2	param_3	text	force_name	memo
 4001	1	TextPlain	0	0	0	테스트 ADV가 시작됩니다.		테스트용
 4001	2	TextYou	7001	0	0	안녕하세요. [b]어떻게[/b] [color=yellow]하시겠어요[/color]?\n선택해 주세요.		테스트용
-4001	3	Choice	1	7	0	[b]인사[/b]한다		테스트용
-4001	4	Choice	1	9	0	[color=yellow]비밀[/color]을 묻는다		테스트용
-4001	5	Choice	1	11	0	튜토리얼을 마친 사람만 고를 수 있다		테스트용
+4001	3	JumpFlagGreaterOrEqual	1001	1	10			테스트용(튜토리얼 플래그가 있으면 선택지 3개짜리 묶음으로 뜀)
+4001	4	Choice	1	20	0	[b]인사[/b]한다		테스트용
+4001	5	Choice	1	22	0	[color=yellow]비밀[/color]을 묻는다		테스트용
 4001	6	Finish	0	0	0			테스트용
-4001	7	TextMe	1	0	0	안녕하세요.		테스트용
-4001	8	Finish	0	0	0			테스트용
-4001	9	TextMe	1	0	0	비밀이 뭔가요?		테스트용
-4001	10	Finish	0	0	0			테스트용
-4001	11	TextMe	1	0	0	튜토리얼을 마쳤습니다.		테스트용
-4001	12	Finish	0	0	0			테스트용
+4001	10	Choice	2	20	0	[b]인사[/b]한다		테스트용
+4001	11	Choice	2	22	0	[color=yellow]비밀[/color]을 묻는다		테스트용
+4001	12	Choice	2	24	0	튜토리얼을 마친 사람만 고를 수 있다		테스트용
+4001	13	Finish	0	0	0			테스트용
+4001	20	TextMe	1	0	0	안녕하세요.		테스트용
+4001	21	Finish	0	0	0			테스트용
+4001	22	TextMe	1	0	0	비밀이 뭔가요?		테스트용
+4001	23	Finish	0	0	0			테스트용
+4001	24	TextMe	1	0	0	튜토리얼을 마쳤습니다.		테스트용
+4001	25	Finish	0	0	0			테스트용

@@ -53,21 +53,12 @@ public enum AdvFlowType
 /// ADV 흐름 마스터의 한 행. ADV(AdvCode)의 흐름 번호(FlowNumber) 칸이 하는 일(FlowType)과 그 인자. 키는 (AdvCode, FlowNumber)다.
 /// Text는 TextMe/TextYou/TextPlain 칸이 보여 줄 문장이고(Choice는 선택지 문구로 쓸 수 있다), 그 외 종류는 비워 둔다.
 /// TextMe와 TextYou의 Param1은 말하는 캐릭터 코드, Param2는 그 캐릭터 이미지의 variation_number다(0이거나 없는 캐릭터면 이름 ???와 No Image).
-/// ForceName은 화자 이름을 강제하는 특별 연출용 열로, 비어 있으면 캐릭터 이름을 쓴다.
-/// 흐름 조건 마스터의 조건을 만족해야 실행할 수 있고, 조건이 없으면 늘 실행할 수 있다.
+/// ForceName은 화자 이름을 강제하는 특별 연출용 열로, 비어 있으면 캐릭터 이름을 쓴다. 칸에는 조건이 없다(조건은 JumpFlag*로 건너뛰어 낸다).
 /// </summary>
-/// <param name="Groups">그룹넘버 순으로 정렬된 조건 묶음.</param>
 public sealed record AdvFlow(
-    long AdvCode, long FlowNumber, AdvFlowType FlowType, long Param1, long Param2, long Param3, string Text, string ForceName,
-    IReadOnlyList<IReadOnlyList<FlagCondition>> Groups)
-{
-    public bool IsAvailable(IReadOnlyDictionary<long, long> playerFlags) => ConditionGroups.IsMet(Groups, playerFlags);
-}
+    long AdvCode, long FlowNumber, AdvFlowType FlowType, long Param1, long Param2, long Param3, string Text, string ForceName);
 
-/// <summary>ADV 흐름 조건표의 한 행(파일 순서 그대로).</summary>
-internal readonly record struct FlatAdvFlowCondition(long AdvCode, long FlowNumber, int GroupNumber, FlagCondition Condition);
-
-// ADV 흐름, ADV 흐름 조건 마스터. 이 마스터들은 선택이고, 아직 게임 진행에 쓰이지 않는다.
+// ADV 흐름 마스터. 이 마스터는 선택이다.
 public sealed partial class GamePack
 {
     public const string AdvFlowMasterPath = "master/adv_flow_master_v1.tsv";
@@ -77,25 +68,23 @@ public sealed partial class GamePack
     public IReadOnlyList<AdvFlow>? AdvFlows { get; init; }
 
     /// <summary>
-    /// ADV 흐름 마스터와 흐름 조건 마스터를 읽는다.
+    /// ADV 흐름 마스터를 읽는다.
     /// 흐름: ADV는 ADV 마스터에 있어야 하고, 키 (ADV, 흐름 번호)를 두 번 쓸 수 없다. 흐름 번호와 인자는 정수(long, 인자는 비우면 0), 종류는 이름으로 적는다.
     /// 종류별 인자 검증: Jump의 param_1과 JumpFlag*의 param_3(점프할 흐름 번호), Choice의 param_2는 자신의 흐름 번호보다 큰 같은 ADV의 흐름 번호(뒤로만 점프해 무한 반복이 없다).
     /// 같은 ADV에서 Choice의 param_1(선택지 그룹 아이디)이 같은 행들은 흐름 번호 순으로 연속해야 한다(다른 칸이 끼어들 수 없다).
     /// Finish, None, 대사 종류(TextMe, TextYou, TextPlain)는 인자를 검증하지 않는다(TextMe와 TextYou의 param_1이 캐릭터가 아니어도 오류가 아니라 이름 ???). SetFlag와 ModFlag의 param_1(플래그 코드)과 param_2(값)는 어떤 정수든 되고, AddInventory는 param_1이 인벤토리 마스터에 있는 코드여야 하며 유니크 아이템과 캐릭터는 param_2가 1 또는 -1이어야 한다. 대사 종류는 text 열이 비어 있으면 안 된다.
-    /// 흐름 조건: (ADV, 흐름)은 흐름 마스터에 있어야 하고 키 (ADV, 흐름, 그룹넘버, 플래그)를 두 번 쓸 수 없다.
+    /// 흐름 조건 마스터(adv_flow_condition_master)는 없어졌다. 그 파일이 게임팩에 있으면 로드 오류다.
     /// </summary>
     static List<AdvFlow>? LoadAdvFlows(
-        ZipArchive zip, List<AdvEntry>? advs, List<FlatAdvFlowCondition> flat, IReadOnlyDictionary<long, InventoryEntry> inventory)
+        ZipArchive zip, List<AdvEntry>? advs, IReadOnlyDictionary<long, InventoryEntry> inventory)
     {
         const string file = AdvFlowMasterPath;
         const string conditionFile = AdvFlowConditionMasterPath;
         var text = TryReadEntry(zip, file);
-        if (text is null)
-        {
-            if (FindEntry(zip, conditionFile) is not null)
-                throw new PackFormatException($"{conditionFile}가 있으려면 {file}도 필요합니다.");
-            return null;
-        }
+        // 흐름 조건 마스터는 없어졌다: 조건에 따라 칸이나 선택지를 숨기려면 JumpFlag*로 다른 칸/선택지 묶음으로 뛴다. 조용히 무시하면 조건이 사라지므로 오류로 알린다.
+        if (FindEntry(zip, conditionFile) is not null)
+            throw new PackFormatException($"{conditionFile}는 더 이상 쓰이지 않습니다(조건은 JumpFlag* 칸으로 건너뛰거나 다른 선택지 묶음으로 뛰어 냅니다). 이 파일을 지워 주세요.");
+        if (text is null) return null;
         if (advs is null) throw new PackFormatException($"{file}가 있으려면 {AdvMasterPath}도 필요합니다.");
 
         var advCodes = advs.Select(a => a.Code).ToHashSet();
@@ -169,50 +158,7 @@ public sealed partial class GamePack
             }
         }
 
-        // 흐름 조건: (ADV, 흐름) → (그룹넘버 → 조건들)
-        var groups = rows.ToDictionary(r => (r.Adv, r.Flow), _ => new SortedDictionary<int, List<FlagCondition>>());
-        var conditionText = TryReadEntry(zip, conditionFile);
-        if (conditionText is not null)
-        {
-            var seenKeys = new HashSet<(long, long, int, long)>();       // 복합키는 (ADV, 흐름, 그룹넘버, 플래그 코드)
-            foreach (var r in Body(conditionFile, conditionText,
-                         "adv_code", "flow_number", "group_number", "flag_code", "condition_type", "condition_value"))
-            {
-                var advCode = ParseLong(conditionFile, "ADV 코드", r[0]);
-                var flow = ParseLong(conditionFile, $"ADV '{advCode}'의 흐름 번호", r[1]);
-                var who = $"ADV '{advCode}'의 흐름 {flow}의";
-                if (!groups.TryGetValue((advCode, flow), out var byGroup))
-                    throw new PackFormatException($"{conditionFile}: 알 수 없는 흐름(ADV '{advCode}', 흐름 {flow}).");
-                if (!int.TryParse(r[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out var groupNumber))
-                    throw new PackFormatException($"{conditionFile}: {who} 그룹넘버 '{r[2]}'이(가) 정수가 아닙니다.");
-                // 숫자("1")도 Enum.TryParse를 통과하므로 이름 목록으로 먼저 거른다.
-                if (!Enum.GetNames<ConditionType>().Contains(r[4], StringComparer.OrdinalIgnoreCase)
-                    || !Enum.TryParse<ConditionType>(r[4], ignoreCase: true, out var conditionType))
-                    throw new PackFormatException(
-                        $"{conditionFile}: {who} 컨디션 타입 '{r[4]}'을(를) 알 수 없습니다. ({string.Join(", ", Enum.GetNames<ConditionType>())})");
-                // None은 조건 없음이므로 플래그 코드와 밸류를 비워 둘 수 있다.
-                long flagCode = 0, value = 0;
-                if (conditionType != ConditionType.None)
-                {
-                    flagCode = ParseLong(conditionFile, $"{who} 플래그 코드", r[3]);
-                    value = ParseLong(conditionFile, $"{who} 컨디션 밸류", r[5]);
-                }
-
-                if (!seenKeys.Add((advCode, flow, groupNumber, flagCode)))
-                    throw new PackFormatException(
-                        $"{conditionFile}: {who} 그룹 {groupNumber}에 플래그 '{flagCode}'가 두 번 있습니다.");
-                if (!byGroup.TryGetValue(groupNumber, out var list)) byGroup[groupNumber] = list = [];
-                var condition = new FlagCondition(flagCode, conditionType, value);
-                list.Add(condition);
-                flat.Add(new FlatAdvFlowCondition(advCode, flow, groupNumber, condition));
-            }
-        }
-
-        return rows
-            .Select(r => new AdvFlow(
-                r.Adv, r.Flow, r.Type, r.P1, r.P2, r.P3, r.Text, r.ForceName,
-                groups[(r.Adv, r.Flow)].Values.Select(l => (IReadOnlyList<FlagCondition>)l).ToList()))
-            .ToList();
+        return rows.Select(r => new AdvFlow(r.Adv, r.Flow, r.Type, r.P1, r.P2, r.P3, r.Text, r.ForceName)).ToList();
     }
 
     /// <summary>
@@ -238,7 +184,7 @@ public sealed partial class GamePack
         if (rich.Lines.Count > 1) throw new PackFormatException($"{where} 선택지 text에는 줄바꿈(\\n)을 쓸 수 없습니다.");
     }
 
-    /// <summary>ADV의 흐름 칸 하나(조건 포함). 없으면 null.</summary>
+    /// <summary>ADV의 흐름 칸 하나. 없으면 null.</summary>
     public AdvFlow? FindAdvFlow(long advCode, long flowNumber) =>
         AdvFlows?.FirstOrDefault(f => f.AdvCode == advCode && f.FlowNumber == flowNumber);
 
