@@ -109,6 +109,9 @@ public sealed partial class GamePack
             {
                 case AdvFlowType.TextMe or AdvFlowType.TextYou or AdvFlowType.TextPlain when string.IsNullOrWhiteSpace(line):
                     throw new PackFormatException($"{where} {type}에는 text가 있어야 합니다.");
+                case AdvFlowType.TextMe or AdvFlowType.TextYou or AdvFlowType.TextPlain:
+                    CheckLine(where, type, line);
+                    break;
                 case AdvFlowType.Jump when p1 <= flow:
                     throw new PackFormatException(
                         $"{where} 점프할 흐름 번호 '{p1}'는 자신의 흐름 번호 {flow}보다 커야 합니다(뒤로만 점프할 수 있어 무한 반복이 생기지 않습니다).");
@@ -181,6 +184,21 @@ public sealed partial class GamePack
                 r.Adv, r.Flow, r.Type, r.P1, r.P2, r.P3, r.Text, r.ForceName,
                 groups[(r.Adv, r.Flow)].Values.Select(l => (IReadOnlyList<FlagCondition>)l).ToList()))
             .ToList();
+    }
+
+    /// <summary>
+    /// 대사의 꾸밈 문법(<see cref="RichText"/>)이 맞는지, 그리고 TextMe/TextYou는 대사 상자(<see cref="AdvLayout"/>)에 들어가는지 본다:
+    /// 줄 수가 <see cref="AdvLayout.BoxLines"/>를 넘으면 게임팩 로드가 실패한다. TextPlain은 상자가 없어 문법만 본다.
+    /// </summary>
+    static void CheckLine(string where, AdvFlowType type, string line)
+    {
+        var rich = RichText.TryParse(line, out var error);
+        if (rich is null) throw new PackFormatException($"{where} text가 올바르지 않습니다: {error}");
+        if (type == AdvFlowType.TextPlain) return;
+        var lines = rich.CountLines(AdvLayout.BoxColumns);
+        if (lines > AdvLayout.BoxLines)
+            throw new PackFormatException(
+                $"{where} text가 대사 상자에 들어가지 않습니다: {lines}줄입니다(최대 {AdvLayout.BoxLines}줄, 한 줄 {AdvLayout.BoxColumns}칸, 한글은 2칸).");
     }
 
     /// <summary>ADV의 흐름 칸 하나(조건 포함). 없으면 null.</summary>

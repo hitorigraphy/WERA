@@ -27,6 +27,9 @@ public readonly record struct AdvStep(
     string SpeakerName = "", long CharacterCode = 0, long Variation = 0)
 {
     public static readonly AdvStep Finished = new(AdvStepKind.Finished, 0, "", []);
+
+    /// <summary>대사를 꾸밈 문법(<see cref="RichText"/>)대로 읽은 것. 로드 때 검증했으므로 늘 읽힌다(대사가 아니면 빈 글).</summary>
+    public RichText Rich => RichText.TryParse(Text, out _) ?? RichText.TryParse("", out _)!;
 }
 
 /// <summary>
