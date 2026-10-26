@@ -74,7 +74,7 @@ public sealed partial class GameSession
         Screen = Screen.EventPlay;
         if (step.Kind == EventStepKind.Adv)
         {
-            CurrentAdv = new AdvExecution(Pack, step.Code, PlayerFlags);
+            CurrentAdv = new AdvExecution(Pack, step.Code, PlayerFlags, AddInventory);
             ShowNextAdvStep();                          // 보여 줄 장면이 없는 ADV는 바로 이벤트의 다음 장면으로 넘어간다
         }
     }

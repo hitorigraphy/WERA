@@ -5,7 +5,7 @@ namespace Wera.Core;
 
 /// <summary>
 /// 이벤트 흐름 한 칸이 하는 일의 종류. TSV에는 이름(대소문자 무시)으로 적는다.
-/// 숫자 값은 정해진 번호다: None 0, Finish 1, Jump 2, Adv 3, Battle 4, SetFlag 5, ModFlag 6.
+/// 숫자 값은 정해진 번호다: None 0, Finish 1, Jump 2, Adv 3, Battle 4, SetFlag 5, ModFlag 6, AddInventory 7.
 /// </summary>
 public enum EventFlowType
 {
@@ -26,6 +26,11 @@ public enum EventFlowType
     SetFlag = 5,
     /// <summary>플레이어 플래그에 값을 더한다(음수면 뺀다). param_1이 flag_code, param_2가 더할 value다. 없던 플래그는 0에서 시작하고, 값이 long 범위를 넘으면 끝값에 멈춘다.</summary>
     ModFlag = 6,
+    /// <summary>
+    /// 인벤토리에 개수를 더한다(음수면 뺀다). param_1이 inventory_code(커먼, 번치, 유니크 아이템, 캐릭터가 함께 쓰는 코드), param_2가 개수다.
+    /// 유니크 아이템과 캐릭터는 개수가 1 또는 -1이어야 한다(로드 검증). 화면에는 나오지 않고 바로 다음 칸으로 간다. 자세한 규칙은 <see cref="GameSession.AddInventory"/>.
+    /// </summary>
+    AddInventory = 7,
 }
 
 /// <summary>이벤트 마스터의 한 행. 이벤트 조건 마스터의 그룹 규칙(그룹 안은 AND, 그룹끼리는 OR)으로 열리고, 조건이 없으면 늘 열린다.</summary>
@@ -89,11 +94,12 @@ public sealed partial class GamePack
     /// 이벤트 흐름 마스터와 흐름 조건 마스터를 읽는다.
     /// 흐름: 이벤트는 이벤트 마스터에 있어야 하고, 키 (이벤트, 흐름 번호)를 두 번 쓸 수 없다. 흐름 번호와 인자는 정수(long, 인자는 비우면 0),
     /// 종류는 이름으로 적는다. 종류별 인자 검증: Jump의 param_1은 자신의 흐름 번호보다 큰 같은 이벤트의 흐름 번호(뒤로만 점프해 무한 반복이 없다), Adv의 param_1은 ADV 마스터의 코드,
-    /// Battle의 param_1은 전투 마스터의 코드여야 한다(Adv와 Battle은 그 마스터가 있어야 한다). Finish와 None은 인자를 보지 않고, SetFlag와 ModFlag의 param_1(플래그 코드)과 param_2(값)는 어떤 정수든 된다.
+    /// Battle의 param_1은 전투 마스터의 코드여야 한다(Adv와 Battle은 그 마스터가 있어야 한다). Finish와 None은 인자를 보지 않고, SetFlag와 ModFlag의 param_1(플래그 코드)과 param_2(값)는 어떤 정수든 되고, AddInventory는 param_1이 인벤토리 마스터에 있는 코드여야 하며 유니크 아이템과 캐릭터는 param_2가 1 또는 -1이어야 한다.
     /// 흐름 조건: (이벤트, 흐름)은 흐름 마스터에 있어야 하고 키 (이벤트, 흐름, 그룹넘버, 플래그)를 두 번 쓸 수 없다.
     /// </summary>
     static List<EventFlow>? LoadEventFlows(
-        ZipArchive zip, List<GameEvent>? events, List<AdvEntry>? advs, List<BattleEntry>? battles, List<FlatFlowCondition> flat)
+        ZipArchive zip, List<GameEvent>? events, List<AdvEntry>? advs, List<BattleEntry>? battles, List<FlatFlowCondition> flat,
+        IReadOnlyDictionary<long, InventoryEntry> inventory)
     {
         const string file = EventFlowMasterPath;
         const string conditionFile = EventFlowConditionMasterPath;
@@ -134,9 +140,10 @@ public sealed partial class GamePack
         // 종류별 인자 검증(param_2, param_3은 쓰지 않는다)
         var advCodes = advs?.Select(a => a.Code).ToHashSet();
         var battleCodes = battles?.Select(b => b.Code).ToHashSet();
-        foreach (var (eventCode, flow, type, p1, _, _) in rows)
+        foreach (var (eventCode, flow, type, p1, p2, _) in rows)
         {
             var where = $"{file}: 이벤트 '{eventCode}'의 흐름 {flow}의";
+            if (type == EventFlowType.AddInventory) CheckAddInventory(where, p1, p2, inventory);
             switch (type)
             {
                 case EventFlowType.Jump when p1 <= flow:
@@ -199,6 +206,21 @@ public sealed partial class GamePack
                 r.Event, r.Flow, r.Type, r.P1, r.P2, r.P3,
                 groups[(r.Event, r.Flow)].Values.Select(l => (IReadOnlyList<FlagCondition>)l).ToList()))
             .ToList();
+    }
+
+    /// <summary>
+    /// AddInventory 칸(이벤트, ADV 공통)의 인자 검증: param_1은 인벤토리 코드 공간에 있어야 하고, 유니크 아이템과 캐릭터는 개수가 1 또는 -1이어야 한다.
+    /// 플레이어 캐릭터(1)는 내보낼 수 없으므로 -1도 안 된다.
+    /// </summary>
+    static void CheckAddInventory(string where, long code, long amount, IReadOnlyDictionary<long, InventoryEntry> inventory)
+    {
+        if (!inventory.TryGetValue(code, out var entry))
+            throw new PackFormatException($"{where} AddInventory의 인벤토리 코드 '{code}'가 인벤토리 마스터에 없습니다.");
+        if (entry.Kind is InventoryKind.UniqueItem or InventoryKind.Character && amount is not (1 or -1))
+            throw new PackFormatException(
+                $"{where} AddInventory의 {entry.Kind} '{code}' 개수는 1 또는 -1이어야 합니다(받은 값 {amount}).");
+        if (entry.Kind == InventoryKind.Character && code == PlayerCharacterCode && amount == -1)
+            throw new PackFormatException($"{where} AddInventory로 플레이어 캐릭터 '{code}'를 내보낼 수 없습니다.");
     }
 
     // ---- 키로 찾기 ----

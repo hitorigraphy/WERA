@@ -163,9 +163,9 @@ public sealed partial class GamePack
         var advs = LoadAdvs(zip);
         var battles = LoadBattles(zip);
         var eventFlowConditions = new List<FlatFlowCondition>();
-        var eventFlows = LoadEventFlows(zip, events, advs, battles, eventFlowConditions);
+        var eventFlows = LoadEventFlows(zip, events, advs, battles, eventFlowConditions, inventory);
         var advFlowConditions = new List<FlatAdvFlowCondition>();
-        var advFlows = LoadAdvFlows(zip, advs, advFlowConditions);
+        var advFlows = LoadAdvFlows(zip, advs, advFlowConditions, inventory);
 
         return new GamePack
         {

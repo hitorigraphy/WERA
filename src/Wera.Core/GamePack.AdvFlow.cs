@@ -5,7 +5,7 @@ namespace Wera.Core;
 
 /// <summary>
 /// ADV 흐름 한 칸이 하는 일의 종류. TSV에는 이름(대소문자 무시)으로 적는다.
-/// 숫자 값은 정해진 번호다: None 0, Finish 1, Jump 2, TextMe 3, Choice 4, TextYou 5, TextPlain 6, SetFlag 7, ModFlag 8.
+/// 숫자 값은 정해진 번호다: None 0, Finish 1, Jump 2, TextMe 3, Choice 4, TextYou 5, TextPlain 6, SetFlag 7, ModFlag 8, AddInventory 9.
 /// </summary>
 public enum AdvFlowType
 {
@@ -30,6 +30,11 @@ public enum AdvFlowType
     SetFlag = 7,
     /// <summary>플레이어 플래그에 값을 더한다(음수면 뺀다). param_1이 flag_code, param_2가 더할 value다. 없던 플래그는 0에서 시작하고, 값이 long 범위를 넘으면 끝값에 멈춘다.</summary>
     ModFlag = 8,
+    /// <summary>
+    /// 인벤토리에 개수를 더한다(음수면 뺀다). param_1이 inventory_code(커먼, 번치, 유니크 아이템, 캐릭터가 함께 쓰는 코드), param_2가 개수다.
+    /// 유니크 아이템과 캐릭터는 개수가 1 또는 -1이어야 한다(로드 검증). 화면에는 나오지 않고 바로 다음 칸으로 간다. 자세한 규칙은 <see cref="GameSession.AddInventory"/>.
+    /// </summary>
+    AddInventory = 9,
 }
 
 /// <summary>
@@ -64,10 +69,11 @@ public sealed partial class GamePack
     /// 흐름: ADV는 ADV 마스터에 있어야 하고, 키 (ADV, 흐름 번호)를 두 번 쓸 수 없다. 흐름 번호와 인자는 정수(long, 인자는 비우면 0), 종류는 이름으로 적는다.
     /// 종류별 인자 검증: Jump의 param_1과 Choice의 param_2는 자신의 흐름 번호보다 큰 같은 ADV의 흐름 번호(뒤로만 점프해 무한 반복이 없다).
     /// 같은 ADV에서 Choice의 param_1(선택지 그룹 아이디)이 같은 행들은 흐름 번호 순으로 연속해야 한다(다른 칸이 끼어들 수 없다).
-    /// Finish, None, 대사 종류(TextMe, TextYou, TextPlain)는 인자를 검증하지 않는다(TextMe와 TextYou의 param_1이 캐릭터가 아니어도 오류가 아니라 이름 ???). SetFlag와 ModFlag의 param_1(플래그 코드)과 param_2(값)는 어떤 정수든 된다. 대사 종류는 text 열이 비어 있으면 안 된다.
+    /// Finish, None, 대사 종류(TextMe, TextYou, TextPlain)는 인자를 검증하지 않는다(TextMe와 TextYou의 param_1이 캐릭터가 아니어도 오류가 아니라 이름 ???). SetFlag와 ModFlag의 param_1(플래그 코드)과 param_2(값)는 어떤 정수든 되고, AddInventory는 param_1이 인벤토리 마스터에 있는 코드여야 하며 유니크 아이템과 캐릭터는 param_2가 1 또는 -1이어야 한다. 대사 종류는 text 열이 비어 있으면 안 된다.
     /// 흐름 조건: (ADV, 흐름)은 흐름 마스터에 있어야 하고 키 (ADV, 흐름, 그룹넘버, 플래그)를 두 번 쓸 수 없다.
     /// </summary>
-    static List<AdvFlow>? LoadAdvFlows(ZipArchive zip, List<AdvEntry>? advs, List<FlatAdvFlowCondition> flat)
+    static List<AdvFlow>? LoadAdvFlows(
+        ZipArchive zip, List<AdvEntry>? advs, List<FlatAdvFlowCondition> flat, IReadOnlyDictionary<long, InventoryEntry> inventory)
     {
         const string file = AdvFlowMasterPath;
         const string conditionFile = AdvFlowConditionMasterPath;
@@ -110,6 +116,7 @@ public sealed partial class GamePack
         {
             var where = $"{file}: ADV '{advCode}'의 흐름 {flow}의";
             if (type == AdvFlowType.Choice) CheckChoiceText(where, line);
+            if (type == AdvFlowType.AddInventory) CheckAddInventory(where, p1, p2, inventory);
             switch (type)
             {
                 case AdvFlowType.TextMe or AdvFlowType.TextYou or AdvFlowType.TextPlain when string.IsNullOrWhiteSpace(line):

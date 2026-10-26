@@ -1,0 +1,61 @@
+namespace Wera.Core;
+
+public sealed partial class GameSession
+{
+    /// <summary>
+    /// 이벤트와 ADV의 AddInventory 칸: 인벤토리 코드(커먼, 번치, 유니크 아이템, 캐릭터가 모두 쓰는 하나의 코드 공간)에 개수를 더한다.
+    /// 화면에 나오지 않는 칸이라 실패해도 알리지 않고 가능한 만큼만 한다.
+    /// <list type="bullet">
+    /// <item>커먼 아이템: 개수만큼 더하되 소지 한도를 넘지 않게 멈춘다. 음수면 뺀다(장비 슬롯에 끼워 둔 것은 빼지 않고, 보유한 만큼에서 멈춘다).</item>
+    /// <item>번치 아이템: 부품으로 풀어 위와 같이 처리한다.</item>
+    /// <item>유니크 아이템(1 또는 -1만): +1은 새 인스턴스를 얻고, -1은 장비에 끼지 않은 인스턴스 하나를 낸다(작은 ID부터, 없으면 아무 일도 없다).</item>
+    /// <item>캐릭터(1 또는 -1만): +1은 아직 없으면 얻고, -1은 보유한 캐릭터를 내보낸다(플레이어와 다른 캐릭터에게 장비로 끼워진 캐릭터는 못 내보낸다).</item>
+    /// </list>
+    /// 마스터에 없는 코드는 아무 일도 없다(게임팩 로드 때 이미 걸러진다).
+    /// </summary>
+    public void AddInventory(long inventoryCode, long amount)
+    {
+        if (amount == 0 || Pack.FindInventory(inventoryCode) is not { } entry) return;
+
+        switch (entry.Kind)
+        {
+            case InventoryKind.CommonItem:
+            case InventoryKind.BunchItem:
+                Dictionary<long, long> parts;
+                try { parts = Pack.Expand(inventoryCode, amount); }
+                catch (OverflowException) { return; }
+                foreach (var (item, delta) in parts) ChangeCommonItem(item, delta);
+                break;
+            case InventoryKind.UniqueItem:
+                if (amount > 0) AddUniqueItem(inventoryCode);
+                else if (InstancesOf(inventoryCode).FirstOrDefault(id => EquippedCount(EquipRef.Unique(id)) == 0) is { } spare)
+                    RemoveUniqueItem(spare);
+                break;
+            case InventoryKind.Character:
+                if (amount > 0) AddCharacter(inventoryCode);
+                else RemoveCharacter(inventoryCode);
+                break;
+        }
+    }
+
+    /// <summary>커먼 아이템 보유량을 바꾼다: 더할 때는 소지 한도에서, 뺄 때는 쓸 수 있는(장비에 끼지 않은) 보유량에서 멈춘다.</summary>
+    void ChangeCommonItem(long item, long delta)
+    {
+        var have = InventoryItems.GetValueOrDefault(item).Amount;
+        long after;
+        if (delta > 0)
+        {
+            var limit = Pack.FindItem(item)?.CarryLimit ?? long.MaxValue;
+            if (have >= limit) return;
+            after = delta > limit - have ? limit : have + delta;
+        }
+        else
+        {
+            var removable = have - EquippedCount(EquipRef.Common(item));
+            if (removable <= 0) return;
+            after = delta < -removable ? have - removable : have + delta;
+        }
+        if (after == 0) InventoryItems.Remove(item);
+        else InventoryItems[item] = new InventoryItem(after);
+    }
+}

@@ -27,6 +27,7 @@ public sealed class EventExecution
 {
     readonly IReadOnlyList<EventFlow> flows;       // 흐름 번호 순
     readonly Dictionary<long, long> flags;
+    readonly Action<long, long>? addInventory;
     int next;                                      // 다음에 볼 칸의 위치(flows 안의 인덱스)
 
     /// <summary>실행하는 이벤트의 코드.</summary>
@@ -36,10 +37,12 @@ public sealed class EventExecution
     public bool IsFinished { get; private set; }
 
     /// <param name="flags">조건 판정에 쓰고 SetFlag, ModFlag가 바꾸는 플레이어 플래그. 실행 도중 바뀐 값이 보이도록 같은 사전을 그대로 넘긴다.</param>
-    public EventExecution(GamePack pack, long eventCode, Dictionary<long, long> flags)
+    /// <param name="addInventory">AddInventory 칸이 부르는 동작(인벤토리 코드, 개수). 세션이 넘기며, null이면 AddInventory 칸은 아무 일도 하지 않는다.</param>
+    public EventExecution(GamePack pack, long eventCode, Dictionary<long, long> flags, Action<long, long>? addInventory = null)
     {
         EventCode = eventCode;
         this.flags = flags;
+        this.addInventory = addInventory;
         flows = pack.FlowsOf(eventCode);
     }
 
@@ -75,6 +78,9 @@ public sealed class EventExecution
                 case EventFlowType.ModFlag:
                     PlayerFlagOps.Mod(flags, flow.Param1, flow.Param2);
                     break;
+                case EventFlowType.AddInventory:
+                    addInventory?.Invoke(flow.Param1, flow.Param2);
+                    break;
                 case EventFlowType.Adv:
                     return new EventStep(EventStepKind.Adv, flow.FlowNumber, flow.Param1);
                 case EventFlowType.Battle:
@@ -95,6 +101,6 @@ public sealed partial class GameSession
     public EventExecution? StartEvent(long eventCode)
     {
         if (Pack.FindEvent(eventCode) is not { } gameEvent || !gameEvent.IsAvailable(PlayerFlags)) return null;
-        return new EventExecution(Pack, eventCode, PlayerFlags);
+        return new EventExecution(Pack, eventCode, PlayerFlags, AddInventory);
     }
 }
