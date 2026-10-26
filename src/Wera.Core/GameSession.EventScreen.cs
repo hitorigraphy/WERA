@@ -20,7 +20,7 @@ public sealed partial class GameSession
     readonly List<AdvStep> advLog = [];
 
     /// <summary>
-    /// 재생 중인 ADV에서 지금까지 보여 준 대사들(오래된 것부터, 마지막이 최신). 화면은 이것을 위에서 아래로 이어 붙이고
+    /// 재생 중인 ADV에서 지금까지 보여 준 대사들과 고른 선택지(오래된 것부터, 마지막이 최신). 화면은 이것을 위에서 아래로 이어 붙이고
     /// 새 대사가 나올 때마다 맨 아래로 스크롤한다. 새 ADV가 시작되거나 이벤트 장면이 바뀌면 비워진다.
     /// </summary>
     public IReadOnlyList<AdvStep> AdvLog => advLog;
@@ -94,7 +94,11 @@ public sealed partial class GameSession
     /// <summary>선택지 장면에서 index번째(0부터) 선택지를 고른다.</summary>
     void ChooseAdv(int index)
     {
-        if (CurrentAdv?.Choose(index) == true) ShowNextAdvStep();
+        if (CurrentAdvStep is not { Kind: AdvStepKind.Choice } choice || index < 0 || index >= choice.Choices.Count) return;
+        var picked = choice.Choices[index];
+        if (CurrentAdv?.Choose(index) != true) return;
+        advLog.Add(new AdvStep(AdvStepKind.Chosen, picked.FlowNumber, picked.Text, []));      // 고른 선택지는 로그에 남는다
+        ShowNextAdvStep();
     }
 
     /// <summary>

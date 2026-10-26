@@ -13,6 +13,8 @@ public enum AdvStepKind
     Choice,
     /// <summary>ADV가 끝났다.</summary>
     Finished,
+    /// <summary>고른 선택지(대사 로그에만 남는다). 문구는 Text다.</summary>
+    Chosen,
 }
 
 /// <summary>선택지 하나: 보여 줄 문구와, 고르면 점프할 흐름 번호.</summary>

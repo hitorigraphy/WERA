@@ -123,6 +123,9 @@
             case AdvStepKind.TextPlain:
                 <p class="adv-normal">@((MarkupString)line.Rich.ToHtml())</p>
                 break;
+            case AdvStepKind.Chosen:
+                <p class="adv-chosen">▶ @line.Text</p>
+                break;
         }
     </text>;
 }

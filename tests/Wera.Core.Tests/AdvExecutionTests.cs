@@ -299,9 +299,10 @@ public class AdvLogTests
         s.Activate("1");                                                  // 선택지 장면: 대사들은 그대로 남는다
         Assert.Equal(AdvStepKind.Choice, s.CurrentAdvStep!.Value.Kind);
         Assert.Equal(["하나", "둘"], s.AdvLog.Select(l => l.Text));
-        s.Activate("1");
-        Assert.Equal(["하나", "둘", "셋"], s.AdvLog.Select(l => l.Text));
-        Assert.Equal([AdvStepKind.TextPlain, AdvStepKind.TextMe, AdvStepKind.TextYou], s.AdvLog.Select(l => l.Kind));
+        s.Activate("1");                                                  // 선택지를 고르면 고른 선택지가 로그에 남는다
+        Assert.Equal(["하나", "둘", "선택", "셋"], s.AdvLog.Select(l => l.Text));
+        Assert.Equal(
+            [AdvStepKind.TextPlain, AdvStepKind.TextMe, AdvStepKind.Chosen, AdvStepKind.TextYou], s.AdvLog.Select(l => l.Kind));
     }
 
     [Fact]
