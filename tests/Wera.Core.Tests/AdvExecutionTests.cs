@@ -362,3 +362,72 @@ public class AdvChoiceMarkupTests
         Assert.NotNull(Session(@"대괄호 \[그대로\]"));
     }
 }
+
+public class AdvFlagFlowTests
+{
+    static GameSession Session(string flows, string? conditions = null)
+    {
+        var files = new List<(string, string)>
+        {
+            ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
+            ("master/event_master_v1.tsv", "code\tname\n3001\t이벤트\n"),
+            ("master/adv_master_v1.tsv", "code\tname\n4001\t첫째\n"),
+            ("master/event_flow_master_v1.tsv", "event_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\n3001\t1\tAdv\t4001\t0\t0\n"),
+            ("master/adv_flow_master_v1.tsv", "adv_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\ttext\tforce_name\n" + flows),
+        };
+        if (conditions is not null)
+            files.Add(("master/adv_flow_condition_master_v1.tsv", "adv_code\tflow_number\tgroup_number\tflag_code\tcondition_type\tcondition_value\n" + conditions));
+        return GameSession.NewGame(GamePack.Load(CoreTests.PackZip(files.ToArray())));
+    }
+
+    [Fact]
+    public void SetFlag_and_ModFlag_change_the_player_flags_without_stopping_or_showing_anything()
+    {
+        var s = Session("4001\t1\tSetFlag\t1001\t5\t0\t\t\n4001\t2\tModFlag\t1001\t-2\t0\t\t\n4001\t3\tModFlag\t2002\t7\t0\t\t\n4001\t4\tTextPlain\t0\t0\t0\t끝\t\n");
+        s.PlayerFlags[1001] = 100;
+        var step = new AdvExecution(s.Pack, 4001, s.PlayerFlags).Advance();
+
+        Assert.Equal("끝", step.Text);                                    // 플래그 칸에서는 멈추지 않고 첫 대사까지 간다
+        Assert.Equal(3, s.PlayerFlags[1001]);                             // 100 → Set 5 → Mod -2
+        Assert.Equal(7, s.PlayerFlags[2002]);                             // 없던 플래그는 0에서 시작한다
+    }
+
+    [Fact]
+    public void A_flag_flow_with_a_false_condition_is_skipped_and_later_flows_see_the_new_value()
+    {
+        var s = Session(
+            "4001\t1\tSetFlag\t1001\t1\t0\t\t\n4001\t2\tSetFlag\t3003\t9\t0\t\t\n4001\t3\tTextPlain\t0\t0\t0\t조건부\t\n4001\t4\tTextPlain\t0\t0\t0\t끝\t\n",
+            "4001\t2\t1\t9999\tEqual\t1\n4001\t3\t1\t1001\tGreaterOrEqual\t1\n");
+        var run = new AdvExecution(s.Pack, 4001, s.PlayerFlags);
+
+        Assert.Equal("조건부", run.Advance().Text);                       // 1번이 바꾼 플래그를 3번의 조건이 바로 본다
+        Assert.False(s.PlayerFlags.ContainsKey(3003));                    // 조건이 거짓인 2번은 실행되지 않았다
+    }
+
+    [Fact]
+    public void ModFlag_stops_at_the_ends_of_the_long_range_instead_of_wrapping()
+    {
+        var s = Session($"4001\t1\tModFlag\t1\t{long.MaxValue}\t0\t\t\n4001\t2\tModFlag\t1\t5\t0\t\t\n4001\t3\tModFlag\t2\t{long.MinValue}\t0\t\t\n4001\t4\tModFlag\t2\t-5\t0\t\t\n");
+        Assert.Equal(AdvStepKind.Finished, new AdvExecution(s.Pack, 4001, s.PlayerFlags).Advance().Kind);
+        Assert.Equal(long.MaxValue, s.PlayerFlags[1]);
+        Assert.Equal(long.MinValue, s.PlayerFlags[2]);
+    }
+
+    [Fact]
+    public void Flag_flows_need_no_text_and_take_any_integers_but_not_blank_junk()
+    {
+        Assert.NotNull(Session("4001\t1\tSetFlag\t0\t0\t0\t\t\n4001\t2\tModFlag\t-5\t-5\t0\t\t\n"));
+        Assert.Throws<PackFormatException>(() => Session("4001\t1\tSetFlag\tabc\t0\t0\t\t\n"));
+    }
+
+    [Fact]
+    public void Playing_an_adv_applies_the_flag_flows_to_the_session_and_they_are_saved()
+    {
+        var s = Session("4001\t1\tSetFlag\t1001\t1\t0\t\t\n4001\t2\tTextPlain\t0\t0\t0\t안녕\t\n");
+        s.Activate("103");
+        s.Activate("3001");
+        Assert.Equal(1, s.PlayerFlags[1001]);
+        Assert.Equal(["안녕"], s.AdvLog.Select(l => l.Text));              // 플래그 칸은 로그에 남지 않는다
+        Assert.Equal(1, GameSession.FromSaveJson(s.Pack, s.ToSaveJson()).PlayerFlags[1001]);
+    }
+}

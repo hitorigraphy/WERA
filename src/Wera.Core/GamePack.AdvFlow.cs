@@ -5,7 +5,7 @@ namespace Wera.Core;
 
 /// <summary>
 /// ADV 흐름 한 칸이 하는 일의 종류. TSV에는 이름(대소문자 무시)으로 적는다.
-/// 숫자 값은 정해진 번호다: None 0, Finish 1, Jump 2, TextMe 3, Choice 4, TextYou 5, TextPlain 6.
+/// 숫자 값은 정해진 번호다: None 0, Finish 1, Jump 2, TextMe 3, Choice 4, TextYou 5, TextPlain 6, SetFlag 7, ModFlag 8.
 /// </summary>
 public enum AdvFlowType
 {
@@ -26,6 +26,10 @@ public enum AdvFlowType
     TextYou = 5,
     /// <summary>화자가 없는 일반 텍스트(나레이션 등). 보여 줄 문장은 text 열이고 비워 둘 수 없다. 인자는 아직 쓰이지 않는다.</summary>
     TextPlain = 6,
+    /// <summary>플레이어 플래그를 정한 값으로 바꾼다. param_1이 flag_code, param_2가 value다. 화면에는 아무것도 나오지 않고 바로 다음 칸으로 간다.</summary>
+    SetFlag = 7,
+    /// <summary>플레이어 플래그에 값을 더한다(음수면 뺀다). param_1이 flag_code, param_2가 더할 value다. 없던 플래그는 0에서 시작하고, 값이 long 범위를 넘으면 끝값에 멈춘다.</summary>
+    ModFlag = 8,
 }
 
 /// <summary>
@@ -60,7 +64,7 @@ public sealed partial class GamePack
     /// 흐름: ADV는 ADV 마스터에 있어야 하고, 키 (ADV, 흐름 번호)를 두 번 쓸 수 없다. 흐름 번호와 인자는 정수(long, 인자는 비우면 0), 종류는 이름으로 적는다.
     /// 종류별 인자 검증: Jump의 param_1과 Choice의 param_2는 자신의 흐름 번호보다 큰 같은 ADV의 흐름 번호(뒤로만 점프해 무한 반복이 없다).
     /// 같은 ADV에서 Choice의 param_1(선택지 그룹 아이디)이 같은 행들은 흐름 번호 순으로 연속해야 한다(다른 칸이 끼어들 수 없다).
-    /// Finish, None, 대사 종류(TextMe, TextYou, TextPlain)는 인자를 검증하지 않는다(TextMe와 TextYou의 param_1이 캐릭터가 아니어도 오류가 아니라 이름 ???). 대사 종류는 text 열이 비어 있으면 안 된다.
+    /// Finish, None, 대사 종류(TextMe, TextYou, TextPlain)는 인자를 검증하지 않는다(TextMe와 TextYou의 param_1이 캐릭터가 아니어도 오류가 아니라 이름 ???). SetFlag와 ModFlag의 param_1(플래그 코드)과 param_2(값)는 어떤 정수든 된다. 대사 종류는 text 열이 비어 있으면 안 된다.
     /// 흐름 조건: (ADV, 흐름)은 흐름 마스터에 있어야 하고 키 (ADV, 흐름, 그룹넘버, 플래그)를 두 번 쓸 수 없다.
     /// </summary>
     static List<AdvFlow>? LoadAdvFlows(ZipArchive zip, List<AdvEntry>? advs, List<FlatAdvFlowCondition> flat)

@@ -37,6 +37,7 @@ public readonly record struct AdvStep(
 /// <summary>
 /// ADV 하나를 흐름 번호 순서대로 실행한다. 이벤트 실행과 같은 규칙이다: 조건이 거짓인 칸은 건너뛰고(조건이 없으면 참),
 /// 더 진행할 칸이 없거나 Finish를 만나면 끝나며, None은 아무 일도 없고, Jump는 param_1 번호부터 이어 간다.
+/// SetFlag와 ModFlag는 플레이어 플래그를 바꾸고 멈추지 않고 다음 칸으로 간다(바뀐 플래그는 뒤의 칸 조건에 바로 보인다).
 /// TextMe/TextYou/TextPlain은 <see cref="Advance"/>가 그 대사를 돌려주고 멈춘다.
 /// Choice는 같은 선택지 그룹(param_1)의 이어진 행들 중 조건을 만족하는 것을 한 묶음으로 돌려주고 멈추며(만족하는 것이 없으면 건너뛴다),
 /// <see cref="Choose"/>로 하나를 고르면 그 선택지의 param_2 번호부터 이어 간다.
@@ -44,7 +45,7 @@ public readonly record struct AdvStep(
 public sealed class AdvExecution
 {
     readonly IReadOnlyList<AdvFlow> flows;       // 흐름 번호 순
-    readonly IReadOnlyDictionary<long, long> flags;
+    readonly Dictionary<long, long> flags;
     readonly GamePack pack;
     int next;
     IReadOnlyList<AdvChoice>? pending;           // 고르기를 기다리는 선택지 묶음
@@ -53,7 +54,8 @@ public sealed class AdvExecution
 
     public bool IsFinished { get; private set; }
 
-    public AdvExecution(GamePack pack, long advCode, IReadOnlyDictionary<long, long> flags)
+    /// <param name="flags">조건 판정에 쓰고 SetFlag, ModFlag가 바꾸는 플레이어 플래그. 같은 사전을 그대로 넘긴다.</param>
+    public AdvExecution(GamePack pack, long advCode, Dictionary<long, long> flags)
     {
         AdvCode = advCode;
         this.pack = pack;
@@ -84,6 +86,12 @@ public sealed class AdvExecution
                     break;
                 case AdvFlowType.Jump:
                     JumpTo(flow.Param1);
+                    break;
+                case AdvFlowType.SetFlag:
+                    flags[flow.Param1] = flow.Param2;
+                    break;
+                case AdvFlowType.ModFlag:
+                    flags[flow.Param1] = SaturatingAdd(flags.GetValueOrDefault(flow.Param1), flow.Param2);
                     break;
                 case AdvFlowType.TextMe:
                     return Line(AdvStepKind.TextMe, flow);
@@ -127,6 +135,14 @@ public sealed class AdvExecution
         var speaker = pack.FindCharacter(flow.Param1);
         return new AdvStep(kind, flow.FlowNumber, flow.Text, [],
             Named(flow, speaker?.Name ?? "???"), speaker?.Code ?? 0, speaker is null ? 0 : flow.Param2);
+    }
+
+    static long SaturatingAdd(long a, long b)
+    {
+        var sum = unchecked(a + b);
+        if (b > 0 && sum < a) return long.MaxValue;
+        if (b < 0 && sum > a) return long.MinValue;
+        return sum;
     }
 
     /// <summary>force_name이 비어 있지 않으면 그 이름, 아니면 기본 이름.</summary>
