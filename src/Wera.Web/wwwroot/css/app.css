@@ -157,7 +157,10 @@ a.button, button.button { border-color: #666; }
 .char-green { color: #4ade80; }
 
 /* 파티 슬롯 3열이 한 화면에 들어가도록 본문 폭을 넓힌다 */
-main { max-width: 60rem; }
+/* 화면 너비는 960px 고정: 한 줄에 들어가는 글자 수가 늘 같아 ADV 대사의 줄 수를 게임팩 로드 때 검증할 수 있다 */
+main { box-sizing: border-box; width: 960px; max-width: none; }
+.site-footer { box-sizing: border-box; width: 960px; max-width: none; }
+body { min-width: 960px; }
 input.command { width: min(100%, 26rem); }
 
 /* 슬롯 4번째 줄: [속성 아이콘 ⭕] [속성 아이콘 ❌]. 아이콘은 1줄 높이의 정사각형 */
