@@ -177,8 +177,8 @@ input.command { width: min(100%, 26rem); }
 .row-label:first-child { margin-top: 0; }
 
 /* ADV 대사창: 나의 대사(TextMe)는 왼쪽에 슬롯 아이콘 크기의 이미지, 오른쪽에 이름 자리가 왼쪽 위 테두리에 걸친 텍스트 상자 */
-.advance-area { min-height: 60vh; outline: none; }
-.advance-area[tabindex="0"] { cursor: pointer; }
+.advance-area { outline: none; }
+.advance-area[tabindex="0"] { min-height: 60vh; cursor: pointer; }   /* 키/클릭으로 넘기는 장면만 넓게(선택지 장면은 목록이 바로 아래에 붙는다) */
 .adv-line { display: flex; gap: .5rem; align-items: flex-start; margin: 1.2rem 0 .6rem; }
 .adv-line > .adv-icon { flex: none; width: calc(4 * var(--lh)); height: calc(4 * var(--lh)); }
 .adv-line > .adv-icon svg { display: block; width: 100%; height: 100%; }
