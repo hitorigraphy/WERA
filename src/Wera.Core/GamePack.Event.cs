@@ -5,7 +5,7 @@ namespace Wera.Core;
 
 /// <summary>
 /// 이벤트 흐름 한 칸이 하는 일의 종류. TSV에는 이름(대소문자 무시)으로 적는다.
-/// 숫자 값은 정해진 번호다: None 0, Finish 1, Jump 2, Adv 3, Battle 4, SetFlag 5, ModFlag 6, AddInventory 7, JumpFlagEqual 8, JumpFlagNotEqual 9, JumpFlagGreaterThan 10, JumpFlagGreaterOrEqual 11, JumpFlagLessThan 12, JumpFlagLessOrEqual 13, JumpInventoryEqual 14, JumpInventoryNotEqual 15, JumpInventoryGreaterThan 16, JumpInventoryGreaterOrEqual 17, JumpInventoryLessThan 18, JumpInventoryLessOrEqual 19.
+/// 숫자 값은 정해진 번호다: None 0, Finish 1, Jump 2, Adv 3, Battle 4, SetFlag 5, ModFlag 6, AddInventory 7, JumpFlagEqual 8, JumpFlagNotEqual 9, JumpFlagGreaterThan 10, JumpFlagGreaterOrEqual 11, JumpFlagLessThan 12, JumpFlagLessOrEqual 13, JumpInventoryEqual 14, JumpInventoryNotEqual 15, JumpInventoryGreaterThan 16, JumpInventoryGreaterOrEqual 17, JumpInventoryLessThan 18, JumpInventoryLessOrEqual 19, JumpCharacterHaveTag 20, JumpUniqueItemHaveTag 21.
 /// </summary>
 public enum EventFlowType
 {
@@ -55,6 +55,16 @@ public enum EventFlowType
     JumpInventoryLessThan = 18,
     /// <summary>인벤토리 보유 개수가 value와 LessOrEqual 비교가 참이면 target_flow_number로 점프하고 아니면 다음 칸으로 간다(자세한 규칙은 <see cref="InventoryJump"/>).</summary>
     JumpInventoryLessOrEqual = 19,
+    /// <summary>
+    /// 캐릭터가 태그를 가지고 있으면 target_flow_number로 점프하고 아니면 다음 칸으로 간다. param_1이 character_code(캐릭터 인벤토리 코드), param_2가 tag_code(태그 마스터),
+    /// param_3이 target_flow_number다. 보유하지 않은 캐릭터는 태그가 없는 것으로 본다. 자세한 규칙은 <see cref="HaveTagJump"/>.
+    /// </summary>
+    JumpCharacterHaveTag = 20,
+    /// <summary>
+    /// 유니크 아이템이 태그를 가지고 있으면 target_flow_number로 점프하고 아니면 다음 칸으로 간다. param_1이 item_code(유니크 아이템 인벤토리 코드), param_2가 tag_code(태그 마스터),
+    /// param_3이 target_flow_number다. 그 코드의 보유 인스턴스 중 하나라도 태그를 가지고 있으면 참이고, 보유하지 않으면 거짓이다. 자세한 규칙은 <see cref="HaveTagJump"/>.
+    /// </summary>
+    JumpUniqueItemHaveTag = 21,
 }
 
 /// <summary>이벤트 마스터의 한 행. 이벤트 조건 마스터의 그룹 규칙(그룹 안은 AND, 그룹끼리는 OR)으로 열리고, 조건이 없으면 늘 열린다.</summary>
@@ -66,8 +76,8 @@ public sealed record GameEvent(long Code, string Name, IReadOnlyList<IReadOnlyLi
 
 /// <summary>
 /// 이벤트 흐름 마스터의 한 행. 이벤트(EventCode)의 흐름 번호(FlowNumber) 칸이 하는 일(FlowType)과 그 인자. 키는 (EventCode, FlowNumber)다.
-/// Param1은 종류에 따라 점프할 흐름 번호(Jump), 플래그 코드(JumpFlag*, SetFlag, ModFlag), 인벤토리 코드(JumpInventory*), 재생할 adv 코드(Adv), 개시할 전투 코드(Battle), 인벤토리 코드(AddInventory)로 쓰이고,
-/// Param2는 JumpFlag*, JumpInventory*, SetFlag, ModFlag, AddInventory의 값이며, Param3은 JumpFlag*, JumpInventory*의 점프할 흐름 번호다. 칸에는 조건이 없다(조건은 JumpFlag*로 건너뛰어 낸다).
+/// Param1은 종류에 따라 점프할 흐름 번호(Jump), 플래그 코드(JumpFlag*, SetFlag, ModFlag), 인벤토리 코드(JumpInventory*), 캐릭터/유니크 아이템 코드(JumpCharacterHaveTag, JumpUniqueItemHaveTag), 재생할 adv 코드(Adv), 개시할 전투 코드(Battle), 인벤토리 코드(AddInventory)로 쓰이고,
+/// Param2는 JumpFlag*, JumpInventory*, SetFlag, ModFlag, AddInventory의 값(JumpCharacterHaveTag와 JumpUniqueItemHaveTag는 태그 코드)이며, Param3은 점프하는 종류(JumpFlag*, JumpInventory*, 태그 점프)의 점프할 흐름 번호다. 칸에는 조건이 없다(조건은 JumpFlag*로 건너뛰어 낸다).
 /// </summary>
 public sealed record EventFlow(
     long EventCode, long FlowNumber, EventFlowType FlowType, long Param1, long Param2, long Param3);
@@ -114,7 +124,7 @@ public sealed partial class GamePack
     /// 흐름 조건 마스터(event_flow_condition_master)는 없어졌다. 그 파일이 게임팩에 있으면 로드 오류다.
     /// </summary>
     static List<EventFlow>? LoadEventFlows(
-        ZipArchive zip, List<GameEvent>? events, List<AdvEntry>? advs, List<BattleEntry>? battles, IReadOnlyDictionary<long, InventoryEntry> inventory)
+        ZipArchive zip, List<GameEvent>? events, List<AdvEntry>? advs, List<BattleEntry>? battles, IReadOnlyList<TagEntry>? tags, IReadOnlyDictionary<long, InventoryEntry> inventory)
     {
         const string file = EventFlowMasterPath;
         const string conditionFile = EventFlowConditionMasterPath;
@@ -157,6 +167,7 @@ public sealed partial class GamePack
         {
             var where = $"{file}: 이벤트 '{eventCode}'의 흐름 {flow}의";
             if (type == EventFlowType.AddInventory) CheckAddInventory(where, p1, p2, inventory);
+            if (HaveTagJump.Is(type.ToString())) CheckHaveTag(where, type.ToString(), p1, p2, inventory, tags);
             if (InventoryJump.Of(type) is not null && !inventory.ContainsKey(p1))
                 throw new PackFormatException($"{where} {type}의 인벤토리 코드 '{p1}'가 인벤토리 마스터에 없습니다.");
             switch (type)
@@ -166,10 +177,10 @@ public sealed partial class GamePack
                         $"{where} 점프할 흐름 번호 '{p1}'는 자신의 흐름 번호 {flow}보다 커야 합니다(뒤로만 점프할 수 있어 무한 반복이 생기지 않습니다).");
                 case EventFlowType.Jump when !seen.Contains((eventCode, p1)):
                     throw new PackFormatException($"{where} 점프할 흐름 번호 '{p1}'가 같은 이벤트의 흐름에 없습니다.");
-                case var jump when (FlagJump.Of(jump) is not null || InventoryJump.Of(jump) is not null) && p3 <= flow:
+                case var jump when HaveTagJump.IsConditionalJump(jump.ToString()) && p3 <= flow:
                     throw new PackFormatException(
                         $"{where} 점프할 흐름 번호 '{p3}'는 자신의 흐름 번호 {flow}보다 커야 합니다(뒤로만 점프할 수 있어 무한 반복이 생기지 않습니다).");
-                case var jump when (FlagJump.Of(jump) is not null || InventoryJump.Of(jump) is not null) && !seen.Contains((eventCode, p3)):
+                case var jump when HaveTagJump.IsConditionalJump(jump.ToString()) && !seen.Contains((eventCode, p3)):
                     throw new PackFormatException($"{where} 점프할 흐름 번호 '{p3}'가 같은 이벤트의 흐름에 없습니다.");
                 case EventFlowType.Adv when advCodes is null:
                     throw new PackFormatException($"{where} Adv가 있으려면 {AdvMasterPath}도 필요합니다.");
@@ -198,6 +209,21 @@ public sealed partial class GamePack
                 $"{where} AddInventory의 {entry.Kind} '{code}' 개수는 1 또는 -1이어야 합니다(받은 값 {amount}).");
         if (entry.Kind == InventoryKind.Character && code == PlayerCharacterCode && amount == -1)
             throw new PackFormatException($"{where} AddInventory로 플레이어 캐릭터 '{code}'를 내보낼 수 없습니다.");
+    }
+
+    /// <summary>
+    /// 태그 점프 칸(이벤트, ADV 공통)의 인자 검증: param_1은 JumpCharacterHaveTag면 캐릭터 인벤토리, JumpUniqueItemHaveTag면 유니크 아이템 인벤토리의 코드여야 하고,
+    /// param_2는 태그 마스터에 있는 태그 코드여야 한다.
+    /// </summary>
+    static void CheckHaveTag(
+        string where, string type, long code, long tagCode, IReadOnlyDictionary<long, InventoryEntry> inventory, IReadOnlyList<TagEntry>? tags)
+    {
+        var expected = HaveTagJump.IsCharacter(type) ? InventoryKind.Character : InventoryKind.UniqueItem;
+        if (!inventory.TryGetValue(code, out var entry) || entry.Kind != expected)
+            throw new PackFormatException(
+                $"{where} {type}의 코드 '{code}'가 {(expected == InventoryKind.Character ? "캐릭터" : "유니크 아이템")} 인벤토리 마스터에 없습니다.");
+        if (tags is null || !tags.Any(t => t.Code == tagCode))
+            throw new PackFormatException($"{where} {type}의 태그 코드 '{tagCode}'가 태그 마스터에 없습니다.");
     }
 
     // ---- 키로 찾기 ----

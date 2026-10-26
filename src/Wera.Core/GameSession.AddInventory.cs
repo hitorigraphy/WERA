@@ -57,6 +57,14 @@ public sealed partial class GameSession
         };
     }
 
+    /// <summary>보유한 캐릭터가 지금 그 태그를 가지고 있는가(JumpCharacterHaveTag 칸). 보유하지 않은 캐릭터는 거짓.</summary>
+    public bool CharacterHasTag(long characterCode, long tagCode) =>
+        Characters.ContainsKey(characterCode) && CharacterTags(characterCode).Contains(tagCode);
+
+    /// <summary>보유한 유니크 아이템 인스턴스 중 하나라도 지금 그 태그를 가지고 있는가(JumpUniqueItemHaveTag 칸). 보유하지 않으면 거짓.</summary>
+    public bool UniqueItemHasTag(long itemCode, long tagCode) =>
+        InstancesOf(itemCode).Any(id => TagsOf(EquipRef.Unique(id)).Contains(tagCode));
+
     /// <summary>커먼 아이템 보유량을 바꾼다: 더할 때는 소지 한도에서, 뺄 때는 쓸 수 있는(장비에 끼지 않은) 보유량에서 멈춘다.</summary>
     void ChangeCommonItem(long item, long delta)
     {

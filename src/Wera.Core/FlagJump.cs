@@ -12,6 +12,28 @@ public enum FlagComparison
 }
 
 /// <summary>
+/// 이벤트와 ADV의 JumpCharacterHaveTag, JumpUniqueItemHaveTag 칸이 함께 쓰는 규칙. 칸의 param_1이 코드(캐릭터 코드 또는 유니크 아이템 코드),
+/// param_2가 tag_code, param_3이 target_flow_number다: 현재 태그(캐릭터와 유니크 아이템 인스턴스의 태그는 게임을 하는 동안 바뀔 수 있다)에
+/// 그 태그가 있으면 target_flow_number로 점프하고, 없으면 다음 칸으로 간다. 점프는 JumpFlag*와 같이 뒤로만 갈 수 있다.
+/// </summary>
+public static class HaveTagJump
+{
+    public const string Character = "JumpCharacterHaveTag";
+    public const string UniqueItem = "JumpUniqueItemHaveTag";
+
+    public static bool IsCharacter(string flowTypeName) => flowTypeName == Character;
+
+    public static bool IsUniqueItem(string flowTypeName) => flowTypeName == UniqueItem;
+
+    /// <summary>태그를 보고 점프하는 종류인가.</summary>
+    public static bool Is(string flowTypeName) => IsCharacter(flowTypeName) || IsUniqueItem(flowTypeName);
+
+    /// <summary>점프하는 종류(JumpFlag*, JumpInventory*, 태그 점프)인가: 이런 칸은 param_3이 target_flow_number다.</summary>
+    public static bool IsConditionalJump(string flowTypeName) =>
+        FlagJump.Of(flowTypeName) is not null || InventoryJump.Of(flowTypeName) is not null || Is(flowTypeName);
+}
+
+/// <summary>
 /// 이벤트와 ADV의 JumpInventory* 칸이 함께 쓰는 규칙. 칸의 param_1이 inventory_code, param_2가 value(개수), param_3이 target_flow_number다:
 /// 플레이어가 가진 그 인벤토리 코드의 개수를 value와 견주어 참이면 target_flow_number로 점프하고, 거짓이면 다음 칸으로 간다.
 /// 개수는 커먼 아이템은 보유 개수, 번치 아이템은 부품이 모두 갖춰진 세트 수(부품별 보유 개수 ÷ 부품 어마운트의 최솟값),

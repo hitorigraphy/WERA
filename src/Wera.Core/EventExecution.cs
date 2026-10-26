@@ -29,6 +29,8 @@ public sealed class EventExecution
     readonly Dictionary<long, long> flags;
     readonly Action<long, long>? addInventory;
     readonly Func<long, long>? countInventory;
+    readonly Func<long, long, bool>? characterHasTag;
+    readonly Func<long, long, bool>? uniqueItemHasTag;
     int next;                                      // 다음에 볼 칸의 위치(flows 안의 인덱스)
 
     /// <summary>실행하는 이벤트의 코드.</summary>
@@ -38,15 +40,21 @@ public sealed class EventExecution
     public bool IsFinished { get; private set; }
 
     /// <param name="flags">조건 판정에 쓰고 SetFlag, ModFlag가 바꾸는 플레이어 플래그. 실행 도중 바뀐 값이 보이도록 같은 사전을 그대로 넘긴다.</param>
+    /// <param name="characterHasTag">JumpCharacterHaveTag 칸이 부르는 동작(캐릭터 코드, 태그 코드 → 가졌는가). 세션이 넘기며, null이면 거짓으로 본다.</param>
+    /// <param name="uniqueItemHasTag">JumpUniqueItemHaveTag 칸이 부르는 동작(유니크 아이템 코드, 태그 코드 → 가졌는가). 세션이 넘기며, null이면 거짓으로 본다.</param>
     /// <param name="countInventory">JumpInventory* 칸이 부르는 동작(인벤토리 코드 → 가진 개수). 세션이 넘기며, null이면 개수를 0으로 본다.</param>
     /// <param name="addInventory">AddInventory 칸이 부르는 동작(인벤토리 코드, 개수). 세션이 넘기며, null이면 AddInventory 칸은 아무 일도 하지 않는다.</param>
     public EventExecution(GamePack pack, long eventCode, Dictionary<long, long> flags, Action<long, long>? addInventory = null,
-        Func<long, long>? countInventory = null)
+        Func<long, long>? countInventory = null,
+        Func<long, long, bool>? characterHasTag = null,
+        Func<long, long, bool>? uniqueItemHasTag = null)
     {
         EventCode = eventCode;
         this.flags = flags;
         this.addInventory = addInventory;
         this.countInventory = countInventory;
+        this.characterHasTag = characterHasTag;
+        this.uniqueItemHasTag = uniqueItemHasTag;
         flows = pack.FlowsOf(eventCode);
     }
 
@@ -76,6 +84,12 @@ public sealed class EventExecution
                     break;
                 case EventFlowType.ModFlag:
                     PlayerFlagOps.Mod(flags, flow.Param1, flow.Param2);
+                    break;
+                case EventFlowType.JumpCharacterHaveTag:
+                    if (characterHasTag?.Invoke(flow.Param1, flow.Param2) ?? false) next = flows.TakeWhile(f => f.FlowNumber < flow.Param3).Count();
+                    break;
+                case EventFlowType.JumpUniqueItemHaveTag:
+                    if (uniqueItemHasTag?.Invoke(flow.Param1, flow.Param2) ?? false) next = flows.TakeWhile(f => f.FlowNumber < flow.Param3).Count();
                     break;
                 case EventFlowType.AddInventory:
                     addInventory?.Invoke(flow.Param1, flow.Param2);
@@ -114,6 +128,6 @@ public sealed partial class GameSession
     public EventExecution? StartEvent(long eventCode)
     {
         if (Pack.FindEvent(eventCode) is not { } gameEvent || !gameEvent.IsAvailable(PlayerFlags)) return null;
-        return new EventExecution(Pack, eventCode, PlayerFlags, AddInventory, CountInventory);
+        return new EventExecution(Pack, eventCode, PlayerFlags, AddInventory, CountInventory, CharacterHasTag, UniqueItemHasTag);
     }
 }
