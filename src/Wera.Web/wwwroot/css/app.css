@@ -199,6 +199,6 @@ input.command { width: min(100%, 26rem); }
 .adv-item.dim { color: #999; }   /* 이전 항목의 기본 글자색(최신 항목은 흰색) */
 .adv-item.dim .adv-box { border-color: #666; }
 .adv-chosen { margin: .6rem 0; text-align: left; line-height: var(--lh); overflow-wrap: anywhere; }
-.adv-choices .textlink, .shop-trades .textlink { color: #fff; }   /* ADV 선택지와 상점 교환 목록의 기본 글자색은 흰색 */
+.adv-choices .textlink, .shop-trades .textlink { color: #fff; }   /* ADV 선택지와 상점(상점 목록, 교환 목록)의 기본 글자색은 흰색 */
 .textlink:disabled, .shop-trades .textlink:disabled { color: #888; cursor: default; text-decoration: none; }   /* 지금 할 수 없는 항목: 회색, 눌러도 반응 없음 */
 .adv-normal { margin: 1.2rem 0 .6rem; white-space: pre-wrap; line-height: var(--lh); }
