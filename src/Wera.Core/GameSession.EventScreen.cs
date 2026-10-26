@@ -17,6 +17,14 @@ public sealed partial class GameSession
     /// <summary>재생 중인 ADV가 지금 보여 주는 장면(대사 또는 선택지 묶음). ADV가 아니면 null.</summary>
     public AdvStep? CurrentAdvStep { get; private set; }
 
+    readonly List<AdvStep> advLog = [];
+
+    /// <summary>
+    /// 재생 중인 ADV에서 지금까지 보여 준 대사들(오래된 것부터, 마지막이 최신). 화면은 이것을 위에서 아래로 이어 붙이고
+    /// 새 대사가 나올 때마다 맨 아래로 스크롤한다. 새 ADV가 시작되거나 이벤트 장면이 바뀌면 비워진다.
+    /// </summary>
+    public IReadOnlyList<AdvStep> AdvLog => advLog;
+
     /// <summary>이벤트 조건을 만족해 지금 시작할 수 있는 이벤트(이벤트 마스터 순서).</summary>
     public IReadOnlyList<GameEvent> AvailableEvents =>
         Pack.Events?.Where(e => e.IsAvailable(PlayerFlags)).ToList() ?? [];
@@ -53,6 +61,7 @@ public sealed partial class GameSession
     {
         CurrentAdv = null;
         CurrentAdvStep = null;
+        advLog.Clear();
         var step = CurrentEvent?.Advance() ?? new EventStep(EventStepKind.Finished, 0, 0);
         if (step.Kind == EventStepKind.Finished)
         {
@@ -75,7 +84,11 @@ public sealed partial class GameSession
     {
         var step = CurrentAdv!.Advance();
         if (step.Kind == AdvStepKind.Finished) ShowNextEventStep();
-        else CurrentAdvStep = step;
+        else
+        {
+            CurrentAdvStep = step;
+            if (step.Kind != AdvStepKind.Choice) advLog.Add(step);       // 선택지는 목록으로만 나오고 로그에는 대사만 쌓인다
+        }
     }
 
     /// <summary>선택지 장면에서 index번째(0부터) 선택지를 고른다.</summary>

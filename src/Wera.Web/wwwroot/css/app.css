@@ -114,7 +114,6 @@ a.button:hover, button.button:hover { background: #8882; }
 :root { --lh: 1.5em; color-scheme: dark; }
 html { background: #3c3c3c; }   /* 960px 밖은 회색: 화면의 정확한 너비를 알아보기 쉽게 */
 html, body { color: #fff; }
-body { background: #000; }
 body { font-family: ui-monospace, "Cascadia Mono", "D2Coding", "Noto Sans Mono CJK KR", Consolas, "Courier New", monospace; }
 button { background: #111; color: #fff; border: 1px solid #666; font: inherit; cursor: pointer; }
 input.command { background: #111; color: #fff; border: 1px solid #666; }
@@ -160,9 +159,16 @@ a.button, button.button { border-color: #666; }
 
 /* 파티 슬롯 3열이 한 화면에 들어가도록 본문 폭을 넓힌다 */
 /* 화면 너비는 960px 고정: 한 줄에 들어가는 글자 수가 늘 같아 ADV 대사의 줄 수를 게임팩 로드 때 검증할 수 있다 */
-main { box-sizing: border-box; width: 960px; max-width: none; }
-.site-footer { box-sizing: border-box; width: 960px; max-width: none; }
-body { box-sizing: border-box; width: 960px; min-height: 100vh; margin: 0 auto; }
+main { box-sizing: border-box; width: 960px; max-width: none; margin: 0 auto; padding: 2rem 1rem 1rem; background: #000; }
+.site-footer { box-sizing: border-box; width: 960px; max-width: none; margin: 0 auto; background: #000; }
+body { width: 960px; margin: 0 auto; }
+
+/* 게임 영역은 960×720 고정(밖은 회색). 위쪽 화면 영역은 스크롤되고, 코드 입력칸은 맨 아래에 좌우 폭 끝까지 늘 보인다 */
+main.game { height: 720px; margin: max(0px, calc((100vh - 720px) / 2)) auto; padding: 0; display: flex; flex-direction: column; overflow: hidden; }
+.screen { flex: 1; min-height: 0; overflow-y: auto; padding: 1rem; }
+.command-bar { flex: none; border-top: 1px solid #666; }
+.command-bar input.command { display: block; width: 100%; box-sizing: border-box; margin: 0; padding: .6rem 1rem; border: 0; outline: none; }
+.command-bar input.command:focus { background: #1a1a1a; }
 input.command { width: min(100%, 26rem); }
 
 /* 슬롯 4번째 줄: [속성 아이콘 ⭕] [속성 아이콘 ❌]. 아이콘은 1줄 높이의 정사각형 */
@@ -177,8 +183,8 @@ input.command { width: min(100%, 26rem); }
 .row-label:first-child { margin-top: 0; }
 
 /* ADV 대사창: 나의 대사(TextMe)는 왼쪽에 슬롯 아이콘 크기의 이미지, 오른쪽에 이름 자리가 왼쪽 위 테두리에 걸친 텍스트 상자 */
-.advance-area { outline: none; }
-.advance-area[tabindex="0"] { min-height: 60vh; cursor: pointer; }   /* 키/클릭으로 넘기는 장면만 넓게(선택지 장면은 목록이 바로 아래에 붙는다) */
+.advance-area { display: flow-root; outline: none; }
+.advance-area[tabindex="0"] { min-height: 100%; cursor: pointer; }   /* 키/클릭으로 넘기는 장면은 화면 영역 전체가 클릭 대상 */
 .adv-line { display: flex; gap: .5rem; align-items: flex-start; margin: 1.2rem 0 .6rem; }
 .adv-line > .adv-icon { flex: none; width: calc(4 * var(--lh)); height: calc(4 * var(--lh)); }
 .adv-line > .adv-icon svg { display: block; width: 100%; height: 100%; }

@@ -268,3 +268,55 @@ public class AdvanceOnAnyKeyTests
         Assert.False(s.AdvanceOnAnyKey);
     }
 }
+
+public class AdvLogTests
+{
+    static GameSession Session()
+    {
+        var files = new (string, string)[]
+        {
+            ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
+            ("master/event_master_v1.tsv", "code\tname\n3001\t이벤트\n"),
+            ("master/adv_master_v1.tsv", "code\tname\n4001\t첫째\n4002\t둘째\n"),
+            ("master/event_flow_master_v1.tsv",
+                "event_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\n3001\t1\tAdv\t4001\t0\t0\n3001\t2\tAdv\t4002\t0\t0\n"),
+            ("master/adv_flow_master_v1.tsv", "adv_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\ttext\tforce_name\n" +
+                "4001\t1\tTextPlain\t0\t0\t0\t하나\t\n4001\t2\tTextMe\t1\t0\t0\t둘\t\n4001\t3\tChoice\t1\t4\t0\t선택\t\n4001\t4\tTextYou\t1\t0\t0\t셋\t\n" +
+                "4002\t1\tTextPlain\t0\t0\t0\t다른 ADV\t\n"),
+        };
+        return GameSession.NewGame(GamePack.Load(CoreTests.PackZip(files)));
+    }
+
+    [Fact]
+    public void Lines_of_one_adv_pile_up_and_the_choice_list_is_not_part_of_the_log()
+    {
+        var s = Session();
+        s.Activate("103");
+        s.Activate("3001");
+        Assert.Equal(["하나"], s.AdvLog.Select(l => l.Text));
+        s.Activate("1");
+        Assert.Equal(["하나", "둘"], s.AdvLog.Select(l => l.Text));
+        s.Activate("1");                                                  // 선택지 장면: 대사들은 그대로 남는다
+        Assert.Equal(AdvStepKind.Choice, s.CurrentAdvStep!.Value.Kind);
+        Assert.Equal(["하나", "둘"], s.AdvLog.Select(l => l.Text));
+        s.Activate("1");
+        Assert.Equal(["하나", "둘", "셋"], s.AdvLog.Select(l => l.Text));
+        Assert.Equal([AdvStepKind.TextPlain, AdvStepKind.TextMe, AdvStepKind.TextYou], s.AdvLog.Select(l => l.Kind));
+    }
+
+    [Fact]
+    public void A_new_adv_or_the_end_of_the_event_clears_the_log()
+    {
+        var s = Session();
+        s.Activate("103");
+        s.Activate("3001");
+        s.Activate("1");
+        s.Activate("1");
+        s.Activate("1");
+        s.Activate("1");                                                  // 첫째 ADV가 끝나고 둘째 ADV의 첫 대사
+        Assert.Equal(["다른 ADV"], s.AdvLog.Select(l => l.Text));
+        s.Activate("1");                                                  // 이벤트 끝
+        Assert.Empty(s.AdvLog);
+        Assert.Equal(Screen.Event, s.Screen);
+    }
+}
