@@ -1,2 +1,2 @@
 adv_code	flow_number	group_number	flag_code	condition_type	condition_value	memo
-4001	4	1	1001	GreaterOrEqual	1	테스트용(튜토리얼을 마쳐야 두 번째 선택지)
+4001	5	1	1001	GreaterOrEqual	1	테스트용(튜토리얼을 마쳐야 세 번째 선택지)

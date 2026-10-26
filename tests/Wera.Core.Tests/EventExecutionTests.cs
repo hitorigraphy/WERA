@@ -446,8 +446,9 @@ public class AdvFlowMasterTests
         while (!File.Exists(Path.Combine(root, "WERA.slnx"))) root = Path.GetDirectoryName(root)!;
         using var zip = File.OpenRead(Path.Combine(root, "src", "Wera.Web", "wwwroot", "sample-pack.zip"));
         var pack = GamePack.Load(zip);
-        Assert.Equal(7, pack.AdvFlowsOf(4001).Count);
-        Assert.Equal(2, pack.AdvFlowsOf(4001).Count(f => f.FlowType == AdvFlowType.Choice));
-        Assert.False(pack.FindAdvFlow(4001, 4)!.IsAvailable(new Dictionary<long, long>()));          // 튜토리얼 플래그가 있어야 두 번째 선택지
+        Assert.Equal(12, pack.AdvFlowsOf(4001).Count);
+        Assert.Equal(3, pack.AdvFlowsOf(4001).Count(f => f.FlowType == AdvFlowType.Choice));
+        Assert.True(pack.FindAdvFlow(4001, 4)!.IsAvailable(new Dictionary<long, long>()));           // 두 번째 선택지까지는 조건이 없다
+        Assert.False(pack.FindAdvFlow(4001, 5)!.IsAvailable(new Dictionary<long, long>()));          // 튜토리얼 플래그가 있어야 세 번째 선택지
     }
 }
