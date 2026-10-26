@@ -38,6 +38,25 @@ public sealed partial class GameSession
         }
     }
 
+    /// <summary>
+    /// 인벤토리 코드로 가진 개수(JumpInventory* 칸이 견주는 값): 커먼 아이템은 보유 개수, 번치 아이템은 부품이 모두 갖춰진 세트 수
+    /// (부품별 보유 개수 ÷ 부품 어마운트의 최솟값), 유니크 아이템은 인스턴스 수, 캐릭터는 보유하면 1 아니면 0. 마스터에 없는 코드는 0.
+    /// </summary>
+    public long CountInventory(long inventoryCode)
+    {
+        if (Pack.FindInventory(inventoryCode) is not { } entry) return 0;
+        return entry.Kind switch
+        {
+            InventoryKind.CommonItem => InventoryItems.GetValueOrDefault(inventoryCode).Amount,
+            InventoryKind.BunchItem => Pack.FindBunch(inventoryCode) is { Parts.Count: > 0 } bunch
+                ? bunch.Parts.Min(p => p.Amount <= 0 ? 0 : InventoryItems.GetValueOrDefault(p.ItemCode).Amount / p.Amount)
+                : 0,
+            InventoryKind.UniqueItem => InstancesOf(inventoryCode).Count,
+            InventoryKind.Character => Characters.ContainsKey(inventoryCode) ? 1 : 0,
+            _ => 0,
+        };
+    }
+
     /// <summary>커먼 아이템 보유량을 바꾼다: 더할 때는 소지 한도에서, 뺄 때는 쓸 수 있는(장비에 끼지 않은) 보유량에서 멈춘다.</summary>
     void ChangeCommonItem(long item, long delta)
     {

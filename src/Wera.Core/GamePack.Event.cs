@@ -5,7 +5,7 @@ namespace Wera.Core;
 
 /// <summary>
 /// 이벤트 흐름 한 칸이 하는 일의 종류. TSV에는 이름(대소문자 무시)으로 적는다.
-/// 숫자 값은 정해진 번호다: None 0, Finish 1, Jump 2, Adv 3, Battle 4, SetFlag 5, ModFlag 6, AddInventory 7, JumpFlagEqual 8, JumpFlagNotEqual 9, JumpFlagGreaterThan 10, JumpFlagGreaterOrEqual 11, JumpFlagLessThan 12, JumpFlagLessOrEqual 13.
+/// 숫자 값은 정해진 번호다: None 0, Finish 1, Jump 2, Adv 3, Battle 4, SetFlag 5, ModFlag 6, AddInventory 7, JumpFlagEqual 8, JumpFlagNotEqual 9, JumpFlagGreaterThan 10, JumpFlagGreaterOrEqual 11, JumpFlagLessThan 12, JumpFlagLessOrEqual 13, JumpInventoryEqual 14, JumpInventoryNotEqual 15, JumpInventoryGreaterThan 16, JumpInventoryGreaterOrEqual 17, JumpInventoryLessThan 18, JumpInventoryLessOrEqual 19.
 /// </summary>
 public enum EventFlowType
 {
@@ -43,6 +43,18 @@ public enum EventFlowType
     JumpFlagLessThan = 12,
     /// <summary>플래그 값이 flag_value와 LessOrEqual 비교가 참이면 target_flow_number로 점프하고 아니면 다음 칸으로 간다(자세한 규칙은 <see cref="FlagJump"/>).</summary>
     JumpFlagLessOrEqual = 13,
+    /// <summary>인벤토리 보유 개수가 value와 Equal 비교가 참이면 target_flow_number로 점프하고 아니면 다음 칸으로 간다(자세한 규칙은 <see cref="InventoryJump"/>).</summary>
+    JumpInventoryEqual = 14,
+    /// <summary>인벤토리 보유 개수가 value와 NotEqual 비교가 참이면 target_flow_number로 점프하고 아니면 다음 칸으로 간다(자세한 규칙은 <see cref="InventoryJump"/>).</summary>
+    JumpInventoryNotEqual = 15,
+    /// <summary>인벤토리 보유 개수가 value와 GreaterThan 비교가 참이면 target_flow_number로 점프하고 아니면 다음 칸으로 간다(자세한 규칙은 <see cref="InventoryJump"/>).</summary>
+    JumpInventoryGreaterThan = 16,
+    /// <summary>인벤토리 보유 개수가 value와 GreaterOrEqual 비교가 참이면 target_flow_number로 점프하고 아니면 다음 칸으로 간다(자세한 규칙은 <see cref="InventoryJump"/>).</summary>
+    JumpInventoryGreaterOrEqual = 17,
+    /// <summary>인벤토리 보유 개수가 value와 LessThan 비교가 참이면 target_flow_number로 점프하고 아니면 다음 칸으로 간다(자세한 규칙은 <see cref="InventoryJump"/>).</summary>
+    JumpInventoryLessThan = 18,
+    /// <summary>인벤토리 보유 개수가 value와 LessOrEqual 비교가 참이면 target_flow_number로 점프하고 아니면 다음 칸으로 간다(자세한 규칙은 <see cref="InventoryJump"/>).</summary>
+    JumpInventoryLessOrEqual = 19,
 }
 
 /// <summary>이벤트 마스터의 한 행. 이벤트 조건 마스터의 그룹 규칙(그룹 안은 AND, 그룹끼리는 OR)으로 열리고, 조건이 없으면 늘 열린다.</summary>
@@ -54,8 +66,8 @@ public sealed record GameEvent(long Code, string Name, IReadOnlyList<IReadOnlyLi
 
 /// <summary>
 /// 이벤트 흐름 마스터의 한 행. 이벤트(EventCode)의 흐름 번호(FlowNumber) 칸이 하는 일(FlowType)과 그 인자. 키는 (EventCode, FlowNumber)다.
-/// Param1은 종류에 따라 점프할 흐름 번호(Jump), 플래그 코드(JumpFlag*, SetFlag, ModFlag), 재생할 adv 코드(Adv), 개시할 전투 코드(Battle), 인벤토리 코드(AddInventory)로 쓰이고,
-/// Param2는 JumpFlag*, SetFlag, ModFlag, AddInventory의 값이며, Param3은 JumpFlag*의 점프할 흐름 번호다. 칸에는 조건이 없다(조건은 JumpFlag*로 건너뛰어 낸다).
+/// Param1은 종류에 따라 점프할 흐름 번호(Jump), 플래그 코드(JumpFlag*, SetFlag, ModFlag), 인벤토리 코드(JumpInventory*), 재생할 adv 코드(Adv), 개시할 전투 코드(Battle), 인벤토리 코드(AddInventory)로 쓰이고,
+/// Param2는 JumpFlag*, JumpInventory*, SetFlag, ModFlag, AddInventory의 값이며, Param3은 JumpFlag*, JumpInventory*의 점프할 흐름 번호다. 칸에는 조건이 없다(조건은 JumpFlag*로 건너뛰어 낸다).
 /// </summary>
 public sealed record EventFlow(
     long EventCode, long FlowNumber, EventFlowType FlowType, long Param1, long Param2, long Param3);
@@ -97,7 +109,7 @@ public sealed partial class GamePack
     /// <summary>
     /// 이벤트 흐름 마스터와 흐름 조건 마스터를 읽는다.
     /// 흐름: 이벤트는 이벤트 마스터에 있어야 하고, 키 (이벤트, 흐름 번호)를 두 번 쓸 수 없다. 흐름 번호와 인자는 정수(long, 인자는 비우면 0),
-    /// 종류는 이름으로 적는다. 종류별 인자 검증: Jump의 param_1과 JumpFlag*의 param_3(점프할 흐름 번호)은 자신의 흐름 번호보다 큰 같은 이벤트의 흐름 번호(뒤로만 점프해 무한 반복이 없다), Adv의 param_1은 ADV 마스터의 코드,
+    /// 종류는 이름으로 적는다. 종류별 인자 검증: Jump의 param_1과 JumpFlag*와 JumpInventory*의 param_3(점프할 흐름 번호)은 자신의 흐름 번호보다 큰 같은 이벤트의 흐름 번호(뒤로만 점프해 무한 반복이 없다), Adv의 param_1은 ADV 마스터의 코드,
     /// Battle의 param_1은 전투 마스터의 코드여야 한다(Adv와 Battle은 그 마스터가 있어야 한다). Finish와 None은 인자를 보지 않고, SetFlag와 ModFlag의 param_1(플래그 코드)과 param_2(값)는 어떤 정수든 되고, AddInventory는 param_1이 인벤토리 마스터에 있는 코드여야 하며 유니크 아이템과 캐릭터는 param_2가 1 또는 -1이어야 한다.
     /// 흐름 조건 마스터(event_flow_condition_master)는 없어졌다. 그 파일이 게임팩에 있으면 로드 오류다.
     /// </summary>
@@ -145,6 +157,8 @@ public sealed partial class GamePack
         {
             var where = $"{file}: 이벤트 '{eventCode}'의 흐름 {flow}의";
             if (type == EventFlowType.AddInventory) CheckAddInventory(where, p1, p2, inventory);
+            if (InventoryJump.Of(type) is not null && !inventory.ContainsKey(p1))
+                throw new PackFormatException($"{where} {type}의 인벤토리 코드 '{p1}'가 인벤토리 마스터에 없습니다.");
             switch (type)
             {
                 case EventFlowType.Jump when p1 <= flow:
@@ -152,10 +166,10 @@ public sealed partial class GamePack
                         $"{where} 점프할 흐름 번호 '{p1}'는 자신의 흐름 번호 {flow}보다 커야 합니다(뒤로만 점프할 수 있어 무한 반복이 생기지 않습니다).");
                 case EventFlowType.Jump when !seen.Contains((eventCode, p1)):
                     throw new PackFormatException($"{where} 점프할 흐름 번호 '{p1}'가 같은 이벤트의 흐름에 없습니다.");
-                case var jump when FlagJump.Of(jump) is not null && p3 <= flow:
+                case var jump when (FlagJump.Of(jump) is not null || InventoryJump.Of(jump) is not null) && p3 <= flow:
                     throw new PackFormatException(
                         $"{where} 점프할 흐름 번호 '{p3}'는 자신의 흐름 번호 {flow}보다 커야 합니다(뒤로만 점프할 수 있어 무한 반복이 생기지 않습니다).");
-                case var jump when FlagJump.Of(jump) is not null && !seen.Contains((eventCode, p3)):
+                case var jump when (FlagJump.Of(jump) is not null || InventoryJump.Of(jump) is not null) && !seen.Contains((eventCode, p3)):
                     throw new PackFormatException($"{where} 점프할 흐름 번호 '{p3}'가 같은 이벤트의 흐름에 없습니다.");
                 case EventFlowType.Adv when advCodes is null:
                     throw new PackFormatException($"{where} Adv가 있으려면 {AdvMasterPath}도 필요합니다.");

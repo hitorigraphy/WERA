@@ -5,7 +5,7 @@ namespace Wera.Core;
 
 /// <summary>
 /// ADV 흐름 한 칸이 하는 일의 종류. TSV에는 이름(대소문자 무시)으로 적는다.
-/// 숫자 값은 정해진 번호다: None 0, Finish 1, Jump 2, TextMe 3, Choice 4, TextYou 5, TextPlain 6, SetFlag 7, ModFlag 8, AddInventory 9, JumpFlagEqual 10, JumpFlagNotEqual 11, JumpFlagGreaterThan 12, JumpFlagGreaterOrEqual 13, JumpFlagLessThan 14, JumpFlagLessOrEqual 15.
+/// 숫자 값은 정해진 번호다: None 0, Finish 1, Jump 2, TextMe 3, Choice 4, TextYou 5, TextPlain 6, SetFlag 7, ModFlag 8, AddInventory 9, JumpFlagEqual 10, JumpFlagNotEqual 11, JumpFlagGreaterThan 12, JumpFlagGreaterOrEqual 13, JumpFlagLessThan 14, JumpFlagLessOrEqual 15, JumpInventoryEqual 16, JumpInventoryNotEqual 17, JumpInventoryGreaterThan 18, JumpInventoryGreaterOrEqual 19, JumpInventoryLessThan 20, JumpInventoryLessOrEqual 21.
 /// </summary>
 public enum AdvFlowType
 {
@@ -47,6 +47,18 @@ public enum AdvFlowType
     JumpFlagLessThan = 14,
     /// <summary>플래그 값이 flag_value와 LessOrEqual 비교가 참이면 target_flow_number로 점프하고 아니면 다음 칸으로 간다(자세한 규칙은 <see cref="FlagJump"/>).</summary>
     JumpFlagLessOrEqual = 15,
+    /// <summary>인벤토리 보유 개수가 value와 Equal 비교가 참이면 target_flow_number로 점프하고 아니면 다음 칸으로 간다(자세한 규칙은 <see cref="InventoryJump"/>).</summary>
+    JumpInventoryEqual = 16,
+    /// <summary>인벤토리 보유 개수가 value와 NotEqual 비교가 참이면 target_flow_number로 점프하고 아니면 다음 칸으로 간다(자세한 규칙은 <see cref="InventoryJump"/>).</summary>
+    JumpInventoryNotEqual = 17,
+    /// <summary>인벤토리 보유 개수가 value와 GreaterThan 비교가 참이면 target_flow_number로 점프하고 아니면 다음 칸으로 간다(자세한 규칙은 <see cref="InventoryJump"/>).</summary>
+    JumpInventoryGreaterThan = 18,
+    /// <summary>인벤토리 보유 개수가 value와 GreaterOrEqual 비교가 참이면 target_flow_number로 점프하고 아니면 다음 칸으로 간다(자세한 규칙은 <see cref="InventoryJump"/>).</summary>
+    JumpInventoryGreaterOrEqual = 19,
+    /// <summary>인벤토리 보유 개수가 value와 LessThan 비교가 참이면 target_flow_number로 점프하고 아니면 다음 칸으로 간다(자세한 규칙은 <see cref="InventoryJump"/>).</summary>
+    JumpInventoryLessThan = 20,
+    /// <summary>인벤토리 보유 개수가 value와 LessOrEqual 비교가 참이면 target_flow_number로 점프하고 아니면 다음 칸으로 간다(자세한 규칙은 <see cref="InventoryJump"/>).</summary>
+    JumpInventoryLessOrEqual = 21,
 }
 
 /// <summary>
@@ -70,7 +82,7 @@ public sealed partial class GamePack
     /// <summary>
     /// ADV 흐름 마스터를 읽는다.
     /// 흐름: ADV는 ADV 마스터에 있어야 하고, 키 (ADV, 흐름 번호)를 두 번 쓸 수 없다. 흐름 번호와 인자는 정수(long, 인자는 비우면 0), 종류는 이름으로 적는다.
-    /// 종류별 인자 검증: Jump의 param_1과 JumpFlag*의 param_3(점프할 흐름 번호), Choice의 param_2는 자신의 흐름 번호보다 큰 같은 ADV의 흐름 번호(뒤로만 점프해 무한 반복이 없다).
+    /// 종류별 인자 검증: Jump의 param_1과 JumpFlag*와 JumpInventory*의 param_3(점프할 흐름 번호), Choice의 param_2는 자신의 흐름 번호보다 큰 같은 ADV의 흐름 번호(뒤로만 점프해 무한 반복이 없다).
     /// 같은 ADV에서 Choice의 param_1(선택지 그룹 아이디)이 같은 행들은 흐름 번호 순으로 연속해야 한다(다른 칸이 끼어들 수 없다).
     /// Finish, None, 대사 종류(TextMe, TextYou, TextPlain)는 인자를 검증하지 않는다(TextMe와 TextYou의 param_1이 캐릭터가 아니어도 오류가 아니라 이름 ???). SetFlag와 ModFlag의 param_1(플래그 코드)과 param_2(값)는 어떤 정수든 되고, AddInventory는 param_1이 인벤토리 마스터에 있는 코드여야 하며 유니크 아이템과 캐릭터는 param_2가 1 또는 -1이어야 한다. 대사 종류는 text 열이 비어 있으면 안 된다.
     /// 흐름 조건 마스터(adv_flow_condition_master)는 없어졌다. 그 파일이 게임팩에 있으면 로드 오류다.
@@ -118,6 +130,8 @@ public sealed partial class GamePack
             var where = $"{file}: ADV '{advCode}'의 흐름 {flow}의";
             if (type == AdvFlowType.Choice) CheckChoiceText(where, line);
             if (type == AdvFlowType.AddInventory) CheckAddInventory(where, p1, p2, inventory);
+            if (InventoryJump.Of(type) is not null && !inventory.ContainsKey(p1))
+                throw new PackFormatException($"{where} {type}의 인벤토리 코드 '{p1}'가 인벤토리 마스터에 없습니다.");
             switch (type)
             {
                 case AdvFlowType.TextMe or AdvFlowType.TextYou or AdvFlowType.TextPlain when string.IsNullOrWhiteSpace(line):
@@ -130,10 +144,10 @@ public sealed partial class GamePack
                         $"{where} 점프할 흐름 번호 '{p1}'는 자신의 흐름 번호 {flow}보다 커야 합니다(뒤로만 점프할 수 있어 무한 반복이 생기지 않습니다).");
                 case AdvFlowType.Jump when !seen.Contains((advCode, p1)):
                     throw new PackFormatException($"{where} 점프할 흐름 번호 '{p1}'가 같은 ADV의 흐름에 없습니다.");
-                case var jump when FlagJump.Of(jump) is not null && p3 <= flow:
+                case var jump when (FlagJump.Of(jump) is not null || InventoryJump.Of(jump) is not null) && p3 <= flow:
                     throw new PackFormatException(
                         $"{where} 점프할 흐름 번호 '{p3}'는 자신의 흐름 번호 {flow}보다 커야 합니다(뒤로만 점프할 수 있어 무한 반복이 생기지 않습니다).");
-                case var jump when FlagJump.Of(jump) is not null && !seen.Contains((advCode, p3)):
+                case var jump when (FlagJump.Of(jump) is not null || InventoryJump.Of(jump) is not null) && !seen.Contains((advCode, p3)):
                     throw new PackFormatException($"{where} 점프할 흐름 번호 '{p3}'가 같은 ADV의 흐름에 없습니다.");
                 case AdvFlowType.Choice when p2 <= flow:
                     throw new PackFormatException(

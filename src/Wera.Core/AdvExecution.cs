@@ -47,6 +47,7 @@ public sealed class AdvExecution
     readonly IReadOnlyList<AdvFlow> flows;       // 흐름 번호 순
     readonly Dictionary<long, long> flags;
     readonly Action<long, long>? addInventory;
+    readonly Func<long, long>? countInventory;
     readonly GamePack pack;
     int next;
     IReadOnlyList<AdvChoice>? pending;           // 고르기를 기다리는 선택지 묶음
@@ -56,13 +57,16 @@ public sealed class AdvExecution
     public bool IsFinished { get; private set; }
 
     /// <param name="flags">조건 판정에 쓰고 SetFlag, ModFlag가 바꾸는 플레이어 플래그. 같은 사전을 그대로 넘긴다.</param>
-/// <param name="addInventory">AddInventory 칸이 부르는 동작(인벤토리 코드, 개수). 세션이 넘기며, null이면 AddInventory 칸은 아무 일도 하지 않는다.</param>
-    public AdvExecution(GamePack pack, long advCode, Dictionary<long, long> flags, Action<long, long>? addInventory = null)
+/// <param name="countInventory">JumpInventory* 칸이 부르는 동작(인벤토리 코드 → 가진 개수). 세션이 넘기며, null이면 개수를 0으로 본다.</param>
+    /// <param name="addInventory">AddInventory 칸이 부르는 동작(인벤토리 코드, 개수). 세션이 넘기며, null이면 AddInventory 칸은 아무 일도 하지 않는다.</param>
+    public AdvExecution(GamePack pack, long advCode, Dictionary<long, long> flags, Action<long, long>? addInventory = null,
+        Func<long, long>? countInventory = null)
     {
         AdvCode = advCode;
         this.pack = pack;
         this.flags = flags;
         this.addInventory = addInventory;
+        this.countInventory = countInventory;
         flows = pack.AdvFlowsOf(advCode);
     }
 
@@ -97,6 +101,9 @@ public sealed class AdvExecution
                     break;
                 case AdvFlowType.ModFlag:
                     PlayerFlagOps.Mod(flags, flow.Param1, flow.Param2);
+                    break;
+                case var jump when InventoryJump.Of(jump) is { } comparison:
+                    if (FlagJump.Test(comparison, countInventory?.Invoke(flow.Param1) ?? 0, flow.Param2)) JumpTo(flow.Param3);
                     break;
                 case AdvFlowType.AddInventory:
                     addInventory?.Invoke(flow.Param1, flow.Param2);
