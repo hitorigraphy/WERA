@@ -240,6 +240,20 @@ public class TradeTests
 
     // ---- 교환 실행 ----
 
+    static bool EntryEnabled(GameSession s, string tradeCode) => s.Entries.Single(e => e.Code == tradeCode).Enabled;
+
+    // 회색 교환: 항목은 비활성, 눌러도 메시지도 변화도 없다. 막힌 이유를 돌려준다.
+    static string? PressBlocked(GameSession s, string tradeCode)
+    {
+        Assert.False(EntryEnabled(s, tradeCode));
+        Assert.False(s.CanTrade(long.Parse(tradeCode)));
+        var before = s.ToSaveJson();
+        Assert.NotNull(s.Activate(tradeCode));
+        Assert.Null(s.Message);
+        Assert.Equal(before, s.ToSaveJson());
+        return s.TradeBlockedReason(long.Parse(tradeCode));
+    }
+
     static long Have(GameSession s, long item) => s.InventoryItems.GetValueOrDefault(item).Amount;
 
     static GameSession InShop(long shopCode, params (long item, long amount)[] inventory)
@@ -285,8 +299,8 @@ public class TradeTests
         Assert.False(s.InventoryItems.ContainsKey(11));     // 0개가 되면 항목을 지운다
         Assert.Equal(10, Have(s, 2));
 
-        s.Activate("5001");                                  // 이제 금화가 없다
-        Assert.Contains("교환 실패", s.Message);
+        // 이제 금화가 없다: 항목이 회색이 되고, 한 번 더 눌러도 아무 일 없다.
+        Assert.Contains("교환 실패", PressBlocked(s, "5001"));
         Assert.Equal(10, Have(s, 2));
     }
 
@@ -294,10 +308,10 @@ public class TradeTests
     public void Trade_fails_without_changing_anything_when_cost_is_short()
     {
         var s = InShop(2001, (11, 99), (2, 4));
-        s.Activate("5001");
+        var reason = PressBlocked(s, "5001");
 
-        Assert.Contains("부족: 금화", s.Message);
-        Assert.Contains("보유 99 / 필요 100", s.Message);
+        Assert.Contains("부족: 금화", reason);
+        Assert.Contains("보유 99 / 필요 100", reason);
         Assert.Equal(99, Have(s, 11));
         Assert.Equal(4, Have(s, 2));
     }
@@ -306,8 +320,7 @@ public class TradeTests
     public void Trade_fails_when_the_cost_item_is_not_owned_at_all()
     {
         var s = InShop(2001);
-        s.Activate("5001");
-        Assert.Contains("보유 0 / 필요 100", s.Message);
+        Assert.Contains("보유 0 / 필요 100", PressBlocked(s, "5001"));
         Assert.Empty(s.InventoryItems);
     }
 
@@ -347,8 +360,7 @@ public class TradeTests
         s.InventoryItems[2] = new InventoryItem(6);        // 필요: 약초 6, 철광석 2
         s.InventoryItems[3] = new InventoryItem(1);
 
-        s.Activate("5101");
-        Assert.Contains("부족: 철광석 (보유 1 / 필요 2)", s.Message);
+        Assert.Contains("부족: 철광석 (보유 1 / 필요 2)", PressBlocked(s, "5101"));
         Assert.Equal(6, Have(s, 2));
 
         s.InventoryItems[3] = new InventoryItem(2);
@@ -367,8 +379,7 @@ public class TradeTests
         s.Activate("2001");
 
         s.InventoryItems[11] = new InventoryItem(99);
-        s.Activate("5201");
-        Assert.Contains("교환 실패", s.Message);
+        Assert.Contains("교환 실패", PressBlocked(s, "5201"));
         Assert.Equal(99, Have(s, 11));
 
         s.InventoryItems[11] = new InventoryItem(100);
@@ -380,9 +391,7 @@ public class TradeTests
     public void Trade_that_would_exceed_the_carry_limit_is_refused()
     {
         var s = InShop(2001, (11, 100), (2, 95));       // 약초 소지제한 99, +5 → 100
-        s.Activate("5001");
-
-        Assert.Contains("소지 한도 초과: 약초 (한도 99)", s.Message);
+        Assert.Contains("소지 한도 초과: 약초 (한도 99)", PressBlocked(s, "5001"));
         Assert.Equal(100, Have(s, 11));                     // 아무것도 바뀌지 않는다
         Assert.Equal(95, Have(s, 2));
     }
@@ -402,9 +411,7 @@ public class TradeTests
     {
         // 초보자 세트(약초 ×3, 철광석 ×1)를 받는데 약초가 97개면 100개가 되어 거절된다.
         var s = InShop(2002, (3, 5), (2, 97));
-        s.Activate("5003");
-
-        Assert.Contains("소지 한도 초과: 약초", s.Message);
+        Assert.Contains("소지 한도 초과: 약초", PressBlocked(s, "5003"));
         Assert.Equal(5, Have(s, 3));
         Assert.Equal(97, Have(s, 2));
     }
@@ -436,8 +443,7 @@ public class TradeTests
         s.Activate("2001");
         s.InventoryItems[11] = new InventoryItem(5);
 
-        s.Activate("5301");
-        Assert.StartsWith("교환 실패 - 수량이 너무 커서", s.Message);
+        Assert.StartsWith("교환 실패 - 수량이 너무 커서", PressBlocked(s, "5301"));
         Assert.Equal(5, Have(s, 11));
         Assert.False(s.InventoryItems.ContainsKey(2));
     }

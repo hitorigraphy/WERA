@@ -171,9 +171,13 @@ public class MultiKindEquipmentTests
         s.Equip(7001, 3, EquipRef.Common(3));
 
         s.Activate("102"); s.Activate("2001");
+        Assert.False(s.Entries.Single(e => e.Code == "5001").Enabled);
+        Assert.False(s.CanTrade(5001));
+        Assert.StartsWith("교환 실패", s.TradeBlockedReason(5001));
         s.Activate("5001");
-        Assert.Contains("교환 실패", s.Message);
+        Assert.Null(s.Message);                                            // 회색 교환은 눌러도 아무 일 없다
         Assert.Equal(2, s.InventoryItems[3].Amount);                       // 낀 뼈 조각 때문에 2개를 다 쓸 수 없다
+        Assert.False(s.InventoryItems.ContainsKey(11));
     }
 
     // ---- 화면 ----

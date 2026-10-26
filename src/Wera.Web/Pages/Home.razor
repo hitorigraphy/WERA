@@ -12,7 +12,7 @@
         @foreach (var entry in entries)
         {
             var code = entry.Code;
-            <div><button class="textlink" @onclick="() => Activate(code)">[@entry.Code] @if (entry.LabelHtml is { } html) { @((MarkupString)html) } else { @entry.Label }</button></div>
+            <div><button class="textlink" disabled="@(!entry.Enabled)" @onclick="() => Activate(code)">[@entry.Code] @if (entry.LabelHtml is { } html) { @((MarkupString)html) } else { @entry.Label }</button></div>
         }
     </div>;
 
@@ -311,7 +311,8 @@
                 {
                     <p class="message" role="status">@session.Message</p>
                 }
-                @commands
+                @* 교환할 수 있는 항목과 돌아가기는 흰색, 지금 교환할 수 없는 항목은 회색(눌러도 반응 없음) *@
+                <div class="shop-trades">@commands</div>
                 break;
 
             case Screen.Event:

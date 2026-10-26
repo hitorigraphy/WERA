@@ -70,8 +70,10 @@ public enum EntryAction
 /// <summary>화면에 나오는 클릭 가능한 텍스트. 클릭하거나 Code를 입력하면 Action을 수행한다.</summary>
 /// <param name="Arg">항목이 가리키는 추가 값(파티 슬롯 항목에서는 슬롯 번호 0~8).</param>
 /// <param name="LabelHtml">꾸밈 문법(굵게, 색)이 적용된 문구의 HTML. 없으면 Label을 그대로 보여 준다(ADV 선택지가 쓴다).</param>
+/// <param name="Enabled">false면 회색으로 보이고 눌러도(코드를 입력해도) 아무 일도 없다(지금 할 수 없는 상점 교환).</param>
 public sealed record ScreenEntry(
-    string Code, string Label, Screen Target, EntryAction Action = EntryAction.Navigate, string? Arg = null, string? LabelHtml = null);
+    string Code, string Label, Screen Target, EntryAction Action = EntryAction.Navigate, string? Arg = null, string? LabelHtml = null,
+    bool Enabled = true);
 
 /// <param name="Version">릴리스 전이라 1로 유지한다. 지시가 있을 때까지 올리지 않는다.</param>
 public sealed record SaveData(
@@ -352,7 +354,7 @@ public sealed partial class GameSession
                 case Screen.ShopTrades:
                     // 교환 코드를 입력하거나 클릭하면 그 교환을 실행한다.
                     return CurrentShopTrades
-                        .Select(t => new ScreenEntry(Text(t.Code), t.Text, Screen.ShopTrades, EntryAction.Trade))
+                        .Select(t => new ScreenEntry(Text(t.Code), t.Text, Screen.ShopTrades, EntryAction.Trade, Enabled: CanTrade(t.Code)))
                         .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen.ShopList))
                         .ToList();
                 case Screen.PartySetup:
@@ -443,6 +445,7 @@ public sealed partial class GameSession
         Message = null;
         code = Normalize(code);
         var entry = Entries.Concat(HomeSlotEntries).FirstOrDefault(e => e.Code == code);
+        if (entry is { Enabled: false }) return entry;       // 회색 항목은 눌러도 아무 반응이 없다
         switch (entry?.Action)
         {
             case EntryAction.Navigate:
@@ -561,8 +564,9 @@ public sealed partial class GameSession
         }
     }
 
-    string ExecuteTrade(ShopTrade trade, string text)
+    string? PlanTrade(ShopTrade trade, string text, out TradePlan plan)
     {
+        plan = default;
         // 커먼 아이템은 번치를 부품으로 풀어 한꺼번에 계산한다. 유니크 아이템과 캐릭터는 확인한 뒤 따로 처리한다.
         var net = new Dictionary<long, long>();
         string[] paidInstances = [];
@@ -620,6 +624,42 @@ public sealed partial class GameSession
             if (checked(InventoryItems.GetValueOrDefault(item).Amount + delta) > limit)
                 return $"교환 실패 - 소지 한도 초과: {Pack.ItemName(item)} (한도 {limit}) [{text}]";
         }
+
+        plan = new TradePlan(net, paidInstances, paidCharacter);
+        return null;
+    }
+
+    /// <summary>교환을 해 보지 않고 미리 계산한 결과: 커먼 아이템 증감, 낼 유니크 아이템 인스턴스, 낼 캐릭터.</summary>
+    readonly record struct TradePlan(Dictionary<long, long> Net, string[] PaidInstances, long? PaidCharacter);
+
+    /// <summary>
+    /// 상점 교환 화면의 이 교환을 지금 할 수 있는가(코스트가 모자라거나 소지 한도를 넘거나 이미 가진 캐릭터를 받는 등이면 거짓).
+    /// 인벤토리는 바꾸지 않고 확인만 한다. 마스터에 없는 교환 코드는 거짓.
+    /// </summary>
+    public bool CanTrade(long tradeCode) => TradeBlockedReason(tradeCode) is null;
+
+    /// <summary>이 교환을 지금 할 수 없는 까닭("교환 실패 - 부족: …" 형식). 할 수 있으면 null. 인벤토리는 바꾸지 않는다.</summary>
+    public string? TradeBlockedReason(long tradeCode)
+    {
+        var trade = Pack.Trades?.FirstOrDefault(t => t.Code == tradeCode);
+        if (trade is null) return "교환 실패 - 없는 교환입니다.";
+        var text = new TradeLine(
+            trade.Code, Pack.TradeTargetName(trade.CostKind, trade.CostItemCode), trade.CostAmount,
+            Pack.TradeTargetName(trade.ReceiveKind, trade.ReceiveItemCode), trade.ReceiveAmount).Text;
+        try
+        {
+            return PlanTrade(trade, text, out _);
+        }
+        catch (OverflowException)
+        {
+            return $"교환 실패 - 수량이 너무 커서 계산할 수 없습니다. [{text}]";
+        }
+    }
+
+    string ExecuteTrade(ShopTrade trade, string text)
+    {
+        if (PlanTrade(trade, text, out var plan) is { } failure) return failure;
+        var (net, paidInstances, paidCharacter) = plan;
 
         foreach (var (item, delta) in net)
         {

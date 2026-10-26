@@ -52,6 +52,22 @@ public class TradeKindTests
         return s.Message!;
     }
 
+    // 지금 할 수 없는 교환: 항목은 회색이고, 눌러도 아무 일 없으며(메시지도 없다), 막힌 이유는 TradeBlockedReason으로 본다.
+    static string Blocked(GameSession s, string tradeCode)
+    {
+        s.Activate("102"); s.Activate("2001");
+        var code = long.Parse(tradeCode);
+        Assert.False(s.Entries.Single(e => e.Code == tradeCode).Enabled);
+        Assert.False(s.CanTrade(code));
+        var before = s.ToSaveJson();
+        var entry = s.Activate(tradeCode);
+        Assert.NotNull(entry);
+        Assert.False(entry!.Enabled);
+        Assert.Null(s.Message);
+        Assert.Equal(before, s.ToSaveJson());
+        return s.TradeBlockedReason(code)!;
+    }
+
     // ---- 마스터 ----
 
     [Fact]
@@ -116,7 +132,7 @@ public class TradeKindTests
     public void Failing_to_pay_for_a_unique_item_changes_nothing()
     {
         var s = Session(coins: 50);
-        Assert.StartsWith("교환 실패 - 부족: 금화", Trade(s, "5001"));
+        Assert.StartsWith("교환 실패 - 부족: 금화", Blocked(s, "5001"));
         Assert.Equal(50, s.InventoryItems[11].Amount);
         Assert.Empty(s.UniqueItemInstances);
     }
@@ -140,7 +156,7 @@ public class TradeKindTests
         var s = Session(coins: 0);
         var equipped = s.AddUniqueItem(8001)!;
         s.Equip(7001, 1, EquipRef.Unique(equipped));
-        Assert.StartsWith("교환 실패 - 부족: 철검 (보유 0 / 필요 1)", Trade(s, "5002"));
+        Assert.StartsWith("교환 실패 - 부족: 철검 (보유 0 / 필요 1)", Blocked(s, "5002"));
         Assert.Single(s.UniqueItemInstances);
         Assert.Equal(0, s.InventoryItems[11].Amount);
 
@@ -168,7 +184,7 @@ public class TradeKindTests
     {
         var s = Session();
         s.AddCharacter(7002);
-        Assert.StartsWith("교환 실패 - 이미 보유한 캐릭터: 마법사", Trade(s, "5003"));
+        Assert.StartsWith("교환 실패 - 이미 보유한 캐릭터: 마법사", Blocked(s, "5003"));
         Assert.Equal(1000, s.InventoryItems[11].Amount);
     }
 
@@ -210,7 +226,7 @@ public class TradeKindTests
         var s = Session(coins: 0);
         s.AddCharacter(7002);
         Assert.True(s.Equip(7001, 3, EquipRef.Char(7002)));           // 용사의 소환 슬롯에 마법사
-        Assert.StartsWith("교환 실패 - 장비 슬롯에 끼워 둔 캐릭터: 마법사", Trade(s, "5004"));
+        Assert.StartsWith("교환 실패 - 장비 슬롯에 끼워 둔 캐릭터: 마법사", Blocked(s, "5004"));
         Assert.True(s.Characters.ContainsKey(7002));
         Assert.False(s.RemoveCharacter(7002));
     }
@@ -219,7 +235,7 @@ public class TradeKindTests
     public void A_character_not_owned_cannot_be_paid()
     {
         var s = Session(coins: 0);
-        Assert.StartsWith("교환 실패 - 부족: 마법사 (보유 0 / 필요 1)", Trade(s, "5004"));
+        Assert.StartsWith("교환 실패 - 부족: 마법사 (보유 0 / 필요 1)", Blocked(s, "5004"));
     }
 
     [Fact]
