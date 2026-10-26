@@ -31,6 +31,7 @@ public sealed class EventExecution
     readonly Func<long, long>? countInventory;
     readonly Func<long, long, bool>? characterHasTag;
     readonly Func<long, long, bool>? uniqueItemHasTag;
+    readonly Func<long, long>? random;
     int next;                                      // 다음에 볼 칸의 위치(flows 안의 인덱스)
 
     /// <summary>실행하는 이벤트의 코드.</summary>
@@ -40,6 +41,7 @@ public sealed class EventExecution
     public bool IsFinished { get; private set; }
 
     /// <param name="flags">조건 판정에 쓰고 SetFlag, ModFlag가 바꾸는 플레이어 플래그. 실행 도중 바뀐 값이 보이도록 같은 사전을 그대로 넘긴다.</param>
+    /// <param name="random">JumpRandom 칸이 부르는 동작(모수 → 0 이상 모수 미만의 무작위 정수). 세션이 넘기며, null이면 기본 난수를 쓴다.</param>
     /// <param name="characterHasTag">JumpCharacterHaveTag 칸이 부르는 동작(캐릭터 코드, 태그 코드 → 가졌는가). 세션이 넘기며, null이면 거짓으로 본다.</param>
     /// <param name="uniqueItemHasTag">JumpUniqueItemHaveTag 칸이 부르는 동작(유니크 아이템 코드, 태그 코드 → 가졌는가). 세션이 넘기며, null이면 거짓으로 본다.</param>
     /// <param name="countInventory">JumpInventory* 칸이 부르는 동작(인벤토리 코드 → 가진 개수). 세션이 넘기며, null이면 개수를 0으로 본다.</param>
@@ -47,7 +49,8 @@ public sealed class EventExecution
     public EventExecution(GamePack pack, long eventCode, Dictionary<long, long> flags, Action<long, long>? addInventory = null,
         Func<long, long>? countInventory = null,
         Func<long, long, bool>? characterHasTag = null,
-        Func<long, long, bool>? uniqueItemHasTag = null)
+        Func<long, long, bool>? uniqueItemHasTag = null,
+        Func<long, long>? random = null)
     {
         EventCode = eventCode;
         this.flags = flags;
@@ -55,6 +58,7 @@ public sealed class EventExecution
         this.countInventory = countInventory;
         this.characterHasTag = characterHasTag;
         this.uniqueItemHasTag = uniqueItemHasTag;
+        this.random = random;
         flows = pack.FlowsOf(eventCode);
     }
 
@@ -90,6 +94,10 @@ public sealed class EventExecution
                     break;
                 case EventFlowType.JumpUniqueItemHaveTag:
                     if (uniqueItemHasTag?.Invoke(flow.Param1, flow.Param2) ?? false) next = flows.TakeWhile(f => f.FlowNumber < flow.Param3).Count();
+                    break;
+                case EventFlowType.JumpRandom:
+                    // 0 이상 모수 미만의 값을 뽑아 확률보다 작으면 target_flow_number로 간다. 모수는 로드 때 1 이상임을 확인했다.
+                    if (RandomJump.Hit(flow.Param1, RandomJump.Roll(flow.Param2, random))) next = flows.TakeWhile(f => f.FlowNumber < flow.Param3).Count();
                     break;
                 case EventFlowType.AddInventory:
                     addInventory?.Invoke(flow.Param1, flow.Param2);
@@ -128,6 +136,6 @@ public sealed partial class GameSession
     public EventExecution? StartEvent(long eventCode)
     {
         if (Pack.FindEvent(eventCode) is not { } gameEvent || !gameEvent.IsAvailable(PlayerFlags)) return null;
-        return new EventExecution(Pack, eventCode, PlayerFlags, AddInventory, CountInventory, CharacterHasTag, UniqueItemHasTag);
+        return new EventExecution(Pack, eventCode, PlayerFlags, AddInventory, CountInventory, CharacterHasTag, UniqueItemHasTag, NextRandom);
     }
 }

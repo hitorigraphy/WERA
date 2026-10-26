@@ -5,7 +5,7 @@ namespace Wera.Core;
 
 /// <summary>
 /// 이벤트 흐름 한 칸이 하는 일의 종류. TSV에는 이름(대소문자 무시)으로 적는다.
-/// 숫자 값은 정해진 번호다: None 0, Finish 1, Jump 2, Adv 3, Battle 4, SetFlag 5, ModFlag 6, AddInventory 7, JumpFlagEqual 8, JumpFlagNotEqual 9, JumpFlagGreaterThan 10, JumpFlagGreaterOrEqual 11, JumpFlagLessThan 12, JumpFlagLessOrEqual 13, JumpInventoryEqual 14, JumpInventoryNotEqual 15, JumpInventoryGreaterThan 16, JumpInventoryGreaterOrEqual 17, JumpInventoryLessThan 18, JumpInventoryLessOrEqual 19, JumpCharacterHaveTag 20, JumpUniqueItemHaveTag 21.
+/// 숫자 값은 정해진 번호다: None 0, Finish 1, Jump 2, Adv 3, Battle 4, SetFlag 5, ModFlag 6, AddInventory 7, JumpFlagEqual 8, JumpFlagNotEqual 9, JumpFlagGreaterThan 10, JumpFlagGreaterOrEqual 11, JumpFlagLessThan 12, JumpFlagLessOrEqual 13, JumpInventoryEqual 14, JumpInventoryNotEqual 15, JumpInventoryGreaterThan 16, JumpInventoryGreaterOrEqual 17, JumpInventoryLessThan 18, JumpInventoryLessOrEqual 19, JumpCharacterHaveTag 20, JumpUniqueItemHaveTag 21, JumpRandom 22.
 /// </summary>
 public enum EventFlowType
 {
@@ -65,6 +65,12 @@ public enum EventFlowType
     /// param_3이 target_flow_number다. 그 코드의 보유 인스턴스 중 하나라도 태그를 가지고 있으면 참이고, 보유하지 않으면 거짓이다. 자세한 규칙은 <see cref="HaveTagJump"/>.
     /// </summary>
     JumpUniqueItemHaveTag = 21,
+    /// <summary>
+    /// 확률로 점프한다. param_1이 확률(chance), param_2가 모수(bound), param_3이 target_flow_number다:
+    /// 0 이상 bound 미만의 무작위 정수 r을 뽑아 r &lt; chance면 target_flow_number로 점프하고 아니면 다음 칸으로 간다
+    /// (예: 30, 100, 5 → rand(100) &lt; 30 ? goto 5 : goto next). 모수는 1 이상이어야 한다(로드 검증). 자세한 규칙은 <see cref="RandomJump"/>.
+    /// </summary>
+    JumpRandom = 22,
 }
 
 /// <summary>이벤트 마스터의 한 행. 이벤트 조건 마스터의 그룹 규칙(그룹 안은 AND, 그룹끼리는 OR)으로 열리고, 조건이 없으면 늘 열린다.</summary>
@@ -77,7 +83,7 @@ public sealed record GameEvent(long Code, string Name, IReadOnlyList<IReadOnlyLi
 /// <summary>
 /// 이벤트 흐름 마스터의 한 행. 이벤트(EventCode)의 흐름 번호(FlowNumber) 칸이 하는 일(FlowType)과 그 인자. 키는 (EventCode, FlowNumber)다.
 /// Param1은 종류에 따라 점프할 흐름 번호(Jump), 플래그 코드(JumpFlag*, SetFlag, ModFlag), 인벤토리 코드(JumpInventory*), 캐릭터/유니크 아이템 코드(JumpCharacterHaveTag, JumpUniqueItemHaveTag), 재생할 adv 코드(Adv), 개시할 전투 코드(Battle), 인벤토리 코드(AddInventory)로 쓰이고,
-/// Param2는 JumpFlag*, JumpInventory*, SetFlag, ModFlag, AddInventory의 값(JumpCharacterHaveTag와 JumpUniqueItemHaveTag는 태그 코드)이며, Param3은 점프하는 종류(JumpFlag*, JumpInventory*, 태그 점프)의 점프할 흐름 번호다. 칸에는 조건이 없다(조건은 JumpFlag*로 건너뛰어 낸다).
+/// Param2는 JumpFlag*, JumpInventory*, SetFlag, ModFlag, AddInventory의 값(JumpCharacterHaveTag와 JumpUniqueItemHaveTag는 태그 코드)이며, Param3은 점프하는 종류(JumpFlag*, JumpInventory*, 태그 점프, JumpRandom)의 점프할 흐름 번호다(JumpRandom의 Param1은 확률, Param2는 모수). 칸에는 조건이 없다(조건은 JumpFlag*로 건너뛰어 낸다).
 /// </summary>
 public sealed record EventFlow(
     long EventCode, long FlowNumber, EventFlowType FlowType, long Param1, long Param2, long Param3);
@@ -167,6 +173,8 @@ public sealed partial class GamePack
         {
             var where = $"{file}: 이벤트 '{eventCode}'의 흐름 {flow}의";
             if (type == EventFlowType.AddInventory) CheckAddInventory(where, p1, p2, inventory);
+            if (RandomJump.Is(type.ToString()) && p2 < 1)
+                throw new PackFormatException($"{where} JumpRandom의 모수 '{p2}'는 1 이상이어야 합니다.");
             if (HaveTagJump.Is(type.ToString())) CheckHaveTag(where, type.ToString(), p1, p2, inventory, tags);
             if (InventoryJump.Of(type) is not null && !inventory.ContainsKey(p1))
                 throw new PackFormatException($"{where} {type}의 인벤토리 코드 '{p1}'가 인벤토리 마스터에 없습니다.");

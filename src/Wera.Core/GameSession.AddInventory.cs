@@ -57,6 +57,12 @@ public sealed partial class GameSession
         };
     }
 
+    /// <summary>
+    /// JumpRandom 칸이 쓰는 난수: 0 이상 모수 미만의 무작위 정수를 돌려주는 동작. 기본은 <see cref="Random.Shared"/>이고,
+    /// 시험이나 연출을 위해 바꿔 끼울 수 있다(저장되지 않는다).
+    /// </summary>
+    public Func<long, long> NextRandom { get; set; } = bound => Random.Shared.NextInt64(bound);
+
     /// <summary>보유한 캐릭터가 지금 그 태그를 가지고 있는가(JumpCharacterHaveTag 칸). 보유하지 않은 캐릭터는 거짓.</summary>
     public bool CharacterHasTag(long characterCode, long tagCode) =>
         Characters.ContainsKey(characterCode) && CharacterTags(characterCode).Contains(tagCode);

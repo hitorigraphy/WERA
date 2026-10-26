@@ -12,6 +12,28 @@ public enum FlagComparison
 }
 
 /// <summary>
+/// 이벤트와 ADV의 JumpRandom 칸이 함께 쓰는 규칙. 칸의 param_1이 chance(확률), param_2가 bound(모수), param_3이 target_flow_number다:
+/// 0 이상 bound 미만의 무작위 정수 r을 뽑아 r &lt; chance면 target_flow_number로 점프하고, 아니면 다음 칸으로 간다
+/// (30, 100, 5 → rand(100) &lt; 30 이면 5번 칸으로, 아니면 다음 칸으로). chance가 0 이하면 절대, bound 이상이면 늘 점프한다.
+/// bound는 1 이상이어야 하고(로드 검증), 점프는 JumpFlag*와 같이 뒤로만 갈 수 있다.
+/// </summary>
+public static class RandomJump
+{
+    public const string Name = "JumpRandom";
+
+    /// <summary>무작위로 점프하는 종류인가.</summary>
+    public static bool Is(string flowTypeName) => flowTypeName == Name;
+
+    /// <summary>r이 [0, bound)에서 뽑은 값일 때 점프하는가: r &lt; chance.</summary>
+    public static bool Hit(long chance, long roll) => roll < chance;
+
+    /// <summary>[0, bound)의 무작위 정수. bound가 1 이상일 때만 부른다.</summary>
+    public static long Roll(long bound, Func<long, long>? random) => (random ?? Default)(bound);
+
+    static long Default(long bound) => Random.Shared.NextInt64(bound);
+}
+
+/// <summary>
 /// 이벤트와 ADV의 JumpCharacterHaveTag, JumpUniqueItemHaveTag 칸이 함께 쓰는 규칙. 칸의 param_1이 코드(캐릭터 코드 또는 유니크 아이템 코드),
 /// param_2가 tag_code, param_3이 target_flow_number다: 현재 태그(캐릭터와 유니크 아이템 인스턴스의 태그는 게임을 하는 동안 바뀔 수 있다)에
 /// 그 태그가 있으면 target_flow_number로 점프하고, 없으면 다음 칸으로 간다. 점프는 JumpFlag*와 같이 뒤로만 갈 수 있다.
@@ -28,9 +50,9 @@ public static class HaveTagJump
     /// <summary>태그를 보고 점프하는 종류인가.</summary>
     public static bool Is(string flowTypeName) => IsCharacter(flowTypeName) || IsUniqueItem(flowTypeName);
 
-    /// <summary>점프하는 종류(JumpFlag*, JumpInventory*, 태그 점프)인가: 이런 칸은 param_3이 target_flow_number다.</summary>
+    /// <summary>점프하는 종류(JumpFlag*, JumpInventory*, 태그 점프, JumpRandom)인가: 이런 칸은 param_3이 target_flow_number다.</summary>
     public static bool IsConditionalJump(string flowTypeName) =>
-        FlagJump.Of(flowTypeName) is not null || InventoryJump.Of(flowTypeName) is not null || Is(flowTypeName);
+        FlagJump.Of(flowTypeName) is not null || InventoryJump.Of(flowTypeName) is not null || Is(flowTypeName) || RandomJump.Is(flowTypeName);
 }
 
 /// <summary>

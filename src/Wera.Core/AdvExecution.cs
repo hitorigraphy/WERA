@@ -50,6 +50,7 @@ public sealed class AdvExecution
     readonly Func<long, long>? countInventory;
     readonly Func<long, long, bool>? characterHasTag;
     readonly Func<long, long, bool>? uniqueItemHasTag;
+    readonly Func<long, long>? random;
     readonly GamePack pack;
     int next;
     IReadOnlyList<AdvChoice>? pending;           // 고르기를 기다리는 선택지 묶음
@@ -59,14 +60,16 @@ public sealed class AdvExecution
     public bool IsFinished { get; private set; }
 
     /// <param name="flags">조건 판정에 쓰고 SetFlag, ModFlag가 바꾸는 플레이어 플래그. 같은 사전을 그대로 넘긴다.</param>
-/// <param name="characterHasTag">JumpCharacterHaveTag 칸이 부르는 동작(캐릭터 코드, 태그 코드 → 가졌는가). 세션이 넘기며, null이면 거짓으로 본다.</param>
+/// <param name="random">JumpRandom 칸이 부르는 동작(모수 → 0 이상 모수 미만의 무작위 정수). 세션이 넘기며, null이면 기본 난수를 쓴다.</param>
+    /// <param name="characterHasTag">JumpCharacterHaveTag 칸이 부르는 동작(캐릭터 코드, 태그 코드 → 가졌는가). 세션이 넘기며, null이면 거짓으로 본다.</param>
     /// <param name="uniqueItemHasTag">JumpUniqueItemHaveTag 칸이 부르는 동작(유니크 아이템 코드, 태그 코드 → 가졌는가). 세션이 넘기며, null이면 거짓으로 본다.</param>
     /// <param name="countInventory">JumpInventory* 칸이 부르는 동작(인벤토리 코드 → 가진 개수). 세션이 넘기며, null이면 개수를 0으로 본다.</param>
     /// <param name="addInventory">AddInventory 칸이 부르는 동작(인벤토리 코드, 개수). 세션이 넘기며, null이면 AddInventory 칸은 아무 일도 하지 않는다.</param>
     public AdvExecution(GamePack pack, long advCode, Dictionary<long, long> flags, Action<long, long>? addInventory = null,
         Func<long, long>? countInventory = null,
         Func<long, long, bool>? characterHasTag = null,
-        Func<long, long, bool>? uniqueItemHasTag = null)
+        Func<long, long, bool>? uniqueItemHasTag = null,
+        Func<long, long>? random = null)
     {
         AdvCode = advCode;
         this.pack = pack;
@@ -75,6 +78,7 @@ public sealed class AdvExecution
         this.countInventory = countInventory;
         this.characterHasTag = characterHasTag;
         this.uniqueItemHasTag = uniqueItemHasTag;
+        this.random = random;
         flows = pack.AdvFlowsOf(advCode);
     }
 
@@ -118,6 +122,10 @@ public sealed class AdvExecution
                     break;
                 case AdvFlowType.JumpUniqueItemHaveTag:
                     if (uniqueItemHasTag?.Invoke(flow.Param1, flow.Param2) ?? false) JumpTo(flow.Param3);
+                    break;
+                case AdvFlowType.JumpRandom:
+                    // 0 이상 모수 미만의 값을 뽑아 확률보다 작으면 target_flow_number로 간다. 모수는 로드 때 1 이상임을 확인했다.
+                    if (RandomJump.Hit(flow.Param1, RandomJump.Roll(flow.Param2, random))) JumpTo(flow.Param3);
                     break;
                 case AdvFlowType.AddInventory:
                     addInventory?.Invoke(flow.Param1, flow.Param2);
