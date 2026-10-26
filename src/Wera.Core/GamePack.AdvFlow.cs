@@ -5,7 +5,7 @@ namespace Wera.Core;
 
 /// <summary>
 /// ADV 흐름 한 칸이 하는 일의 종류. TSV에는 이름(대소문자 무시)으로 적는다.
-/// 숫자 값은 정해진 번호다: None 0, Finish 1, Jump 2, TextMe 3, Choice 4, TextYou 5, TextPlain 6, SetFlag 7, ModFlag 8, AddInventory 9.
+/// 숫자 값은 정해진 번호다: None 0, Finish 1, TextMe 3, Choice 4, TextYou 5, TextPlain 6, SetFlag 7, ModFlag 8, AddInventory 9, JumpFlagEqual 10, JumpFlagNotEqual 11, JumpFlagGreaterThan 12, JumpFlagGreaterOrEqual 13, JumpFlagLessThan 14, JumpFlagLessOrEqual 15(2번은 비어 있다).
 /// </summary>
 public enum AdvFlowType
 {
@@ -13,8 +13,6 @@ public enum AdvFlowType
     None = 0,
     /// <summary>ADV를 끝낸다.</summary>
     Finish = 1,
-    /// <summary>뒤쪽의 흐름 칸으로 점프한다. param_1이 점프할 flow_number이고, 같은 ADV에 있어야 하며 자신의 flow_number보다 커야 한다.</summary>
-    Jump = 2,
     /// <summary>나(플레이어 쪽)의 대사. 보여 줄 문장은 text 열이고 비워 둘 수 없다. param_1이 말하는 캐릭터 코드, param_2가 그 캐릭터의 variation_number다.</summary>
     TextMe = 3,
     /// <summary>
@@ -35,6 +33,18 @@ public enum AdvFlowType
     /// 유니크 아이템과 캐릭터는 개수가 1 또는 -1이어야 한다(로드 검증). 화면에는 나오지 않고 바로 다음 칸으로 간다. 자세한 규칙은 <see cref="GameSession.AddInventory"/>.
     /// </summary>
     AddInventory = 9,
+    /// <summary>플래그 값이 flag_value와 Equal 비교가 참이면 target_flow_number로 점프하고 아니면 다음 칸으로 간다(자세한 규칙은 <see cref="FlagJump"/>).</summary>
+    JumpFlagEqual = 10,
+    /// <summary>플래그 값이 flag_value와 NotEqual 비교가 참이면 target_flow_number로 점프하고 아니면 다음 칸으로 간다(자세한 규칙은 <see cref="FlagJump"/>).</summary>
+    JumpFlagNotEqual = 11,
+    /// <summary>플래그 값이 flag_value와 GreaterThan 비교가 참이면 target_flow_number로 점프하고 아니면 다음 칸으로 간다(자세한 규칙은 <see cref="FlagJump"/>).</summary>
+    JumpFlagGreaterThan = 12,
+    /// <summary>플래그 값이 flag_value와 GreaterOrEqual 비교가 참이면 target_flow_number로 점프하고 아니면 다음 칸으로 간다(자세한 규칙은 <see cref="FlagJump"/>).</summary>
+    JumpFlagGreaterOrEqual = 13,
+    /// <summary>플래그 값이 flag_value와 LessThan 비교가 참이면 target_flow_number로 점프하고 아니면 다음 칸으로 간다(자세한 규칙은 <see cref="FlagJump"/>).</summary>
+    JumpFlagLessThan = 14,
+    /// <summary>플래그 값이 flag_value와 LessOrEqual 비교가 참이면 target_flow_number로 점프하고 아니면 다음 칸으로 간다(자세한 규칙은 <see cref="FlagJump"/>).</summary>
+    JumpFlagLessOrEqual = 15,
 }
 
 /// <summary>
@@ -67,7 +77,7 @@ public sealed partial class GamePack
     /// <summary>
     /// ADV 흐름 마스터와 흐름 조건 마스터를 읽는다.
     /// 흐름: ADV는 ADV 마스터에 있어야 하고, 키 (ADV, 흐름 번호)를 두 번 쓸 수 없다. 흐름 번호와 인자는 정수(long, 인자는 비우면 0), 종류는 이름으로 적는다.
-    /// 종류별 인자 검증: Jump의 param_1과 Choice의 param_2는 자신의 흐름 번호보다 큰 같은 ADV의 흐름 번호(뒤로만 점프해 무한 반복이 없다).
+    /// 종류별 인자 검증: JumpFlag*의 param_3(점프할 흐름 번호)과 Choice의 param_2는 자신의 흐름 번호보다 큰 같은 ADV의 흐름 번호(뒤로만 점프해 무한 반복이 없다).
     /// 같은 ADV에서 Choice의 param_1(선택지 그룹 아이디)이 같은 행들은 흐름 번호 순으로 연속해야 한다(다른 칸이 끼어들 수 없다).
     /// Finish, None, 대사 종류(TextMe, TextYou, TextPlain)는 인자를 검증하지 않는다(TextMe와 TextYou의 param_1이 캐릭터가 아니어도 오류가 아니라 이름 ???). SetFlag와 ModFlag의 param_1(플래그 코드)과 param_2(값)는 어떤 정수든 되고, AddInventory는 param_1이 인벤토리 마스터에 있는 코드여야 하며 유니크 아이템과 캐릭터는 param_2가 1 또는 -1이어야 한다. 대사 종류는 text 열이 비어 있으면 안 된다.
     /// 흐름 조건: (ADV, 흐름)은 흐름 마스터에 있어야 하고 키 (ADV, 흐름, 그룹넘버, 플래그)를 두 번 쓸 수 없다.
@@ -112,7 +122,7 @@ public sealed partial class GamePack
         }
 
         // 종류별 인자 검증
-        foreach (var (advCode, flow, type, p1, p2, _, line, _) in rows)
+        foreach (var (advCode, flow, type, p1, p2, p3, line, _) in rows)
         {
             var where = $"{file}: ADV '{advCode}'의 흐름 {flow}의";
             if (type == AdvFlowType.Choice) CheckChoiceText(where, line);
@@ -124,11 +134,11 @@ public sealed partial class GamePack
                 case AdvFlowType.TextMe or AdvFlowType.TextYou or AdvFlowType.TextPlain:
                     CheckLine(where, type, line);
                     break;
-                case AdvFlowType.Jump when p1 <= flow:
+                case var jump when FlagJump.Of(jump) is not null && p3 <= flow:
                     throw new PackFormatException(
-                        $"{where} 점프할 흐름 번호 '{p1}'는 자신의 흐름 번호 {flow}보다 커야 합니다(뒤로만 점프할 수 있어 무한 반복이 생기지 않습니다).");
-                case AdvFlowType.Jump when !seen.Contains((advCode, p1)):
-                    throw new PackFormatException($"{where} 점프할 흐름 번호 '{p1}'가 같은 ADV의 흐름에 없습니다.");
+                        $"{where} 점프할 흐름 번호 '{p3}'는 자신의 흐름 번호 {flow}보다 커야 합니다(뒤로만 점프할 수 있어 무한 반복이 생기지 않습니다).");
+                case var jump when FlagJump.Of(jump) is not null && !seen.Contains((advCode, p3)):
+                    throw new PackFormatException($"{where} 점프할 흐름 번호 '{p3}'가 같은 ADV의 흐름에 없습니다.");
                 case AdvFlowType.Choice when p2 <= flow:
                     throw new PackFormatException(
                         $"{where} 선택지가 점프할 흐름 번호 '{p2}'는 자신의 흐름 번호 {flow}보다 커야 합니다(뒤로만 점프할 수 있어 무한 반복이 생기지 않습니다).");

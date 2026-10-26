@@ -161,7 +161,7 @@ public class EventExecutionTests
     [Fact]
     public void Jump_continues_from_the_target_flow_and_skips_the_flows_between()
     {
-        var s = Session("3001\t1\tAdv\t4001\t0\t0\n3001\t2\tJump\t4\t0\t0\n3001\t3\tAdv\t4002\t0\t0\n3001\t4\tAdv\t4003\t0\t0\n");
+        var s = Session("3001\t1\tAdv\t4001\t0\t0\n3001\t2\tJumpFlagGreaterOrEqual\t0\t-9223372036854775808\t4\n3001\t3\tAdv\t4002\t0\t0\n3001\t4\tAdv\t4003\t0\t0\n");
         Assert.Equal([(EventStepKind.Adv, 4001L), (EventStepKind.Adv, 4003L)], RunAll(s.StartEvent(3001)!));
     }
 
@@ -169,7 +169,7 @@ public class EventExecutionTests
     public void A_jump_target_with_a_false_condition_is_skipped_and_the_next_larger_flow_runs()
     {
         var s = Session(
-            "3001\t1\tJump\t3\t0\t0\n3001\t2\tAdv\t4001\t0\t0\n3001\t3\tAdv\t4002\t0\t0\n3001\t4\tAdv\t4003\t0\t0\n",
+            "3001\t1\tJumpFlagGreaterOrEqual\t0\t-9223372036854775808\t3\n3001\t2\tAdv\t4001\t0\t0\n3001\t3\tAdv\t4002\t0\t0\n3001\t4\tAdv\t4003\t0\t0\n",
             "3001\t3\t1\t1001\tGreaterOrEqual\t1\n");
         Assert.Equal([(EventStepKind.Adv, 4003L)], RunAll(s.StartEvent(3001)!));
     }
@@ -178,7 +178,7 @@ public class EventExecutionTests
     public void A_jump_with_a_false_condition_does_not_jump()
     {
         var s = Session(
-            "3001\t1\tJump\t3\t0\t0\n3001\t2\tAdv\t4001\t0\t0\n3001\t3\tAdv\t4002\t0\t0\n",
+            "3001\t1\tJumpFlagGreaterOrEqual\t0\t-9223372036854775808\t3\n3001\t2\tAdv\t4001\t0\t0\n3001\t3\tAdv\t4002\t0\t0\n",
             "3001\t1\t1\t1001\tGreaterOrEqual\t1\n");
         Assert.Equal([(EventStepKind.Adv, 4001L), (EventStepKind.Adv, 4002L)], RunAll(s.StartEvent(3001)!));      // 점프가 건너뛰어져 2번도 실행된다
     }
@@ -186,14 +186,14 @@ public class EventExecutionTests
     [Fact]
     public void A_jump_can_skip_over_a_finish_and_numbers_may_have_gaps()
     {
-        var s = Session("3001\t5\tJump\t50\t0\t0\n3001\t10\tFinish\t0\t0\t0\n3001\t50\tAdv\t4001\t0\t0\n3001\t60\tFinish\t0\t0\t0\n3001\t70\tAdv\t4002\t0\t0\n");
+        var s = Session("3001\t5\tJumpFlagGreaterOrEqual\t0\t-9223372036854775808\t50\n3001\t10\tFinish\t0\t0\t0\n3001\t50\tAdv\t4001\t0\t0\n3001\t60\tFinish\t0\t0\t0\n3001\t70\tAdv\t4002\t0\t0\n");
         Assert.Equal([(EventStepKind.Adv, 4001L)], RunAll(s.StartEvent(3001)!));
     }
 
     [Fact]
     public void Chained_jumps_always_end_because_they_only_go_forward()
     {
-        var s = Session("3001\t1\tJump\t2\t0\t0\n3001\t2\tJump\t3\t0\t0\n3001\t3\tJump\t4\t0\t0\n3001\t4\tAdv\t4001\t0\t0\n");
+        var s = Session("3001\t1\tJumpFlagGreaterOrEqual\t0\t-9223372036854775808\t2\n3001\t2\tJumpFlagGreaterOrEqual\t0\t-9223372036854775808\t3\n3001\t3\tJumpFlagGreaterOrEqual\t0\t-9223372036854775808\t4\n3001\t4\tAdv\t4001\t0\t0\n");
         Assert.Equal([(EventStepKind.Adv, 4001L)], RunAll(s.StartEvent(3001)!));
     }
 
@@ -336,10 +336,14 @@ public class AdvFlowMasterTests
     [Fact]
     public void The_enum_numbers_are_fixed()
     {
-        Assert.Equal([0, 1, 2, 3, 4, 5, 6, 7, 8],
-            new[] { AdvFlowType.None, AdvFlowType.Finish, AdvFlowType.Jump, AdvFlowType.TextMe, AdvFlowType.Choice, AdvFlowType.TextYou, AdvFlowType.TextPlain,
-                    AdvFlowType.SetFlag, AdvFlowType.ModFlag }
+        Assert.Equal([0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+            new[] { AdvFlowType.None, AdvFlowType.Finish, AdvFlowType.TextMe, AdvFlowType.Choice, AdvFlowType.TextYou, AdvFlowType.TextPlain,
+                    AdvFlowType.SetFlag, AdvFlowType.ModFlag, AdvFlowType.AddInventory,
+                    AdvFlowType.JumpFlagEqual, AdvFlowType.JumpFlagNotEqual, AdvFlowType.JumpFlagGreaterThan,
+                    AdvFlowType.JumpFlagGreaterOrEqual, AdvFlowType.JumpFlagLessThan, AdvFlowType.JumpFlagLessOrEqual }
                 .Select(t => (int)t));
+        Assert.False(Enum.GetNames<AdvFlowType>().Contains("Jump"));
+        Assert.False(Enum.GetNames<EventFlowType>().Contains("Jump"));
     }
 
     [Fact]
@@ -388,10 +392,10 @@ public class AdvFlowMasterTests
     [Fact]
     public void Jump_must_go_forward_to_a_flow_of_the_same_adv()
     {
-        Assert.Contains("보다 커야", Error("4001\t1\tJump\t1\t0\t0\n"));
-        Assert.Contains("보다 커야", Error("4001\t1\tTextPlain\t0\t0\t0\t문장\n4001\t2\tJump\t1\t0\t0\n"));
-        Assert.Contains("같은 ADV의 흐름에 없습니다", Error("4001\t1\tJump\t5\t0\t0\n4002\t5\tTextPlain\t0\t0\t0\t문장\n"));
-        Assert.NotNull(Load("4001\t1\tJump\t5\t0\t0\n4001\t5\tFinish\t0\t0\t0\n"));
+        Assert.Contains("보다 커야", Error("4001\t1\tJumpFlagGreaterOrEqual\t0\t-9223372036854775808\t1\n"));
+        Assert.Contains("보다 커야", Error("4001\t1\tTextPlain\t0\t0\t0\t문장\n4001\t2\tJumpFlagGreaterOrEqual\t0\t-9223372036854775808\t1\n"));
+        Assert.Contains("같은 ADV의 흐름에 없습니다", Error("4001\t1\tJumpFlagGreaterOrEqual\t0\t-9223372036854775808\t5\n4002\t5\tTextPlain\t0\t0\t0\t문장\n"));
+        Assert.NotNull(Load("4001\t1\tJumpFlagGreaterOrEqual\t0\t-9223372036854775808\t5\n4001\t5\tFinish\t0\t0\t0\n"));
     }
 
     [Fact]
