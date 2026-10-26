@@ -319,6 +319,7 @@ public record AdvFlowRow
     public required long Param2 { get; init; }
     public required long Param3 { get; init; }
     public required string Text { get; init; }
+    public required string ForceName { get; init; }
 }
 
 /// <summary>ADV 흐름 조건: 복합키는 (ADV, 흐름 번호, 그룹넘버, 플래그)이고, 보조키 (ADV, 흐름 번호)로 그 흐름의 조건 전부를 찾는다.</summary>

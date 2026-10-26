@@ -303,13 +303,13 @@
                         @* 왼쪽에 슬롯 크기의 이미지, 오른쪽에 이름 자리가 왼쪽 위에 걸친 텍스트 상자 *@
                         <div class="adv-line adv-me">
                             <div class="adv-icon">@noImage</div>
-                            <div class="adv-box"><span class="adv-name">[ @session.PlayerSpeakerName ]</span><p class="adv-text">@me.Text</p></div>
+                            <div class="adv-box"><span class="adv-name">[ @me.SpeakerName ]</span><p class="adv-text">@me.Text</p></div>
                         </div>
                         break;
                     case { Kind: AdvStepKind.TextYou } you:
                         @* 나의 대사의 좌우 반전: 왼쪽에 이름이 왼쪽 위에 걸친 텍스트 상자, 오른쪽에 이미지 *@
                         <div class="adv-line adv-you">
-                            <div class="adv-box"><span class="adv-name">[ @session.OpponentSpeakerName ]</span><p class="adv-text">@you.Text</p></div>
+                            <div class="adv-box"><span class="adv-name">[ @you.SpeakerName ]</span><p class="adv-text">@you.Text</p></div>
                             <div class="adv-icon">@noImage</div>
                         </div>
                         break;

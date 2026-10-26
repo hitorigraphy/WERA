@@ -5,7 +5,7 @@ namespace Wera.Core.Tests;
 // ADV 실행: 대사는 하나씩, 선택지는 묶음으로, 조건·점프·종료는 이벤트 실행과 같은 규칙
 public class AdvExecutionTests
 {
-    const string FlowHeader = "adv_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\ttext\n";
+    const string FlowHeader = "adv_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\ttext\tforce_name\n";
     const string CondHeader = "adv_code\tflow_number\tgroup_number\tflag_code\tcondition_type\tcondition_value\n";
 
     static GameSession Session(string flows, string? conditions = null)
@@ -31,7 +31,7 @@ public class AdvExecutionTests
         var s = Session("4001\t1\tTextMe\t0\t0\t0\t안녕\n4001\t2\tTextYou\t0\t0\t0\t반가워\n4001\t3\tTextNormal\t0\t0\t0\t밤이 되었다\n");
         var run = Run(s);
 
-        Assert.Equal(new AdvStep(AdvStepKind.TextMe, 1, "안녕", []), run.Advance());
+        Assert.Equal(new AdvStep(AdvStepKind.TextMe, 1, "안녕", [], "당신"), run.Advance());
         Assert.Equal(AdvStepKind.TextYou, run.Advance().Kind);
         Assert.Equal("밤이 되었다", run.Advance().Text);
         Assert.Equal(AdvStepKind.Finished, run.Advance().Kind);
@@ -128,7 +128,7 @@ public class AdvScreenTests
             ("master/adv_master_v1.tsv", "code\tname\n4001\t인사\n4002\t빈 ADV\n"),
             ("master/event_flow_master_v1.tsv",
                 "event_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\n3001\t1\tAdv\t4002\t0\t0\n3001\t2\tAdv\t4001\t0\t0\n3001\t3\tAdv\t4001\t0\t0\n"),
-            ("master/adv_flow_master_v1.tsv", "adv_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\ttext\n" + advFlows),
+            ("master/adv_flow_master_v1.tsv", "adv_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\ttext\tforce_name\n" + advFlows),
         };
         return GameSession.NewGame(GamePack.Load(CoreTests.PackZip(files)));
     }
@@ -146,7 +146,7 @@ public class AdvScreenTests
         Assert.Equal("ADV: 인사", s.CurrentStepText);
         Assert.Equal(AdvStepKind.TextMe, s.CurrentAdvStep!.Value.Kind);
         Assert.Equal("안녕", s.CurrentAdvStep!.Value.Text);
-        Assert.Equal("당신", s.PlayerSpeakerName);
+        Assert.Equal("당신", s.CurrentAdvStep!.Value.SpeakerName);
         Assert.Equal(["1"], s.Entries.Select(e => e.Code));
 
         s.Activate("1");                                                  // 선택지: [1] 네, [2] 아니오
@@ -173,12 +173,63 @@ public class AdvScreenTests
 
 public class AdvSpeakerNameTests
 {
-    [Fact]
-    public void The_opponent_is_named_after_the_partner_for_now_and_the_player_after_character_one()
+    static AdvStep First(string flows)
     {
-        var pack = GamePack.Load(CoreTests.PackZip(("pack.tsv", "id\tdemo\ntitle\t데모\n")));
-        var s = GameSession.NewGame(pack);
-        Assert.Equal("당신", s.PlayerSpeakerName);
-        Assert.Equal("상대", s.OpponentSpeakerName);
+        var files = new (string, string)[]
+        {
+            ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
+            ("master/adv_master_v1.tsv", "code\tname\n4001\t인사\n"),
+            ("master/character_inventory_master_v1.tsv",
+                "inventory_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n1\t당신\t1\t1\t2\n7001\t용사\t1\t1\t2\n"),
+            ("master/adv_flow_master_v1.tsv", "adv_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\ttext\tforce_name\n" + flows),
+        };
+        var s = GameSession.NewGame(GamePack.Load(CoreTests.PackZip(files)));
+        return new AdvExecution(s.Pack, 4001, s.PlayerFlags).Advance();
+    }
+
+    [Fact]
+    public void TextMe_is_the_player_character_and_TextYou_is_param_1_with_its_variation()
+    {
+        Assert.Equal("당신", First("4001\t1\tTextMe\t0\t0\t0\t안녕\t\n").SpeakerName);
+
+        var you = First("4001\t1\tTextYou\t7001\t3\t0\t안녕\t\n");
+        Assert.Equal(("용사", 7001L, 3L), (you.SpeakerName, you.CharacterCode, you.Variation));
+    }
+
+    [Fact]
+    public void TextYou_with_zero_or_an_unknown_character_is_question_marks_and_no_image()
+    {
+        foreach (var code in new[] { "0", "9999", "-5" })
+        {
+            var you = First($"4001\t1\tTextYou\t{code}\t3\t0\t안녕\t\n");
+            Assert.Equal(("???", 0L, 0L), (you.SpeakerName, you.CharacterCode, you.Variation));
+        }
+        Assert.Equal("???", First("4001\t1\tTextYou\t\t\t\t안녕\t\n").SpeakerName);          // 비워 둔 인자도 같다
+    }
+
+    [Fact]
+    public void A_force_name_replaces_the_name_but_empty_means_the_character_name()
+    {
+        Assert.Equal("복면인", First("4001\t1\tTextYou\t7001\t0\t0\t안녕\t복면인\n").SpeakerName);
+        Assert.Equal("복면인", First("4001\t1\tTextYou\t0\t0\t0\t안녕\t복면인\n").SpeakerName);      // 캐릭터가 없어도 강제 이름이 이긴다
+        Assert.Equal("가면", First("4001\t1\tTextMe\t0\t0\t0\t안녕\t가면\n").SpeakerName);
+        Assert.Equal("용사", First("4001\t1\tTextYou\t7001\t0\t0\t안녕\t\n").SpeakerName);
+        Assert.Equal("용사", First("4001\t1\tTextYou\t7001\t0\t0\t안녕\n").SpeakerName);          // 칸이 아예 없어도 같다
+    }
+
+    [Fact]
+    public void The_force_name_column_is_required_in_the_header_and_loaded_into_the_master()
+    {
+        var pack = GamePack.Load(CoreTests.PackZip(
+            ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
+            ("master/adv_master_v1.tsv", "code\tname\n4001\t인사\n"),
+            ("master/adv_flow_master_v1.tsv", "adv_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\ttext\tforce_name\n4001\t1\tTextMe\t0\t0\t0\t안녕\t가면\n")));
+        Assert.Equal("가면", pack.FindAdvFlow(4001, 1)!.ForceName);
+        Assert.Equal("가면", pack.Masters.AdvFlowRowTable.FindByAdvCodeAndFlowNumber((4001, 1)).ForceName);
+
+        Assert.Throws<PackFormatException>(() => GamePack.Load(CoreTests.PackZip(
+            ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
+            ("master/adv_master_v1.tsv", "code\tname\n4001\t인사\n"),
+            ("master/adv_flow_master_v1.tsv", "adv_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\ttext\n4001\t1\tTextMe\t0\t0\t0\t안녕\n"))));
     }
 }

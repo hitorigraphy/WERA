@@ -19,8 +19,12 @@ public enum AdvStepKind
 public readonly record struct AdvChoice(long FlowNumber, string Text, long JumpTo);
 
 /// <summary>ADV를 실행하다 만난 장면 하나. 대사면 Text, 선택지 묶음이면 Choices가 차 있다.</summary>
+/// <param name="SpeakerName">화자 이름(TextMe, TextYou). force_name이 있으면 그것, 없으면 캐릭터 이름, 캐릭터를 알 수 없으면 ???.</param>
+/// <param name="CharacterCode">TextYou의 화자 캐릭터 코드. 없거나 유효하지 않으면 0(이미지는 No Image).</param>
+/// <param name="Variation">TextYou의 화자 이미지 variation_number.</param>
 public readonly record struct AdvStep(
-    AdvStepKind Kind, long FlowNumber, string Text, IReadOnlyList<AdvChoice> Choices)
+    AdvStepKind Kind, long FlowNumber, string Text, IReadOnlyList<AdvChoice> Choices,
+    string SpeakerName = "", long CharacterCode = 0, long Variation = 0)
 {
     public static readonly AdvStep Finished = new(AdvStepKind.Finished, 0, "", []);
 }
@@ -36,6 +40,7 @@ public sealed class AdvExecution
 {
     readonly IReadOnlyList<AdvFlow> flows;       // 흐름 번호 순
     readonly IReadOnlyDictionary<long, long> flags;
+    readonly GamePack pack;
     int next;
     IReadOnlyList<AdvChoice>? pending;           // 고르기를 기다리는 선택지 묶음
 
@@ -46,6 +51,7 @@ public sealed class AdvExecution
     public AdvExecution(GamePack pack, long advCode, IReadOnlyDictionary<long, long> flags)
     {
         AdvCode = advCode;
+        this.pack = pack;
         this.flags = flags;
         flows = pack.AdvFlowsOf(advCode);
     }
@@ -75,9 +81,13 @@ public sealed class AdvExecution
                     JumpTo(flow.Param1);
                     break;
                 case AdvFlowType.TextMe:
-                    return new AdvStep(AdvStepKind.TextMe, flow.FlowNumber, flow.Text, []);
+                    return new AdvStep(AdvStepKind.TextMe, flow.FlowNumber, flow.Text, [],
+                        Named(flow, pack.FindCharacter(GamePack.PlayerCharacterCode)?.Name ?? GameSession.PlayerSlotName));
                 case AdvFlowType.TextYou:
-                    return new AdvStep(AdvStepKind.TextYou, flow.FlowNumber, flow.Text, []);
+                    // param_1이 캐릭터 코드, param_2가 그 이미지의 variation_number. 0이거나 없는 캐릭터면 이름 ???와 No Image.
+                    var speaker = pack.FindCharacter(flow.Param1);
+                    return new AdvStep(AdvStepKind.TextYou, flow.FlowNumber, flow.Text, [],
+                        Named(flow, speaker?.Name ?? "???"), speaker?.Code ?? 0, speaker is null ? 0 : flow.Param2);
                 case AdvFlowType.TextNormal:
                     return new AdvStep(AdvStepKind.TextNormal, flow.FlowNumber, flow.Text, []);
                 case AdvFlowType.Choice:
@@ -106,6 +116,9 @@ public sealed class AdvExecution
         JumpTo(target);
         return true;
     }
+
+    /// <summary>force_name이 비어 있지 않으면 그 이름, 아니면 기본 이름.</summary>
+    static string Named(AdvFlow flow, string fallback) => string.IsNullOrEmpty(flow.ForceName) ? fallback : flow.ForceName;
 
     void JumpTo(long flowNumber) => next = flows.TakeWhile(f => f.FlowNumber < flowNumber).Count();
 }

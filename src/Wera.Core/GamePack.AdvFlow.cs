@@ -22,7 +22,7 @@ public enum AdvFlowType
     /// param_2가 이 선택지를 고르면 점프할 flow_number다(같은 ADV에 있어야 하며 자신의 flow_number보다 커야 한다).
     /// </summary>
     Choice = 4,
-    /// <summary>상대(말 거는 쪽)의 대사. 보여 줄 문장은 text 열이고 비워 둘 수 없다. 인자는 아직 쓰이지 않는다.</summary>
+    /// <summary>상대(말 거는 쪽)의 대사. 보여 줄 문장은 text 열이고 비워 둘 수 없다. param_1이 말하는 캐릭터 코드, param_2가 그 캐릭터의 variation_number다.</summary>
     TextYou = 5,
     /// <summary>화자가 없는 일반 텍스트(나레이션 등). 보여 줄 문장은 text 열이고 비워 둘 수 없다. 인자는 아직 쓰이지 않는다.</summary>
     TextNormal = 6,
@@ -31,11 +31,13 @@ public enum AdvFlowType
 /// <summary>
 /// ADV 흐름 마스터의 한 행. ADV(AdvCode)의 흐름 번호(FlowNumber) 칸이 하는 일(FlowType)과 그 인자. 키는 (AdvCode, FlowNumber)다.
 /// Text는 TextMe/TextYou/TextNormal 칸이 보여 줄 문장이고(Choice는 선택지 문구로 쓸 수 있다), 그 외 종류는 비워 둔다.
+/// TextYou의 Param1은 말하는 캐릭터 코드, Param2는 그 캐릭터 이미지의 variation_number다(0이거나 없는 캐릭터면 이름 ???와 No Image).
+/// ForceName은 화자 이름을 강제하는 특별 연출용 열로, 비어 있으면 캐릭터 이름을 쓴다.
 /// 흐름 조건 마스터의 조건을 만족해야 실행할 수 있고, 조건이 없으면 늘 실행할 수 있다.
 /// </summary>
 /// <param name="Groups">그룹넘버 순으로 정렬된 조건 묶음.</param>
 public sealed record AdvFlow(
-    long AdvCode, long FlowNumber, AdvFlowType FlowType, long Param1, long Param2, long Param3, string Text,
+    long AdvCode, long FlowNumber, AdvFlowType FlowType, long Param1, long Param2, long Param3, string Text, string ForceName,
     IReadOnlyList<IReadOnlyList<FlagCondition>> Groups)
 {
     public bool IsAvailable(IReadOnlyDictionary<long, long> playerFlags) => ConditionGroups.IsMet(Groups, playerFlags);
@@ -58,7 +60,7 @@ public sealed partial class GamePack
     /// 흐름: ADV는 ADV 마스터에 있어야 하고, 키 (ADV, 흐름 번호)를 두 번 쓸 수 없다. 흐름 번호와 인자는 정수(long, 인자는 비우면 0), 종류는 이름으로 적는다.
     /// 종류별 인자 검증: Jump의 param_1과 Choice의 param_2는 자신의 흐름 번호보다 큰 같은 ADV의 흐름 번호(뒤로만 점프해 무한 반복이 없다).
     /// 같은 ADV에서 Choice의 param_1(선택지 그룹 아이디)이 같은 행들은 흐름 번호 순으로 연속해야 한다(다른 칸이 끼어들 수 없다).
-    /// Finish, None, 대사 종류(TextMe, TextYou, TextNormal)는 인자를 보지 않는다. 대사 종류는 text 열이 비어 있으면 안 된다.
+    /// Finish, None, 대사 종류(TextMe, TextYou, TextNormal)는 인자를 검증하지 않는다(TextYou의 param_1이 캐릭터가 아니어도 오류가 아니라 이름 ???). 대사 종류는 text 열이 비어 있으면 안 된다.
     /// 흐름 조건: (ADV, 흐름)은 흐름 마스터에 있어야 하고 키 (ADV, 흐름, 그룹넘버, 플래그)를 두 번 쓸 수 없다.
     /// </summary>
     static List<AdvFlow>? LoadAdvFlows(ZipArchive zip, List<AdvEntry>? advs, List<FlatAdvFlowCondition> flat)
@@ -75,9 +77,9 @@ public sealed partial class GamePack
         if (advs is null) throw new PackFormatException($"{file}가 있으려면 {AdvMasterPath}도 필요합니다.");
 
         var advCodes = advs.Select(a => a.Code).ToHashSet();
-        var rows = new List<(long Adv, long Flow, AdvFlowType Type, long P1, long P2, long P3, string Text)>();
+        var rows = new List<(long Adv, long Flow, AdvFlowType Type, long P1, long P2, long P3, string Text, string ForceName)>();
         var seen = new HashSet<(long, long)>();
-        foreach (var r in Body(file, text, "adv_code", "flow_number", "flow_type", "param_1", "param_2", "param_3", "text"))
+        foreach (var r in Body(file, text, "adv_code", "flow_number", "flow_type", "param_1", "param_2", "param_3", "text", "force_name"))
         {
             var advCode = ParseLong(file, "ADV 코드", r[0]);
             var who = $"ADV '{advCode}'의";
@@ -96,11 +98,11 @@ public sealed partial class GamePack
             rows.Add((advCode, flow, type,
                 OptionalLong(file, $"{where} 인자 1", r[3]),
                 OptionalLong(file, $"{where} 인자 2", r[4]),
-                OptionalLong(file, $"{where} 인자 3", r[5]), r[6]));
+                OptionalLong(file, $"{where} 인자 3", r[5]), r[6], r[7]));
         }
 
         // 종류별 인자 검증
-        foreach (var (advCode, flow, type, p1, p2, _, line) in rows)
+        foreach (var (advCode, flow, type, p1, p2, _, line, _) in rows)
         {
             var where = $"{file}: ADV '{advCode}'의 흐름 {flow}의";
             switch (type)
@@ -125,7 +127,7 @@ public sealed partial class GamePack
         {
             var started = new HashSet<long>();
             long? last = null;                          // 바로 앞 칸이 Choice일 때 그 선택지 그룹
-            foreach (var (advCode, flow, type, p1, _, _, _) in byAdv.OrderBy(r => r.Flow))
+            foreach (var (advCode, flow, type, p1, _, _, _, _) in byAdv.OrderBy(r => r.Flow))
             {
                 if (type != AdvFlowType.Choice) { last = null; continue; }
                 if (last != p1 && !started.Add(p1))
@@ -176,7 +178,7 @@ public sealed partial class GamePack
 
         return rows
             .Select(r => new AdvFlow(
-                r.Adv, r.Flow, r.Type, r.P1, r.P2, r.P3, r.Text,
+                r.Adv, r.Flow, r.Type, r.P1, r.P2, r.P3, r.Text, r.ForceName,
                 groups[(r.Adv, r.Flow)].Values.Select(l => (IReadOnlyList<FlagCondition>)l).ToList()))
             .ToList();
     }
