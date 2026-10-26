@@ -88,7 +88,7 @@ public class PlayerCharacterTests
     {
         var root = AppContext.BaseDirectory;
         while (!File.Exists(Path.Combine(root, "WERA.slnx"))) root = Path.GetDirectoryName(root)!;
-        using var zip = File.OpenRead(Path.Combine(root, "src", "Wera.Web", "wwwroot", "sample-pack.zip"));
+        using var zip = File.OpenRead(Path.Combine(root, "src", "Wera.Web", "wwwroot", "sample-pack.wra"));
         var pack = GamePack.Load(zip);
         Assert.Equal("당신", pack.FindCharacter(1)!.Name);
         Assert.Contains(GamePack.PlayerTagCode, pack.MasterTagsOfCharacter(1));

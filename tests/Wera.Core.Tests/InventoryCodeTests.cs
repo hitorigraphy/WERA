@@ -150,7 +150,7 @@ public class InventoryCodeTests
     {
         var root = AppContext.BaseDirectory;
         while (!File.Exists(Path.Combine(root, "WERA.slnx"))) root = Path.GetDirectoryName(root)!;
-        using var zip = File.OpenRead(Path.Combine(root, "src", "Wera.Web", "wwwroot", "sample-pack.zip"));
+        using var zip = File.OpenRead(Path.Combine(root, "src", "Wera.Web", "wwwroot", "sample-pack.wra"));
         var pack = GamePack.Load(zip);
 
         Assert.Equal(InventoryKind.Character, pack.FindInventory(GamePack.PlayerCharacterCode)!.Kind);

@@ -168,7 +168,7 @@ file static class SampleLoader
     {
         var root = AppContext.BaseDirectory;
         while (!File.Exists(Path.Combine(root, "WERA.slnx"))) root = Path.GetDirectoryName(root)!;
-        using var zip = File.OpenRead(Path.Combine(root, "src", "Wera.Web", "wwwroot", "sample-pack.zip"));
+        using var zip = File.OpenRead(Path.Combine(root, "src", "Wera.Web", "wwwroot", "sample-pack.wra"));
         return GamePack.Load(zip);
     }
 }

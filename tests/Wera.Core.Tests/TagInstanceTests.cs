@@ -232,7 +232,7 @@ public class TagInstanceTests
         while (!File.Exists(Path.Combine(root, "WERA.slnx"))) root = Path.GetDirectoryName(root)!;
         var wwwroot = Path.Combine(root, "src", "Wera.Web", "wwwroot");
 
-        using var zip = File.OpenRead(Path.Combine(wwwroot, "sample-pack.zip"));
+        using var zip = File.OpenRead(Path.Combine(wwwroot, "sample-pack.wra"));
         var pack = GamePack.Load(zip);
         var s = GameSession.FromSaveJson(pack, File.ReadAllText(Path.Combine(wwwroot, "sample-tutorial-clear.sav")));
 

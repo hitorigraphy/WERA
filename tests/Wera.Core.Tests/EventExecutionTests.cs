@@ -195,7 +195,7 @@ public class EventExecutionTests
     {
         var root = AppContext.BaseDirectory;
         while (!File.Exists(Path.Combine(root, "WERA.slnx"))) root = Path.GetDirectoryName(root)!;
-        using var zip = File.OpenRead(Path.Combine(root, "src", "Wera.Web", "wwwroot", "sample-pack.zip"));
+        using var zip = File.OpenRead(Path.Combine(root, "src", "Wera.Web", "wwwroot", "sample-pack.wra"));
         var s = GameSession.NewGame(GamePack.Load(zip));
 
         Assert.Equal([(EventStepKind.Adv, 4001L)], RunAll(s.StartEvent(3001)!));                  // 전투 칸은 플래그 1001이 필요하다
@@ -405,7 +405,7 @@ public class AdvFlowMasterTests
     {
         var root = AppContext.BaseDirectory;
         while (!File.Exists(Path.Combine(root, "WERA.slnx"))) root = Path.GetDirectoryName(root)!;
-        using var zip = File.OpenRead(Path.Combine(root, "src", "Wera.Web", "wwwroot", "sample-pack.zip"));
+        using var zip = File.OpenRead(Path.Combine(root, "src", "Wera.Web", "wwwroot", "sample-pack.wra"));
         var pack = GamePack.Load(zip);
         Assert.Equal(16, pack.AdvFlowsOf(4001).Count);
         Assert.Equal(5, pack.AdvFlowsOf(4001).Count(f => f.FlowType == AdvFlowType.Choice));

@@ -52,7 +52,7 @@ public class ReservedTagTests
     {
         var root = AppContext.BaseDirectory;
         while (!File.Exists(Path.Combine(root, "WERA.slnx"))) root = Path.GetDirectoryName(root)!;
-        using var zip = File.OpenRead(Path.Combine(root, "src", "Wera.Web", "wwwroot", "sample-pack.zip"));
+        using var zip = File.OpenRead(Path.Combine(root, "src", "Wera.Web", "wwwroot", "sample-pack.wra"));
         var pack = GamePack.Load(zip);
         Assert.Equal("플레이어", pack.Tags!.Single(t => t.Code == GamePack.PlayerTagCode).Name);
         Assert.Equal("리더", pack.Tags!.Single(t => t.Code == GamePack.LeaderTagCode).Name);

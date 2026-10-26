@@ -137,8 +137,8 @@
         <div class="screen pregame">
             <div class="drop" @ondragenter="() => dragging = true" @ondragleave="() => dragging = false" @ondrop="() => dragging = false"
                  data-dragging="@dragging">
-                <p>게임팩(.zip)을 여기에 끌어다 놓으세요</p>
-                <InputFile OnChange="OnPackSelected" accept=".zip" />
+                <p>게임팩(.wra)을 여기에 끌어다 놓으세요</p>
+                <InputFile OnChange="OnPackSelected" accept=".wra" />
             </div>
             @if (error is not null)
             {
@@ -146,7 +146,7 @@
             }
         </div>
         <footer class="site-footer">
-            <a class="button" href="sample-pack.zip" download="sample-pack.zip">기본 게임팩 다운로드</a>
+            <a class="button" href="sample-pack.wra" download="sample-pack.wra">기본 게임팩 다운로드</a>
             <button type="button" class="button" @onclick="RunSamplePack">기본 게임팩 실행</button>
         </footer>
     }
@@ -446,7 +446,7 @@
         error = null;
         try
         {
-            var bytes = await Http.GetByteArrayAsync("sample-pack.zip");
+            var bytes = await Http.GetByteArrayAsync("sample-pack.wra");
             pack = GamePack.Load(new MemoryStream(bytes));
             session = null;
         }
@@ -459,6 +459,11 @@
     async Task OnPackSelected(InputFileChangeEventArgs e)
     {
         error = null;
+        if (!e.File.Name.EndsWith(".wra", StringComparison.OrdinalIgnoreCase))
+        {
+            error = $"게임팩은 .wra 파일이어야 합니다: {e.File.Name}";
+            return;
+        }
         try
         {
             var ms = new MemoryStream();
@@ -468,7 +473,7 @@
         }
         catch (Exception ex) when (ex is PackFormatException or InvalidDataException)
         {
-            error = ex is PackFormatException ? ex.Message : "zip 파일을 읽을 수 없습니다.";
+            error = ex is PackFormatException ? ex.Message : "게임팩(.wra) 파일을 읽을 수 없습니다.";
         }
     }
 
