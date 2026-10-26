@@ -112,7 +112,9 @@ a.button:hover, button.button:hover { background: #8882; }
 
 /* ---- 게임 테마: 검은 바탕, 흰 글자, 등폭 폰트 ---- */
 :root { --lh: 1.5em; color-scheme: dark; }
-html, body { background: #000; color: #fff; }
+html { background: #3c3c3c; }   /* 960px 밖은 회색: 화면의 정확한 너비를 알아보기 쉽게 */
+html, body { color: #fff; }
+body { background: #000; }
 body { font-family: ui-monospace, "Cascadia Mono", "D2Coding", "Noto Sans Mono CJK KR", Consolas, "Courier New", monospace; }
 button { background: #111; color: #fff; border: 1px solid #666; font: inherit; cursor: pointer; }
 input.command { background: #111; color: #fff; border: 1px solid #666; }
@@ -160,7 +162,7 @@ a.button, button.button { border-color: #666; }
 /* 화면 너비는 960px 고정: 한 줄에 들어가는 글자 수가 늘 같아 ADV 대사의 줄 수를 게임팩 로드 때 검증할 수 있다 */
 main { box-sizing: border-box; width: 960px; max-width: none; }
 .site-footer { box-sizing: border-box; width: 960px; max-width: none; }
-body { min-width: 960px; }
+body { box-sizing: border-box; width: 960px; min-height: 100vh; margin: 0 auto; }
 input.command { width: min(100%, 26rem); }
 
 /* 슬롯 4번째 줄: [속성 아이콘 ⭕] [속성 아이콘 ❌]. 아이콘은 1줄 높이의 정사각형 */
