@@ -69,16 +69,21 @@ public class ShopTests
     }
 
     [Fact]
-    public void Shop_button_102_is_hidden_until_a_shop_is_open()
+    public void Shop_button_102_is_disabled_until_a_shop_is_open()
     {
         var s = GameSession.NewGame(Pack(
             "code\tname\n2001\t잡화점\n",
             Header + "2001\t1\t1001\tGreaterOrEqual\t1\n"));
-        Assert.DoesNotContain(s.Entries, e => e.Code == "102");
-        Assert.Null(s.Activate("102"));
+        Assert.False(s.Entries.Single(e => e.Code == "102").Enabled);
+        Assert.NotNull(s.Activate("102"));
+        Assert.Equal(Screen.Home, s.Screen);
+        Assert.Null(s.Message);
 
         s.PlayerFlags[1001] = 1;
+        Assert.True(s.Entries.Single(e => e.Code == "102").Enabled);
         Assert.Contains(new ScreenEntry("102", "상점", Screen.ShopList), s.Entries);
+        Assert.NotNull(s.Activate("102"));
+        Assert.Equal(Screen.ShopList, s.Screen);
     }
 
     [Fact]

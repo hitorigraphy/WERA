@@ -301,7 +301,7 @@ public sealed partial class GameSession
     }
 
     /// <summary>
-    /// 홈 화면의 메뉴: 구분선으로 나뉜 세 분류. [RPG] 던전(101, 입장 가능한 것이 있을 때만), 상점(102, 열린 상점이 있을 때만),
+    /// 홈 화면의 메뉴: 구분선으로 나뉜 세 분류. [RPG] 던전(101, 입장 가능한 것이 없으면 회색), 상점(102, 열린 상점이 없으면 회색),
     /// 이벤트(103), 교류(104), 파티 설정(105) / [정보] 동료 확인(201), 장비 확인(202), 아이템 확인(203) / [시스템] 세이브(200), 로드(300).
     /// 홈의 <see cref="Entries"/>는 이 분류들을 순서대로 이어 붙인 것이다.
     /// </summary>
@@ -310,10 +310,9 @@ public sealed partial class GameSession
         get
         {
             var rpg = new List<ScreenEntry>();
-            if (AvailableDungeons.Count > 0)
-                rpg.Add(new ScreenEntry(DungeonEntryCode, "던전", Screen.DungeonSelect));
-            if (AvailableShops.Count > 0)
-                rpg.Add(new ScreenEntry(ShopEntryCode, "상점", Screen.ShopList));
+            // 입장할 수 있는 던전/상점이 없으면 메뉴에서 빼지 않고 회색(눌러도 반응 없음)으로 둔다.
+            rpg.Add(new ScreenEntry(DungeonEntryCode, "던전", Screen.DungeonSelect, Enabled: AvailableDungeons.Count > 0));
+            rpg.Add(new ScreenEntry(ShopEntryCode, "상점", Screen.ShopList, Enabled: AvailableShops.Count > 0));
             rpg.Add(new ScreenEntry(EventEntryCode, "이벤트", Screen.Event));
             rpg.Add(new ScreenEntry(InteractionEntryCode, "교류", Screen.Interaction));
             rpg.Add(new ScreenEntry(PartyEntryCode, "파티 설정", Screen.PartySetup));

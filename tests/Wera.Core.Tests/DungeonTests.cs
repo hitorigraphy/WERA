@@ -118,18 +118,23 @@ public class DungeonTests
     const string TutorialFlags = Header + "1001\t1\t1001\tGreaterOrEqual\t1\n";
 
     [Fact]
-    public void Dungeon_button_hidden_until_a_dungeon_is_available()
+    public void Dungeon_button_disabled_until_a_dungeon_is_available()
     {
         var pack = Pack(TwoDungeons.Replace("1002\t동굴\n", ""), TutorialFlags);
         var s = GameSession.NewGame(pack);
 
         Assert.Equal(Screen.Home, s.Screen);
-        Assert.DoesNotContain(s.Entries, e => e.Code == "101");
-        Assert.Null(s.Activate("101"));
+        Assert.False(s.Entries.Single(e => e.Code == "101").Enabled);
+        var disabled = s.Activate("101");
+        Assert.NotNull(disabled);
         Assert.Equal(Screen.Home, s.Screen);
+        Assert.Null(s.Message);
 
         s.PlayerFlags[1001] = 1;
+        Assert.True(s.Entries.Single(e => e.Code == "101").Enabled);
         Assert.Contains(new ScreenEntry("101", "던전", Screen.DungeonSelect), s.Entries);
+        Assert.NotNull(s.Activate("101"));
+        Assert.Equal(Screen.DungeonSelect, s.Screen);
     }
 
     [Fact]
@@ -157,17 +162,17 @@ public class DungeonTests
     {
         var s = GameSession.NewGame(Pack(null, null));
         Assert.Equal(Screen.Home, s.Screen);
-        Assert.DoesNotContain(s.Entries, e => e.Code == "101");
+        Assert.False(s.Entries.Single(e => e.Code == "101").Enabled);
     }
 
     [Fact]
     public void Home_menu_is_in_code_order_with_the_always_present_entries()
     {
-        // 던전이 없어도 이벤트(103), 교류(104), 파티 설정(105), 동료/장비/아이템 확인(201~203), 세이브(200), 로드(300)는 항상 있고, 던전이 있으면 101이 맨 앞.
-        Assert.Equal(["103", "104", "105", "201", "202", "203", "200", "300"], GameSession.NewGame(Pack(null, null)).Entries.Select(e => e.Code));
+        // 던전이 없어도 이벤트(103), 교류(104), 파티 설정(105), 동료/장비/아이템 확인(201~203), 세이브(200), 로드(300)는 항상 있고, 던전/상점(101, 102)도 항상 있고 열려 있지 않으면 비활성.
+        Assert.Equal(["101", "102", "103", "104", "105", "201", "202", "203", "200", "300"], GameSession.NewGame(Pack(null, null)).Entries.Select(e => e.Code));
         var s = GameSession.NewGame(Pack(TwoDungeons, null));
-        Assert.Equal(["101", "103", "104", "105", "201", "202", "203", "200", "300"], s.Entries.Select(e => e.Code));
-        Assert.Equal(["던전", "이벤트", "교류", "파티 설정", "동료 확인", "장비 확인", "아이템 확인", "세이브", "로드"], s.Entries.Select(e => e.Label));
+        Assert.Equal(["101", "102", "103", "104", "105", "201", "202", "203", "200", "300"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["던전", "상점", "이벤트", "교류", "파티 설정", "동료 확인", "장비 확인", "아이템 확인", "세이브", "로드"], s.Entries.Select(e => e.Label));
     }
 
     [Fact]

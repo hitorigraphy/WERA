@@ -17,8 +17,8 @@ public class HomeMenuTests
         var menu = Session().HomeMenu;
         Assert.Equal(["RPG", "정보", "시스템"], menu.Select(g => g.Name));
         Assert.Equal(
-            [("103", "이벤트"), ("104", "교류"), ("105", "파티 설정")],
-            menu[0].Entries.Select(e => (e.Code, e.Label)));                      // 던전/상점은 열려 있을 때만 앞에 붙는다
+            [("101", "던전"), ("102", "상점"), ("103", "이벤트"), ("104", "교류"), ("105", "파티 설정")],
+            menu[0].Entries.Select(e => (e.Code, e.Label)));                      // 던전/상점은 항상 있고, 열려 있지 않으면 비활성
         Assert.Equal(
             [("201", "동료 확인"), ("202", "장비 확인"), ("203", "아이템 확인")],
             menu[1].Entries.Select(e => (e.Code, e.Label)));
@@ -39,7 +39,7 @@ public class HomeMenuTests
     {
         var s = Session();
         Assert.Equal(s.HomeMenu.SelectMany(g => g.Entries).Select(e => e.Code), s.Entries.Select(e => e.Code));
-        Assert.Equal(["103", "104", "105", "201", "202", "203", "200", "300"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["101", "102", "103", "104", "105", "201", "202", "203", "200", "300"], s.Entries.Select(e => e.Code));
     }
 
     [Fact]
@@ -93,8 +93,11 @@ public class HomeMenuTests
     public void The_shop_entry_is_labelled_shop_and_still_needs_an_open_shop()
     {
         var s = Session();
-        Assert.DoesNotContain(s.Entries, e => e.Code == "102");
-        Assert.Null(s.Activate("102"));
+        var shop = s.Entries.Single(e => e.Code == "102");
+        Assert.False(shop.Enabled);
+        Assert.Equal(shop, s.Activate("102"));
+        Assert.Equal(Screen.Home, s.Screen);
+        Assert.Null(s.Message);
 
         var sample = GameSession.NewGame(SampleLoader.Pack());
         Assert.Equal("상점", sample.Entries.Single(e => e.Code == "102").Label);
