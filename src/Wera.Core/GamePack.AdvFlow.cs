@@ -5,7 +5,7 @@ namespace Wera.Core;
 
 /// <summary>
 /// ADV 흐름 한 칸이 하는 일의 종류. TSV에는 이름(대소문자 무시)으로 적는다.
-/// 숫자 값은 정해진 번호다: None 0, Finish 1, Jump 2, TextMe 3, Choice 4, TextYou 5, TextNormal 6.
+/// 숫자 값은 정해진 번호다: None 0, Finish 1, Jump 2, TextMe 3, Choice 4, TextYou 5, TextPlane 6.
 /// </summary>
 public enum AdvFlowType
 {
@@ -25,12 +25,12 @@ public enum AdvFlowType
     /// <summary>상대(말 거는 쪽)의 대사. 보여 줄 문장은 text 열이고 비워 둘 수 없다. param_1이 말하는 캐릭터 코드, param_2가 그 캐릭터의 variation_number다.</summary>
     TextYou = 5,
     /// <summary>화자가 없는 일반 텍스트(나레이션 등). 보여 줄 문장은 text 열이고 비워 둘 수 없다. 인자는 아직 쓰이지 않는다.</summary>
-    TextNormal = 6,
+    TextPlane = 6,
 }
 
 /// <summary>
 /// ADV 흐름 마스터의 한 행. ADV(AdvCode)의 흐름 번호(FlowNumber) 칸이 하는 일(FlowType)과 그 인자. 키는 (AdvCode, FlowNumber)다.
-/// Text는 TextMe/TextYou/TextNormal 칸이 보여 줄 문장이고(Choice는 선택지 문구로 쓸 수 있다), 그 외 종류는 비워 둔다.
+/// Text는 TextMe/TextYou/TextPlane 칸이 보여 줄 문장이고(Choice는 선택지 문구로 쓸 수 있다), 그 외 종류는 비워 둔다.
 /// TextMe와 TextYou의 Param1은 말하는 캐릭터 코드, Param2는 그 캐릭터 이미지의 variation_number다(0이거나 없는 캐릭터면 이름 ???와 No Image).
 /// ForceName은 화자 이름을 강제하는 특별 연출용 열로, 비어 있으면 캐릭터 이름을 쓴다.
 /// 흐름 조건 마스터의 조건을 만족해야 실행할 수 있고, 조건이 없으면 늘 실행할 수 있다.
@@ -60,7 +60,7 @@ public sealed partial class GamePack
     /// 흐름: ADV는 ADV 마스터에 있어야 하고, 키 (ADV, 흐름 번호)를 두 번 쓸 수 없다. 흐름 번호와 인자는 정수(long, 인자는 비우면 0), 종류는 이름으로 적는다.
     /// 종류별 인자 검증: Jump의 param_1과 Choice의 param_2는 자신의 흐름 번호보다 큰 같은 ADV의 흐름 번호(뒤로만 점프해 무한 반복이 없다).
     /// 같은 ADV에서 Choice의 param_1(선택지 그룹 아이디)이 같은 행들은 흐름 번호 순으로 연속해야 한다(다른 칸이 끼어들 수 없다).
-    /// Finish, None, 대사 종류(TextMe, TextYou, TextNormal)는 인자를 검증하지 않는다(TextMe와 TextYou의 param_1이 캐릭터가 아니어도 오류가 아니라 이름 ???). 대사 종류는 text 열이 비어 있으면 안 된다.
+    /// Finish, None, 대사 종류(TextMe, TextYou, TextPlane)는 인자를 검증하지 않는다(TextMe와 TextYou의 param_1이 캐릭터가 아니어도 오류가 아니라 이름 ???). 대사 종류는 text 열이 비어 있으면 안 된다.
     /// 흐름 조건: (ADV, 흐름)은 흐름 마스터에 있어야 하고 키 (ADV, 흐름, 그룹넘버, 플래그)를 두 번 쓸 수 없다.
     /// </summary>
     static List<AdvFlow>? LoadAdvFlows(ZipArchive zip, List<AdvEntry>? advs, List<FlatAdvFlowCondition> flat)
@@ -107,7 +107,7 @@ public sealed partial class GamePack
             var where = $"{file}: ADV '{advCode}'의 흐름 {flow}의";
             switch (type)
             {
-                case AdvFlowType.TextMe or AdvFlowType.TextYou or AdvFlowType.TextNormal when string.IsNullOrWhiteSpace(line):
+                case AdvFlowType.TextMe or AdvFlowType.TextYou or AdvFlowType.TextPlane when string.IsNullOrWhiteSpace(line):
                     throw new PackFormatException($"{where} {type}에는 text가 있어야 합니다.");
                 case AdvFlowType.Jump when p1 <= flow:
                     throw new PackFormatException(
