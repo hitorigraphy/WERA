@@ -39,7 +39,8 @@ public sealed partial class GamePack
         List<StatusEntry>? statuses, List<CharacterStatus>? characterStatuses,
         List<TimeSlotEntry>? timeSlots, List<TurnEntry>? turns,
         List<GameEvent>? events, List<FlatCondition> eventConditions, List<EventFlow>? eventFlows,
-        List<AdvEntry>? advs, List<BattleEntry>? battles, List<AdvFlow>? advFlows)
+        List<AdvEntry>? advs, List<BattleEntry>? battles, List<AdvFlow>? advFlows,
+        List<CommunicationGroupEntry>? communicationGroups)
     {
         var builder = new DatabaseBuilder();
 
@@ -108,6 +109,7 @@ public sealed partial class GamePack
             InitialValue = s.InitialValue, MinValue = s.MinValue, MaxValue = s.MaxValue,
         }).ToList());
 
+        builder.Append((communicationGroups ?? []).Select(g => new CommunicationGroupRow { Code = g.Code, Name = g.Name }).ToList());
         builder.Append((timeSlots ?? []).Select(s => new TimeSlotRow { Code = s.Code, Name = s.Name }).ToList());
         builder.Append((turns ?? []).Select(t => new TurnRow
             { TurnCount = t.TurnCount, Year = t.Year, Month = t.Month, Day = t.Day, TimeSlotCode = t.TimeSlotCode }).ToList());

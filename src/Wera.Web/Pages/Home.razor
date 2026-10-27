@@ -75,6 +75,22 @@
         </div>
     </div>;
 
+    // 당신, 파트너, 어시스트 슬롯 줄(홈 화면과 교류 화면 위쪽). 눌러서 바꿀 수 있는 것은 홈 화면뿐이라 교류 화면에서는 interactive가 false다.
+    RenderFragment<bool> homeSlots = interactive => @<div class="home-slots">
+        <div>
+            <div class="row-label">@GameSession.PlayerSlotName</div>
+            @homeSlot((session!.PlayerSlot, null))
+        </div>
+        <div>
+            <div class="row-label">@(interactive ? $"[{GameSession.PartnerEntryCode}] " : "")파트너</div>
+            @homeSlot((session!.PartnerSlot, interactive ? GameSession.PartnerEntryCode : null))
+        </div>
+        <div>
+            <div class="row-label">@(interactive ? $"[{GameSession.AssistEntryCode}] " : "")어시스트</div>
+            @homeSlot((session!.AssistSlot, interactive ? GameSession.AssistEntryCode : null))
+        </div>
+    </div>;
+
     // 파티 슬롯 3×3. 위 줄이 전위, 가운데 줄이 중위, 아래 줄이 후위. 이름이나 아이콘을 누르면(또는 슬롯 번호를 입력하면)
     // 캐릭터 배치 모드에서는 배치할 캐릭터 목록으로, 장비 착용 모드에서는 그 캐릭터의 장비 목록으로 간다.
     // 장비 착용 모드에서는 빈 슬롯을 누를 수 없다.
@@ -181,20 +197,7 @@
         @switch (session.Screen)
         {
             case Screen.Home:
-                <div class="home-slots">
-                    <div>
-                        <div class="row-label">@GameSession.PlayerSlotName</div>
-                        @homeSlot((session.PlayerSlot, null))
-                    </div>
-                    <div>
-                        <div class="row-label">[@GameSession.PartnerEntryCode] 파트너</div>
-                        @homeSlot((session.PartnerSlot, GameSession.PartnerEntryCode))
-                    </div>
-                    <div>
-                        <div class="row-label">[@GameSession.AssistEntryCode] 어시스트</div>
-                        @homeSlot((session.AssistSlot, GameSession.AssistEntryCode))
-                    </div>
-                </div>
+                @homeSlots(true)
                 @* 슬롯 영역 아래: 게임상 날짜와 시간대(턴이 넘어가면 다음 턴의 날짜와 시간대로 바뀐다) *@
                 <div class="home-date" aria-label="게임상 날짜와 시간대">@session.CurrentDateText</div>
                 @* 구분선으로 나뉜 분류들: [RPG], [정보], [시스템] *@
@@ -357,9 +360,13 @@
                 break;
 
             case Screen.Interaction:
-                <h2>교류</h2>
-                <p class="end">아직 준비되지 않았습니다.</p>
-                @commands
+                @* 위쪽 슬롯(바꿀 수 없음), 구분선, 아래를 세로로 4등분: 첫째 칸에 교류 그룹 목록, 둘째 칸과의 사이에 세로 구분선 *@
+                @homeSlots(false)
+                <div class="communication">
+                    <div class="communication-groups">@entryList(session.Entries.Where(e => e.Action == EntryAction.SelectCommunicationGroup))</div>
+                    <div class="communication-body"></div>
+                </div>
+                <div class="communication-back">@entryList(session.Entries.Where(e => e.Target == Screen.Home))</div>
                 break;
 
             case Screen.CompanionCheck:

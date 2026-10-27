@@ -164,6 +164,7 @@ public sealed partial class GamePack
         var battles = LoadBattles(zip);
         var eventFlows = LoadEventFlows(zip, events, advs, battles, tags, inventory);
         var advFlows = LoadAdvFlows(zip, advs, inventory, tags);
+        var communicationGroups = LoadCommunicationGroups(zip);
 
         return new GamePack
         {
@@ -195,12 +196,13 @@ public sealed partial class GamePack
             Advs = advs,
             AdvFlows = advFlows,
             Battles = battles,
+            CommunicationGroups = communicationGroups,
             Masters = BuildMasters(
                 dungeons, dungeonConditions, shops, shopConditions, itemInventory, bunchInventory, characterInventory, attributes,
                 trades, tradeConditions, statusEffects, statusEffectEffects,
                 equipmentSlots, tags, uniqueItems, uniqueItemTags, commonItemTags, characterTags, equipmentSlotTags,
                 statuses, characterStatuses, timeSlots, turns,
-                events, eventConditions, eventFlows, advs, battles, advFlows),
+                events, eventConditions, eventFlows, advs, battles, advFlows, communicationGroups),
             EmbeddedEffects = embeddedEffects,
         };
     }

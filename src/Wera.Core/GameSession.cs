@@ -65,6 +65,8 @@ public enum EntryAction
     NextEventStep,
     /// <summary>ADV의 선택지 장면에서 항목이 가리키는(Arg = 0부터 센 번호) 선택지를 고른다.</summary>
     ChooseAdv,
+    /// <summary>교류 화면에서 항목의 코드(그룹 코드×100)에 해당하는 교류 그룹을 고른다. 화면은 그대로다.</summary>
+    SelectCommunicationGroup,
 }
 
 /// <summary>화면에 나오는 클릭 가능한 텍스트. 클릭하거나 Code를 입력하면 Action을 수행한다.</summary>
@@ -149,6 +151,16 @@ public sealed partial class GameSession
 
     /// <summary>교환 목록 화면에서 보고 있는 상점 코드. 그 화면이 아니면 null.</summary>
     public long? CurrentShopCode { get; private set; }
+
+    /// <summary>교류 화면의 항목 코드는 그룹 코드에 이 값을 곱한 것이다("[{code * 100}] {name}").</summary>
+    public const long CommunicationGroupEntryFactor = 100;
+
+    /// <summary>교류 그룹들(코드 순서: 가장 작은 코드가 위).</summary>
+    public IReadOnlyList<CommunicationGroupEntry> CommunicationGroups =>
+        (Pack.CommunicationGroups ?? []).OrderBy(g => g.Code).ToList();
+
+    /// <summary>교류 화면에서 고른 그룹의 코드. 화면에 들어가면 가장 작은 그룹이고 그룹이 없으면 null. 저장하지 않는다.</summary>
+    public long? CurrentCommunicationGroupCode { get; private set; }
 
     /// <summary>캐릭터 선택 화면에서 배치 중인 슬롯(0~8). 그 화면이 아니면 null.</summary>
     public int? CurrentSlot { get; private set; }
@@ -401,8 +413,14 @@ public sealed partial class GameSession
                         .ToList();
                 case Screen.EventPlay:
                     return EventPlayEntries();
-                case Screen.Load:
                 case Screen.Interaction:
+                    // 교류 그룹을 코드(그룹 코드×100)로 입력하거나 클릭해 고른다. 고른 그룹의 항목은 선택할 수 없다.
+                    return CommunicationGroups
+                        .Select(g => new ScreenEntry(Text(g.Code * CommunicationGroupEntryFactor), g.Name, Screen.Interaction,
+                            EntryAction.SelectCommunicationGroup, Enabled: g.Code != CurrentCommunicationGroupCode))
+                        .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home))
+                        .ToList();
+                case Screen.Load:
                 case Screen.CompanionCheck:
                 case Screen.EquipmentCheck:
                 case Screen.ItemCheck:
@@ -458,7 +476,11 @@ public sealed partial class GameSession
                 };
                 CurrentEquipmentSlotCode = entry.Target == Screen.EquipmentSelect ? CodeOf(entry) : null;
                 CurrentSupportRole = entry.Target == Screen.SupportSelect ? Enum.Parse<SupportRole>(entry.Arg!) : null;
+                if (entry.Target == Screen.Interaction) CurrentCommunicationGroupCode = CommunicationGroups.FirstOrDefault()?.Code;   // 들어가면 가장 작은 그룹이 선택된다
                 Screen = entry.Target;
+                break;
+            case EntryAction.SelectCommunicationGroup:
+                CurrentCommunicationGroupCode = CodeOf(entry) / CommunicationGroupEntryFactor;
                 break;
             case EntryAction.SetSupport:
                 SetSupport(CurrentSupportRole!.Value, CodeOf(entry));

@@ -224,6 +224,13 @@ public record EquipmentSlotTagRow
     public required bool IsPositive { get; init; }
 }
 
+[MemoryTable("communication_group"), MessagePackObject(true)]
+public record CommunicationGroupRow
+{
+    [PrimaryKey] public required long Code { get; init; }
+    public required string Name { get; init; }
+}
+
 [MemoryTable("time_slot"), MessagePackObject(true)]
 public record TimeSlotRow
 {
