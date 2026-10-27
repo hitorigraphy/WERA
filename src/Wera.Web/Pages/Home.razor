@@ -198,7 +198,7 @@
     }
     else
     {
-        <div class="screen" @ref="screenArea">
+        <div class="@(session.Screen == Screen.Interaction ? "screen interaction" : "screen")" @ref="screenArea">
         @switch (session.Screen)
         {
             case Screen.Home:
@@ -428,7 +428,7 @@
         var showHistory = session.Screen is Screen.Interaction or Screen.CommunicationPlay;
         @if (back is not null || showHistory)
         {
-            <div class="back-bar">
+            <div class="@(showHistory ? "back-bar ruled" : "back-bar")">
                 @if (showHistory)
                 {
                     <span class="history">이력 : @string.Join(" > ", session.CommunicationHistory)</span>
