@@ -361,7 +361,7 @@ public sealed partial class GameSession
                     return PartySlotViews
                         .Select(v => new ScreenEntry(
                             (v.Slot + 1).ToString(), v.Name, Screen.CharacterSelect, Arg: v.Slot.ToString()))
-                        .Concat(ModeEntries())
+                        .Concat(ModeEntries(Screen.PartySetup))
                         .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home))
                         .ToList();
                 case Screen.EquipmentSetup:
@@ -370,7 +370,7 @@ public sealed partial class GameSession
                         .Where(v => !v.IsEmpty)
                         .Select(v => new ScreenEntry(
                             (v.Slot + 1).ToString(), v.Name, Screen.EquipmentList, Arg: v.Slot.ToString()))
-                        .Concat(ModeEntries())
+                        .Concat(ModeEntries(Screen.EquipmentSetup))
                         .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home))
                         .ToList();
                 case Screen.EquipmentList:
@@ -513,11 +513,11 @@ public sealed partial class GameSession
             ? [new ScreenEntry(ClearEntryCode, "비우기", Screen.PartySetup, EntryAction.ClearSlot)]
             : [];
 
-    /// <summary>파티 설정 화면 아래의 모드 버튼들: [10] 캐릭터 배치, [11] 장비 착용.</summary>
-    static IEnumerable<ScreenEntry> ModeEntries() =>
+    /// <summary>파티 설정 화면 아래의 모드 버튼들: [10] 캐릭터 배치, [11] 장비 착용. 지금 보고 있는 모드의 버튼은 선택할 수 없다.</summary>
+    static IEnumerable<ScreenEntry> ModeEntries(Screen current) =>
     [
-        new ScreenEntry(PlacementModeCode, "캐릭터 배치", Screen.PartySetup),
-        new ScreenEntry(EquipmentModeCode, "장비 착용", Screen.EquipmentSetup),
+        new ScreenEntry(PlacementModeCode, "캐릭터 배치", Screen.PartySetup, Enabled: current != Screen.PartySetup),
+        new ScreenEntry(EquipmentModeCode, "장비 착용", Screen.EquipmentSetup, Enabled: current != Screen.EquipmentSetup),
     ];
 
     static string Text(long code) => code.ToString(CultureInfo.InvariantCulture);

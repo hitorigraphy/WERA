@@ -31,8 +31,14 @@ public class EquipmentFlowTests
         var s = Session();
         var modes = s.Entries.Where(e => e.Code is "10" or "11").ToList();
         Assert.Equal(
-            [new ScreenEntry("10", "캐릭터 배치", Screen.PartySetup), new ScreenEntry("11", "장비 착용", Screen.EquipmentSetup)],
-            modes);
+            [new ScreenEntry("10", "캐릭터 배치", Screen.PartySetup, Enabled: false), new ScreenEntry("11", "장비 착용", Screen.EquipmentSetup)],
+            modes);                                                                // 지금 보고 있는 모드의 버튼은 선택할 수 없다
+        s.Activate("10");
+        Assert.Equal(Screen.PartySetup, s.Screen);
+        s.Activate("11");
+        Assert.Equal(
+            [false, true],
+            s.Entries.Where(e => e.Code is "10" or "11").Select(e => !e.Enabled));
         // 슬롯 항목(1~9) 다음, 돌아가기 앞에 온다.
         Assert.Equal(["10", "11", "999"], s.Entries.Where(e => e.Arg is null).Select(e => e.Code));
     }

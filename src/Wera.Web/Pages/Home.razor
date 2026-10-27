@@ -16,6 +16,13 @@
         }
     </div>;
 
+    // 파티 설정 화면 아래: 구분선, 모드 버튼([10] 캐릭터 배치, [11] 장비 착용)을 4분할 위치에 가로로, 돌아가기는 다음 줄.
+    // 지금 모드의 버튼은 파란색으로 눌리지 않고, 고를 수 있는 다른 모드는 흰색이다.
+    RenderFragment partyCommands = @<div class="party-commands">
+        <div class="party-modes">@entryList(session!.Entries.Where(e => e.Arg is null && e.Target != Screen.Home))</div>
+        <div class="party-back">@entryList(session!.Entries.Where(e => e.Arg is null && e.Target == Screen.Home))</div>
+    </div>;
+
     RenderFragment commands = @<div class="commands">
         @entryList(session!.Entries)
     </div>;
@@ -214,14 +221,13 @@
             case Screen.PartySetup:
                 <h2>파티 설정</h2>
                 @partyGrid(false)
-                @* 슬롯 아래: [10] 캐릭터 배치, [11] 장비 착용, [999] 돌아가기 *@
-                @entryList(session.Entries.Where(e => e.Arg is null))
+                @partyCommands
                 break;
 
             case Screen.EquipmentSetup:
-                <h2>파티 설정 · 장비 착용</h2>
+                <h2>파티 설정</h2>
                 @partyGrid(true)
-                @entryList(session.Entries.Where(e => e.Arg is null))
+                @partyCommands
                 break;
 
             case Screen.EquipmentList:

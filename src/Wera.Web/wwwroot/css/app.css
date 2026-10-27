@@ -132,6 +132,10 @@ a.button, button.button { border-color: #666; }
 .menu-grid .entries { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .15rem 1rem; }
 .home-slots > div { min-width: max-content; }
 .party-grid { display: grid; grid-template-columns: repeat(3, max-content); gap: .9rem 1.5rem; margin: 1rem 0; overflow-x: auto; }
+.party-commands { margin-top: 1rem; padding-top: .6rem; border-top: 1px solid #888; }
+.party-modes .entries { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .15rem 1rem; }
+.party-commands .textlink { color: #fff; }
+.party-commands .textlink:disabled { color: #7ab7ff; cursor: default; text-decoration: none; }   /* 지금 보고 있는 모드: 파란색, 눌리지 않음 */
 .slot { display: flex; gap: .5rem; align-items: flex-start; }
 /* 아이콘은 오른쪽 4줄(이름, HP, XP, 아이콘 줄)의 세로 높이와 같은 정사각형 */
 .slot-icon { flex: none; width: calc(4 * var(--lh)); height: calc(4 * var(--lh)); padding: 0; border: 0; background: none; }
