@@ -145,9 +145,8 @@ a.button, button.button { border-color: #666; }
 .communication-groups .textlink { color: #fff; }
 .communication-groups .textlink:disabled { color: #7ab7ff; cursor: default; text-decoration: none; }   /* 선택된 그룹: 파란색, 눌리지 않음 */
 .companions { list-style: none; padding: 0; }
-.companions li { display: flex; gap: 2ch; align-items: baseline; margin: .3rem 0; white-space: pre; }
-.companions .slot-level { width: 8ch; }
-.companions .companion-name { width: 20ch; overflow: hidden; text-overflow: ellipsis; }
+.companions li { margin: .3rem 0; white-space: pre; }
+.companions .companion-name { display: inline-block; vertical-align: bottom; }   /* 공백을 그대로 보여 줘서 등폭 글꼴로 줄이 맞는다 */
 .slot { display: flex; gap: .5rem; align-items: flex-start; }
 /* 아이콘은 오른쪽 4줄(이름, HP, XP, 아이콘 줄)의 세로 높이와 같은 정사각형 */
 .slot-icon { flex: none; width: calc(4 * var(--lh)); height: calc(4 * var(--lh)); padding: 0; border: 0; background: none; }

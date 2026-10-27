@@ -393,13 +393,11 @@
                 <h2>동료 확인</h2>
                 @* 지금 가진 캐릭터(당신 포함)를 OrderNumber순, 같으면 인스턴스 ID순으로 *@
                 <ul class="companions">
-                    @foreach (var c in session.CompanionList)
+                    @{ var table = session.Companions; }
+                    @foreach (var r in table.Rows)
                     {
-                        <li>
-                            <span class="slot-level">@c.LevelText</span> <span class="companion-name">@c.Name</span>
-                            <span class="gauge-line">HP : <span class="gauge gauge-@c.Hp.Color.ToString().ToLowerInvariant()">@c.Hp.Text</span></span>
-                            <span class="gauge-line">XP : <span class="gauge gauge-@c.Xp.Color.ToString().ToLowerInvariant()">@c.Xp.Text</span></span>
-                        </li>
+                        @* 이름 칸은 칸 수(ch) 고정 너비라 글꼴에서 한글 폭이 달라도 Lv, Hp, Xp가 줄 맞는다 *@
+                        <li>[@r.Order] <span class="companion-name" style="width: @(table.NameColumns)ch">@r.Name</span> Lv @r.Level Hp @r.Hp Xp @r.Xp</li>
                     }
                 </ul>
                 break;

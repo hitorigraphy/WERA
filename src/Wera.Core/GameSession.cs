@@ -208,8 +208,8 @@ public sealed partial class GameSession
     /// 캐릭터를 새로 얻는다: 캐릭터 인벤토리 마스터에 있고 아직 보유하지 않았을 때, 캐릭터 스테이터스 마스터의 레벨 0 값으로
     /// 상태를 채워 보유 캐릭터에 넣는다. 태그는 캐릭터 태그 마스터에서 복사한다. 마스터에 없거나 이미 보유하면 false.
     /// </summary>
-    /// <summary>다음에 얻는 캐릭터의 OrderNumber: 소지 캐릭터 수 + 1. 순서를 바꿀 때는 OrderNumber를 직접 바꾼다.</summary>
-    static long NextOrderNumber(IEnumerable<CharacterInstance> owned) => owned.Count() + 1;
+    /// <summary>다음에 얻는 캐릭터의 OrderNumber: 소지 캐릭터 수(0부터 시작). 순서를 바꿀 때는 OrderNumber를 직접 바꾼다.</summary>
+    static long NextOrderNumber(IEnumerable<CharacterInstance> owned) => owned.Count();
 
     /// <summary>
     /// 지금 가진 캐릭터 인스턴스 전부(플레이어 포함), OrderNumber순이고 같으면 InstanceId순(동료 확인 화면의 목록).
@@ -219,8 +219,50 @@ public sealed partial class GameSession
         Characters.Select(kv => kv.Value with { CharacterCode = kv.Key })
             .OrderBy(c => c.OrderNumber).ThenBy(c => c.InstanceId, StringComparer.Ordinal).ToList();
 
-    /// <summary>동료 확인 화면의 줄들: <see cref="OwnedCharacters"/> 순서대로 이름, 레벨, HP, XP.</summary>
-    public IReadOnlyList<PartySlotView> CompanionList => OwnedCharacters.Select(c => CharacterView(-1, c.CharacterCode)).ToList();
+    /// <summary>동료 확인 화면의 한 줄: 이미 칸 너비에 맞춰 공백으로 채운 순서 번호와 숫자, 채우지 않은 이름.</summary>
+    public sealed record CompanionRow(string Order, string Name, string Level, string Hp, string Xp);
+
+    /// <summary>
+    /// 동료 확인 화면의 표: <see cref="OwnedCharacters"/> 순서대로 "[OrderNumber] 이름 Lv 레벨 Hp HP Xp XP".
+    /// 순서 번호와 숫자는 가장 긴 자릿수에 맞춰 오른쪽 맞춤으로 공백을 채워 두고, 이름 칸 너비(NameColumns)는 가장 긴 이름의 칸 수다
+    /// (한글 등 전각 문자는 2칸). 화면은 이름을 이 칸 수만큼의 고정 너비로 그려서 글꼴과 상관없이 Lv, Hp, Xp가 줄 맞는다.
+    /// </summary>
+    public sealed record CompanionTable(int NameColumns, IReadOnlyList<CompanionRow> Rows);
+
+    public CompanionTable Companions
+    {
+        get
+        {
+            var rows = OwnedCharacters
+                .Select(c => (Order: c.OrderNumber.ToString(CultureInfo.InvariantCulture),
+                              Name: Pack.FindCharacter(c.CharacterCode)?.Name ?? Text(c.CharacterCode),
+                              Level: c.Level.ToString(CultureInfo.InvariantCulture),
+                              Hp: c.Hp.ToString(CultureInfo.InvariantCulture),
+                              Xp: c.Xp.ToString(CultureInfo.InvariantCulture)))
+                .ToList();
+            if (rows.Count == 0) return new CompanionTable(0, []);
+            var order = rows.Max(r => r.Order.Length);
+            var level = rows.Max(r => r.Level.Length);
+            var hp = rows.Max(r => r.Hp.Length);
+            var xp = rows.Max(r => r.Xp.Length);
+            return new CompanionTable(rows.Max(r => DisplayColumns(r.Name)),
+                rows.Select(r => new CompanionRow(r.Order.PadLeft(order), r.Name, r.Level.PadLeft(level), r.Hp.PadLeft(hp), r.Xp.PadLeft(xp))).ToList());
+        }
+    }
+
+    /// <summary>동료 확인 화면의 줄들을 글로 쓴 것(이름 뒤를 공백으로 채움). 화면은 <see cref="Companions"/>로 같은 줄을 그린다.</summary>
+    public IReadOnlyList<string> CompanionLines
+    {
+        get
+        {
+            var table = Companions;
+            return table.Rows.Select(r =>
+                $"[{r.Order}] {r.Name}{new string(' ', table.NameColumns - DisplayColumns(r.Name))} Lv {r.Level} Hp {r.Hp} Xp {r.Xp}").ToList();
+        }
+    }
+
+    /// <summary>글이 차지하는 칸 수(한글 등 전각 문자는 2칸).</summary>
+    static int DisplayColumns(string text) => text.EnumerateRunes().Sum(RichText.ColumnsOf);
 
     public bool AddCharacter(long characterCode)
     {
