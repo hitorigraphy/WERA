@@ -28,8 +28,8 @@ public class TagInstanceTests
     static GameSession Session()
     {
         var s = GameSession.NewGame(Pack());
-        s.Characters[7001] = new CharacterState(5, 36, 40, 3, 30);
-        s.Characters[7002] = new CharacterState(1, 10, 10, 0, 30);
+        s.Characters[7001] = CharacterInstance.Stats(5, 36, 40, 3, 30);
+        s.Characters[7002] = CharacterInstance.Stats(1, 10, 10, 0, 30);
         return s;
     }
 

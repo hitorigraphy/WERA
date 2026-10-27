@@ -1,16 +1,24 @@
 namespace Wera.Core;
 
-/// <summary>보유 캐릭터의 현재 상태. XpMax는 다음 레벨까지 필요한 경험치.</summary>
-public readonly record struct CharacterState(long Level, long Hp, long MaxHp, long Xp, long XpMax)
+/// <summary>
+/// 보유 캐릭터 인스턴스: 인스턴스 ID(ULID 문자열)와 마스터 코드(캐릭터 인벤토리 코드)를 함께 가지고, 목록 순서(OrderNumber)와 현재 상태를 가진다.
+/// XpMax는 다음 레벨까지 필요한 경험치. 얻을 때 OrderNumber는 가진 것 중 가장 큰 값 + 1이고, 목록은 OrderNumber순, 같으면 InstanceId순이다.
+/// </summary>
+public readonly record struct CharacterInstance(
+    string InstanceId, long CharacterCode, long OrderNumber, long Level, long Hp, long MaxHp, long Xp, long XpMax)
 {
+    /// <summary>상태만 아는 인스턴스(시험, 임베디드 이펙트): ID는 비어 있고 코드와 순서는 0이다. 세션은 보유할 때 ID와 코드를 채운다.</summary>
+    public static CharacterInstance Stats(long level, long hp, long maxHp, long xp, long xpMax) =>
+        new("", 0, 0, level, hp, maxHp, xp, xpMax);
+
     public bool IsDead => Hp <= 0;
 
     /// <summary>세이브가 받아들이는 범위로 맞춘다: 레벨 1 이상, HP 0~최대 HP, XP 0~필요 XP.</summary>
-    public CharacterState Clamped()
+    public CharacterInstance Clamped()
     {
         var maxHp = Math.Max(0, MaxHp);
         var xpMax = Math.Max(0, XpMax);
-        return new CharacterState(Math.Max(1, Level), Math.Clamp(Hp, 0, maxHp), maxHp, Math.Clamp(Xp, 0, xpMax), xpMax);
+        return this with { Level = Math.Max(1, Level), Hp = Math.Clamp(Hp, 0, maxHp), MaxHp = maxHp, Xp = Math.Clamp(Xp, 0, xpMax), XpMax = xpMax };
     }
 }
 

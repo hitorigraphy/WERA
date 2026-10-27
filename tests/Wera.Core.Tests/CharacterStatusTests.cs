@@ -134,7 +134,7 @@ public class CharacterStatusTests
     {
         var pack = Load(null, null);                                 // 시험 도우미가 기본값을 채운다(실제 게임팩은 직접 적어야 한다)
         Assert.Equal([1L, 2L, 3L], pack.Statuses!.Select(s => s.Code));
-        Assert.Equal(new CharacterState(1, 1, 1, 0, 0), pack.NewCharacterState(7001));
+        Assert.Equal(CharacterInstance.Stats(1, 1, 1, 0, 0), pack.NewCharacterInstance(7001).StatsOnly());
         Assert.Empty(pack.CharacterStatusesOf(9999));
     }
 
@@ -194,14 +194,14 @@ public class CharacterStatusTests
             Load(Statuses, "character_code\tstatus_code\tinitial_value\tmin_value\tmax_value\n7001\t1\t1\t0\t5\n"));   // level 칼럼이 없다
     }
 
-    // ---- CharacterState 채우기 ----
+    // ---- CharacterInstance 채우기 ----
 
     [Fact]
     public void A_new_character_state_is_filled_from_the_level_zero_rows()
     {
         // 용사: hp 0행 40/40, 레벨 5행은 80 — 생성 때는 레벨 0만 읽는다. xp는 0/30.
         var pack = Load(Statuses, Base + "7001\t2\t5\t80\t0\t80\n7001\t3\t0\t0\t0\t30\n");
-        Assert.Equal(new CharacterState(1, 40, 40, 0, 30), pack.NewCharacterState(7001));
+        Assert.Equal(CharacterInstance.Stats(1, 40, 40, 0, 30), pack.NewCharacterInstance(7001).StatsOnly());
     }
 
     [Fact]
@@ -209,21 +209,21 @@ public class CharacterStatusTests
     {
         var pack = Load(Statuses,
             Header + "7001\t1\t0\t3\t1\t99\n7001\t2\t0\t10\t0\t40\n7001\t3\t0\t12\t0\t30\n7002\t1\t0\t1\t1\t99\n7002\t2\t0\t20\t0\t20\n1\t1\t0\t1\t1\t99\n1\t2\t0\t10\t0\t10\n");
-        Assert.Equal(new CharacterState(3, 10, 40, 12, 30), pack.NewCharacterState(7001));
+        Assert.Equal(CharacterInstance.Stats(3, 10, 40, 12, 30), pack.NewCharacterInstance(7001).StatsOnly());
     }
 
     [Fact]
     public void A_character_without_xp_rows_starts_with_zero_experience()
     {
         var pack = Load(Statuses, Base);
-        Assert.Equal(new CharacterState(1, 40, 40, 0, 0), pack.NewCharacterState(7001));
-        Assert.Equal(new CharacterState(1, 20, 20, 0, 0), pack.NewCharacterState(7002));
+        Assert.Equal(CharacterInstance.Stats(1, 40, 40, 0, 0), pack.NewCharacterInstance(7001).StatsOnly());
+        Assert.Equal(CharacterInstance.Stats(1, 20, 20, 0, 0), pack.NewCharacterInstance(7002).StatsOnly());
     }
 
     [Fact]
     public void A_pack_without_status_masters_gives_a_minimal_living_character()
     {
-        Assert.Equal(new CharacterState(1, 1, 1, 0, 0), Load(null, null).NewCharacterState(7001));
+        Assert.Equal(CharacterInstance.Stats(1, 1, 1, 0, 0), Load(null, null).NewCharacterInstance(7001).StatsOnly());
     }
 
     [Fact]
@@ -233,11 +233,11 @@ public class CharacterStatusTests
         var s = GameSession.NewGame(pack);
 
         Assert.True(s.AddCharacter(7001));
-        Assert.Equal(new CharacterState(1, 40, 40, 0, 30), s.Characters[7001]);
+        Assert.Equal(CharacterInstance.Stats(1, 40, 40, 0, 30), s.Characters[7001].StatsOnly());
         Assert.False(s.AddCharacter(7001));                          // 이미 보유
         Assert.False(s.AddCharacter(9999));                          // 마스터에 없다
         Assert.True(s.AddCharacter(7002));
-        Assert.Equal(new CharacterState(1, 20, 20, 0, 0), s.Characters[7002]);
+        Assert.Equal(CharacterInstance.Stats(1, 20, 20, 0, 0), s.Characters[7002].StatsOnly());
 
         var loaded = GameSession.FromSaveJson(pack, s.ToSaveJson());   // 만든 상태는 세이브가 받아들이는 범위다
         Assert.Equal(s.Characters[7001], loaded.Characters[7001]);

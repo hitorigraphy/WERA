@@ -88,7 +88,7 @@ public sealed record SaveData(
     Screen Screen = Screen.Home,
     Dictionary<long, long>? PlayerFlags = null,
     Dictionary<long, InventoryItem>? InventoryItems = null,
-    Dictionary<long, CharacterState>? Characters = null,
+    Dictionary<long, CharacterInstance>? Characters = null,
     long?[]? Party = null,
     Dictionary<long, List<ActiveStatusEffect>>? StatusEffects = null,
     Dictionary<string, UniqueItemInstance>? UniqueItems = null,
@@ -142,7 +142,7 @@ public sealed partial class GameSession
     public Dictionary<long, InventoryItem> InventoryItems { get; }
 
     /// <summary>보유 캐릭터: 캐릭터 코드 → 현재 상태. 코드는 캐릭터 인벤토리 마스터에 있어야 한다.</summary>
-    public Dictionary<long, CharacterState> Characters { get; }
+    public Dictionary<long, CharacterInstance> Characters { get; }
 
     /// <summary>파티 배치: 길이 9, 칸 번호 0~2 전위, 3~5 중위, 6~8 후위. 빈 칸은 null.</summary>
     public long?[] Party { get; }
@@ -187,7 +187,7 @@ public sealed partial class GameSession
 
     GameSession(
         GamePack pack, Screen screen, Dictionary<long, long> playerFlags,
-        Dictionary<long, InventoryItem> inventoryItems, Dictionary<long, CharacterState> characters, long?[] party,
+        Dictionary<long, InventoryItem> inventoryItems, Dictionary<long, CharacterInstance> characters, long?[] party,
         Dictionary<long, List<ActiveStatusEffect>> statusEffects,
         Dictionary<string, UniqueItemInstance> uniqueItems, Dictionary<long, List<long>> characterTags,
         Dictionary<long, Dictionary<long, EquipRef>> equippedItems)
@@ -208,10 +208,24 @@ public sealed partial class GameSession
     /// 캐릭터를 새로 얻는다: 캐릭터 인벤토리 마스터에 있고 아직 보유하지 않았을 때, 캐릭터 스테이터스 마스터의 레벨 0 값으로
     /// 상태를 채워 보유 캐릭터에 넣는다. 태그는 캐릭터 태그 마스터에서 복사한다. 마스터에 없거나 이미 보유하면 false.
     /// </summary>
+    /// <summary>다음에 얻는 캐릭터의 OrderNumber: 가진 것 중 가장 큰 값 + 1.</summary>
+    static long NextOrderNumber(IEnumerable<CharacterInstance> owned) => owned.Select(c => c.OrderNumber).DefaultIfEmpty(0).Max() + 1;
+
+    /// <summary>
+    /// 지금 가진 캐릭터 인스턴스 전부(플레이어 포함), OrderNumber순이고 같으면 InstanceId순(동료 확인 화면의 목록).
+    /// 마스터 코드는 보유 목록의 키로 맞춘다.
+    /// </summary>
+    public IReadOnlyList<CharacterInstance> OwnedCharacters =>
+        Characters.Select(kv => kv.Value with { CharacterCode = kv.Key })
+            .OrderBy(c => c.OrderNumber).ThenBy(c => c.InstanceId, StringComparer.Ordinal).ToList();
+
+    /// <summary>동료 확인 화면의 줄들: <see cref="OwnedCharacters"/> 순서대로 이름, 레벨, HP, XP.</summary>
+    public IReadOnlyList<PartySlotView> CompanionList => OwnedCharacters.Select(c => CharacterView(-1, c.CharacterCode)).ToList();
+
     public bool AddCharacter(long characterCode)
     {
         if (Pack.FindCharacter(characterCode) is null || Characters.ContainsKey(characterCode)) return false;
-        Characters[characterCode] = Pack.NewCharacterState(characterCode);
+        Characters[characterCode] = Pack.NewCharacterInstance(characterCode, NewInstanceId(), NextOrderNumber(Characters.Values));
         CharacterTagInstances[characterCode] = Pack.MasterTagsOfCharacter(characterCode).ToList();
         return true;
     }
@@ -773,7 +787,7 @@ public sealed partial class GameSession
 
     /// <summary>세이브의 상태이상을 검증하고 복사한다. 보유 캐릭터, 상태이상 마스터, 임베디드 이펙트에 없는 것은 오류.</summary>
     static Dictionary<long, List<ActiveStatusEffect>> ValidateStatusEffects(
-        GamePack pack, Dictionary<long, CharacterState> characters, Dictionary<long, List<ActiveStatusEffect>>? saved)
+        GamePack pack, Dictionary<long, CharacterInstance> characters, Dictionary<long, List<ActiveStatusEffect>>? saved)
     {
         var result = new Dictionary<long, List<ActiveStatusEffect>>();
         foreach (var (characterCode, list) in saved ?? [])
@@ -817,7 +831,7 @@ public sealed partial class GameSession
                 SaveVersion, Pack.Id, Screen,
                 new Dictionary<long, long>(PlayerFlags),
                 new Dictionary<long, InventoryItem>(InventoryItems),
-                new Dictionary<long, CharacterState>(Characters),
+                new Dictionary<long, CharacterInstance>(Characters),
                 (long?[])Party.Clone(),
                 CopyStatusEffects(CharacterStatusEffects),
                 CopyUniqueItems(),
@@ -840,11 +854,26 @@ public sealed partial class GameSession
         foreach (var (code, item) in inventory)
             if (item.Amount < 0) throw new SaveFormatException($"세이브의 인벤토리 아이템 {code}의 수량이 음수입니다: {item.Amount}");
 
-        var characters = save.Characters is null ? [] : new Dictionary<long, CharacterState>(save.Characters);
-        foreach (var (code, s) in characters)
+        var characters = save.Characters is null ? [] : new Dictionary<long, CharacterInstance>(save.Characters);
+        // 인스턴스 ID가 없던 예전 세이브는 캐릭터 코드 순서대로 새 ID를 채운다(ID는 만든 순서와 같게 늘어난다).
+        var usedIds = (save.UniqueItems?.Keys ?? Enumerable.Empty<string>())
+            .Concat(characters.Values.Select(v => v.InstanceId).Where(id => !string.IsNullOrEmpty(id))).ToList();
+        foreach (var (code, s) in characters.OrderBy(kv => kv.Key).ToList())
         {
             if (pack.FindCharacter(code) is null)
                 throw new SaveFormatException($"세이브의 캐릭터 '{code}'가 캐릭터 인벤토리 마스터에 없습니다.");
+            if (s.CharacterCode != 0 && s.CharacterCode != code)
+                throw new SaveFormatException($"세이브의 캐릭터 '{code}'에 적힌 마스터 코드 '{s.CharacterCode}'가 키와 다릅니다.");
+            string instanceId;
+            if (string.IsNullOrEmpty(s.InstanceId))
+            {
+                instanceId = NextInstanceId(usedIds);
+                usedIds.Add(instanceId);
+            }
+            else if (!Ulid.TryParse(s.InstanceId, out var ulid))
+                throw new SaveFormatException($"세이브의 캐릭터 '{code}'의 인스턴스 ID '{s.InstanceId}'가 ULID가 아닙니다.");
+            else instanceId = ulid.ToString();
+            characters[code] = s with { InstanceId = instanceId, CharacterCode = code };
             if (s.Level < 1 || s.MaxHp < 0 || s.Hp < 0 || s.Hp > s.MaxHp || s.XpMax < 0 || s.Xp < 0 || s.Xp > s.XpMax)
                 throw new SaveFormatException(
                     $"세이브의 캐릭터 '{code}' 상태가 올바르지 않습니다 (Lv {s.Level}, HP {s.Hp}/{s.MaxHp}, XP {s.Xp}/{s.XpMax}).");
@@ -852,7 +881,10 @@ public sealed partial class GameSession
 
         // 플레이어(캐릭터 1)는 늘 보유한다. 세이브에 없으면(예전 세이브) 새 캐릭터 상태로 채운다.
         if (!characters.ContainsKey(GamePack.PlayerCharacterCode) && pack.FindCharacter(GamePack.PlayerCharacterCode) is not null)
-            characters[GamePack.PlayerCharacterCode] = pack.NewCharacterState(GamePack.PlayerCharacterCode);
+            characters[GamePack.PlayerCharacterCode] = pack.NewCharacterInstance(
+                GamePack.PlayerCharacterCode, NextInstanceId(usedIds), NextOrderNumber(characters.Values));
+        if (characters.Values.GroupBy(v => v.InstanceId).Any(g => g.Count() > 1))
+            throw new SaveFormatException("세이브의 캐릭터 인스턴스 ID가 두 번 이상 있습니다.");
 
         var party = new long?[PartySlotCount];
         if (save.Party is { } saved)

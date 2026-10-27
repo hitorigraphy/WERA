@@ -27,7 +27,7 @@ public class StatusEffectStateTests
     static GameSession Session(GamePack? pack = null)
     {
         var s = GameSession.NewGame(pack ?? Pack());
-        s.Characters[7001] = new CharacterState(5, 36, 40, 3, 30);
+        s.Characters[7001] = CharacterInstance.Stats(5, 36, 40, 3, 30);
         return s;
     }
 
@@ -193,7 +193,7 @@ public class StatusEffectStateTests
     [Fact]
     public void Restore_recreates_the_embedded_effect_with_values_counter_and_valid_flag()
     {
-        var target = new Character(new CharacterEntry(7001, "용사", 1, 1, 2), new CharacterState(5, 30, 40, 3, 30));
+        var target = new Character(new CharacterEntry(7001, "용사", 1, 1, 2), CharacterInstance.Stats(5, 30, 40, 3, 30));
         var saved = new ActiveEffect(TriggerType.AfterTurnEnd, 1, 1, -3, 3, 0, Counter: 2, IsValid: true);
 
         var effect = saved.Restore(EmbeddedEffectRegistry.Default, target)!;
@@ -208,7 +208,7 @@ public class StatusEffectStateTests
     [Fact]
     public void Restore_returns_null_for_a_code_the_registry_does_not_have()
     {
-        var target = new Character(new CharacterEntry(7001, "용사", 1, 1, 2), new CharacterState(5, 30, 40, 3, 30));
+        var target = new Character(new CharacterEntry(7001, "용사", 1, 1, 2), CharacterInstance.Stats(5, 30, 40, 3, 30));
         Assert.Null(new ActiveEffect(TriggerType.None, 0, 99, 0, 0, 0).Restore(EmbeddedEffectRegistry.Default, target));
     }
 
@@ -216,7 +216,7 @@ public class StatusEffectStateTests
     public void Capture_and_restore_let_a_running_effect_continue_where_it_stopped()
     {
         // 독 -3을 3번: 한 번 돌리고 저장 → 복구해서 이어 돌리면 처음부터 계속 돌린 것과 같다.
-        Character NewTarget() => new(new CharacterEntry(7001, "용사", 1, 1, 2), new CharacterState(5, 30, 40, 3, 30));
+        Character NewTarget() => new(new CharacterEntry(7001, "용사", 1, 1, 2), CharacterInstance.Stats(5, 30, 40, 3, 30));
         var straight = NewTarget();
         var straightExecutor = new EffectExecutor();
         straightExecutor.Add(new HealEffect(straight, -3, 3, 0));
@@ -243,7 +243,7 @@ public class StatusEffectStateTests
     [Fact]
     public void An_effect_saved_as_invalid_stays_invalid_when_restored_and_is_discarded_by_the_executor()
     {
-        var target = new Character(new CharacterEntry(7001, "용사", 1, 1, 2), new CharacterState(5, 30, 40, 3, 30));
+        var target = new Character(new CharacterEntry(7001, "용사", 1, 1, 2), CharacterInstance.Stats(5, 30, 40, 3, 30));
         var effect = new ActiveEffect(TriggerType.None, 0, 1, -3, 3, 0, Counter: 1, IsValid: false)
             .Restore(EmbeddedEffectRegistry.Default, target)!;
         Assert.False(effect.IsValid);

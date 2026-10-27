@@ -4,12 +4,12 @@ namespace Wera.Core;
 /// 이펙트의 타겟이 되는 캐릭터. 마스터 정의(<see cref="Entry"/>: 코드, 이름, 소지제한, 속성)와
 /// 현재 상태(<see cref="State"/>: 레벨, HP, XP)를 함께 들고 있고, 이펙트는 State를 바꿀 수 있다.
 /// </summary>
-public sealed class Character(CharacterEntry entry, CharacterState state)
+public sealed class Character(CharacterEntry entry, CharacterInstance state)
 {
     public CharacterEntry Entry { get; } = entry;
     public long Code => Entry.Code;
     public string Name => Entry.Name;
-    public CharacterState State { get; set; } = state;
+    public CharacterInstance State { get; set; } = state;
 }
 
 /// <summary>

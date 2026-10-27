@@ -31,9 +31,9 @@ public class PartyTests
     static GameSession Session()
     {
         var s = GameSession.NewGame(Pack());
-        s.Characters[7001] = new CharacterState(5, 36, 40, 3, 30);
-        s.Characters[7002] = new CharacterState(3, 10, 25, 12, 30);
-        s.Characters[7003] = new CharacterState(8, 0, 50, 40, 80);
+        s.Characters[7001] = CharacterInstance.Stats(5, 36, 40, 3, 30);
+        s.Characters[7002] = CharacterInstance.Stats(3, 10, 25, 12, 30);
+        s.Characters[7003] = CharacterInstance.Stats(8, 0, 50, 40, 80);
         return s;
     }
 
@@ -458,8 +458,8 @@ public class PartyTests
 
         var loaded = GameSession.FromSaveJson(pack, json);
         Assert.Equal(Screen.Home, loaded.Screen);
-        Assert.Equal(new CharacterState(5, 36, 40, 3, 30), loaded.Characters[7001]);
-        Assert.Equal(new CharacterState(8, 0, 50, 40, 80), loaded.Characters[7003]);
+        Assert.Equal(CharacterInstance.Stats(5, 36, 40, 3, 30), loaded.Characters[7001].StatsOnly());
+        Assert.Equal(CharacterInstance.Stats(8, 0, 50, 40, 80), loaded.Characters[7003].StatsOnly());
         long?[] expectedParty = [7001, null, null, null, 7002, null, null, null, null];
         Assert.True(expectedParty.SequenceEqual(loaded.Party));
     }

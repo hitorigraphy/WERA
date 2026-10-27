@@ -174,7 +174,7 @@ public class TradeKindTests
         var s = Session();
         Assert.Equal("교환 완료: 금화 ×500 → 마법사 ×1", Trade(s, "5003"));
         Assert.True(s.Characters.ContainsKey(7002));
-        Assert.Equal(new CharacterState(1, 1, 1, 0, 0), s.Characters[7002]);     // 스테이터스 마스터가 없는 게임팩의 기본
+        Assert.Equal(CharacterInstance.Stats(1, 1, 1, 0, 0), s.Characters[7002].StatsOnly());     // 스테이터스 마스터가 없는 게임팩의 기본
         Assert.Equal([8L], s.CharacterTags(7002));
         Assert.Equal(500, s.InventoryItems[11].Amount);
     }
@@ -244,9 +244,9 @@ public class TradeKindTests
         var pack = Pack(Header + "5001\t2001\t7002\t1\t7002\t1\tcharacter\tcharacter\n");
         var s = GameSession.NewGame(pack);
         s.AddCharacter(7002);
-        s.Characters[7002] = new CharacterState(9, 5, 50, 10, 99);
+        s.Characters[7002] = CharacterInstance.Stats(9, 5, 50, 10, 99);
         s.Activate("102"); s.Activate("2001"); s.Activate("5001");
         Assert.StartsWith("교환 완료", s.Message);
-        Assert.Equal(new CharacterState(1, 1, 1, 0, 0), s.Characters[7002]);     // 새 캐릭터로 다시 시작
+        Assert.Equal(CharacterInstance.Stats(1, 1, 1, 0, 0), s.Characters[7002].StatsOnly());     // 새 캐릭터로 다시 시작
     }
 }

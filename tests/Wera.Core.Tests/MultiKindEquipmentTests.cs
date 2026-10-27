@@ -27,9 +27,9 @@ public class MultiKindEquipmentTests
     static GameSession Session()
     {
         var s = GameSession.NewGame(Pack());
-        s.Characters[7001] = new CharacterState(5, 36, 40, 3, 30);
-        s.Characters[7002] = new CharacterState(1, 10, 10, 0, 30);
-        s.Characters[7003] = new CharacterState(1, 10, 10, 0, 30);
+        s.Characters[7001] = CharacterInstance.Stats(5, 36, 40, 3, 30);
+        s.Characters[7002] = CharacterInstance.Stats(1, 10, 10, 0, 30);
+        s.Characters[7003] = CharacterInstance.Stats(1, 10, 10, 0, 30);
         s.Party[0] = 7001;
         s.InventoryItems[3] = new InventoryItem(2);
         s.InventoryItems[11] = new InventoryItem(500);
@@ -166,7 +166,7 @@ public class MultiKindEquipmentTests
             ("master/equipment_slot_tag_master_v1.tsv",
                 "character_code\tequipment_slot_code\ttag_code\tgroup_number\tis_positive\n7001\t3\t8\t1\ttrue\n")));
         var s = GameSession.NewGame(pack);
-        s.Characters[7001] = new CharacterState(5, 36, 40, 3, 30);
+        s.Characters[7001] = CharacterInstance.Stats(5, 36, 40, 3, 30);
         s.InventoryItems[3] = new InventoryItem(2);
         s.Equip(7001, 3, EquipRef.Common(3));
 

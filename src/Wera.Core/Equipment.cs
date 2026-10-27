@@ -49,10 +49,10 @@ public readonly record struct EquipRef(
 }
 
 /// <summary>
-/// 유니크 아이템 인스턴스: 보유한 유니크 아이템 한 개. 만들어질 때 유니크 아이템 태그 마스터의 태그를 복사해 가지고,
-/// 게임 중에 태그가 사라지거나 추가될 수 있다(그 태그가 세이브에 저장된다).
+/// 유니크 아이템 인스턴스: 보유한 유니크 아이템 한 개. 인스턴스 ID(ULID 문자열)와 마스터 코드(ItemCode)를 함께 가진다.
+/// 만들어질 때 유니크 아이템 태그 마스터의 태그를 복사해 가지고, 게임 중에 태그가 사라지거나 추가될 수 있다(그 태그가 세이브에 저장된다).
 /// </summary>
-public sealed record UniqueItemInstance(long ItemCode, List<long>? Tags = null);
+public sealed record UniqueItemInstance(string InstanceId, long ItemCode, List<long>? Tags = null);
 
 /// <summary>낄 수 있는 것의 목록 항목.</summary>
 public sealed record EquipCandidate(EquipRef Ref, string Name);

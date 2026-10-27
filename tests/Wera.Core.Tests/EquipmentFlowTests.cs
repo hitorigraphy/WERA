@@ -15,8 +15,8 @@ public class EquipmentFlowTests
     static GameSession Session()
     {
         var s = GameSession.NewGame(Pack());
-        s.Characters[7001] = new CharacterState(5, 36, 40, 3, 30);
-        s.Characters[7002] = new CharacterState(3, 10, 25, 12, 30);
+        s.Characters[7001] = CharacterInstance.Stats(5, 36, 40, 3, 30);
+        s.Characters[7002] = CharacterInstance.Stats(3, 10, 25, 12, 30);
         s.Party[0] = 7001;
         s.Party[4] = 7002;
         s.Activate("105");

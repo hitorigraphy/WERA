@@ -216,7 +216,7 @@ public class PlayerCharacterTests
         Assert.Equal("Lv.1", s.PlayerSlot.LevelText);
         Assert.Equal(-1, s.PlayerSlot.Slot);
 
-        s.Characters[1] = new CharacterState(7, 20, 30, 5, 50);
+        s.Characters[1] = CharacterInstance.Stats(7, 20, 30, 5, 50);
         Assert.Equal("Lv.7", s.PlayerSlot.LevelText);
         Assert.Contains("20/30", s.PlayerSlot.Hp.Text);                   // 게이지는 파티 슬롯과 같은 모양
     }
@@ -248,8 +248,8 @@ public class PlayerCharacterTests
     public void A_saved_player_keeps_its_own_state()
     {
         var s = GameSession.NewGame(Load());
-        s.Characters[1] = new CharacterState(9, 10, 40, 3, 60);
+        s.Characters[1] = CharacterInstance.Stats(9, 10, 40, 3, 60);
         var loaded = GameSession.FromSaveJson(Load(), s.ToSaveJson());
-        Assert.Equal(new CharacterState(9, 10, 40, 3, 60), loaded.Characters[1]);
+        Assert.Equal(CharacterInstance.Stats(9, 10, 40, 3, 60), loaded.Characters[1].StatsOnly());
     }
 }

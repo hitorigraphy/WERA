@@ -11,7 +11,7 @@ public sealed partial class GamePack
     /// <summary>레벨 칸이 이 값인 행은 레벨별 행이 없을 때 쓰는 기본값이고, 캐릭터를 만들 때(레벨이 정해지기 전)의 값이다.</summary>
     public const long BaseLevel = 0;
 
-    /// <summary>엔진이 아는 스테이터스 코드: 스테이터스 마스터에 이 번호로 적어야 캐릭터 상태(CharacterState)를 채우는 데 쓰인다.</summary>
+    /// <summary>엔진이 아는 스테이터스 코드: 스테이터스 마스터에 이 번호로 적어야 캐릭터 상태(CharacterInstance)를 채우는 데 쓰인다.</summary>
     public const long LevelStatusCode = 1;
     /// <summary>HP: 초깃값이 현재 HP, 최댓값이 최대 HP.</summary>
     public const long HpStatusCode = 2;
@@ -124,12 +124,12 @@ public sealed partial class GamePack
     /// 캐릭터 스테이터스 마스터가 있으면 level과 hp의 레벨 0 행이 반드시 있다(로드 때 검증). 마스터가 없는 게임팩이나 xp 행이 없는 캐릭터는
     /// 레벨 1, HP 1/1(마스터가 없을 때), 경험치 0/0으로 시작한다.
     /// </summary>
-    public CharacterState NewCharacterState(long characterCode)
+    public CharacterInstance NewCharacterInstance(long characterCode, string instanceId = "", long orderNumber = 0)
     {
         var level = InitialCharacterStatus(characterCode, LevelStatusCode);
         var hp = InitialCharacterStatus(characterCode, HpStatusCode);
         var xp = InitialCharacterStatus(characterCode, XpStatusCode);
-        return new CharacterState(
+        return new CharacterInstance(instanceId, characterCode, orderNumber,
             level?.InitialValue ?? 1,
             hp?.InitialValue ?? 1, hp?.MaxValue ?? 1,
             xp?.InitialValue ?? 0, xp?.MaxValue ?? 0).Clamped();

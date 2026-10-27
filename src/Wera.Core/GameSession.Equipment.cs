@@ -26,7 +26,7 @@ public sealed partial class GameSession
     {
         if (Pack.FindUniqueItem(itemCode) is null) return null;
         var id = NewInstanceId();
-        UniqueItemInstances[id] = new UniqueItemInstance(itemCode, Pack.MasterTagsOfUniqueItem(itemCode).ToList());
+        UniqueItemInstances[id] = new UniqueItemInstance(id, itemCode, Pack.MasterTagsOfUniqueItem(itemCode).ToList());
         return id;
     }
 
@@ -34,9 +34,12 @@ public sealed partial class GameSession
     /// 새 인스턴스 ID(ULID의 ToString). ULID는 시간순으로 정렬되므로 이미 있는 것보다 시각이 반드시 늦도록 해서
     /// 만든 순서가 ID의 순서와 같게 한다(같은 밀리초에 여러 개를 만들어도).
     /// </summary>
-    string NewInstanceId()
+    string NewInstanceId() => NextInstanceId(UniqueItemInstances.Keys.Concat(Characters.Values.Select(c => c.InstanceId)));
+
+    /// <summary>주어진 ID들보다 시각이 반드시 늦은 새 ULID 문자열.</summary>
+    static string NextInstanceId(IEnumerable<string> existing)
     {
-        var latest = UniqueItemInstances.Keys
+        var latest = existing
             .Select(k => Ulid.TryParse(k, out var u) ? u.Time : DateTimeOffset.MinValue)
             .DefaultIfEmpty(DateTimeOffset.MinValue).Max();
         // ULID의 시각은 밀리초 단위이므로 밀리초로 비교한다(같은 밀리초면 뒤의 무작위 부분이 순서를 정해 버린다).
@@ -252,7 +255,7 @@ public sealed partial class GameSession
     /// </summary>
     static bool Fits(
         GamePack pack, Dictionary<string, UniqueItemInstance> instances, Dictionary<long, List<long>> characterTags,
-        Dictionary<long, CharacterState> owned, long characterCode, long equipmentSlotCode, EquipRef target)
+        Dictionary<long, CharacterInstance> owned, long characterCode, long equipmentSlotCode, EquipRef target)
     {
         var exists = target.Kind switch
         {
@@ -341,7 +344,7 @@ public sealed partial class GameSession
 
     Dictionary<string, UniqueItemInstance> CopyUniqueItems() =>
         UniqueItemInstances.ToDictionary(kv => kv.Key,
-            kv => new UniqueItemInstance(kv.Value.ItemCode, (kv.Value.Tags ?? Pack.MasterTagsOfUniqueItem(kv.Value.ItemCode)).ToList()));
+            kv => new UniqueItemInstance(kv.Key, kv.Value.ItemCode, (kv.Value.Tags ?? Pack.MasterTagsOfUniqueItem(kv.Value.ItemCode)).ToList()));
 
     /// <summary>보유 캐릭터 전원의 현재 태그(아직 마스터 그대로인 캐릭터는 마스터에서 복사해 적는다).</summary>
     Dictionary<long, List<long>> CopyCharacterTags() =>
@@ -376,7 +379,7 @@ public sealed partial class GameSession
     /// </summary>
     static (Dictionary<string, UniqueItemInstance> Instances, Dictionary<long, List<long>> CharacterTags,
         Dictionary<long, Dictionary<long, EquipRef>> Equipped) ValidateEquipment(
-        GamePack pack, Dictionary<long, CharacterState> characters, Dictionary<long, InventoryItem> inventory,
+        GamePack pack, Dictionary<long, CharacterInstance> characters, Dictionary<long, InventoryItem> inventory,
         Dictionary<string, UniqueItemInstance>? savedInstances, Dictionary<long, List<long>>? savedCharacterTags,
         Dictionary<long, Dictionary<long, EquipRef>>? savedEquipped)
     {
@@ -393,7 +396,9 @@ public sealed partial class GameSession
             var tags = item.Tags is null
                 ? pack.MasterTagsOfUniqueItem(item.ItemCode).ToList()
                 : CheckTags(pack, $"유니크 아이템 인스턴스 '{id}'", item.Tags, InventoryKind.UniqueItem, item.ItemCode);
-            instances[id] = new UniqueItemInstance(item.ItemCode, tags);
+            if (!string.IsNullOrEmpty(item.InstanceId) && !(Ulid.TryParse(item.InstanceId, out var inner) && inner.ToString() == id))
+                throw new SaveFormatException($"세이브의 유니크 아이템 인스턴스 '{id}'에 적힌 인스턴스 ID '{item.InstanceId}'가 키와 다릅니다.");
+            instances[id] = new UniqueItemInstance(id, item.ItemCode, tags);
         }
 
         var characterTags = new Dictionary<long, List<long>>();

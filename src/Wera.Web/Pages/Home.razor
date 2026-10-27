@@ -391,8 +391,17 @@
 
             case Screen.CompanionCheck:
                 <h2>동료 확인</h2>
-                <p class="end">아직 준비되지 않았습니다.</p>
-                @commands
+                @* 지금 가진 캐릭터(당신 포함)를 OrderNumber순, 같으면 인스턴스 ID순으로 *@
+                <ul class="companions">
+                    @foreach (var c in session.CompanionList)
+                    {
+                        <li>
+                            <span class="slot-level">@c.LevelText</span> <span class="companion-name">@c.Name</span>
+                            <span class="gauge-line">HP : <span class="gauge gauge-@c.Hp.Color.ToString().ToLowerInvariant()">@c.Hp.Text</span></span>
+                            <span class="gauge-line">XP : <span class="gauge gauge-@c.Xp.Color.ToString().ToLowerInvariant()">@c.Xp.Text</span></span>
+                        </li>
+                    }
+                </ul>
                 break;
 
             case Screen.EquipmentCheck:

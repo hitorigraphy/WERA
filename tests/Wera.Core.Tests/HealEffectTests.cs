@@ -5,7 +5,7 @@ namespace Wera.Core.Tests;
 public class HealEffectTests
 {
     static Character Hero(long hp = 30, long maxHp = 40)
-        => new(new CharacterEntry(7001, "용사", 1, 4, 5), new CharacterState(5, hp, maxHp, 3, 30));
+        => new(new CharacterEntry(7001, "용사", 1, 4, 5), CharacterInstance.Stats(5, hp, maxHp, 3, 30));
 
     // ---- 임베디드 이펙트 1번: HP 회복/감소 ----
 

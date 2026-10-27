@@ -47,7 +47,7 @@ public class EffectTests
     }
 
     static Character Hero(long hp = 30) =>
-        new(new CharacterEntry(7001, "용사", 1, 4, 5), new CharacterState(5, hp, 40, 3, 30));
+        new(new CharacterEntry(7001, "용사", 1, 4, 5), CharacterInstance.Stats(5, hp, 40, 3, 30));
 
     // ---- 임베디드 이펙트 (추상 클래스) ----
 
@@ -321,7 +321,7 @@ public class EffectTests
     {
         var pack = Pack(withCharacters: true, embedded: Registry(log));
         var s = GameSession.NewGame(pack);
-        s.Characters[7001] = new CharacterState(5, 30, 40, 3, 30);
+        s.Characters[7001] = CharacterInstance.Stats(5, 30, 40, 3, 30);
         return s;
     }
 
@@ -381,6 +381,6 @@ public class EffectTests
         s.ApplyEffect(2, 7001, 500, 3, 10);
 
         var loaded = GameSession.FromSaveJson(s.Pack, s.ToSaveJson());
-        Assert.Equal(s.Characters[7001], loaded.Characters[7001]);
+        Assert.Equal(s.Characters[7001].StatsOnly(), loaded.Characters[7001].StatsOnly());
     }
 }

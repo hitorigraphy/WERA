@@ -304,9 +304,9 @@ public class EquipmentTests
     static GameSession Session()
     {
         var s = GameSession.NewGame(Pack());
-        s.Characters[7001] = new CharacterState(5, 36, 40, 3, 30);
-        s.Characters[7002] = new CharacterState(3, 10, 25, 12, 30);
-        s.Characters[7003] = new CharacterState(2, 5, 20, 1, 10);
+        s.Characters[7001] = CharacterInstance.Stats(5, 36, 40, 3, 30);
+        s.Characters[7002] = CharacterInstance.Stats(3, 10, 25, 12, 30);
+        s.Characters[7003] = CharacterInstance.Stats(2, 5, 20, 1, 10);
         s.Party[0] = 7001;
         s.Party[4] = 7002;
         foreach (var item in new long[] { 9001, 9002, 9003, 9004, 9005 }) s.AddUniqueItem(item);   // 장비는 하나씩 보유
