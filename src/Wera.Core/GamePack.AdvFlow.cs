@@ -5,7 +5,7 @@ namespace Wera.Core;
 
 /// <summary>
 /// ADV 흐름 한 칸이 하는 일의 종류. TSV에는 이름(대소문자 무시)으로 적는다.
-/// 숫자 값은 정해진 번호다: None 0, Finish 1, Jump 2, TextMe 3, Choice 4, TextYou 5, TextPlain 6, SetFlag 7, ModFlag 8, AddInventory 9, JumpFlagEqual 10, JumpFlagNotEqual 11, JumpFlagGreaterThan 12, JumpFlagGreaterOrEqual 13, JumpFlagLessThan 14, JumpFlagLessOrEqual 15, JumpInventoryEqual 16, JumpInventoryNotEqual 17, JumpInventoryGreaterThan 18, JumpInventoryGreaterOrEqual 19, JumpInventoryLessThan 20, JumpInventoryLessOrEqual 21, JumpCharacterHaveTag 22, JumpUniqueItemHaveTag 23, JumpRandom 24.
+/// 숫자 값은 정해진 번호다: None 0, Finish 1, Jump 2, TextMe 3, Choice 4, TextYou 5, TextPlain 6, SetFlag 7, ModFlag 8, AddInventory 9, JumpFlagEqual 10, JumpFlagNotEqual 11, JumpFlagGreaterThan 12, JumpFlagGreaterOrEqual 13, JumpFlagLessThan 14, JumpFlagLessOrEqual 15, JumpInventoryEqual 16, JumpInventoryNotEqual 17, JumpInventoryGreaterThan 18, JumpInventoryGreaterOrEqual 19, JumpInventoryLessThan 20, JumpInventoryLessOrEqual 21, JumpCharacterHaveTag 22, JumpUniqueItemHaveTag 23, JumpRandom 24, TextLog 25.
 /// </summary>
 public enum AdvFlowType
 {
@@ -24,7 +24,10 @@ public enum AdvFlowType
     Choice = 4,
     /// <summary>상대(말 거는 쪽)의 대사. 보여 줄 문장은 text 열이고 비워 둘 수 없다. param_1이 말하는 캐릭터 코드, param_2가 그 캐릭터의 variation_number다.</summary>
     TextYou = 5,
-    /// <summary>화자가 없는 일반 텍스트(나레이션 등). 보여 줄 문장은 text 열이고 비워 둘 수 없다. 인자는 아직 쓰이지 않는다.</summary>
+    /// <summary>
+    /// 화자가 없는 상자 텍스트. 아이콘 자리를 포함한 가로 전체에, 아이콘과 같은 높이의 상자를 그리고 그 안에 text를 보여 준다(이름 자리는 없다).
+    /// 보여 줄 문장은 text 열이고 비워 둘 수 없으며 상자(<see cref="AdvLayout.PlainBoxColumns"/>칸 × <see cref="AdvLayout.BoxLines"/>줄)에 들어가야 한다. 인자는 아직 쓰이지 않는다.
+    /// </summary>
     TextPlain = 6,
     /// <summary>플레이어 플래그를 정한 값으로 바꾼다. param_1이 flag_code, param_2가 value다. 화면에는 아무것도 나오지 않고 바로 다음 칸으로 간다.</summary>
     SetFlag = 7,
@@ -75,11 +78,15 @@ public enum AdvFlowType
     /// (예: 30, 100, 5 → rand(100) &lt; 30 ? goto 5 : goto next). 모수는 1 이상이어야 한다(로드 검증). 자세한 규칙은 <see cref="RandomJump"/>.
     /// </summary>
     JumpRandom = 24,
+    /// <summary>
+    /// 화자가 없는, 상자 없이 글만 나오는 텍스트(로그). 보여 줄 문장은 text 열이고 비워 둘 수 없으며 꾸밈 문법은 맞아야 하지만 줄 수 제한은 없다. 인자는 아직 쓰이지 않는다.
+    /// </summary>
+    TextLog = 25,
 }
 
 /// <summary>
 /// ADV 흐름 마스터의 한 행. ADV(AdvCode)의 흐름 번호(FlowNumber) 칸이 하는 일(FlowType)과 그 인자. 키는 (AdvCode, FlowNumber)다.
-/// Text는 TextMe/TextYou/TextPlain 칸이 보여 줄 문장이고(Choice는 선택지 문구로 쓸 수 있다), 그 외 종류는 비워 둔다.
+/// Text는 TextMe/TextYou/TextPlain/TextLog 칸이 보여 줄 문장이고(Choice는 선택지 문구로 쓸 수 있다), 그 외 종류는 비워 둔다.
 /// TextMe와 TextYou의 Param1은 말하는 캐릭터 코드, Param2는 그 캐릭터 이미지의 variation_number다(0이거나 없는 캐릭터면 이름 ???와 No Image).
 /// ForceName은 화자 이름을 강제하는 특별 연출용 열로, 비어 있으면 캐릭터 이름을 쓴다. 칸에는 조건이 없다(조건은 JumpFlag*로 건너뛰어 낸다).
 /// </summary>
@@ -100,7 +107,7 @@ public sealed partial class GamePack
     /// 흐름: ADV는 ADV 마스터에 있어야 하고, 키 (ADV, 흐름 번호)를 두 번 쓸 수 없다. 흐름 번호와 인자는 정수(long, 인자는 비우면 0), 종류는 이름으로 적는다.
     /// 종류별 인자 검증: Jump의 param_1과 JumpFlag*, JumpInventory*, 태그 점프(JumpCharacterHaveTag, JumpUniqueItemHaveTag), JumpRandom의 param_3(점프할 흐름 번호), Choice의 param_2는 자신의 흐름 번호보다 큰 같은 ADV의 흐름 번호(뒤로만 점프해 무한 반복이 없다).
     /// 같은 ADV에서 Choice의 param_1(선택지 그룹 아이디)이 같은 행들은 흐름 번호 순으로 연속해야 한다(다른 칸이 끼어들 수 없다).
-    /// Finish, None, 대사 종류(TextMe, TextYou, TextPlain)는 인자를 검증하지 않는다(TextMe와 TextYou의 param_1이 캐릭터가 아니어도 오류가 아니라 이름 ???). SetFlag와 ModFlag의 param_1(플래그 코드)과 param_2(값)는 어떤 정수든 되고, AddInventory는 param_1이 인벤토리 마스터에 있는 코드여야 하며 유니크 아이템과 캐릭터는 param_2가 1 또는 -1이어야 한다. 대사 종류는 text 열이 비어 있으면 안 된다.
+    /// Finish, None, 대사 종류(TextMe, TextYou, TextPlain, TextLog)는 인자를 검증하지 않는다(TextMe와 TextYou의 param_1이 캐릭터가 아니어도 오류가 아니라 이름 ???). SetFlag와 ModFlag의 param_1(플래그 코드)과 param_2(값)는 어떤 정수든 되고, AddInventory는 param_1이 인벤토리 마스터에 있는 코드여야 하며 유니크 아이템과 캐릭터는 param_2가 1 또는 -1이어야 한다. 대사 종류는 text 열이 비어 있으면 안 된다.
     /// 흐름 조건 마스터(adv_flow_condition_master)는 없어졌다. 그 파일이 게임팩에 있으면 로드 오류다.
     /// </summary>
     static List<AdvFlow>? LoadAdvFlows(
@@ -153,9 +160,9 @@ public sealed partial class GamePack
                 throw new PackFormatException($"{where} {type}의 인벤토리 코드 '{p1}'가 인벤토리 마스터에 없습니다.");
             switch (type)
             {
-                case AdvFlowType.TextMe or AdvFlowType.TextYou or AdvFlowType.TextPlain when string.IsNullOrWhiteSpace(line):
+                case AdvFlowType.TextMe or AdvFlowType.TextYou or AdvFlowType.TextPlain or AdvFlowType.TextLog when string.IsNullOrWhiteSpace(line):
                     throw new PackFormatException($"{where} {type}에는 text가 있어야 합니다.");
-                case AdvFlowType.TextMe or AdvFlowType.TextYou or AdvFlowType.TextPlain:
+                case AdvFlowType.TextMe or AdvFlowType.TextYou or AdvFlowType.TextPlain or AdvFlowType.TextLog:
                     CheckLine(where, type, line);
                     break;
                 case AdvFlowType.Jump when p1 <= flow:
@@ -195,18 +202,20 @@ public sealed partial class GamePack
     }
 
     /// <summary>
-    /// 대사의 꾸밈 문법(<see cref="RichText"/>)이 맞는지, 그리고 TextMe/TextYou는 대사 상자(<see cref="AdvLayout"/>)에 들어가는지 본다:
-    /// 줄 수가 <see cref="AdvLayout.BoxLines"/>를 넘으면 게임팩 로드가 실패한다. TextPlain은 상자가 없어 문법만 본다.
+    /// 대사의 꾸밈 문법(<see cref="RichText"/>)이 맞는지, 그리고 상자가 있는 종류는 상자(<see cref="AdvLayout"/>)에 들어가는지 본다:
+    /// 줄 수가 <see cref="AdvLayout.BoxLines"/>를 넘으면 게임팩 로드가 실패한다(TextMe/TextYou는 <see cref="AdvLayout.BoxColumns"/>칸,
+    /// 가로 전체 상자인 TextPlain은 <see cref="AdvLayout.PlainBoxColumns"/>칸 기준). TextLog는 상자가 없어 문법만 본다.
     /// </summary>
     static void CheckLine(string where, AdvFlowType type, string line)
     {
         var rich = RichText.TryParse(line, out var error);
         if (rich is null) throw new PackFormatException($"{where} text가 올바르지 않습니다: {error}");
-        if (type == AdvFlowType.TextPlain) return;
-        var lines = rich.CountLines(AdvLayout.BoxColumns);
+        if (type == AdvFlowType.TextLog) return;
+        var columns = type == AdvFlowType.TextPlain ? AdvLayout.PlainBoxColumns : AdvLayout.BoxColumns;
+        var lines = rich.CountLines(columns);
         if (lines > AdvLayout.BoxLines)
             throw new PackFormatException(
-                $"{where} text가 대사 상자에 들어가지 않습니다: {lines}줄입니다(최대 {AdvLayout.BoxLines}줄, 한 줄 {AdvLayout.BoxColumns}칸, 한글은 2칸).");
+                $"{where} text가 대사 상자에 들어가지 않습니다: {lines}줄입니다(최대 {AdvLayout.BoxLines}줄, 한 줄 {columns}칸, 한글은 2칸).");
     }
 
     /// <summary>선택지 문구도 꾸밈 문법(<see cref="RichText"/>)을 쓸 수 있다. 목록의 한 줄로 나오므로 줄바꿈(\n)은 쓸 수 없다.</summary>

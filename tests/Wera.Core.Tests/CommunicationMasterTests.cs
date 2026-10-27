@@ -157,6 +157,9 @@ public class CommunicationMasterTests
     [InlineData("1\tText\t\t\t\t안녕", "")]
     [InlineData("1\tText\t\t\t\t", "text가 있어야")]
     [InlineData("1\tTextPlain\t\t\t\t  ", "text가 있어야")]
+    [InlineData("1\tTextLog\t\t\t\t  ", "text가 있어야")]
+    [InlineData("1\tTextLog\t\t\t\t로그", "")]
+    [InlineData("1\tTextLog\t\t\t\t[b]열림", "text가 올바르지")]
     [InlineData("1\tText\t\t\t\t[b]열림", "text가 올바르지")]
     [InlineData("1\tChoice\t1\t2\t\t고른다\n2\tFinish\t\t\t\t", "")]
     [InlineData("1\tChoice\t1\t2\t\t\n2\tFinish\t\t\t\t", "text가 있어야")]
@@ -282,6 +285,7 @@ public class CommunicationMasterTests
         Assert.Equal(21, (int)CommunicationFlowType.JumpCharacterHaveTag);
         Assert.Equal(22, (int)CommunicationFlowType.JumpUniqueItemHaveTag);
         Assert.Equal(23, (int)CommunicationFlowType.JumpRandom);
+        Assert.Equal(24, (int)CommunicationFlowType.TextLog);
     }
 
     [Fact]

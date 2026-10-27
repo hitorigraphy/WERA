@@ -170,6 +170,7 @@ public class AdvTextValidationTests
     [InlineData("TextMe")]
     [InlineData("TextYou")]
     [InlineData("TextPlain")]
+    [InlineData("TextLog")]
     public void Bad_markup_fails_the_load_with_the_location(string type)
     {
         var message = Error(type, "[i]기울임[/i]");
@@ -179,11 +180,28 @@ public class AdvTextValidationTests
     }
 
     [Fact]
-    public void Plain_text_has_no_box_so_it_may_run_past_three_lines()
+    public void A_log_line_has_no_box_so_it_may_run_past_three_lines()
     {
-        Assert.NotNull(Load("TextPlain", @"하나\n둘\n셋\n넷\n다섯"));
-        Assert.NotNull(Load("TextPlain", new string('a', 500)));
+        Assert.NotNull(Load("TextLog", @"하나\n둘\n셋\n넷\n다섯"));
+        Assert.NotNull(Load("TextLog", new string('a', 500)));
     }
+
+    [Fact]
+    public void A_plain_text_box_spans_the_full_width_and_holds_three_lines()
+    {
+        Assert.Equal(94, AdvLayout.PlainBoxColumns);
+        Assert.NotNull(Load("TextPlain", @"하나\n둘\n셋"));
+        Assert.NotNull(Load("TextPlain", new string('가', 47) + new string('나', 47) + new string('다', 47)));      // 줄마다 47자 = 94칸
+        Assert.Contains("4줄입니다(최대 3줄, 한 줄 94칸", Error("TextPlain", @"하나\n둘\n셋\n넷"));
+        Assert.Contains("4줄입니다", Error("TextPlain", new string('a', 95) + new string('b', 95) + new string('c', 95) + "d"));
+        Assert.Contains("4줄입니다", Error("TextPlain", new string('가', 48) + new string('나', 48) + new string('다', 48) + "라"));
+    }
+
+    [Theory]
+    [InlineData("TextLog")]
+    [InlineData("TextPlain")]
+    public void Plain_and_log_text_need_text(string type) =>
+        Assert.Contains("text가 있어야", Error(type, " "));
 
     [Fact]
     public void A_step_exposes_the_parsed_text()

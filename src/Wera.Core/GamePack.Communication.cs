@@ -16,7 +16,7 @@ public sealed record CommunicationEntry(long Code, long GroupCode, string Name, 
 /// 숫자 값은 정해진 번호다: None 0, Finish 1, Jump 2, Text 3, Choice 4, TextPlain 5, SetFlag 6, ModFlag 7, AddInventory 8,
 /// JumpFlagEqual 9, JumpFlagNotEqual 10, JumpFlagGreaterThan 11, JumpFlagGreaterOrEqual 12, JumpFlagLessThan 13, JumpFlagLessOrEqual 14,
 /// JumpInventoryEqual 15, JumpInventoryNotEqual 16, JumpInventoryGreaterThan 17, JumpInventoryGreaterOrEqual 18, JumpInventoryLessThan 19, JumpInventoryLessOrEqual 20,
-/// JumpCharacterHaveTag 21, JumpUniqueItemHaveTag 22, JumpRandom 23.
+/// JumpCharacterHaveTag 21, JumpUniqueItemHaveTag 22, JumpRandom 23, TextLog 24.
 /// 점프하는 칸의 규칙과 인자는 ADV 흐름(<see cref="AdvFlowType"/>)과 같고, 점프할 흐름 번호는 같은 흐름 묶음 안에 있고 자신보다 커야 한다.
 /// </summary>
 public enum CommunicationFlowType
@@ -34,7 +34,7 @@ public enum CommunicationFlowType
     /// 문구는 text 열이고 비워 둘 수 없으며 한 줄이어야 한다.
     /// </summary>
     Choice = 4,
-    /// <summary>화자가 없는 일반 텍스트. 보여 줄 문장은 text 열이고 비워 둘 수 없다. 인자는 아직 쓰이지 않는다.</summary>
+    /// <summary>화자가 없는 상자 텍스트(ADV의 TextPlain과 같다: 가로 전체의 상자 안에 나온다). 보여 줄 문장은 text 열이고 비워 둘 수 없다. 인자는 아직 쓰이지 않는다.</summary>
     TextPlain = 5,
     /// <summary>플레이어 플래그를 정한 값으로 바꾼다. param_1이 flag_code, param_2가 value다.</summary>
     SetFlag = 6,
@@ -62,6 +62,8 @@ public enum CommunicationFlowType
     JumpUniqueItemHaveTag = 22,
     /// <summary>rand(param_2) &lt; param_1이면 param_3으로 점프한다(모수 param_2는 1 이상).</summary>
     JumpRandom = 23,
+    /// <summary>화자가 없는, 상자 없이 글만 나오는 텍스트(로그). 보여 줄 문장은 text 열이고 비워 둘 수 없다. 인자는 아직 쓰이지 않는다.</summary>
+    TextLog = 24,
 }
 
 /// <summary>흐름의 한 칸. 세 흐름 마스터가 모두 이 모양의 칸을 가진다.</summary>
@@ -250,10 +252,10 @@ public sealed partial class GamePack
             var (type, p1, p2, p3) = (s.FlowType, s.Param1, s.Param2, s.Param3);
             var name = type.ToString();
 
-            if (type is CommunicationFlowType.Text or CommunicationFlowType.TextPlain or CommunicationFlowType.Choice
+            if (type is CommunicationFlowType.Text or CommunicationFlowType.TextPlain or CommunicationFlowType.TextLog or CommunicationFlowType.Choice
                 && string.IsNullOrWhiteSpace(s.Text))
                 throw new PackFormatException($"{where} {type}에는 text가 있어야 합니다.");
-            if (type is CommunicationFlowType.Text or CommunicationFlowType.TextPlain)
+            if (type is CommunicationFlowType.Text or CommunicationFlowType.TextPlain or CommunicationFlowType.TextLog)
             {
                 if (RichText.TryParse(s.Text, out var error) is null)
                     throw new PackFormatException($"{where} text가 올바르지 않습니다: {error}");

@@ -144,6 +144,11 @@
                 </div>
                 break;
             case AdvStepKind.TextPlain:
+                <div class="adv-line adv-plain">
+                    <div class="adv-box"><p class="adv-text">@((MarkupString)line.Rich.ToHtml())</p></div>
+                </div>
+                break;
+            case AdvStepKind.TextLog:
                 <p class="adv-normal">@((MarkupString)line.Rich.ToHtml())</p>
                 break;
             case AdvStepKind.Chosen:

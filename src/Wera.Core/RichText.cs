@@ -205,6 +205,9 @@ public static class AdvLayout
     /// <summary>대사 상자 안에 한 줄로 들어가는 칸 수.</summary>
     public static int BoxColumns => (int)Math.Floor((PageWidthPx - PagePaddingPx - IconPx - GapPx - BorderPx) / ColumnPx - BoxPaddingColumns);
 
+    /// <summary>가로 전체 상자(TextPlain) 안에 한 줄로 들어가는 칸 수: 아이콘 자리와 간격이 없어 페이지 폭 전체에서 테두리와 안쪽 여백만 뺀다.</summary>
+    public static int PlainBoxColumns => (int)Math.Floor((PageWidthPx - PagePaddingPx - BorderPx) / ColumnPx - BoxPaddingColumns);
+
     /// <summary>대사 상자에 들어가는 줄 수(상자 높이는 이미지와 같은 4줄 높이이고 위쪽 반 줄은 이름 자리라 3줄).</summary>
     public const int BoxLines = 3;
 }

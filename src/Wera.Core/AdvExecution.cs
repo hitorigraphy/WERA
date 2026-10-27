@@ -7,8 +7,10 @@ public enum AdvStepKind
     TextMe,
     /// <summary>상대의 대사(TextYou).</summary>
     TextYou,
-    /// <summary>화자 없는 일반 텍스트(TextPlain).</summary>
+    /// <summary>화자 없는 상자 텍스트(TextPlain): 가로 전체의 상자 안에 나온다.</summary>
     TextPlain,
+    /// <summary>화자 없는, 상자 없이 글만 나오는 텍스트(TextLog).</summary>
+    TextLog,
     /// <summary>선택지 묶음. 하나를 골라야 이어 갈 수 있다.</summary>
     Choice,
     /// <summary>ADV가 끝났다.</summary>
@@ -38,7 +40,7 @@ public readonly record struct AdvStep(
 /// ADV 하나를 흐름 번호 순서대로 실행한다. 이벤트 실행과 같은 규칙이다: 조건이 거짓인 칸은 건너뛰고(조건이 없으면 참),
 /// 더 진행할 칸이 없거나 Finish를 만나면 끝나며, None은 아무 일도 없고, Jump는 param_1 번호부터 이어 가고, JumpFlag*는 플래그를 견주어 참이면 param_3 번호부터 이어 가고 거짓이면 다음 칸으로 간다.
 /// SetFlag와 ModFlag는 플레이어 플래그를 바꾸고 멈추지 않고 다음 칸으로 간다(바뀐 플래그는 뒤의 칸 조건에 바로 보인다).
-/// TextMe/TextYou/TextPlain은 <see cref="Advance"/>가 그 대사를 돌려주고 멈춘다.
+/// TextMe/TextYou/TextPlain/TextLog는 <see cref="Advance"/>가 그 대사를 돌려주고 멈춘다.
 /// Choice는 같은 선택지 그룹(param_1)의 이어진 행들 중 조건을 만족하는 것을 한 묶음으로 돌려주고 멈추며(만족하는 것이 없으면 건너뛴다),
 /// <see cref="Choose"/>로 하나를 고르면 그 선택지의 param_2 번호부터 이어 간다.
 /// </summary>
@@ -136,6 +138,8 @@ public sealed class AdvExecution
                     return Line(AdvStepKind.TextYou, flow);
                 case AdvFlowType.TextPlain:
                     return new AdvStep(AdvStepKind.TextPlain, flow.FlowNumber, flow.Text, []);
+                case AdvFlowType.TextLog:
+                    return new AdvStep(AdvStepKind.TextLog, flow.FlowNumber, flow.Text, []);
                 case AdvFlowType.Choice:
                     // 이 칸부터 같은 그룹의 이어진 선택지를 모은다(조건에 따라 숨기려면 JumpFlag*로 다른 선택지 묶음으로 뛴다).
                     var group = flow.Param1;

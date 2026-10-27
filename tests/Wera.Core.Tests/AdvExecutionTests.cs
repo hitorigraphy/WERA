@@ -24,6 +24,16 @@ public class AdvExecutionTests
     static AdvExecution Run(GameSession s, long adv = 4001) => new(s.Pack, adv, s.PlayerFlags);
 
     [Fact]
+    public void Plain_and_log_text_come_back_as_their_own_kinds_without_a_speaker()
+    {
+        var s = Session("4001\t1\tTextPlain\t0\t0\t0\t상자\t\n4001\t2\tTextLog\t0\t0\t0\t로그\t\n");
+        var run = Run(s);
+        Assert.Equal(new AdvStep(AdvStepKind.TextPlain, 1, "상자", []), run.Advance());
+        Assert.Equal(new AdvStep(AdvStepKind.TextLog, 2, "로그", []), run.Advance());
+        Assert.Equal(AdvStepKind.Finished, run.Advance().Kind);
+    }
+
+    [Fact]
     public void Text_lines_come_back_one_at_a_time_with_their_speaker_kind_and_the_adv_ends_after_the_last()
     {
         var s = Session("4001\t1\tTextMe\t1\t0\t0\t안녕\n4001\t2\tTextYou\t0\t0\t0\t반가워\n4001\t3\tTextPlain\t0\t0\t0\t밤이 되었다\n");
