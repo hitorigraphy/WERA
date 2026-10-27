@@ -289,7 +289,7 @@ public class CommunicationMasterTests
     }
 
     [Fact]
-    public void The_sample_pack_has_the_greeting_and_empty_flow_masters()
+    public void The_sample_pack_has_the_greeting_with_a_default_flow()
     {
         var root = AppContext.BaseDirectory;
         while (!File.Exists(Path.Combine(root, "WERA.slnx"))) root = Directory.GetParent(root)!.FullName;
@@ -298,6 +298,6 @@ public class CommunicationMasterTests
         Assert.Equal([new CommunicationEntry(1, 1, "인사하기", false)], pack.Communications);
         Assert.Empty(pack.CommunicationSoloFlows!);
         Assert.Empty(pack.CommunicationDuoFlows!);
-        Assert.Empty(pack.CommunicationDefaultFlows!);
+        Assert.Equal(["Text", "TextLog", "Finish"], pack.CommunicationDefaultFlows!.Select(f => f.FlowType.ToString()));
     }
 }

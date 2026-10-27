@@ -83,7 +83,11 @@ public sealed partial class GameSession
     void ShowNextAdvStep()
     {
         var step = CurrentAdv!.Advance();
-        if (step.Kind == AdvStepKind.Finished) ShowNextEventStep();
+        if (step.Kind == AdvStepKind.Finished)
+        {
+            if (Screen == Screen.CommunicationPlay) EndCommunication();
+            else ShowNextEventStep();
+        }
         else
         {
             CurrentAdvStep = step;
@@ -105,13 +109,13 @@ public sealed partial class GameSession
     /// 지금 장면이 아무 키나 누르면(또는 눌러서) 다음으로 넘어가는 장면인가: 이벤트 진행 화면이고 선택지 장면이 아닐 때.
     /// 이런 장면은 "[1] 다음"을 화면에 보여 주지 않지만, 코드 1을 <see cref="Activate"/>하면 넘어간다.
     /// </summary>
-    public bool AdvanceOnAnyKey => Screen == Screen.EventPlay && CurrentAdvStep is not { Kind: AdvStepKind.Choice };
+    public bool AdvanceOnAnyKey => Screen is Screen.EventPlay or Screen.CommunicationPlay && CurrentAdvStep is not { Kind: AdvStepKind.Choice };
 
     /// <summary>선택지 항목. 문구는 꾸밈 문법을 적용해 보여 주고(Label은 꾸밈을 뗀 글), 로드 때 문법을 검증하므로 늘 읽힌다.</summary>
     ScreenEntry ChoiceEntry(int index, AdvChoice choice)
     {
         var rich = RichText.TryParse(choice.Text, out _);
-        return new ScreenEntry(Text(index + 1), rich?.PlainText ?? choice.Text, Screen.EventPlay, EntryAction.ChooseAdv,
+        return new ScreenEntry(Text(index + 1), rich?.PlainText ?? choice.Text, Screen, EntryAction.ChooseAdv,
             Arg: index.ToString(), LabelHtml: rich?.ToHtml());
     }
 
@@ -121,5 +125,57 @@ public sealed partial class GameSession
             ? choice.Choices
                 .Select((c, i) => ChoiceEntry(i, c))
                 .ToList()
-            : [new ScreenEntry(NextEventStepCode, "다음", Screen.EventPlay, EntryAction.NextEventStep)];
+            : [new ScreenEntry(NextEventStepCode, "다음", Screen, EntryAction.NextEventStep)];
+
+    // ---- 교류 진행 ----
+
+    /// <summary>교류 진행 화면에서 재생 중인 교류의 코드. 그 화면이 아니면 null(세이브에는 담기지 않는다).</summary>
+    public long? CurrentCommunicationCode { get; private set; }
+
+    /// <summary>교류 화면에서 고른 그룹에 속한 교류들(교류 코드순).</summary>
+    IEnumerable<CommunicationEntry> CurrentGroupCommunications =>
+        (Pack.Communications ?? []).Where(c => c.GroupCode == CurrentCommunicationGroupCode).OrderBy(c => c.Code);
+
+    /// <summary>
+    /// 교류의 흐름(듀오 → 솔로 → 기본 순으로 찾은 것)을 ADV 흐름 칸으로 바꾼다: Text는 상대 캐릭터(교류가 is_assist면 어시스트, 아니면 파트너)의
+    /// 대사인 TextYou가 되고, 나머지 종류는 이름이 같은 ADV 흐름 종류가 된다. 슬롯이 비어 있으면 화자 코드는 0(이름 ???).
+    /// </summary>
+    List<AdvFlow> CommunicationAdvFlows(CommunicationEntry communication)
+    {
+        var speaker = (communication.IsAssist ? AssistCode : PartnerCode) ?? 0;
+        return CommunicationFlowOf(communication.Code)
+            .Select(f => f.FlowType == CommunicationFlowType.Text
+                ? new AdvFlow(communication.Code, f.FlowNumber, AdvFlowType.TextYou, speaker, 0, 0, f.Text, "")
+                : new AdvFlow(communication.Code, f.FlowNumber, Enum.Parse<AdvFlowType>(f.FlowType.ToString()),
+                    f.Param1, f.Param2, f.Param3, f.Text, ""))
+            .ToList();
+    }
+
+    /// <summary>교류를 시작해 흐름 재생 화면으로 간다. 재생할 흐름이 없으면 교류 화면에 머문다.</summary>
+    void BeginCommunication(long communicationCode)
+    {
+        var communication = Pack.Communications?.FirstOrDefault(c => c.Code == communicationCode);
+        var flows = communication is null ? [] : CommunicationAdvFlows(communication);
+        if (communication is null || flows.Count == 0)
+        {
+            Message = "교류 내용이 없습니다.";
+            return;
+        }
+        CurrentCommunicationCode = communicationCode;
+        advLog.Clear();
+        CurrentAdvStep = null;
+        CurrentAdv = new AdvExecution(Pack, communicationCode, flows, PlayerFlags, AddInventory, CountInventory, CharacterHasTag, UniqueItemHasTag, NextRandom);
+        Screen = Screen.CommunicationPlay;
+        ShowNextAdvStep();                              // 보여 줄 장면이 없는 흐름은 바로 교류 화면으로 돌아간다
+    }
+
+    /// <summary>교류 흐름이 끝났다: 위쪽 슬롯은 그대로이고 아래가 다시 교류 그룹/교류 목록이 된다(고른 그룹은 그대로).</summary>
+    void EndCommunication()
+    {
+        CurrentCommunicationCode = null;
+        CurrentAdv = null;
+        CurrentAdvStep = null;
+        advLog.Clear();
+        Screen = Screen.Interaction;
+    }
 }

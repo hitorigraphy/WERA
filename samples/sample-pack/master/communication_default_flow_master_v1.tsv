@@ -1,1 +1,4 @@
 communication_code	flow_number	flow_type	param_1	param_2	param_3	text	memo
+1	1	Text				안녕! 오늘도 좋은 하루야.	
+1	2	TextLog				인사를 나눴다.	
+1	3	Finish					

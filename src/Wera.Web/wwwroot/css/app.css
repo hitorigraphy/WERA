@@ -138,7 +138,10 @@ a.button, button.button { border-color: #666; }
 .party-commands .textlink:disabled { color: #7ab7ff; cursor: default; text-decoration: none; }   /* 지금 보고 있는 모드: 파란색, 눌리지 않음 */
 .communication { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); min-height: 12rem; }
 .communication-groups { padding: .6rem 1rem .6rem 0; border-right: 1px solid #888; }   /* 첫째 칸과 둘째 칸 사이의 세로 구분선 */
-.communication-body { grid-column: 2 / 5; }
+.communication-body { grid-column: 2 / 5; padding: .6rem 0 .6rem 1rem; }
+.communication-body .entries { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .15rem 1rem; }   /* 남은 세 칸에 교류를 가로로 순서대로 */
+.communication-body .textlink { color: #fff; }
+.communication-play .home-slots { position: sticky; top: 0; z-index: 1; background: #000; }   /* 재생 중에도 위쪽 슬롯은 남는다 */
 .communication-back { margin-top: 1rem; }
 .communication-groups .textlink { color: #fff; }
 .communication-groups .textlink:disabled { color: #7ab7ff; cursor: default; text-decoration: none; }   /* 선택된 그룹: 파란색, 눌리지 않음 */

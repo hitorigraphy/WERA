@@ -72,6 +72,19 @@ public sealed class AdvExecution
         Func<long, long, bool>? characterHasTag = null,
         Func<long, long, bool>? uniqueItemHasTag = null,
         Func<long, long>? random = null)
+        : this(pack, advCode, pack.AdvFlowsOf(advCode), flags, addInventory, countInventory, characterHasTag, uniqueItemHasTag, random)
+    {
+    }
+
+    /// <summary>
+    /// 흐름 칸들을 직접 받아 실행한다(교류 흐름이 ADV 흐름 칸으로 바뀌어 같은 실행기를 쓴다). flows는 흐름 번호 순이어야 한다.
+    /// </summary>
+    public AdvExecution(GamePack pack, long advCode, IReadOnlyList<AdvFlow> flows, Dictionary<long, long> flags,
+        Action<long, long>? addInventory = null,
+        Func<long, long>? countInventory = null,
+        Func<long, long, bool>? characterHasTag = null,
+        Func<long, long, bool>? uniqueItemHasTag = null,
+        Func<long, long>? random = null)
     {
         AdvCode = advCode;
         this.pack = pack;
@@ -81,7 +94,7 @@ public sealed class AdvExecution
         this.characterHasTag = characterHasTag;
         this.uniqueItemHasTag = uniqueItemHasTag;
         this.random = random;
-        flows = pack.AdvFlowsOf(advCode);
+        this.flows = flows;
     }
 
     /// <summary>다음 장면(대사 또는 선택지 묶음)을 돌려준다. 끝났으면 Finished. 선택지를 고르기 전에는 같은 선택지 묶음을 다시 돌려준다.</summary>

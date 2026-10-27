@@ -26,6 +26,8 @@ public enum Screen
     EventPlay,
     /// <summary>교류 화면(104). 아직 내용이 없다.</summary>
     Interaction,
+    /// <summary>교류 진행 화면: 위쪽 슬롯은 그대로 두고 아래에서 고른 교류의 흐름을 재생한다.</summary>
+    CommunicationPlay,
     /// <summary>동료 확인 화면(201). 아직 내용이 없다.</summary>
     CompanionCheck,
     /// <summary>장비 확인 화면(202). 아직 내용이 없다.</summary>
@@ -67,6 +69,8 @@ public enum EntryAction
     ChooseAdv,
     /// <summary>교류 화면에서 항목의 코드(그룹 코드×100)에 해당하는 교류 그룹을 고른다. 화면은 그대로다.</summary>
     SelectCommunicationGroup,
+    /// <summary>교류 화면에서 항목의 코드에 해당하는 교류를 시작해 흐름을 재생한다.</summary>
+    StartCommunication,
 }
 
 /// <summary>화면에 나오는 클릭 가능한 텍스트. 클릭하거나 Code를 입력하면 Action을 수행한다.</summary>
@@ -412,12 +416,16 @@ public sealed partial class GameSession
                         .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home))
                         .ToList();
                 case Screen.EventPlay:
+                case Screen.CommunicationPlay:
                     return EventPlayEntries();
                 case Screen.Interaction:
                     // 교류 그룹을 코드(그룹 코드×100)로 입력하거나 클릭해 고른다. 고른 그룹의 항목은 선택할 수 없다.
+                    // 그다음 고른 그룹의 교류들(코드순)이 교류 코드로 나오고, 고르면 그 교류의 흐름을 재생한다.
                     return CommunicationGroups
                         .Select(g => new ScreenEntry(Text(g.Code * CommunicationGroupEntryFactor), g.Name, Screen.Interaction,
                             EntryAction.SelectCommunicationGroup, Enabled: g.Code != CurrentCommunicationGroupCode))
+                        .Concat(CurrentGroupCommunications
+                            .Select(c => new ScreenEntry(Text(c.Code), c.Name, Screen.CommunicationPlay, EntryAction.StartCommunication)))
                         .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home))
                         .ToList();
                 case Screen.Load:
@@ -481,6 +489,9 @@ public sealed partial class GameSession
                 break;
             case EntryAction.SelectCommunicationGroup:
                 CurrentCommunicationGroupCode = CodeOf(entry) / CommunicationGroupEntryFactor;
+                break;
+            case EntryAction.StartCommunication:
+                BeginCommunication(CodeOf(entry));
                 break;
             case EntryAction.SetSupport:
                 SetSupport(CurrentSupportRole!.Value, CodeOf(entry));

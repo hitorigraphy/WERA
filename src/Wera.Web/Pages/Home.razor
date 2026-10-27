@@ -364,12 +364,30 @@
                 }
                 break;
 
+            case Screen.CommunicationPlay:
+                @* 위쪽 슬롯은 그대로 두고(스크롤해도 위에 붙어 있다), 아래를 교류 흐름 재생으로 바꾼다. 재생 방식은 이벤트의 ADV와 같다 *@
+                <div class="communication-play">
+                    @homeSlots(false)
+                    <div class="advance-area" @ref="advanceArea" tabindex="@(session.AdvanceOnAnyKey ? 0 : -1)" @onkeydown="OnAdvanceKey" @onclick="OnAdvanceClick">
+                        @for (var i = 0; i < session.AdvLog.Count; i++)
+                        {
+                            var latest = i == session.AdvLog.Count - 1 && session.CurrentAdvStep is not { Kind: AdvStepKind.Choice };
+                            <div class="@(latest ? "adv-item" : "adv-item dim")">@advLine(session.AdvLog[i])</div>
+                        }
+                    </div>
+                    @if (!session.AdvanceOnAnyKey)
+                    {
+                        <div class="adv-choices">@commands</div>
+                    }
+                </div>
+                break;
+
             case Screen.Interaction:
                 @* 위쪽 슬롯(바꿀 수 없음), 구분선, 아래를 세로로 4등분: 첫째 칸에 교류 그룹 목록, 둘째 칸과의 사이에 세로 구분선 *@
                 @homeSlots(false)
                 <div class="communication">
                     <div class="communication-groups">@entryList(session.Entries.Where(e => e.Action == EntryAction.SelectCommunicationGroup))</div>
-                    <div class="communication-body"></div>
+                    <div class="communication-body">@entryList(session.Entries.Where(e => e.Action == EntryAction.StartCommunication))</div>
                 </div>
                 <div class="communication-back">@entryList(session.Entries.Where(e => e.Target == Screen.Home))</div>
                 break;
@@ -455,7 +473,7 @@
         // 이벤트 진행 화면은 맨 아래(최신 대사)로, 다른 화면은 맨 위로.
         var scene = SceneKey;
         if (scene is not null && scene != lastScene)
-            await JS.InvokeVoidAsync("wera.scroll", screenArea, session!.Screen == Screen.EventPlay);
+            await JS.InvokeVoidAsync("wera.scroll", screenArea, session!.Screen is Screen.EventPlay or Screen.CommunicationPlay);
         lastScene = scene;
     }
 
