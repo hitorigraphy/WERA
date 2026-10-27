@@ -40,7 +40,8 @@ public sealed partial class GamePack
         List<TimeSlotEntry>? timeSlots, List<TurnEntry>? turns,
         List<GameEvent>? events, List<FlatCondition> eventConditions, List<EventFlow>? eventFlows,
         List<AdvEntry>? advs, List<BattleEntry>? battles, List<AdvFlow>? advFlows,
-        List<CommunicationGroupEntry>? communicationGroups)
+        List<CommunicationGroupEntry>? communicationGroups, List<CommunicationEntry>? communications,
+        List<CommunicationFlow>? communicationFlows)
     {
         var builder = new DatabaseBuilder();
 
@@ -110,6 +111,12 @@ public sealed partial class GamePack
         }).ToList());
 
         builder.Append((communicationGroups ?? []).Select(g => new CommunicationGroupRow { Code = g.Code, Name = g.Name }).ToList());
+        builder.Append((communications ?? []).Select(c => new CommunicationRow { Code = c.Code, GroupCode = c.GroupCode, Name = c.Name }).ToList());
+        builder.Append((communicationFlows ?? []).Select(f => new CommunicationFlowRow
+        {
+            CommunicationCode = f.CommunicationCode, CharacterCode = f.CharacterCode, FlowNumber = f.FlowNumber, FlowType = f.FlowType,
+            Param1 = f.Param1, Param2 = f.Param2, Param3 = f.Param3, Text = f.Text,
+        }).ToList());
         builder.Append((timeSlots ?? []).Select(s => new TimeSlotRow { Code = s.Code, Name = s.Name }).ToList());
         builder.Append((turns ?? []).Select(t => new TurnRow
             { TurnCount = t.TurnCount, Year = t.Year, Month = t.Month, Day = t.Day, TimeSlotCode = t.TimeSlotCode }).ToList());

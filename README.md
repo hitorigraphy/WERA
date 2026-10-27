@@ -24,6 +24,8 @@ TSV 파일 묶음(zip 형식)이고 확장자는 **`.wra`**입니다(zip 압축 
 | `master/status_master_v1.tsv` | **(필수)** `status_code`, `status_name` |
 | `master/time_slot_master_v1.tsv` | **(필수)** `code`, `name` (code가 키) |
 | `master/communication_group_master_v1.tsv` | (선택) `code`, `name`(code가 키, 1 이상; 교류 화면에 `[코드×100] 이름`으로 나열) |
+| `master/communication_master_v1.tsv` | (선택, 교류 그룹 마스터가 있어야 함) `code`(키), `group_code`(교류 그룹 마스터에 있어야 함), `name` |
+| `master/communication_flow_master_v1.tsv` | (선택, 교류 마스터가 있어야 함) `communication_code`, `character_code`(캐릭터 인벤토리), `flow_number`(앞의 세 열이 키), `flow_type`(지금은 `None`뿐), `param_1`, `param_2`, `param_3`, `text` |
 | `master/turn_master_v1.tsv` | **(필수, 시간대 마스터 필요)** `turn_count`(키), `year`, `month`, `day`, `time_slot_code` |
 | `master/character_status_master_v1.tsv` | **(필수)** `character_code`, `status_code`, `level`, `initial_value`, `min_value`, `max_value` |
 | `master/attribute_master_v1.tsv` | **(필수)** `attribute_code`, `attribute_name` |

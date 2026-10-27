@@ -231,6 +231,28 @@ public record CommunicationGroupRow
     public required string Name { get; init; }
 }
 
+[MemoryTable("communication"), MessagePackObject(true)]
+public record CommunicationRow
+{
+    [PrimaryKey] public required long Code { get; init; }
+    [SecondaryKey(0), NonUnique] public required long GroupCode { get; init; }
+    public required string Name { get; init; }
+}
+
+/// <summary>교류 흐름: 복합키는 (교류 코드, 캐릭터 코드, 흐름 번호)다.</summary>
+[MemoryTable("communication_flow"), MessagePackObject(true)]
+public record CommunicationFlowRow
+{
+    [PrimaryKey(keyOrder: 0)] public required long CommunicationCode { get; init; }
+    [PrimaryKey(keyOrder: 1)] public required long CharacterCode { get; init; }
+    [PrimaryKey(keyOrder: 2)] public required long FlowNumber { get; init; }
+    public required CommunicationFlowType FlowType { get; init; }
+    public required long Param1 { get; init; }
+    public required long Param2 { get; init; }
+    public required long Param3 { get; init; }
+    public required string Text { get; init; }
+}
+
 [MemoryTable("time_slot"), MessagePackObject(true)]
 public record TimeSlotRow
 {
