@@ -8,19 +8,19 @@
 
 @{
     // 클릭 가능한 텍스트 목록. 항목마다 [코드]가 붙고, 그 코드를 입력해도 같은 동작을 한다.
+    // [999] 돌아가기는 목록에 넣지 않는다: 모든 화면에서 같은 자리(코드 입력줄 바로 위 오른쪽)에 따로 나온다.
     RenderFragment<IEnumerable<ScreenEntry>> entryList = entries => @<div class="entries">
-        @foreach (var entry in entries)
+        @foreach (var entry in entries.Where(e => e.Code != GameSession.BackEntryCode))
         {
             var code = entry.Code;
             <div><button class="textlink" disabled="@(!entry.Enabled)" @onclick="() => Activate(code)">[@entry.Code] @if (entry.LabelHtml is { } html) { @((MarkupString)html) } else { @entry.Label }</button></div>
         }
     </div>;
 
-    // 파티 설정 화면 아래: 구분선, 모드 버튼([10] 캐릭터 배치, [11] 장비 착용)을 4분할 위치에 가로로, 돌아가기는 다음 줄.
+    // 파티 설정 화면 아래: 구분선, 모드 버튼([10] 캐릭터 배치, [11] 장비 착용)을 4분할 위치에 가로로.
     // 지금 모드의 버튼은 파란색으로 눌리지 않고, 고를 수 있는 다른 모드는 흰색이다.
     RenderFragment partyCommands = @<div class="party-commands">
         <div class="party-modes">@entryList(session!.Entries.Where(e => e.Arg is null && e.Target != Screen.Home))</div>
-        <div class="party-back">@entryList(session!.Entries.Where(e => e.Arg is null && e.Target == Screen.Home))</div>
     </div>;
 
     RenderFragment commands = @<div class="commands">
@@ -282,7 +282,6 @@
                         </li>
                     }
                 </ul>
-                @entryList(session.Entries.Where(e => e.Code == GameSession.BackEntryCode))
                 break;
 
             case Screen.CharacterSelect:
@@ -307,7 +306,6 @@
                         </li>
                     }
                 </ul>
-                @entryList(session.Entries.Where(e => e.Code == GameSession.BackEntryCode))
                 break;
 
             case Screen.ShopList:
@@ -389,7 +387,6 @@
                     <div class="communication-groups">@entryList(session.Entries.Where(e => e.Action == EntryAction.SelectCommunicationGroup))</div>
                     <div class="communication-body">@entryList(session.Entries.Where(e => e.Action == EntryAction.StartCommunication))</div>
                 </div>
-                <div class="communication-back">@entryList(session.Entries.Where(e => e.Target == Screen.Home))</div>
                 break;
 
             case Screen.CompanionCheck:
@@ -425,6 +422,11 @@
             <p class="error" role="alert">@error</p>
         }
         </div>
+        @* 돌아가기가 있는 화면이면 코드 입력줄 바로 위 오른쪽에 [999] 돌아가기가 나온다(모든 화면 공통) *@
+        @if (session.Entries.FirstOrDefault(e => e.Code == GameSession.BackEntryCode) is { } back)
+        {
+            <div class="back-bar"><button class="textlink" @onclick="() => Activate(GameSession.BackEntryCode)">[@back.Code] @back.Label</button></div>
+        }
         @* 홈 이후 모든 화면의 맨 아래에 좌우 폭 끝까지 늘 보이는 코드 입력칸 *@
         <div class="command-bar">
             <input @ref="commandInput" class="command" autocomplete="off" placeholder="@CommandPlaceholder"

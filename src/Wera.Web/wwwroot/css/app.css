@@ -142,7 +142,6 @@ a.button, button.button { border-color: #666; }
 .communication-body .entries { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .15rem 1rem; }   /* 남은 세 칸에 교류를 가로로 순서대로 */
 .communication-body .textlink { color: #fff; }
 .communication-play .home-slots { position: sticky; top: 0; z-index: 1; background: #000; }   /* 재생 중에도 위쪽 슬롯은 남는다 */
-.communication-back { margin-top: 1rem; }
 .communication-groups .textlink { color: #fff; }
 .communication-groups .textlink:disabled { color: #7ab7ff; cursor: default; text-decoration: none; }   /* 선택된 그룹: 파란색, 눌리지 않음 */
 .slot { display: flex; gap: .5rem; align-items: flex-start; }
@@ -184,6 +183,7 @@ main.game { height: 720px; margin: 0 auto; padding: 0; display: flex; flex-direc
 .screen.pregame .drop { flex: 1; display: flex; flex-direction: column; justify-content: center; margin-bottom: 0; }
 .screen.pregame .error { flex: none; }
 main.game > .site-footer { flex: none; box-sizing: border-box; width: 100%; max-width: none; margin: 0; padding: .6rem 1rem; border-top: 1px solid #666; text-align: center; }
+.back-bar { flex: none; padding: .3rem 1rem; text-align: right; }   /* 돌아가기: 코드 입력줄 바로 위 오른쪽 */
 .command-bar { flex: none; border-top: 1px solid #666; }
 .command-bar input.command { display: block; width: 100%; box-sizing: border-box; margin: 0; padding: .6rem 1rem; border: 0; outline: none; }
 .command-bar input.command:focus { background: #1a1a1a; }
