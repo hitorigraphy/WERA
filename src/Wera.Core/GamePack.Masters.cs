@@ -41,7 +41,8 @@ public sealed partial class GamePack
         List<GameEvent>? events, List<FlatCondition> eventConditions, List<EventFlow>? eventFlows,
         List<AdvEntry>? advs, List<BattleEntry>? battles, List<AdvFlow>? advFlows,
         List<CommunicationGroupEntry>? communicationGroups, List<CommunicationEntry>? communications,
-        List<CommunicationFlow>? communicationFlows)
+        List<CommunicationSoloFlow>? communicationSoloFlows, List<CommunicationDuoFlow>? communicationDuoFlows,
+        List<CommunicationDefaultFlow>? communicationDefaultFlows)
     {
         var builder = new DatabaseBuilder();
 
@@ -111,10 +112,21 @@ public sealed partial class GamePack
         }).ToList());
 
         builder.Append((communicationGroups ?? []).Select(g => new CommunicationGroupRow { Code = g.Code, Name = g.Name }).ToList());
-        builder.Append((communications ?? []).Select(c => new CommunicationRow { Code = c.Code, GroupCode = c.GroupCode, Name = c.Name }).ToList());
-        builder.Append((communicationFlows ?? []).Select(f => new CommunicationFlowRow
+        builder.Append((communications ?? []).Select(c => new CommunicationRow { Code = c.Code, GroupCode = c.GroupCode, Name = c.Name, IsAssist = c.IsAssist }).ToList());
+        builder.Append((communicationSoloFlows ?? []).Select(f => new CommunicationSoloFlowRow
         {
             CommunicationCode = f.CommunicationCode, CharacterCode = f.CharacterCode, FlowNumber = f.FlowNumber, FlowType = f.FlowType,
+            Param1 = f.Param1, Param2 = f.Param2, Param3 = f.Param3, Text = f.Text,
+        }).ToList());
+        builder.Append((communicationDuoFlows ?? []).Select(f => new CommunicationDuoFlowRow
+        {
+            CommunicationCode = f.CommunicationCode, PartnerCode = f.PartnerCode, AssistCode = f.AssistCode,
+            FlowNumber = f.FlowNumber, FlowType = f.FlowType,
+            Param1 = f.Param1, Param2 = f.Param2, Param3 = f.Param3, Text = f.Text,
+        }).ToList());
+        builder.Append((communicationDefaultFlows ?? []).Select(f => new CommunicationDefaultFlowRow
+        {
+            CommunicationCode = f.CommunicationCode, FlowNumber = f.FlowNumber, FlowType = f.FlowType,
             Param1 = f.Param1, Param2 = f.Param2, Param3 = f.Param3, Text = f.Text,
         }).ToList());
         builder.Append((timeSlots ?? []).Select(s => new TimeSlotRow { Code = s.Code, Name = s.Name }).ToList());

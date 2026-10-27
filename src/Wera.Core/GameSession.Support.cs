@@ -77,6 +77,13 @@ public sealed partial class GameSession
             new ScreenEntry(AssistEntryCode, "어시스트", Screen.SupportSelect, Arg: nameof(SupportRole.Assist)),
         ];
 
+    /// <summary>
+    /// 지금 파트너/어시스트로 교류의 흐름을 찾는다(듀오 → 솔로 → 기본 순, 교류가 is_assist면 파트너와 어시스트 자리를 뒤바꿈).
+    /// 자세한 규칙은 <see cref="GamePack.FindCommunicationFlow"/>.
+    /// </summary>
+    public IReadOnlyList<CommunicationFlowStep> CommunicationFlowOf(long communicationCode) =>
+        Pack.FindCommunicationFlow(communicationCode, PartnerCode, AssistCode);
+
     static string RoleName(SupportRole role) => role == SupportRole.Partner ? "파트너" : "어시스트";
 
     /// <summary>선택 화면의 제목용 슬롯 이름.</summary>

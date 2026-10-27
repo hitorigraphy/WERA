@@ -237,15 +237,44 @@ public record CommunicationRow
     [PrimaryKey] public required long Code { get; init; }
     [SecondaryKey(0), NonUnique] public required long GroupCode { get; init; }
     public required string Name { get; init; }
+    public required bool IsAssist { get; init; }
 }
 
-/// <summary>교류 흐름: 복합키는 (교류 코드, 캐릭터 코드, 흐름 번호)다.</summary>
-[MemoryTable("communication_flow"), MessagePackObject(true)]
-public record CommunicationFlowRow
+/// <summary>교류 솔로 흐름: 복합키는 (교류 코드, 캐릭터 코드, 흐름 번호)다.</summary>
+[MemoryTable("communication_solo_flow"), MessagePackObject(true)]
+public record CommunicationSoloFlowRow
 {
     [PrimaryKey(keyOrder: 0)] public required long CommunicationCode { get; init; }
     [PrimaryKey(keyOrder: 1)] public required long CharacterCode { get; init; }
     [PrimaryKey(keyOrder: 2)] public required long FlowNumber { get; init; }
+    public required CommunicationFlowType FlowType { get; init; }
+    public required long Param1 { get; init; }
+    public required long Param2 { get; init; }
+    public required long Param3 { get; init; }
+    public required string Text { get; init; }
+}
+
+/// <summary>교류 듀오 흐름: 복합키는 (교류 코드, 파트너 코드, 어시스트 코드, 흐름 번호)다.</summary>
+[MemoryTable("communication_duo_flow"), MessagePackObject(true)]
+public record CommunicationDuoFlowRow
+{
+    [PrimaryKey(keyOrder: 0)] public required long CommunicationCode { get; init; }
+    [PrimaryKey(keyOrder: 1)] public required long PartnerCode { get; init; }
+    [PrimaryKey(keyOrder: 2)] public required long AssistCode { get; init; }
+    [PrimaryKey(keyOrder: 3)] public required long FlowNumber { get; init; }
+    public required CommunicationFlowType FlowType { get; init; }
+    public required long Param1 { get; init; }
+    public required long Param2 { get; init; }
+    public required long Param3 { get; init; }
+    public required string Text { get; init; }
+}
+
+/// <summary>교류 기본 흐름: 복합키는 (교류 코드, 흐름 번호)다.</summary>
+[MemoryTable("communication_default_flow"), MessagePackObject(true)]
+public record CommunicationDefaultFlowRow
+{
+    [PrimaryKey(keyOrder: 0)] public required long CommunicationCode { get; init; }
+    [PrimaryKey(keyOrder: 1)] public required long FlowNumber { get; init; }
     public required CommunicationFlowType FlowType { get; init; }
     public required long Param1 { get; init; }
     public required long Param2 { get; init; }

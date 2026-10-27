@@ -1,2 +1,2 @@
-code	group_code	name	memo
-1	1	인사하기	
+code	group_code	name	is_assist	memo
+1	1	인사하기	false	
