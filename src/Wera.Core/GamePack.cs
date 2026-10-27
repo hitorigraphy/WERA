@@ -140,6 +140,7 @@ public sealed partial class GamePack
         var attributes = LoadAttributes(zip);
         var characterInventory = LoadCharacterInventory(zip, attributes);
         var uniqueItems = LoadUniqueItems(zip);
+        var debugStartUniqueItems = LoadDebugStartUniqueItems(meta, uniqueItems);
         var inventory = BuildInventory(itemInventory, uniqueItems, bunchInventory, characterInventory);
         var trades = LoadTrades(zip, tradeConditions, inventory);
         var statusEffects = LoadStatusEffects(zip);
@@ -174,6 +175,7 @@ public sealed partial class GamePack
         {
             Id = Need("id"),
             Title = Need("title"),
+            DebugStartUniqueItems = debugStartUniqueItems,
             Inventory = inventory,
             Dungeons = dungeons,
             Shops = shops,
@@ -214,6 +216,27 @@ public sealed partial class GamePack
                 communicationSoloFlows, communicationDuoFlows, communicationDefaultFlows),
             EmbeddedEffects = embeddedEffects,
         };
+    }
+
+    /// <summary>
+    /// 디버깅용 초기 부여: pack.tsv의 선택 항목 <c>debug_start_unique_items</c>(쉼표로 구분한 유니크 아이템 코드들)에 적힌 아이템을 새 게임이 시작할 때 한 개씩 얻는다.
+    /// 각 코드는 유니크 아이템 마스터에 있어야 한다. 없으면 빈 목록.
+    /// </summary>
+    public IReadOnlyList<long> DebugStartUniqueItems { get; init; } = [];
+
+    static List<long> LoadDebugStartUniqueItems(Dictionary<string, string> meta, List<UniqueItem>? uniqueItems)
+    {
+        const string key = "debug_start_unique_items";
+        if (!meta.TryGetValue(key, out var text) || string.IsNullOrWhiteSpace(text)) return [];
+        var codes = new List<long>();
+        foreach (var part in text.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+        {
+            var code = ParseLong("pack.tsv", $"{key}의 코드", part);
+            if (uniqueItems is null || !uniqueItems.Any(u => u.ItemCode == code))
+                throw new PackFormatException($"pack.tsv: {key}의 코드 '{code}'가 유니크 아이템 마스터에 없습니다.");
+            codes.Add(code);
+        }
+        return codes;
     }
 
     /// <summary>정수(long) 칸을 읽는다. 비었거나 정수가 아니면 어디의 무엇인지 알려 주는 오류를 낸다.</summary>

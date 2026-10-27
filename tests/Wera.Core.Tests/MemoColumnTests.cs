@@ -94,12 +94,13 @@ public class MemoColumnTests
             ["금화 ×1 → 약초 ×1", "금화 ×10 → 철검 ×1", "금화 ×100 → 도적 ×1", "철검 ×1 → 금화 ×5"],
             s.CurrentShopTrades.Select(t => t.Text));
 
+        Assert.Single(s.UniqueItemInstances);                             // 디버깅용으로 처음부터 가진 순례자의 은단검
         s.Activate("5992");                                               // 철검(유니크 아이템)을 받는다
-        Assert.Single(s.UniqueItemInstances);
+        Assert.Equal(2, s.UniqueItemInstances.Count);
         s.Activate("5993");                                               // 도적(캐릭터)을 받는다
         Assert.True(s.Characters.ContainsKey(7004));
         s.Activate("5994");                                               // 철검을 내고 금화를 받는다
-        Assert.Empty(s.UniqueItemInstances);
+        Assert.Equal([8007L], s.UniqueItemInstances.Values.Select(i => i.ItemCode));      // 철검만 나가고 은단검은 그대로
     }
 
     [Fact]

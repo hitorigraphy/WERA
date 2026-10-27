@@ -26,9 +26,25 @@ public sealed partial class GameSession
     {
         if (Pack.FindUniqueItem(itemCode) is null) return null;
         var id = NewInstanceId();
-        UniqueItemInstances[id] = new UniqueItemInstance(id, itemCode, Pack.MasterTagsOfUniqueItem(itemCode).ToList());
+        UniqueItemInstances[id] = new UniqueItemInstance(id, itemCode, UniqueItemInstances.Count, Pack.MasterTagsOfUniqueItem(itemCode).ToList());
         return id;
     }
+
+    /// <summary>
+    /// 지금 가진 유니크 아이템 인스턴스 전부, OrderNumber순이고 같으면 InstanceId순(장비 확인 화면의 목록).
+    /// 줄은 "[OrderNumber] 이름"이다.
+    /// </summary>
+    public IReadOnlyList<UniqueItemInstance> OwnedUniqueItems =>
+        UniqueItemInstances.Values.OrderBy(i => i.OrderNumber).ThenBy(i => i.InstanceId, StringComparer.Ordinal).ToList();
+
+    /// <summary>장비 확인 화면의 한 줄: 코드 칸("[순서 번호]")과 장비 이름.</summary>
+    public sealed record EquipmentRow(string Order, string Name);
+
+    /// <summary>장비 확인 화면의 줄들: <see cref="OwnedUniqueItems"/> 순서대로 "[OrderNumber] 장비 이름". 칸 너비는 동료 확인과 같다.</summary>
+    public IReadOnlyList<EquipmentRow> Equipments =>
+        OwnedUniqueItems.Select(i => new EquipmentRow(
+            $"[{i.OrderNumber.ToString(CultureInfo.InvariantCulture)}]",
+            Pack.FindUniqueItem(i.ItemCode)?.ItemName ?? Text(i.ItemCode))).ToList();
 
     /// <summary>
     /// 새 인스턴스 ID(ULID의 ToString). ULID는 시간순으로 정렬되므로 이미 있는 것보다 시각이 반드시 늦도록 해서
@@ -344,7 +360,7 @@ public sealed partial class GameSession
 
     Dictionary<string, UniqueItemInstance> CopyUniqueItems() =>
         UniqueItemInstances.ToDictionary(kv => kv.Key,
-            kv => new UniqueItemInstance(kv.Key, kv.Value.ItemCode, (kv.Value.Tags ?? Pack.MasterTagsOfUniqueItem(kv.Value.ItemCode)).ToList()));
+            kv => new UniqueItemInstance(kv.Key, kv.Value.ItemCode, kv.Value.OrderNumber, (kv.Value.Tags ?? Pack.MasterTagsOfUniqueItem(kv.Value.ItemCode)).ToList()));
 
     /// <summary>보유 캐릭터 전원의 현재 태그(아직 마스터 그대로인 캐릭터는 마스터에서 복사해 적는다).</summary>
     Dictionary<long, List<long>> CopyCharacterTags() =>
@@ -398,7 +414,7 @@ public sealed partial class GameSession
                 : CheckTags(pack, $"유니크 아이템 인스턴스 '{id}'", item.Tags, InventoryKind.UniqueItem, item.ItemCode);
             if (!string.IsNullOrEmpty(item.InstanceId) && !(Ulid.TryParse(item.InstanceId, out var inner) && inner.ToString() == id))
                 throw new SaveFormatException($"세이브의 유니크 아이템 인스턴스 '{id}'에 적힌 인스턴스 ID '{item.InstanceId}'가 키와 다릅니다.");
-            instances[id] = new UniqueItemInstance(id, item.ItemCode, tags);
+            instances[id] = new UniqueItemInstance(id, item.ItemCode, item.OrderNumber, tags);
         }
 
         var characterTags = new Dictionary<long, List<long>>();

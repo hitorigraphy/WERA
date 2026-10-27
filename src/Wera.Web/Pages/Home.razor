@@ -403,8 +403,13 @@
 
             case Screen.EquipmentCheck:
                 <h2>장비 확인</h2>
-                <p class="end">아직 준비되지 않았습니다.</p>
-                @commands
+                @* 지금 가진 장비(유니크 아이템)를 OrderNumber순, 같으면 인스턴스 ID순으로 "[순서 번호] 이름" *@
+                <ul class="companions">
+                    @foreach (var e in session.Equipments)
+                    {
+                        <li><span class="companion-cell" style="width: @(GameSession.CompanionCodeColumns)ch">@e.Order</span> <span class="companion-cell" style="width: @(GameSession.CompanionNameColumns)ch">@e.Name</span></li>
+                    }
+                </ul>
                 break;
 
             case Screen.ItemCheck:
