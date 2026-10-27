@@ -431,7 +431,7 @@
             <div class="back-bar">
                 @if (showHistory)
                 {
-                    <span class="history">이력 : @string.Join(" < ", session.CommunicationHistory)</span>
+                    <span class="history">이력 : @string.Join(" > ", session.CommunicationHistory)</span>
                 }
                 @if (back is not null)
                 {
