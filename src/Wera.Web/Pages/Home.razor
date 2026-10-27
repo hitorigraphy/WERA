@@ -212,7 +212,7 @@
                 break;
 
             case Screen.PartySetup:
-                <h2>파티 설정 · 캐릭터 배치</h2>
+                <h2>파티 설정</h2>
                 @partyGrid(false)
                 @* 슬롯 아래: [10] 캐릭터 배치, [11] 장비 착용, [999] 돌아가기 *@
                 @entryList(session.Entries.Where(e => e.Arg is null))
