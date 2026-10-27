@@ -423,9 +423,21 @@
         }
         </div>
         @* 돌아가기가 있는 화면이면 코드 입력줄 바로 위 오른쪽에 [999] 돌아가기가 나온다(모든 화면 공통) *@
-        @if (session.Entries.FirstOrDefault(e => e.Code == GameSession.BackEntryCode) is { } back)
+        @* 교류 화면에서는 같은 줄 왼쪽에 이력(직전 커맨드 < 그전 커맨드 < …)이 나온다 *@
+        var back = session.Entries.FirstOrDefault(e => e.Code == GameSession.BackEntryCode);
+        var showHistory = session.Screen is Screen.Interaction or Screen.CommunicationPlay;
+        @if (back is not null || showHistory)
         {
-            <div class="back-bar"><button class="textlink" @onclick="() => Activate(GameSession.BackEntryCode)">[@back.Code] @back.Label</button></div>
+            <div class="back-bar">
+                @if (showHistory)
+                {
+                    <span class="history">이력 : @(session.CommunicationHistory.Count == 0 ? "없음" : string.Join(" < ", session.CommunicationHistory))</span>
+                }
+                @if (back is not null)
+                {
+                    <button class="textlink" @onclick="() => Activate(GameSession.BackEntryCode)">[@back.Code] @back.Label</button>
+                }
+            </div>
         }
         @* 홈 이후 모든 화면의 맨 아래에 좌우 폭 끝까지 늘 보이는 코드 입력칸 *@
         <div class="command-bar">

@@ -472,6 +472,7 @@ public sealed partial class GameSession
         code = Normalize(code);
         var entry = Entries.Concat(HomeSlotEntries).FirstOrDefault(e => e.Code == code);
         if (entry is { Enabled: false }) return entry;       // 회색 항목은 눌러도 아무 반응이 없다
+        RecordCommunicationCommand(entry);
         switch (entry?.Action)
         {
             case EntryAction.Navigate:
@@ -484,7 +485,11 @@ public sealed partial class GameSession
                 };
                 CurrentEquipmentSlotCode = entry.Target == Screen.EquipmentSelect ? CodeOf(entry) : null;
                 CurrentSupportRole = entry.Target == Screen.SupportSelect ? Enum.Parse<SupportRole>(entry.Arg!) : null;
-                if (entry.Target == Screen.Interaction) CurrentCommunicationGroupCode = CommunicationGroups.FirstOrDefault()?.Code;   // 들어가면 가장 작은 그룹이 선택된다
+                if (entry.Target == Screen.Interaction && Screen != Screen.CommunicationPlay)
+                {
+                    CurrentCommunicationGroupCode = CommunicationGroups.FirstOrDefault()?.Code;   // 들어가면 가장 작은 그룹이 선택되고
+                    communicationHistory.Clear();                                                  // 이력은 비어 있다
+                }
                 Screen = entry.Target;
                 break;
             case EntryAction.SelectCommunicationGroup:

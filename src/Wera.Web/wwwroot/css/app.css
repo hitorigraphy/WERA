@@ -183,7 +183,9 @@ main.game { height: 720px; margin: 0 auto; padding: 0; display: flex; flex-direc
 .screen.pregame .drop { flex: 1; display: flex; flex-direction: column; justify-content: center; margin-bottom: 0; }
 .screen.pregame .error { flex: none; }
 main.game > .site-footer { flex: none; box-sizing: border-box; width: 100%; max-width: none; margin: 0; padding: .6rem 1rem; border-top: 1px solid #666; text-align: center; }
-.back-bar { flex: none; padding: .3rem 1rem; text-align: right; }   /* 돌아가기: 코드 입력줄 바로 위 오른쪽 */
+.back-bar { flex: none; display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; padding: .3rem 1rem; }   /* 돌아가기: 코드 입력줄 바로 위 오른쪽 */
+.back-bar button { margin-left: auto; }
+.back-bar .history { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #ccc; }   /* 교류 이력: 같은 줄 왼쪽 */
 .command-bar { flex: none; border-top: 1px solid #666; }
 .command-bar input.command { display: block; width: 100%; box-sizing: border-box; margin: 0; padding: .6rem 1rem; border: 0; outline: none; }
 .command-bar input.command:focus { background: #1a1a1a; }

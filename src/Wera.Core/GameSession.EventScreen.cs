@@ -178,4 +178,26 @@ public sealed partial class GameSession
         advLog.Clear();
         Screen = Screen.Interaction;
     }
+
+    // ---- 교류 이력 ----
+
+    /// <summary>교류 이력에 보여 주는 커맨드 수.</summary>
+    public const int CommunicationHistoryLength = 3;
+
+    readonly List<string> communicationHistory = [];      // 오래된 것부터
+
+    /// <summary>
+    /// 교류 화면과 교류 재생 화면에서 지금까지 한 커맨드의 이름(코드 번호 없이), 직전 것이 맨 앞이고 <see cref="CommunicationHistoryLength"/>개까지.
+    /// 그룹 고르기, 교류 시작, 선택지 고르기가 커맨드다("다음"과 돌아가기는 아니다). 교류 화면에 들어올 때마다 비워지고 저장하지 않는다.
+    /// </summary>
+    public IReadOnlyList<string> CommunicationHistory =>
+        communicationHistory.AsEnumerable().Reverse().Take(CommunicationHistoryLength).ToList();
+
+    /// <summary>교류 화면(재생 포함)에서 한 커맨드의 이름을 이력에 남긴다.</summary>
+    void RecordCommunicationCommand(ScreenEntry? entry)
+    {
+        if (Screen is not (Screen.Interaction or Screen.CommunicationPlay)) return;
+        if (entry?.Action is EntryAction.SelectCommunicationGroup or EntryAction.StartCommunication or EntryAction.ChooseAdv)
+            communicationHistory.Add(entry.Label);
+    }
 }

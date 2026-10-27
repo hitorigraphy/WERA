@@ -171,4 +171,51 @@ public class CommunicationPlayTests
         s.Activate("104");
         Assert.Equal(1, s.CurrentCommunicationGroupCode);
     }
+
+    // ---- 이력: 직전 커맨드 < 그전 커맨드 < 그전 커맨드 (이름만, 3개까지) ----
+
+    [Fact]
+    public void The_history_is_empty_on_entering_and_lists_command_names_newest_first_up_to_three()
+    {
+        var s = Session(Greeting);
+        Assert.Empty(s.CommunicationHistory);                                        // 처음 선택된 그룹은 커맨드가 아니다
+
+        s.Activate("200");                                                           // 그룹 고르기
+        s.Activate("100");
+        Assert.Equal(["대화", "선물"], s.CommunicationHistory);
+
+        s.Activate("11");                                                            // 교류 시작
+        Assert.Equal(["인사하기", "대화", "선물"], s.CommunicationHistory);
+        s.Activate("1");                                                             // "다음"은 커맨드가 아니다
+        s.Activate("1");
+        s.Activate("1");
+        Assert.Equal(Screen.Interaction, s.Screen);
+        Assert.Equal(["인사하기", "대화", "선물"], s.CommunicationHistory);
+
+        s.Activate("200");                                                           // 4개째부터는 가장 오래된 것이 밀려난다
+        Assert.Equal(["선물", "인사하기", "대화"], s.CommunicationHistory);
+    }
+
+    [Fact]
+    public void Chosen_choices_are_commands_without_their_markup()
+    {
+        var s = Session(
+            "11\t1\tChoice\t1\t3\t\t[b]좋아[/b]\n11\t2\tChoice\t1\t3\t\t싫어\n11\t3\tFinish\t\t\t\t\n");
+        s.Activate("11");
+        s.Activate("1");
+        Assert.Equal(["좋아", "인사하기"], s.CommunicationHistory);
+    }
+
+    [Fact]
+    public void Back_and_inert_clicks_are_not_commands_and_entering_again_clears_the_history()
+    {
+        var s = Session(Greeting);
+        s.Activate("100");                                                           // 이미 고른 그룹: 반응 없음
+        Assert.Empty(s.CommunicationHistory);
+        s.Activate("200");
+        s.Activate("999");
+        Assert.Equal(Screen.Home, s.Screen);
+        s.Activate("104");
+        Assert.Empty(s.CommunicationHistory);
+    }
 }
