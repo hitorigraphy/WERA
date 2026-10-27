@@ -141,7 +141,7 @@ public class HomeMenuTests
         s.Activate("999"); s.Activate("999");
 
         s.Activate("1");                                                               // 파트너 슬롯 목록
-        Assert.Equal([1L, 7001L], s.SupportList.Select(c => c.Code));
+        Assert.Equal([7001L], s.SupportList.Select(c => c.Code));                       // 플레이어도 목록에 없다
         Assert.DoesNotContain(s.SupportList, c => c.Code is 7002 or 7003);
         Assert.Null(s.Activate("7003"));
     }

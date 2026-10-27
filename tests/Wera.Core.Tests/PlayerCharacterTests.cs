@@ -231,7 +231,7 @@ public class PlayerCharacterTests
         Assert.True(s.SetSupport(SupportRole.Partner, 7001));
 
         s.Activate("1");                                                  // 파트너 선택 화면
-        Assert.Equal(CharacterListColor.Gray, s.SupportList.Single(c => c.Code == 1).Color);
+        Assert.DoesNotContain(s.SupportList, c => c.Code == 1);          // 플레이어는 목록에 없다
         Assert.Null(s.Activate("1"));                                     // 목록의 1번 코드(플레이어)는 고를 수 없다
         Assert.Equal(Screen.SupportSelect, s.Screen);
     }

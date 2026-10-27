@@ -117,7 +117,7 @@ html, body { color: #fff; }
 body { font-family: ui-monospace, "Cascadia Mono", "D2Coding", "Noto Sans Mono CJK KR", Consolas, "Courier New", monospace; }
 button { background: #111; color: #fff; border: 1px solid #666; font: inherit; cursor: pointer; }
 input.command { background: #111; color: #fff; border: 1px solid #666; }
-.textlink { color: #7ab7ff; background: none; border: 0; }
+.textlink { color: #fff; background: none; border: 0; }   /* 클릭 가능한 글은 기본 흰색 */
 .error { color: #ff6b6b; }
 .end { opacity: 1; color: #aaa; }
 .site-footer { border-top-color: #444; }

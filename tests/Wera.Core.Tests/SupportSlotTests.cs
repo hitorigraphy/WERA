@@ -64,17 +64,17 @@ public class SupportSlotTests
     // ---- 선택 화면 ----
 
     [Fact]
-    public void Choosing_the_partner_slot_lists_only_owned_characters_and_the_player_is_grayed()
+    public void Choosing_the_partner_slot_lists_only_owned_characters_and_the_player_is_hidden()
     {
         var s = Session();
         s.Activate("1");
         Assert.Equal(SupportRole.Partner, s.CurrentSupportRole);
         Assert.Equal("파트너", s.CurrentSupportRoleName);
 
-        Assert.Equal([7001L, 7002L, 7003L, 1L], s.SupportList.Select(c => c.Code));       // 보유하지 않은 도적(7004)은 목록에 없다
+        Assert.Equal([7001L, 7002L, 7003L], s.SupportList.Select(c => c.Code));       // 보유하지 않은 도적(7004)은 목록에 없다
         Assert.DoesNotContain(s.SupportList, c => c.Code == 7004);
-        Assert.Equal(CharacterListColor.Gray, s.SupportList.Single(c => c.Code == 1).Color);   // 플레이어는 보이지만 고를 수 없다
-        Assert.Equal(["7001", "7002", "7003", "999"], s.Entries.Select(e => e.Code));    // 비우기는 비어 있으면 없다, 회색은 못 고른다
+        Assert.DoesNotContain(s.SupportList, c => c.Code == 1);                              // 플레이어는 목록에 없다
+        Assert.Equal(["7001", "7002", "7003", "999"], s.Entries.Select(e => e.Code));    // 비우기는 비어 있으면 없다
     }
 
     [Fact]
