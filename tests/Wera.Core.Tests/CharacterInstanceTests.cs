@@ -61,35 +61,37 @@ public class CharacterInstanceTests
         s.AddCharacter(7003);
         s.AddCharacter(7001);
         Assert.Equal(3, s.CompanionLines.Count);
-        Assert.StartsWith("[0] 당신", s.CompanionLines[0]);
-        Assert.StartsWith("[1] 전사", s.CompanionLines[1]);
-        Assert.StartsWith("[2] 용사", s.CompanionLines[2]);
+        Assert.StartsWith("[0]      당신", s.CompanionLines[0]);       // 코드 칸 8칸 + 공백
+        Assert.StartsWith("[1]      전사", s.CompanionLines[1]);
+        Assert.StartsWith("[2]      용사", s.CompanionLines[2]);
     }
 
     [Fact]
-    public void Companion_lines_are_padded_so_the_columns_line_up()
+    public void Companion_cells_have_fixed_widths_left_aligned_code_8_name_32_and_lv_hp_xp_8_half_width_columns()
     {
         var s = GameSession.NewGame(Pack());
         s.AddCharacter(7001);
         s.AddCharacter(7002);
-        s.AddCharacter(7003);
-        s.Characters[7001] = s.Characters[7001] with { Level = 12, Hp = 100, Xp = 5 };          // 자릿수가 다르게
+        s.Characters[7001] = s.Characters[7001] with { Level = 12, Hp = 100, Xp = 5 };
         s.Characters[7002] = s.Characters[7002] with { OrderNumber = 10, Level = 3, Hp = 7, Xp = 250 };
-        var lines = s.CompanionLines;
+        Assert.Equal((8, 32, 8), (GameSession.CompanionCodeColumns, GameSession.CompanionNameColumns, GameSession.CompanionStatColumns));
 
-        // 한글은 2칸으로 센다
+        var rows = s.Companions;
+        var wizard = rows.Single(r => r.Name == "마법사");
+        Assert.Equal(("[10]", "Lv 3", "Hp 7", "Xp 250"), (wizard.Order, wizard.Level, wizard.Hp, wizard.Xp));
+        Assert.Equal("[1]", rows.Single(r => r.Name == "용사").Order);
+        Assert.Equal("[0]", rows.Single(r => r.Name == "당신").Order);
+
+        // 글로 쓴 줄: 코드 8칸 + 공백 + 이름 32칸 + 공백 + Lv 8칸 + 공백 + Hp 8칸 + 공백 + Xp 8칸(한글은 2칸)
         static int Width(string text) => text.Sum(ch => ch is >= '가' and <= '힣' ? 2 : 1);
-        var lv = lines.Select(l => Width(l[..l.IndexOf(" Lv ", StringComparison.Ordinal)])).Distinct().ToList();
-        var hp = lines.Select(l => Width(l[..l.IndexOf(" Hp ", StringComparison.Ordinal)])).Distinct().ToList();
-        var xp = lines.Select(l => Width(l[..l.IndexOf(" Xp ", StringComparison.Ordinal)])).Distinct().ToList();
-        Assert.Single(lv);                                                                        // 모든 줄에서 Lv, Hp, Xp가 같은 칸에서 시작한다
-        Assert.Single(hp);
-        Assert.Single(xp);
-        Assert.Single(lines.Select(l => Width(l)).Distinct());                                    // 줄 길이도 같다
-        Assert.Contains(lines, l => l.StartsWith("[10] 마법사"));
-        Assert.Contains(lines, l => l.StartsWith("[ 0] 당신"));                                    // 순서 번호는 오른쪽 맞춤
-        Assert.Contains(lines, l => l.EndsWith("Lv 12 Hp 100 Xp   5"));
-        Assert.Contains(lines, l => l.EndsWith("Lv  3 Hp   7 Xp 250"));
+        foreach (var line in s.CompanionLines)
+        {
+            Assert.Equal(8 + 1 + 32 + 1 + 8 + 1 + 8 + 1 + 8, Width(line));
+            Assert.Equal(8 + 1 + 32 + 1, Width(line[..line.IndexOf("Lv ", StringComparison.Ordinal)]));          // Lv 칸은 모든 줄에서 같은 자리에서 시작
+            Assert.Equal(8 + 1, Width(line[..line.IndexOfAny(['당', '용', '마'])]));                               // 이름은 코드 8칸 뒤에서 시작
+        }
+        Assert.Contains(s.CompanionLines, l => l.Contains("Lv 12    Hp 100   Xp 5    "));
+        Assert.Contains(s.CompanionLines, l => l.Contains("Lv 3     Hp 7     Xp 250  "));
     }
 
     [Fact]

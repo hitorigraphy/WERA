@@ -219,47 +219,42 @@ public sealed partial class GameSession
         Characters.Select(kv => kv.Value with { CharacterCode = kv.Key })
             .OrderBy(c => c.OrderNumber).ThenBy(c => c.InstanceId, StringComparer.Ordinal).ToList();
 
-    /// <summary>동료 확인 화면의 한 줄: 이미 칸 너비에 맞춰 공백으로 채운 순서 번호와 숫자, 채우지 않은 이름.</summary>
+    /// <summary>동료 확인 코드 칸("[OrderNumber]")의 너비(반각 칸 수). 코드 뒤는 이름 앞까지 공백으로 채운다.</summary>
+    public const int CompanionCodeColumns = 8;
+
+    /// <summary>동료 확인 이름 칸의 너비(반각 칸 수; 한글 등 전각 문자는 2칸).</summary>
+    public const int CompanionNameColumns = 32;
+
+    /// <summary>동료 확인 Lv, Hp, Xp 칸 하나의 너비(반각 칸 수). 칸 안에는 "Lv 12"처럼 이름표와 값이 왼쪽 맞춤으로 들어간다.</summary>
+    public const int CompanionStatColumns = 8;
+
+    /// <summary>동료 확인 화면의 한 줄: 코드 칸("[순서 번호]"), 이름, 그리고 "Lv 값", "Hp 값", "Xp 값" 칸.</summary>
     public sealed record CompanionRow(string Order, string Name, string Level, string Hp, string Xp);
 
     /// <summary>
-    /// 동료 확인 화면의 표: <see cref="OwnedCharacters"/> 순서대로 "[OrderNumber] 이름 Lv 레벨 Hp HP Xp XP".
-    /// 순서 번호와 숫자는 가장 긴 자릿수에 맞춰 오른쪽 맞춤으로 공백을 채워 두고, 이름 칸 너비(NameColumns)는 가장 긴 이름의 칸 수다
-    /// (한글 등 전각 문자는 2칸). 화면은 이름을 이 칸 수만큼의 고정 너비로 그려서 글꼴과 상관없이 Lv, Hp, Xp가 줄 맞는다.
+    /// 동료 확인 화면의 줄들: <see cref="OwnedCharacters"/> 순서대로 "[OrderNumber] 이름 Lv 레벨 Hp HP Xp XP".
+    /// 코드 칸은 반각 <see cref="CompanionCodeColumns"/>칸, 이름 칸은 반각 <see cref="CompanionNameColumns"/>칸, Lv, Hp, Xp 칸은 반각 <see cref="CompanionStatColumns"/>칸씩이고 모두 왼쪽 맞춤이다
+    /// (코드와 이름 사이는 공백으로 채운다). 화면은 이 칸 수(ch) 고정 너비로 그려서 글꼴과 상관없이 칸이 맞는다.
     /// </summary>
-    public sealed record CompanionTable(int NameColumns, IReadOnlyList<CompanionRow> Rows);
-
-    public CompanionTable Companions
+    public IReadOnlyList<CompanionRow> Companions
     {
         get
         {
-            var rows = OwnedCharacters
-                .Select(c => (Order: c.OrderNumber.ToString(CultureInfo.InvariantCulture),
-                              Name: Pack.FindCharacter(c.CharacterCode)?.Name ?? Text(c.CharacterCode),
-                              Level: c.Level.ToString(CultureInfo.InvariantCulture),
-                              Hp: c.Hp.ToString(CultureInfo.InvariantCulture),
-                              Xp: c.Xp.ToString(CultureInfo.InvariantCulture)))
-                .ToList();
-            if (rows.Count == 0) return new CompanionTable(0, []);
-            var order = rows.Max(r => r.Order.Length);
-            var level = rows.Max(r => r.Level.Length);
-            var hp = rows.Max(r => r.Hp.Length);
-            var xp = rows.Max(r => r.Xp.Length);
-            return new CompanionTable(rows.Max(r => DisplayColumns(r.Name)),
-                rows.Select(r => new CompanionRow(r.Order.PadLeft(order), r.Name, r.Level.PadLeft(level), r.Hp.PadLeft(hp), r.Xp.PadLeft(xp))).ToList());
+            return OwnedCharacters.Select(c => new CompanionRow(
+                $"[{c.OrderNumber.ToString(CultureInfo.InvariantCulture)}]",
+                Pack.FindCharacter(c.CharacterCode)?.Name ?? Text(c.CharacterCode),
+                $"Lv {c.Level.ToString(CultureInfo.InvariantCulture)}",
+                $"Hp {c.Hp.ToString(CultureInfo.InvariantCulture)}",
+                $"Xp {c.Xp.ToString(CultureInfo.InvariantCulture)}")).ToList();
         }
     }
 
-    /// <summary>동료 확인 화면의 줄들을 글로 쓴 것(이름 뒤를 공백으로 채움). 화면은 <see cref="Companions"/>로 같은 줄을 그린다.</summary>
-    public IReadOnlyList<string> CompanionLines
-    {
-        get
-        {
-            var table = Companions;
-            return table.Rows.Select(r =>
-                $"[{r.Order}] {r.Name}{new string(' ', table.NameColumns - DisplayColumns(r.Name))} Lv {r.Level} Hp {r.Hp} Xp {r.Xp}").ToList();
-        }
-    }
+    /// <summary>동료 확인 화면의 줄들을 글로 쓴 것(각 칸을 정해진 칸 수까지 공백으로 채움). 화면은 <see cref="Companions"/>로 같은 줄을 그린다.</summary>
+    public IReadOnlyList<string> CompanionLines =>
+        Companions.Select(r => $"{PadColumns(r.Order, CompanionCodeColumns)} {PadColumns(r.Name, CompanionNameColumns)} {PadColumns(r.Level, CompanionStatColumns)} " +
+                               $"{PadColumns(r.Hp, CompanionStatColumns)} {PadColumns(r.Xp, CompanionStatColumns)}").ToList();
+
+    static string PadColumns(string text, int columns) => text + new string(' ', Math.Max(0, columns - DisplayColumns(text)));
 
     /// <summary>글이 차지하는 칸 수(한글 등 전각 문자는 2칸).</summary>
     static int DisplayColumns(string text) => text.EnumerateRunes().Sum(RichText.ColumnsOf);
