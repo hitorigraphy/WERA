@@ -425,7 +425,7 @@
         @* 돌아가기가 있는 화면이면 코드 입력줄 바로 위 오른쪽에 [999] 돌아가기가 나온다(모든 화면 공통) *@
         @* 교류 화면에서는 같은 줄 왼쪽에 이력(직전 커맨드 < 그전 커맨드 < …)이 나온다 *@
         var back = session.Entries.FirstOrDefault(e => e.Code == GameSession.BackEntryCode);
-        var showHistory = session.Screen is Screen.Interaction or Screen.CommunicationPlay;
+        var showHistory = session.Screen == Screen.Interaction;
         @if (back is not null || showHistory)
         {
             <div class="@(showHistory ? "back-bar ruled" : "back-bar")">
