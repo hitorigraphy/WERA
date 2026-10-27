@@ -2,7 +2,7 @@ namespace Wera.Core;
 
 /// <summary>
 /// 보유 캐릭터 인스턴스: 인스턴스 ID(ULID 문자열)와 마스터 코드(캐릭터 인벤토리 코드)를 함께 가지고, 목록 순서(OrderNumber)와 현재 상태를 가진다.
-/// XpMax는 다음 레벨까지 필요한 경험치. 얻을 때 OrderNumber는 가진 것 중 가장 큰 값 + 1이고, 목록은 OrderNumber순, 같으면 InstanceId순이다.
+/// XpMax는 다음 레벨까지 필요한 경험치. 얻을 때 OrderNumber는 소지 캐릭터 수 + 1이고(순서를 바꿀 때는 OrderNumber를 조작한다), 목록은 OrderNumber순, 같으면 InstanceId순이다.
 /// </summary>
 public readonly record struct CharacterInstance(
     string InstanceId, long CharacterCode, long OrderNumber, long Level, long Hp, long MaxHp, long Xp, long XpMax)

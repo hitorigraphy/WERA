@@ -208,8 +208,8 @@ public sealed partial class GameSession
     /// 캐릭터를 새로 얻는다: 캐릭터 인벤토리 마스터에 있고 아직 보유하지 않았을 때, 캐릭터 스테이터스 마스터의 레벨 0 값으로
     /// 상태를 채워 보유 캐릭터에 넣는다. 태그는 캐릭터 태그 마스터에서 복사한다. 마스터에 없거나 이미 보유하면 false.
     /// </summary>
-    /// <summary>다음에 얻는 캐릭터의 OrderNumber: 가진 것 중 가장 큰 값 + 1.</summary>
-    static long NextOrderNumber(IEnumerable<CharacterInstance> owned) => owned.Select(c => c.OrderNumber).DefaultIfEmpty(0).Max() + 1;
+    /// <summary>다음에 얻는 캐릭터의 OrderNumber: 소지 캐릭터 수 + 1. 순서를 바꿀 때는 OrderNumber를 직접 바꾼다.</summary>
+    static long NextOrderNumber(IEnumerable<CharacterInstance> owned) => owned.Count() + 1;
 
     /// <summary>
     /// 지금 가진 캐릭터 인스턴스 전부(플레이어 포함), OrderNumber순이고 같으면 InstanceId순(동료 확인 화면의 목록).

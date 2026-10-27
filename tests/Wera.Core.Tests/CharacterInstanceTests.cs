@@ -31,7 +31,7 @@ public class CharacterInstanceTests
         Assert.Equal([1L, 7002L, 7001L], new[] { player.CharacterCode, wizard.CharacterCode, hero.CharacterCode });
         Assert.All(new[] { player, wizard, hero }, c => Assert.True(Ulid.TryParse(c.InstanceId, out _)));
         Assert.Equal(3, new[] { player, wizard, hero }.Select(c => c.InstanceId).Distinct().Count());
-        Assert.Equal([1L, 2L, 3L], new[] { player.OrderNumber, wizard.OrderNumber, hero.OrderNumber });   // 얻은 순서대로 1, 2, 3
+        Assert.Equal([1L, 2L, 3L], new[] { player.OrderNumber, wizard.OrderNumber, hero.OrderNumber });   // 소지 캐릭터 수 + 1: 1, 2, 3
         Assert.True(string.CompareOrdinal(player.InstanceId, wizard.InstanceId) < 0);                     // ID도 만든 순서대로 늘어난다
         Assert.True(string.CompareOrdinal(wizard.InstanceId, hero.InstanceId) < 0);
     }
