@@ -256,7 +256,7 @@
                 <h2>@(session.CurrentSupportRoleName)로 지정할 캐릭터</h2>
                 @* 맨 위 [0] 비우기: 이 슬롯에 캐릭터가 있을 때만 나온다. 파티 설정과는 독립이다. *@
                 @entryList(session.Entries.Where(e => e.Code == GameSession.ClearEntryCode))
-                @* 흰색: 지정 가능, 회색: 보유하지 않음, 하늘색: 이 슬롯의 캐릭터, 초록: 다른 쪽 슬롯의 캐릭터(고르면 서로 바뀐다) *@
+                @* 흰색: 지정 가능, 회색: 보유하지 않음, 하늘색: 이 슬롯의 캐릭터, 파란색: 다른 쪽 슬롯의 캐릭터(고르면 서로 바뀐다) *@
                 <ul class="character-list">
                     @foreach (var c in session.SupportList)
                     {
@@ -281,7 +281,7 @@
                 <h2>@((session.CurrentSlot ?? 0) + 1)번 슬롯에 배치할 캐릭터</h2>
                 @* 맨 위 [0] 비우기: 이 슬롯에 캐릭터가 있을 때만 나온다. *@
                 @entryList(session.Entries.Where(e => e.Code == GameSession.ClearEntryCode))
-                @* 흰색: 배치 가능, 회색: 배치 불가, 하늘색: 이 슬롯의 캐릭터, 초록: 이미 배치된 파티원(고르면 위치 교환) *@
+                @* 흰색: 배치 가능, 회색: 배치 불가, 하늘색: 이 슬롯의 캐릭터, 파란색: 이미 배치된 파티원(고르면 위치 교환) *@
                 <ul class="character-list">
                     @foreach (var c in session.CharacterList)
                     {

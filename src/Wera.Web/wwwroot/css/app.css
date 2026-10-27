@@ -144,6 +144,7 @@ a.button, button.button { border-color: #666; }
 .slot-info { width: 18ch; line-height: var(--lh); }
 .slot-info > * { height: var(--lh); }
 .slot-name { display: flex; justify-content: space-between; gap: 1ch; width: 100%; padding: 0; border: 0; background: none; text-align: left; line-height: var(--lh); }
+.slot-name:disabled { color: #888; cursor: default; }   /* 고를 수 없는 슬롯(장비 착용 모드의 빈 슬롯): 회색, 눌리지 않음 */
 .slot-name:hover .slot-char, .slot-name:focus-visible .slot-char { text-decoration: underline; }
 .slot-level { flex: none; text-align: left; }
 .slot-char { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
@@ -159,7 +160,7 @@ a.button, button.button { border-color: #666; }
 .char-white { color: #fff; }
 .char-gray { color: #888; }
 .char-skyblue { color: #87ceeb; }
-.char-green { color: #4ade80; }
+.char-green { color: #7ab7ff; }   /* 다른 슬롯에 배치된 파티원: 파란색 */
 
 /* 파티 슬롯 3열이 한 화면에 들어가도록 본문 폭을 넓힌다 */
 /* 화면 너비는 960px 고정: 한 줄에 들어가는 글자 수가 늘 같아 ADV 대사의 줄 수를 게임팩 로드 때 검증할 수 있다 */

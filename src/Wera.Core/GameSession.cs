@@ -280,7 +280,7 @@ public sealed partial class GameSession
 
     /// <summary>
     /// 캐릭터 선택 화면의 목록(캐릭터 인벤토리 마스터 순서). 보유하지 않은 캐릭터는 목록에 나오지 않는다.
-    /// 이 슬롯의 캐릭터는 하늘색, 다른 슬롯에 있는 파티원은 초록, 나머지는 흰색.
+    /// 이 슬롯의 캐릭터는 하늘색, 다른 슬롯에 있는 파티원은 파란색, 나머지는 흰색.
     /// </summary>
     public IReadOnlyList<CharacterListItem> CharacterList
     {
