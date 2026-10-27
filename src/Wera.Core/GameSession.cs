@@ -392,6 +392,8 @@ public sealed partial class GameSession
                 case Screen.SupportSelect:
                     return SupportSelectEntries();
                 case Screen.DungeonSelect:
+                    // 던전 입장은 아직 구현되지 않았다: 돌아가기만 있다.
+                    return [new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home)];
                 case Screen.Event:
                     // 조건을 만족하는 이벤트를 코드로 입력하거나 클릭하면 시작한다.
                     return AvailableEvents
