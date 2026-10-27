@@ -239,12 +239,12 @@ public class PartyTests
         s.Activate("5");
 
         var colors = s.CharacterList.ToDictionary(c => c.Code, c => c.Color);
-        Assert.Equal(CharacterListColor.SkyBlue, colors[7001]);   // 이미 이 슬롯에 있는 자신
+        Assert.False(colors.ContainsKey(7001));                   // 이미 이 슬롯에 있는 자신은 목록에 나오지 않는다
         Assert.Equal(CharacterListColor.Green, colors[7002]);     // 다른 슬롯의 파티원
         Assert.Equal(CharacterListColor.White, colors[7003]);     // 배치 가능
         Assert.False(colors.ContainsKey(7004));                   // 보유하지 않은 캐릭터는 목록에 나오지 않는다
         Assert.Equal(CharacterListColor.White, colors[1]);        // 플레이어(캐릭터 1)는 보유하므로 마스터의 맨 끝에 나온다
-        Assert.Equal([7001L, 7002L, 7003L, 1L], s.CharacterList.Select(c => c.Code));
+        Assert.Equal([7002L, 7003L, 1L], s.CharacterList.Select(c => c.Code));
         Assert.All(s.CharacterList, c => Assert.True(c.Selectable));
     }
 
@@ -287,14 +287,15 @@ public class PartyTests
     }
 
     [Fact]
-    public void Choosing_the_character_already_in_this_slot_changes_nothing()
+    public void The_character_already_in_this_slot_is_not_in_the_list_and_typing_its_code_changes_nothing()
     {
         var s = Session();
         s.Party[3] = 7001;
         s.Activate("105");
         s.Activate("4");
-        Assert.NotNull(s.Activate("7001"));
-        Assert.Equal(Screen.PartySetup, s.Screen);
+        Assert.DoesNotContain(s.Entries, e => e.Code == "7001");
+        Assert.Null(s.Activate("7001"));
+        Assert.Equal(Screen.CharacterSelect, s.Screen);
         Assert.Equal(7001L, s.Party[3]);
         Assert.Single(s.Party.OfType<long>());
     }
@@ -337,7 +338,7 @@ public class PartyTests
         s.Activate("105");
 
         s.Activate("1");                                       // 용사가 있는 슬롯
-        Assert.Equal(["0", "7001", "7002", "7003", "1", "999"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["0", "7002", "7003", "1", "999"], s.Entries.Select(e => e.Code));
         Assert.Equal(new ScreenEntry("0", "비우기", Screen.PartySetup, EntryAction.ClearSlot), s.Entries[0]);
         s.Activate("999");
 

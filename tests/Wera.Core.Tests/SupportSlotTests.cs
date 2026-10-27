@@ -114,7 +114,7 @@ public class SupportSlotTests
 
         s.Activate("2");
         Assert.Equal("0", s.Entries[0].Code);
-        Assert.Equal(CharacterListColor.SkyBlue, s.SupportList.Single(c => c.Code == 7003).Color);   // 이 슬롯의 캐릭터
+        Assert.DoesNotContain(s.SupportList, c => c.Code == 7003);   // 이 슬롯의 캐릭터는 목록에 나오지 않는다
         s.Activate("0");
         Assert.Null(s.AssistCode);
         Assert.Equal(Screen.Home, s.Screen);

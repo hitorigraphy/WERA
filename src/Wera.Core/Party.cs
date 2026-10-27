@@ -100,8 +100,6 @@ public enum CharacterListColor
     White,
     /// <summary>배치할 수 없다(보유하지 않음).</summary>
     Gray,
-    /// <summary>지금 이 슬롯에 배치되어 있는 캐릭터.</summary>
-    SkyBlue,
     /// <summary>다른 슬롯에 배치된 파티원. 고르면 위치를 서로 바꾼다.</summary>
     Green,
 }

@@ -280,7 +280,7 @@ public sealed partial class GameSession
 
     /// <summary>
     /// 캐릭터 선택 화면의 목록(캐릭터 인벤토리 마스터 순서). 보유하지 않은 캐릭터는 목록에 나오지 않는다.
-    /// 이 슬롯의 캐릭터는 하늘색, 다른 슬롯에 있는 파티원은 파란색, 나머지는 흰색.
+    /// 이 슬롯에 이미 있는 캐릭터는 목록에 나오지 않는다. 다른 슬롯에 있는 파티원은 파란색, 나머지는 흰색.
     /// </summary>
     public IReadOnlyList<CharacterListItem> CharacterList
     {
@@ -288,11 +288,10 @@ public sealed partial class GameSession
         {
             if (Screen == Screen.SupportSelect) return SupportList;
             if (Screen != Screen.CharacterSelect || CurrentSlot is not { } slot) return [];
-            return (Pack.CharacterInventory ?? []).Where(c => Characters.ContainsKey(c.Code)).Select(c =>
+            return (Pack.CharacterInventory ?? []).Where(c => Characters.ContainsKey(c.Code) && Party[slot] != c.Code).Select(c =>
             {
                 var placedAt = Array.IndexOf(Party, (long?)c.Code);
                 var color = !Characters.ContainsKey(c.Code) ? CharacterListColor.Gray
-                    : placedAt == slot ? CharacterListColor.SkyBlue
                     : placedAt >= 0 ? CharacterListColor.Green
                     : CharacterListColor.White;
                 return new CharacterListItem(c.Code, c.Name, color);

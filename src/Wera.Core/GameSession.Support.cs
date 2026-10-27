@@ -84,7 +84,7 @@ public sealed partial class GameSession
 
     /// <summary>
     /// 파트너/어시스트 캐릭터 선택 화면의 목록(캐릭터 인벤토리 마스터 순서).
-    /// 보유하지 않은 캐릭터는 목록에 나오지 않는다. 플레이어는 회색(고를 수 없다), 이 슬롯의 캐릭터는 하늘색,
+    /// 보유하지 않은 캐릭터는 목록에 나오지 않는다. 플레이어는 회색(고를 수 없다), 이 슬롯의 캐릭터는 나오지 않는다,
     /// 다른 쪽 슬롯의 캐릭터는 파란색(고르면 서로 바뀐다), 나머지는 흰색.
     /// </summary>
     IReadOnlyList<CharacterListItem> SupportCharacterList()
@@ -92,10 +92,9 @@ public sealed partial class GameSession
         if (CurrentSupportRole is not { } role) return [];
         var mine = SupportOf(role);
         var theirs = SupportOf(role == SupportRole.Partner ? SupportRole.Assist : SupportRole.Partner);
-        return (Pack.CharacterInventory ?? []).Where(c => Characters.ContainsKey(c.Code)).Select(c =>
+        return (Pack.CharacterInventory ?? []).Where(c => Characters.ContainsKey(c.Code) && mine != c.Code).Select(c =>
         {
             var color = c.Code == GamePack.PlayerCharacterCode ? CharacterListColor.Gray
-                : mine == c.Code ? CharacterListColor.SkyBlue
                 : theirs == c.Code ? CharacterListColor.Green
                 : CharacterListColor.White;
             return new CharacterListItem(c.Code, c.Name, color);

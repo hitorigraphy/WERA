@@ -159,7 +159,6 @@ a.button, button.button { border-color: #666; }
 .character-list li { margin: .3rem 0; }
 .char-white { color: #fff; }
 .char-gray { color: #888; }
-.char-skyblue { color: #87ceeb; }
 .char-green { color: #7ab7ff; }   /* 다른 슬롯에 배치된 파티원: 파란색 */
 
 /* 파티 슬롯 3열이 한 화면에 들어가도록 본문 폭을 넓힌다 */
