@@ -24,15 +24,15 @@ public enum Screen
     Event,
     /// <summary>진행 중인 이벤트의 현재 장면(ADV 재생 또는 전투). [1] 다음으로 이벤트를 이어 가며, 끝나면 이벤트 화면으로 돌아간다.</summary>
     EventPlay,
-    /// <summary>교류 화면(104). 아직 내용이 없다.</summary>
+    /// <summary>교류 화면(104): 교류 그룹과 그 그룹의 교류 목록.</summary>
     Interaction,
     /// <summary>교류 진행 화면: 위쪽 슬롯은 그대로 두고 아래에서 고른 교류의 흐름을 재생한다.</summary>
     CommunicationPlay,
-    /// <summary>동료 확인 화면(201). 아직 내용이 없다.</summary>
+    /// <summary>동료 확인 화면(201): 가진 캐릭터 목록.</summary>
     CompanionCheck,
-    /// <summary>장비 확인 화면(202). 아직 내용이 없다.</summary>
+    /// <summary>장비 확인 화면(202): 가진 유니크 아이템 목록.</summary>
     EquipmentCheck,
-    /// <summary>아이템 확인 화면(203). 아직 내용이 없다.</summary>
+    /// <summary>아이템 확인 화면(203): 가진 커먼 아이템과 수량 목록.</summary>
     ItemCheck,
     /// <summary>홈 화면의 파트너/어시스트 슬롯에 지정할 캐릭터 목록(파티 설정과 독립). 돌아가기는 홈.</summary>
     SupportSelect,
@@ -253,6 +253,25 @@ public sealed partial class GameSession
     public IReadOnlyList<string> CompanionLines =>
         Companions.Select(r => $"{PadColumns(r.Order, CompanionCodeColumns)} {PadColumns(r.Name, CompanionNameColumns)} {PadColumns(r.Level, CompanionStatColumns)} " +
                                $"{PadColumns(r.Hp, CompanionStatColumns)} {PadColumns(r.Xp, CompanionStatColumns)}").ToList();
+
+    /// <summary>아이템 확인 수량 칸의 너비(반각 칸 수). 칸 안에는 "수량 99"처럼 이름표와 값이 왼쪽 맞춤으로 들어간다.</summary>
+    public const int ItemAmountColumns = 16;
+
+    /// <summary>아이템 확인 화면의 한 줄: 코드 칸("[아이템 코드]"), 이름, "수량 값" 칸.</summary>
+    public sealed record ItemRow(string Code, string Name, string Amount);
+
+    /// <summary>
+    /// 아이템 확인 화면의 줄들: 지금 가진(수량이 1 이상인) 커먼 아이템을 커먼 아이템 인벤토리 마스터 순서대로 "[아이템 코드] 이름 수량 N".
+    /// 칸 너비는 동료 확인과 같고(코드 <see cref="CompanionCodeColumns"/>, 이름 <see cref="CompanionNameColumns"/>) 수량 칸은 <see cref="ItemAmountColumns"/>칸이다.
+    /// 장비에 끼워 둔 것도 가진 수량에 포함된다.
+    /// </summary>
+    public IReadOnlyList<ItemRow> Items =>
+        (Pack.ItemInventory ?? [])
+            .Where(i => InventoryItems.GetValueOrDefault(i.Code).Amount > 0)
+            .Select(i => new ItemRow(
+                $"[{i.Code.ToString(CultureInfo.InvariantCulture)}]",
+                i.Name,
+                $"수량 {InventoryItems[i.Code].Amount.ToString(CultureInfo.InvariantCulture)}")).ToList();
 
     static string PadColumns(string text, int columns) => text + new string(' ', Math.Max(0, columns - DisplayColumns(text)));
 

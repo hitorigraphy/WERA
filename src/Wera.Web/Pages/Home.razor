@@ -422,8 +422,13 @@
 
             case Screen.ItemCheck:
                 <h2>아이템 확인</h2>
-                <p class="end">아직 준비되지 않았습니다.</p>
-                @commands
+                @* 지금 가진 커먼 아이템을 인벤토리 마스터 순서대로 "[아이템 코드] 이름 수량 N" *@
+                <ul class="companions">
+                    @foreach (var r in session.Items)
+                    {
+                        <li><span class="companion-cell" style="width: @(GameSession.CompanionCodeColumns)ch">@r.Code</span> <span class="companion-cell" style="width: @(GameSession.CompanionNameColumns)ch">@r.Name</span> <span class="companion-cell" style="width: @(GameSession.ItemAmountColumns)ch">@r.Amount</span></li>
+                    }
+                </ul>
                 break;
 
             case Screen.Load:
