@@ -169,7 +169,7 @@ public class TagInstanceTests
         s.Activate("105"); s.Activate("11"); s.Activate("1"); s.Activate("1");
         Assert.Equal(["철검", "변신 검", "돌아가기"], s.Entries.Select(e => e.Label));
 
-        s.Activate("2");
+        s.Activate("1");                                          // 변신 검은 OrderNumber 1
         Assert.Equal("장착: 변신술사의 무기 ← 변신 검", s.Message);
         Assert.Equal(8002, s.EquippedUniqueCode(7001, 1));
     }

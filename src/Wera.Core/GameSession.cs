@@ -126,6 +126,9 @@ public sealed partial class GameSession
     /// <summary>캐릭터 선택 화면의 "[0] 비우기": 선택한 슬롯에 캐릭터가 있을 때만 나온다.</summary>
     public const string ClearEntryCode = "0";
 
+    /// <summary>장비 선택 목록의 "해제" 코드: 0부터 시작하는 OrderNumber와 겹치지 않게 -1이다.</summary>
+    public const string UnequipEntryCode = "-1";
+
     /// <summary>파티 설정 화면 아래의 텍스트 버튼: 캐릭터 배치 화면 / 장비 착용 화면으로 바꾼다.</summary>
     public const string PlacementModeCode = "10";
     public const string EquipmentModeCode = "11";

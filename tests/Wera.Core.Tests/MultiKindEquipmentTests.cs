@@ -183,14 +183,14 @@ public class MultiKindEquipmentTests
     // ---- 화면 ----
 
     [Fact]
-    public void The_select_screen_numbers_the_candidates_from_one_across_kinds()
+    public void The_select_screen_numbers_the_candidates_from_zero_across_kinds()
     {
         var s = Session();
         s.Activate("105"); s.Activate("11"); s.Activate("1"); s.Activate("3");     // 강령술사의 소환 슬롯
-        Assert.Equal(["1", "2", "999"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["0", "1", "999"], s.Entries.Select(e => e.Code));   // 번호 없는 커먼 아이템/캐릭터는 0부터 이어 붙인다
         Assert.Equal(["뼈 조각", "강시", "돌아가기"], s.Entries.Select(e => e.Label));
 
-        s.Activate("2");                                                          // 강시
+        s.Activate("1");                                                          // 강시
         Assert.Equal("장착: 강령술사의 소환 ← 강시", s.Message);
         Assert.Equal(EquipRef.Char(7002), s.EquippedItemOf(7001, 3));
         Assert.Equal(Screen.EquipmentList, s.Screen);

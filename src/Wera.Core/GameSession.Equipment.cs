@@ -237,10 +237,7 @@ public sealed partial class GameSession
             if (CurrentCharacterCode is not { } character || CurrentEquipmentSlotCode is not { } slot) return [];
             var current = EquippedItemOf(character, slot);
 
-            var masterOrder = (Pack.UniqueItems ?? []).Select((u, index) => (u.ItemCode, index)).ToDictionary(x => x.ItemCode, x => x.index);
-            var unique = UniqueItemInstances
-                .OrderBy(kv => masterOrder.GetValueOrDefault(kv.Value.ItemCode, int.MaxValue)).ThenBy(kv => kv.Key, StringComparer.Ordinal)
-                .Select(kv => EquipRef.Unique(kv.Key));
+            var unique = OwnedUniqueItems.Select(i => EquipRef.Unique(i.InstanceId));
             var common = (Pack.ItemInventory ?? []).Select(i => EquipRef.Common(i.Code));
             var characters = (Pack.CharacterInventory ?? []).Select(c => EquipRef.Char(c.Code));
 
@@ -308,9 +305,9 @@ public sealed partial class GameSession
     }
 
     /// <summary>
-    /// 장비 가능 목록 화면의 항목: 맨 위 "[0] 해제"(이 슬롯에 낀 것이 있을 때만), 낄 수 있는 것들(번호를 입력하거나
-    /// 클릭하면 끼운다, 지금 끼고 있는 것은 "(장착중)"), 돌아가기. 낄 수 있는 것들의 코드 공간이 종류마다 따로라서
-    /// 번호는 1부터 차례로 붙인다.
+    /// 장비 가능 목록 화면의 항목: 맨 위 "[-1] 해제"(이 슬롯에 낀 것이 있을 때만), 낄 수 있는 것들(번호를 입력하거나
+    /// 클릭하면 끼운다, 지금 끼고 있는 것은 "(장착중)"), 돌아가기. 열 때마다 OrderNumber순(같으면 InstanceId순)으로 새로 정렬하고,
+    /// 유니크 아이템의 번호가 OrderNumber다.
     /// </summary>
     IReadOnlyList<ScreenEntry> EquipmentSelectEntries()
     {
@@ -320,13 +317,22 @@ public sealed partial class GameSession
 
         var entries = new List<ScreenEntry>();
         if (current is not null)
-            entries.Add(new ScreenEntry(ClearEntryCode, "해제", Screen.EquipmentList, EntryAction.Unequip));
-        entries.AddRange(EquippableItems.Select((i, index) => new ScreenEntry(
-            Text(index + 1),
-            i.Ref == current ? $"{i.Name} (장착중)" : i.Name,
-            Screen.EquipmentList,
-            EntryAction.EquipItem,
-            RefText(i.Ref))));
+            entries.Add(new ScreenEntry(UnequipEntryCode, "해제", Screen.EquipmentList, EntryAction.Unequip));
+        // 유니크 아이템은 OrderNumber가 코드(같은 번호가 이미 쓰였으면 다음 빈 번호), 번호가 없는 커먼 아이템/캐릭터는 그 뒤로 이어서 붙인다.
+        var used = new HashSet<long>();
+        long nextFree(long from) { while (!used.Add(from)) from++; return from; }
+        var next = 0L;
+        foreach (var i in EquippableItems)
+        {
+            var order = i.Ref.Kind == EquipKind.UniqueItem && UniqueItemInstances.TryGetValue(i.Ref.Instance ?? "", out var u) ? u.OrderNumber : next;
+            var code = nextFree(Math.Max(order, 0));
+            next = Math.Max(next, code + 1);
+            entries.Add(new ScreenEntry(Text(code),
+                i.Ref == current ? $"{i.Name} (장착중)" : i.Name,
+                Screen.EquipmentList,
+                EntryAction.EquipItem,
+                RefText(i.Ref)));
+        }
         // 같은 캐릭터의 장비 슬롯 목록으로 돌아간다(Arg로 캐릭터가 있는 파티 슬롯을 넘겨 유지한다).
         entries.Add(new ScreenEntry(BackEntryCode, "돌아가기", Screen.EquipmentList,
             Arg: CurrentSlot!.Value.ToString(CultureInfo.InvariantCulture)));

@@ -369,7 +369,7 @@ public class EquipmentTests
     {
         var s = Session();
         s.Activate("1"); s.Activate("1");
-        Assert.Equal(["1", "2", "999"], s.Entries.Select(e => e.Code));   // 낄 수 있는 보유 장비(철검, 지팡이) + 돌아가기
+        Assert.Equal(["0", "2", "999"], s.Entries.Select(e => e.Code));   // 낄 수 있는 보유 장비(철검, 지팡이: OrderNumber 0, 2) + 돌아가기
 
         s.Activate("999");
         Assert.Equal(Screen.EquipmentList, s.Screen);
