@@ -198,7 +198,8 @@ main.game > .site-footer { flex: none; box-sizing: border-box; width: 100%; max-
 input.command { width: min(100%, 26rem); }
 
 /* 슬롯 4번째 줄: [속성 아이콘 ⭕] [속성 아이콘 ❌]. 아이콘은 1줄 높이의 정사각형 */
-.icon-line { display: flex; align-items: center; gap: 1.2ch; white-space: nowrap; }
+.icon-line { display: flex; align-items: center; justify-content: space-between; gap: 1.2ch; white-space: nowrap; }   /* 속성 적성은 왼쪽, 상태이상은 오른쪽 */
+.icons-left, .icons-right { display: flex; align-items: center; gap: 1.2ch; }
 .badge { display: inline-flex; align-items: center; gap: .3ch; height: var(--lh); }
 .badge-icon { width: var(--lh); height: var(--lh); display: block; flex: none; }
 .badge-marker { line-height: var(--lh); }

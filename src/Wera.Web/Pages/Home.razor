@@ -63,14 +63,18 @@
             <div class="gauge-line">HP : <span class="gauge gauge-@item.View.Hp.Color.ToString().ToLowerInvariant()">@item.View.Hp.Text</span></div>
             <div class="gauge-line">XP : <span class="gauge gauge-@item.View.Xp.Color.ToString().ToLowerInvariant()">@item.View.Xp.Text</span></div>
             <div class="icon-line">
-                @foreach (var badge in item.View.Badges)
-                {
-                    <span class="badge" title="@badge.Name (@(badge.Advantage ? "유리속성" : "불리속성"))">@noImageSmall<span class="badge-marker">@badge.Marker</span></span>
-                }
-                @foreach (var status in item.View.StatusBadges)
-                {
-                    <span class="badge" title="@status.Name (상태이상)">@noImageSmall</span>
-                }
+                <span class="icons-left">
+                    @foreach (var badge in item.View.Badges)
+                    {
+                        <span class="badge" title="@badge.Name (@(badge.Advantage ? "유리속성" : "불리속성"))">@noImageSmall<span class="badge-marker">@badge.Marker</span></span>
+                    }
+                </span>
+                <span class="icons-right">
+                    @foreach (var status in item.View.StatusBadges)
+                    {
+                        <span class="badge" title="@status.Name (상태이상)">@noImageSmall</span>
+                    }
+                </span>
             </div>
         </div>
     </div>;
@@ -112,14 +116,18 @@
                     <div class="gauge-line">HP : <span class="gauge gauge-@slot.Hp.Color.ToString().ToLowerInvariant()">@slot.Hp.Text</span></div>
                     <div class="gauge-line">XP : <span class="gauge gauge-@slot.Xp.Color.ToString().ToLowerInvariant()">@slot.Xp.Text</span></div>
                     <div class="icon-line">
-                        @foreach (var badge in slot.Badges)
-                        {
-                            <span class="badge" title="@badge.Name (@(badge.Advantage ? "유리속성" : "불리속성"))">@noImageSmall<span class="badge-marker">@badge.Marker</span></span>
-                        }
-                        @foreach (var status in slot.StatusBadges)
-                        {
-                            <span class="badge" title="@status.Name (상태이상)">@noImageSmall</span>
-                        }
+                        <span class="icons-left">
+                            @foreach (var badge in slot.Badges)
+                            {
+                                <span class="badge" title="@badge.Name (@(badge.Advantage ? "유리속성" : "불리속성"))">@noImageSmall<span class="badge-marker">@badge.Marker</span></span>
+                            }
+                        </span>
+                        <span class="icons-right">
+                            @foreach (var status in slot.StatusBadges)
+                            {
+                                <span class="badge" title="@status.Name (상태이상)">@noImageSmall</span>
+                            }
+                        </span>
                     </div>
                 </div>
             </div>
