@@ -198,10 +198,10 @@ public class EquipmentOwnershipTests
         s.Activate("0");
         s.Activate("1");                                          // 다시 무기 슬롯
 
-        Assert.Equal(["-1", "0", "1", "999"], s.Entries.Select(e => e.Code));   // 해제 + 두 장비(OrderNumber 0, 1)
+        Assert.Equal(["0", "1", "2", "999"], s.Entries.Select(e => e.Code));   // 0번 해제 + 두 장비(OrderNumber 0, 1이 1, 2로 밀림)
         Assert.Equal(["해제", "철검 (장착중)", "지팡이", "돌아가기"], s.Entries.Select(e => e.Label));
 
-        s.Activate("1");
+        s.Activate("2");
         Assert.Equal("장착: 용사의 무기 철검 → 지팡이", s.Message);
         Assert.Equal(9003, s.EquippedUniqueCode(7001, 1));
         Assert.Equal(1, s.FreeCopies(9001));
@@ -213,7 +213,7 @@ public class EquipmentOwnershipTests
         var s = InSelect("1", "1", (9001, 1));
         s.Activate("0");
         s.Activate("1");
-        s.Activate("0");
+        s.Activate("1");                                          // 해제가 0번이라 철검은 1번
 
         Assert.Equal("이미 장착 중: 용사의 무기 = 철검", s.Message);
         Assert.Equal(1, s.EquippedCount(9001));
@@ -223,12 +223,13 @@ public class EquipmentOwnershipTests
     public void The_clear_entry_appears_only_when_something_is_equipped_and_unequips()
     {
         var s = InSelect("1", "1", (9001, 1));
-        Assert.Null(s.Activate("-1"));                            // 아직 낀 것이 없다
-        Assert.DoesNotContain(s.Entries, e => e.Code == "-1");
+        Assert.DoesNotContain(s.Entries, e => e.Action == EntryAction.Unequip);   // 아직 낀 것이 없다: 장비 번호는 0부터
+        Assert.Equal("0", s.Entries[0].Code);
 
         s.Activate("0");
         s.Activate("1");
-        var entry = s.Activate("-1");
+        Assert.Equal(["0", "1", "999"], s.Entries.Select(e => e.Code));          // 해제가 생기면 0번이 해제, 장비는 1부터
+        var entry = s.Activate("0");
 
         Assert.Equal(EntryAction.Unequip, entry!.Action);
         Assert.Equal(Screen.EquipmentList, s.Screen);

@@ -305,9 +305,9 @@ public sealed partial class GameSession
     }
 
     /// <summary>
-    /// 장비 가능 목록 화면의 항목: 맨 위 "[-1] 해제"(이 슬롯에 낀 것이 있을 때만), 낄 수 있는 것들(번호를 입력하거나
+    /// 장비 가능 목록 화면의 항목: 맨 위 "[0] 해제"(이 슬롯에 낀 것이 있을 때만), 낄 수 있는 것들(번호를 입력하거나
     /// 클릭하면 끼운다, 지금 끼고 있는 것은 "(장착중)"), 돌아가기. 열 때마다 OrderNumber순(같으면 InstanceId순)으로 새로 정렬하고,
-    /// 유니크 아이템의 번호가 OrderNumber다.
+    /// 유니크 아이템의 번호가 OrderNumber다(해제가 있으면 0이 쓰였으므로 1부터, 겹치면 다음 빈 번호).
     /// </summary>
     IReadOnlyList<ScreenEntry> EquipmentSelectEntries()
     {
@@ -317,11 +317,12 @@ public sealed partial class GameSession
 
         var entries = new List<ScreenEntry>();
         if (current is not null)
-            entries.Add(new ScreenEntry(UnequipEntryCode, "해제", Screen.EquipmentList, EntryAction.Unequip));
+            entries.Add(new ScreenEntry(ClearEntryCode, "해제", Screen.EquipmentList, EntryAction.Unequip));
         // 유니크 아이템은 OrderNumber가 코드(같은 번호가 이미 쓰였으면 다음 빈 번호), 번호가 없는 커먼 아이템/캐릭터는 그 뒤로 이어서 붙인다.
         var used = new HashSet<long>();
+        if (current is not null) used.Add(0);                 // 해제가 0번이면 번호는 1부터
         long nextFree(long from) { while (!used.Add(from)) from++; return from; }
-        var next = 0L;
+        var next = current is not null ? 1L : 0L;
         foreach (var i in EquippableItems)
         {
             var order = i.Ref.Kind == EquipKind.UniqueItem && UniqueItemInstances.TryGetValue(i.Ref.Instance ?? "", out var u) ? u.OrderNumber : next;
