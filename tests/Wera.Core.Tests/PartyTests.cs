@@ -454,7 +454,7 @@ public class PartyTests
 
         var json = s.ToSaveJson();
         Assert.Contains("\"Characters\"", json);
-        Assert.Contains("\"Party\"", json);
+        Assert.Contains("\"PartyInstance\"", json);
 
         var loaded = GameSession.FromSaveJson(pack, json);
         Assert.Equal(Screen.Home, loaded.Screen);

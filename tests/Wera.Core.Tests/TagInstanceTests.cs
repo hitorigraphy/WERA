@@ -30,6 +30,7 @@ public class TagInstanceTests
         var s = GameSession.NewGame(Pack());
         s.Characters[7001] = CharacterInstance.Stats(5, 36, 40, 3, 30);
         s.Characters[7002] = CharacterInstance.Stats(1, 10, 10, 0, 30);
+        s.Party[0] = 7001;                                          // 장비는 유닛이 가지므로 파티에 있어야 낀다
         return s;
     }
 
@@ -115,7 +116,7 @@ public class TagInstanceTests
         var id = s.AddUniqueItem(8001)!;
         s.Equip(7001, 1, 8001);
         Assert.True(s.RemoveUniqueItem(id));
-        Assert.Empty(s.EquippedItems);
+        Assert.All(s.PartyInstance.Units.OfType<PartyUnit>(), u => Assert.Empty(u.Equipment));
         Assert.False(s.RemoveUniqueItem(id));
     }
 
@@ -216,12 +217,12 @@ public class TagInstanceTests
         // 철검(검)만으로는 슬롯 1(검 AND 변신)에 맞지 않는다: 캐릭터 태그에 변신이 없다.
         Assert.Throws<SaveFormatException>(() => GameSession.FromSaveJson(Pack(), Head + Chars +
             "\"UniqueItems\":{\"01H00000000000000000000001\":{\"ItemCode\":8001}}," +
-            "\"EquippedItems\":{\"7001\":{\"1\":{\"Kind\":\"UniqueItem\",\"Instance\":\"01H00000000000000000000001\"}}}}"));
+            "\"Party\":[7001],\"EquippedItems\":{\"7001\":{\"1\":{\"Kind\":\"UniqueItem\",\"Instance\":\"01H00000000000000000000001\"}}}}"));
 
         var ok = GameSession.FromSaveJson(Pack(), Head + Chars +
             "\"UniqueItems\":{\"01H00000000000000000000001\":{\"ItemCode\":8001}}," +
             "\"CharacterTags\":{\"7001\":[7]}," +
-            "\"EquippedItems\":{\"7001\":{\"1\":{\"Kind\":\"UniqueItem\",\"Instance\":\"01H00000000000000000000001\"}}}}");
+            "\"Party\":[7001],\"EquippedItems\":{\"7001\":{\"1\":{\"Kind\":\"UniqueItem\",\"Instance\":\"01H00000000000000000000001\"}}}}");
         Assert.Equal(8001, ok.EquippedUniqueCode(7001, 1));
     }
 

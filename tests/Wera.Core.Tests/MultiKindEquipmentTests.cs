@@ -167,6 +167,7 @@ public class MultiKindEquipmentTests
                 "character_code\tequipment_slot_code\ttag_code\tgroup_number\tis_positive\n7001\t3\t8\t1\ttrue\n")));
         var s = GameSession.NewGame(pack);
         s.Characters[7001] = CharacterInstance.Stats(5, 36, 40, 3, 30);
+        s.Party[0] = 7001;
         s.InventoryItems[3] = new InventoryItem(2);
         s.Equip(7001, 3, EquipRef.Common(3));
 
@@ -234,6 +235,7 @@ public class MultiKindEquipmentTests
     {
         var s = GameSession.FromSaveJson(Pack(), Head + Chars +
             "\"InventoryItems\":{\"3\":{\"Amount\":1}}," +
+            "\"Party\":[7001]," +
             "\"EquippedItems\":{\"7001\":{\"3\":{\"Kind\":\"CommonItem\",\"Code\":3}}}}");
         Assert.Equal(EquipRef.Common(3), s.EquippedItemOf(7001, 3));
     }

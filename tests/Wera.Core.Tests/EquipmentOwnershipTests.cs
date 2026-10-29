@@ -59,7 +59,7 @@ public class EquipmentOwnershipTests
         Assert.False(s.Equip(9999, 1, 9001));
         Assert.False(s.Equip(7001, 99, 9001));
         Assert.False(s.Equip(7001, 1, 99999));
-        Assert.Empty(s.EquippedItems);
+        Assert.All(s.PartyInstance.Units.OfType<PartyUnit>(), u => Assert.Empty(u.Equipment));
     }
 
     [Fact]
@@ -114,17 +114,75 @@ public class EquipmentOwnershipTests
 
         Assert.False(s.Unequip(7001, 1));                        // 이미 비어 있음
         Assert.True(s.Unequip(7001, 2));
-        Assert.False(s.EquippedItems.ContainsKey(7001));         // 비면 키도 사라진다
+        Assert.Empty(s.PartyInstance.UnitOf(7001)!.Equipment);         // 비면 빈 사전
         Assert.False(s.Unequip(7002, 1));
     }
 
     [Fact]
-    public void Equipped_items_stay_after_the_character_leaves_the_party()
+    public void Equipment_returns_to_the_inventory_when_its_unit_leaves_the_party()
     {
         var s = Session((9001, 1));
         s.Equip(7001, 1, 9001);
-        s.Party[0] = null;
+        Assert.Equal(0, s.FreeCopies(9001));
+
+        s.Party[0] = null;                                       // 유닛이 빠지면 장비도 보유로 돌아간다
+        Assert.Null(s.EquippedItemOf(7001, 1));
+        Assert.Equal(1, s.FreeCopies(9001));
+
+        s.Party[0] = 7001;                                       // 다시 두면 장비 없이 시작한다
+        Assert.Null(s.EquippedItemOf(7001, 1));
+        Assert.False(s.Equip(7003, 1, 9001));                    // 파티에 없는 캐릭터는 장비를 끼지 못한다
+    }
+
+    [Fact]
+    public void Replacing_a_unit_drops_its_equipment_but_choosing_the_same_character_keeps_it()
+    {
+        var s = Session((9001, 1));
+        s.Equip(7001, 1, 9001);
+        s.Party[0] = 7001;                                       // 같은 캐릭터: 아무것도 바꾸지 않는다
         Assert.Equal(9001, s.EquippedUniqueCode(7001, 1));
+        s.Party[0] = 7002;                                       // 다른 캐릭터로 교체: 원래 유닛의 장비는 보유로
+        Assert.Equal(1, s.FreeCopies(9001));
+        Assert.Null(s.EquippedItemOf(7002, 1));
+    }
+
+    [Fact]
+    public void Swapping_party_slots_moves_the_equipment_with_the_unit()
+    {
+        var s = Session((9001, 1));
+        s.Equip(7001, 1, 9001);
+        s.Activate("105"); s.Activate("5");                      // 슬롯 5(칸 4, 마법사)를 고르고
+        s.Activate("7001");                                      // 용사를 고르면 서로 바뀐다
+        Assert.Equal(7001, s.Party[4]);
+        Assert.Equal(7002, s.Party[0]);
+        Assert.Equal(9001, s.EquippedUniqueCode(7001, 1));       // 장비는 유닛(용사)과 함께 이동했다
+        Assert.Equal(0, s.FreeCopies(9001));
+    }
+
+    [Fact]
+    public void The_party_has_a_name_that_survives_the_save()
+    {
+        var s = Session();
+        Assert.Equal(GameSession.DefaultPartyName, s.PartyName);
+        s.PartyName = "정예";
+        var loaded = GameSession.FromSaveJson(s.Pack, s.ToSaveJson());
+        Assert.Equal("정예", loaded.PartyName);
+        Assert.Equal(GameSession.DefaultPartyName, GameSession.FromSaveJson(s.Pack, "{\"Version\":1,\"PackId\":\"demo\"}").PartyName);
+    }
+
+    [Fact]
+    public void An_old_save_moves_party_and_equipment_into_units_and_returns_equipment_of_characters_outside_the_party()
+    {
+        // 예전 형식(Party와 EquippedItems): 용사는 파티에 있고 마법사는 없다 → 마법사의 장비는 보유로 돌아간다
+        var s = GameSession.FromSaveJson(EquipmentTests.Pack(),
+            Head + Chars + @"""UniqueItems"":{""01H00000000000000000000001"":{""ItemCode"":9001},""01H00000000000000000000002"":{""ItemCode"":9003}}," +
+            @"""Party"":[7001]," +
+            @"""EquippedItems"":{""7001"":{""1"":{""Kind"":""UniqueItem"",""Instance"":""01H00000000000000000000001""}},""7002"":{""1"":{""Kind"":""UniqueItem"",""Instance"":""01H00000000000000000000002""}}}}");
+        Assert.Equal(9001, s.EquippedUniqueCode(7001, 1));
+        Assert.Null(s.EquippedItemOf(7002, 1));
+        Assert.Equal(1, s.FreeCopies(9003));
+        Assert.Equal(GameSession.DefaultPartyName, s.PartyName);
+        Assert.Equal(7001, s.PartyInstance.Units[0]!.CharacterCode);
     }
 
     // ---- 화면 ----
@@ -276,7 +334,7 @@ public class EquipmentOwnershipTests
 
         var json = s.ToSaveJson();
         Assert.Contains("\"UniqueItems\"", json);
-        Assert.Contains("\"EquippedItems\"", json);
+        Assert.Contains("\"Equipment\"", json);
 
         var loaded = GameSession.FromSaveJson(s.Pack, json);
         Assert.Equal([9001L, 9001L, 9003L, 9004L], loaded.UniqueItemInstances.Values.Select(i => i.ItemCode).Order());
@@ -291,7 +349,7 @@ public class EquipmentOwnershipTests
     {
         var s = GameSession.FromSaveJson(EquipmentTests.Pack(), "{\"Version\":1,\"PackId\":\"demo\"}");
         Assert.Empty(s.UniqueItemInstances);
-        Assert.Empty(s.EquippedItems);
+        Assert.All(s.PartyInstance.Units.OfType<PartyUnit>(), u => Assert.Empty(u.Equipment));
     }
 
     const string Head = "{\"Version\":1,\"PackId\":\"demo\",";
@@ -321,6 +379,7 @@ public class EquipmentOwnershipTests
     {
         var s = GameSession.FromSaveJson(EquipmentTests.Pack(),
             Head + Chars + @"""UniqueItems"":{""01H00000000000000000000001"":{""ItemCode"":9003},""01H00000000000000000000002"":{""ItemCode"":9003}}," +
+            @"""Party"":[7001,null,null,null,7002]," +
             @"""EquippedItems"":{""7001"":{""1"":{""Kind"":""UniqueItem"",""Instance"":""01H00000000000000000000001""}},""7002"":{""1"":{""Kind"":""UniqueItem"",""Instance"":""01H00000000000000000000002""}}}}");
         Assert.Equal(2, s.EquippedCount(9003));
         Assert.Equal(0, s.FreeCopies(9003));

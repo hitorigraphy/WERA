@@ -42,6 +42,7 @@ public class TradeKindTests
     {
         var s = GameSession.NewGame(Pack());
         s.AddCharacter(7001);
+        s.Party[0] = 7001;                                            // 장비는 유닛이 가지므로 파티에 둔다
         s.InventoryItems[11] = new InventoryItem(coins);
         return s;
     }
@@ -215,7 +216,7 @@ public class TradeKindTests
         s.AddUniqueItem(8001);
         s.Equip(7001, 1, 8001);
         Assert.True(s.RemoveCharacter(7001));
-        Assert.Empty(s.EquippedItems);
+        Assert.All(s.PartyInstance.Units.OfType<PartyUnit>(), u => Assert.Empty(u.Equipment));
         Assert.Equal(1, s.FreeCopies(8001));
         Assert.False(s.RemoveCharacter(7001));                        // 이미 없다
     }

@@ -16,8 +16,8 @@ public sealed partial class GameSession
     /// </summary>
     public Dictionary<long, List<long>> CharacterTagInstances { get; }
 
-    /// <summary>장착 상태: 캐릭터 코드 → (장비 슬롯 코드 → 낀 것). 낀 것이 없는 캐릭터는 키가 없다.</summary>
-    public Dictionary<long, Dictionary<long, EquipRef>> EquippedItems { get; }
+    /// <summary>파티의 유닛들(빈 칸 제외). 장비는 유닛이 가진다.</summary>
+    IEnumerable<PartyUnit> PartyUnits => PartyInstance.Units.OfType<PartyUnit>();
 
     // ---- 유니크 아이템 인스턴스 ----
 
@@ -143,29 +143,27 @@ public sealed partial class GameSession
     /// <summary>태그가 바뀌어 더는 슬롯 규칙에 맞지 않거나 없어진 것을 장비에서 뺀다.</summary>
     void RevalidateEquipment()
     {
-        foreach (var (character, slots) in EquippedItems.ToList())
-        {
-            foreach (var (slot, target) in slots.ToList())
-                if (!Characters.ContainsKey(character) || !Fits(Pack, UniqueItemInstances, CharacterTagInstances, Characters, character, slot, target))
-                    slots.Remove(slot);
-            if (slots.Count == 0) EquippedItems.Remove(character);
-        }
+        foreach (var unit in PartyUnits)
+            foreach (var (slot, target) in unit.Equipment.ToList())
+                if (!Characters.ContainsKey(unit.CharacterCode)
+                    || !Fits(Pack, UniqueItemInstances, CharacterTagInstances, Characters, unit.CharacterCode, slot, target))
+                    unit.Equipment.Remove(slot);
     }
 
     // ---- 낀 것 조회 ----
 
-    /// <summary>캐릭터의 슬롯에 끼고 있는 것. 비어 있으면 null.</summary>
+    /// <summary>파티에 있는 캐릭터의 슬롯에 끼고 있는 것. 비어 있거나 파티에 없는 캐릭터면 null.</summary>
     public EquipRef? EquippedItemOf(long characterCode, long equipmentSlotCode) =>
-        EquippedItems.TryGetValue(characterCode, out var slots) && slots.TryGetValue(equipmentSlotCode, out var item) ? item : null;
+        PartyInstance.UnitOf(characterCode) is { } unit && unit.Equipment.TryGetValue(equipmentSlotCode, out var item) ? item : null;
 
     /// <summary>슬롯에 끼고 있는 것이 유니크 아이템이면 그 유니크 아이템 코드, 아니면 null.</summary>
     public long? EquippedUniqueCode(long characterCode, long equipmentSlotCode) =>
         EquippedItemOf(characterCode, equipmentSlotCode) is { Kind: EquipKind.UniqueItem } r && UniqueItemInstances.TryGetValue(r.Instance ?? "", out var i)
             ? i.ItemCode : null;
 
-    /// <summary>이것을 모든 캐릭터가 합쳐서 몇 개 끼고 있는가.</summary>
+    /// <summary>이것을 파티의 모든 유닛이 합쳐서 몇 개 끼고 있는가.</summary>
     public long EquippedCount(EquipRef target) =>
-        EquippedItems.Values.Sum(slots => (long)slots.Values.Count(i => i == target));
+        PartyUnits.Sum(unit => (long)unit.Equipment.Values.Count(i => i == target));
 
     /// <summary>이 유니크 아이템 코드의 인스턴스를 몇 개 끼고 있는가.</summary>
     public long EquippedCount(long uniqueItemCode) => InstancesOf(uniqueItemCode).Sum(id => EquippedCount(EquipRef.Unique(id)));
@@ -190,17 +188,16 @@ public sealed partial class GameSession
     /// <summary>
     /// 보유한 것을 캐릭터의 장비 슬롯에 낀다. (캐릭터의 현재 태그 + 끼울 것의 현재 태그)가 슬롯 태그 규칙에 부합해야 하고,
     /// 남는 보유 개수가 있어야 한다(그 슬롯에 이미 같은 것을 끼고 있으면 아무것도 바꾸지 않고 true).
-    /// 슬롯에 낀 다른 것이 있으면 빠지고 보유로 돌아간다. 보유하지 않은 캐릭터이거나 낄 수 없으면 false.
+    /// 슬롯에 낀 다른 것이 있으면 빠지고 보유로 돌아간다. 보유하지 않은 캐릭터이거나 파티에 없거나(장비는 유닛이 가진다) 낄 수 없으면 false.
     /// </summary>
     public bool Equip(long characterCode, long equipmentSlotCode, EquipRef target)
     {
-        if (!Characters.ContainsKey(characterCode)
+        if (!Characters.ContainsKey(characterCode) || PartyInstance.UnitOf(characterCode) is not { } unit
             || !Fits(Pack, UniqueItemInstances, CharacterTagInstances, Characters, characterCode, equipmentSlotCode, target)) return false;
         if (EquippedItemOf(characterCode, equipmentSlotCode) == target) return true;
         if (FreeCopies(target) <= 0) return false;
 
-        if (!EquippedItems.TryGetValue(characterCode, out var slots)) EquippedItems[characterCode] = slots = [];
-        slots[equipmentSlotCode] = target;
+        unit.Equipment[equipmentSlotCode] = target;
         return true;
     }
 
@@ -211,9 +208,7 @@ public sealed partial class GameSession
     /// <summary>슬롯의 것을 뺀다(보유로 돌아간다). 낀 것이 없었으면 false.</summary>
     public bool Unequip(long characterCode, long equipmentSlotCode)
     {
-        if (!EquippedItems.TryGetValue(characterCode, out var slots) || !slots.Remove(equipmentSlotCode)) return false;
-        if (slots.Count == 0) EquippedItems.Remove(characterCode);
-        return true;
+        return PartyInstance.UnitOf(characterCode) is { } unit && unit.Equipment.Remove(equipmentSlotCode);
     }
 
     /// <summary>끼울 것의 이름. 마스터에 없으면 코드 그대로.</summary>
@@ -373,9 +368,6 @@ public sealed partial class GameSession
     Dictionary<long, List<long>> CopyCharacterTags() =>
         Characters.Keys.ToDictionary(code => code,
             code => (CharacterTagInstances.TryGetValue(code, out var tags) ? tags : Pack.MasterTagsOfCharacter(code)).ToList());
-
-    Dictionary<long, Dictionary<long, EquipRef>> CopyEquippedItems() =>
-        EquippedItems.Where(kv => kv.Value.Count > 0).ToDictionary(kv => kv.Key, kv => new Dictionary<long, EquipRef>(kv.Value));
 
     static List<long> CheckTags(GamePack pack, string who, IEnumerable<long> tags, InventoryKind kind, long code)
     {
