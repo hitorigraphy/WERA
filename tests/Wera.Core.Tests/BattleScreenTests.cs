@@ -74,7 +74,10 @@ public class BattleScreenTests
     {
         var s = Started();
         Assert.Equal([false, true], s.Entries.Where(e => e.Action == EntryAction.BattleScroll).Select(e => e.Enabled));
-        Assert.Equal(["1000", "1001", "999"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["101", "102", "1000", "1001", "999"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["행동설정", "실행"], s.Entries.Where(e => e.Action == EntryAction.BattleCommand).Select(e => e.Label));
+        s.Activate("101"); s.Activate("102");                      // 아직 동작이 없다
+        Assert.Equal((Screen.Battle, 0), (s.Screen, s.BattleTop));
         Assert.Equal(["▲", "▼"], s.Entries.Where(e => e.Action == EntryAction.BattleScroll).Select(e => e.Label));
 
         s.Activate("1001");                                        // 가운데 구성(적 중위부터)을 건너뛰고 바로 적 1 / 아군 3

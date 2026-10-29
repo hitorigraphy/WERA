@@ -494,9 +494,11 @@
                             }
                         }
                     </div>
-                    <div class="battle-scroll">@entryList(session.Entries.Where(e => e.Action == EntryAction.BattleScroll))</div>
-                    @* ▲▼ 아래의 구분선과 그 밑의 커맨드 영역(커맨드는 나중에 넣는다) *@
-                    <div class="battle-commands"></div>
+                    @* 구분선 아래: 왼쪽에 커맨드([101] 행동설정, [102] 실행), 오른쪽에 구성 전환([1000] ▲, [1001] ▼) *@
+                    <div class="battle-commands">
+                        <div class="battle-command-list">@entryList(session.Entries.Where(e => e.Action == EntryAction.BattleCommand))</div>
+                        <div class="battle-scroll">@entryList(session.Entries.Where(e => e.Action == EntryAction.BattleScroll))</div>
+                    </div>
                 }
                 break;
 
