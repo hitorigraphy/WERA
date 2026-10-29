@@ -4,17 +4,17 @@ using System.Text.Json.Serialization;
 namespace Wera.Core;
 
 /// <summary>
-/// 유닛: 캐릭터와 그 캐릭터가 낀 장비. 장비는 슬롯 코드 → 낀 것이고 유닛에 속한다(유닛이 파티에서 빠지면 장비는 보유로 돌아간다).
+/// 유닛: 캐릭터와 그 캐릭터가 낀 장비, 그리고 리더인지(<see cref="IsLeader"/>). 장비는 슬롯 코드 → 낀 것이고 유닛에 속한다(유닛이 파티에서 빠지면 장비는 보유로 돌아간다).
 /// 적 파티의 프리셋 유닛(<see cref="PresetUnit"/>)도 같은 모양이다.
 /// </summary>
 [method: JsonConstructor]
-public sealed record PartyUnit(long CharacterCode, Dictionary<long, EquipRef> Equipment)
+public sealed record PartyUnit(long CharacterCode, Dictionary<long, EquipRef> Equipment, bool IsLeader = false)
 {
     /// <summary>장비 없는 새 유닛.</summary>
     public PartyUnit(long characterCode) : this(characterCode, []) { }
 
     /// <summary>저장용 복사본(장비 사전도 새로 만든다).</summary>
-    public PartyUnit Copy() => new(CharacterCode, new Dictionary<long, EquipRef>(Equipment));
+    public PartyUnit Copy() => new(CharacterCode, new Dictionary<long, EquipRef>(Equipment), IsLeader);
 }
 
 /// <summary>

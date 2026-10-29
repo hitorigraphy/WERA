@@ -40,7 +40,7 @@ public class EquipmentFlowTests
             [false, true],
             s.Entries.Where(e => e.Code is "101" or "102").Select(e => !e.Enabled));
         // 슬롯 항목(1~9) 다음, 돌아가기 앞에 온다.
-        Assert.Equal(["0", "101", "102", "999"], s.Entries.Where(e => e.Arg is null).Select(e => e.Code));   // [0]은 파티 이름 변경
+        Assert.Equal(["0", "101", "102", "103", "999"], s.Entries.Where(e => e.Arg is null).Select(e => e.Code));   // [0]은 파티 이름 변경
     }
 
     [Fact]
@@ -66,7 +66,7 @@ public class EquipmentFlowTests
         var s = Session();
         s.Activate("102");
 
-        Assert.Equal(["0", "1", "5", .. PartyCodes, "101", "102", "999"], s.Entries.Select(e => e.Code));   // 캐릭터가 있는 슬롯 1, 5만, 파티 버튼 11~26
+        Assert.Equal(["0", "1", "5", .. PartyCodes, "101", "102", "103", "999"], s.Entries.Select(e => e.Code));   // 캐릭터가 있는 슬롯 1, 5만, 파티 버튼 11~26
         Assert.Null(s.Activate("2"));                           // 빈 슬롯은 고를 수 없다
         Assert.Null(s.Activate("9"));
         Assert.Equal(Screen.EquipmentSetup, s.Screen);

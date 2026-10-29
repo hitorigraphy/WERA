@@ -143,6 +143,7 @@ public sealed partial class GameSession
     /// <summary>태그가 바뀌어 더는 슬롯 규칙에 맞지 않거나 없어진 것을 장비에서 뺀다.</summary>
     void RevalidateEquipment()
     {
+        EnsureLeaders();
         foreach (var unit in PartyUnits)
             foreach (var (slot, target) in unit.Equipment.ToList())
                 if (!Characters.ContainsKey(unit.CharacterCode)

@@ -156,7 +156,8 @@ a.button, button.button { border-color: #666; }
 .slot-info { width: 18ch; line-height: var(--lh); }
 .slot-info > * { height: var(--lh); }
 .slot-name { display: flex; justify-content: space-between; gap: 1ch; width: 100%; padding: 0; border: 0; background: none; text-align: left; line-height: var(--lh); }
-.slot-name:disabled { color: #888; cursor: default; }   /* 고를 수 없는 슬롯(장비 착용 모드의 빈 슬롯): 회색, 눌리지 않음 */
+.slot-name:disabled { color: #888; cursor: default; }
+.slot-name.leader, .slot-name.leader .slot-level, .slot-name.leader .slot-char { color: #9be15d; }   /* 리더: 슬롯명을 연두색으로 */   /* 고를 수 없는 슬롯(장비 착용 모드의 빈 슬롯): 회색, 눌리지 않음 */
 .slot-name:hover .slot-char, .slot-name:focus-visible .slot-char { text-decoration: underline; }
 .slot-level { flex: none; text-align: left; }
 .slot-char { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }

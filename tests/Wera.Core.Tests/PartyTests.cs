@@ -23,6 +23,7 @@ public class PartyTests
         {
             files.Add(("master/character_inventory_master_v1.tsv", characters));
             files.Add(("master/attribute_master_v1.tsv", Attributes));
+            files.Add(("master/character_tag_master_v1.tsv", "character_code\ttag_code\n1\t1\n1\t2\n7001\t2\n7002\t2\n7003\t2\n7004\t2\n"));   // 모두 리더 태그를 가진다
         }
         return GamePack.Load(CoreTests.PackZip(files.ToArray()));
     }
@@ -111,7 +112,7 @@ public class PartyTests
         s.Activate("105");
         Assert.Equal(Screen.PartySetup, s.Screen);
         Assert.Equal(
-            ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", .. Enumerable.Range(11, 16).Select(c => c.ToString()), "101", "102", "999"],
+            ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", .. Enumerable.Range(11, 16).Select(c => c.ToString()), "101", "102", "103", "999"],
             s.Entries.Select(e => e.Code));
         Assert.Null(s.Activate("105"));
         Assert.NotNull(s.Activate("999"));

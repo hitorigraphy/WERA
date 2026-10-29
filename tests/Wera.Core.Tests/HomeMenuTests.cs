@@ -130,9 +130,10 @@ public class HomeMenuTests
             ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
             ("master/character_inventory_master_v1.tsv",
                 "inventory_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n" +
-                "1\t당신\t1\t1\t2\n7001\t용사\t1\t1\t2\n7002\t마법사\t1\t2\t1\n7003\t전사\t1\t1\t2\n")));
+                "1\t당신\t1\t1\t2\n7001\t용사\t1\t1\t2\n7002\t마법사\t1\t2\t1\n7003\t전사\t1\t1\t2\n"),
+            ("master/character_tag_master_v1.tsv", "character_code\ttag_code\n1\t1\n1\t2\n7001\t2\n")));
         var s = GameSession.NewGame(pack);
-        s.AddCharacter(7001);                                              // 마법사(7002)와 전사(7003)는 보유하지 않았다
+        s.AddCharacter(7001);                                            // 마법사(7002)와 전사(7003)는 보유하지 않았다
 
         s.Activate("105"); s.Activate("1");
         Assert.Equal([1L, 7001L], s.CharacterList.Select(c => c.Code).Order());      // 파티 슬롯 목록

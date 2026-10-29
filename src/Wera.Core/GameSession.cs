@@ -16,6 +16,8 @@ public enum Screen
     PartyRename,
     /// <summary>파티 설정(장비 착용): 같은 3×3 슬롯. 슬롯을 고르면 그 캐릭터의 장비 목록으로 간다. 돌아가기는 홈.</summary>
     EquipmentSetup,
+    /// <summary>파티 설정(리더 지정): 같은 3×3 슬롯. 리더 태그를 가진 캐릭터의 슬롯을 고르면 리더로 지정하거나 해제한다. 돌아가기는 홈.</summary>
+    LeaderSetup,
     /// <summary>선택한 슬롯 캐릭터의 장비 슬롯 목록. 돌아가기는 장비 착용 화면.</summary>
     EquipmentList,
     /// <summary>선택한 장비 슬롯에 낄 수 있는 장비 목록(슬롯 태그 마스터에 부합하는 장비). 돌아가기는 장비 슬롯 목록.</summary>
@@ -51,6 +53,8 @@ public enum EntryAction
     Save,
     /// <summary>항목의 코드에 해당하는 상점 교환을 실행한다. 결과는 <see cref="GameSession.Message"/>.</summary>
     Trade,
+    /// <summary>리더 지정 화면의 슬롯: Arg의 칸에 있는 유닛을 리더로 지정하거나(이미 리더면) 해제한다.</summary>
+    ToggleLeader,
     /// <summary>파티 이름 변경 화면으로 간다(들어온 화면을 기억해 두었다가 끝나면 돌아간다).</summary>
     RenameParty,
     /// <summary>파티 선택 버튼: Arg의 번호(0이 파티-A)의 파티를 보는 파티로 한다. 화면은 그대로다.</summary>
@@ -138,6 +142,7 @@ public sealed partial class GameSession
     /// <summary>파티 설정 화면 아래의 텍스트 버튼: 캐릭터 배치 화면 / 장비 착용 화면으로 바꾼다.</summary>
     public const string PlacementModeCode = "101";
     public const string EquipmentModeCode = "102";
+    public const string LeaderModeCode = "103";
 
     /// <summary>파티 선택 버튼의 코드는 파티 A가 11이고 파티 P가 26이다(<see cref="PartySelectCodeBase"/> + 파티 번호).</summary>
     public const int PartySelectCodeBase = 11;
@@ -383,7 +388,8 @@ public sealed partial class GameSession
     public IReadOnlyList<PartySlotView> PartySlotViews =>
         Enumerable.Range(0, PartySlotCount).Select(SlotView).ToList();
 
-    PartySlotView SlotView(int slot) => CharacterView(slot, Party[slot]);
+    PartySlotView SlotView(int slot) =>
+        CharacterView(slot, Party[slot]) with { IsLeader = PartyInstance.Units[slot]?.IsLeader == true };
 
     /// <summary>캐릭터 한 명의 슬롯 표시. 코드가 없거나 보유하지 않으면 빈 슬롯. 슬롯 번호가 없는 슬롯은 -1.</summary>
     PartySlotView CharacterView(int slot, long? characterCode)
@@ -433,7 +439,10 @@ public sealed partial class GameSession
         {
             if (Screen == Screen.SupportSelect) return SupportList;
             if (Screen != Screen.CharacterSelect || CurrentSlot is not { } slot) return [];
-            return (Pack.CharacterInventory ?? []).Where(c => Characters.ContainsKey(c.Code) && PartyInstance.Units[slot]?.CharacterCode != c.Code).Select(c =>
+            // 파티에 아무도 없을 때와 리더의 슬롯을 바꿀 때는 리더 태그를 가진 캐릭터만 나온다(파티에는 리더가 한 명 이상 있어야 하므로).
+            var leaderOnly = IsLeaderOnlySlot(slot);
+            return (Pack.CharacterInventory ?? []).Where(c => Characters.ContainsKey(c.Code) && PartyInstance.Units[slot]?.CharacterCode != c.Code
+                && (!leaderOnly || HasLeaderTag(c.Code))).Select(c =>
             {
                 var placedAt = PartyInstance.IndexOf(c.Code);
                 var color = !Characters.ContainsKey(c.Code) ? CharacterListColor.Gray
@@ -520,6 +529,18 @@ public sealed partial class GameSession
                             (v.Slot + 1).ToString(), v.Name, Screen.EquipmentList, Arg: v.Slot.ToString())))
                         .Concat(PartySelectEntries(Screen.EquipmentSetup))
                         .Concat(ModeEntries(Screen.EquipmentSetup))
+                        .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home))
+                        .ToList();
+                case Screen.LeaderSetup:
+                    // 리더 태그를 가진 캐릭터의 슬롯만 고를 수 있다(고르면 리더로 지정하거나 해제). 돌아가면 홈으로 간다.
+                    return RenamePartyEntries()
+                        .Concat(PartySlotViews
+                        .Where(v => !v.IsEmpty)
+                        .Select(v => new ScreenEntry(
+                            (v.Slot + 1).ToString(), v.Name, Screen.LeaderSetup, EntryAction.ToggleLeader, v.Slot.ToString(),
+                            Enabled: HasLeaderTag(v.CharacterCode!.Value))))
+                        .Concat(PartySelectEntries(Screen.LeaderSetup))
+                        .Concat(ModeEntries(Screen.LeaderSetup))
                         .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home))
                         .ToList();
                 case Screen.PartyRename:
@@ -663,7 +684,12 @@ public sealed partial class GameSession
                 break;
             case EntryAction.ClearSlot:
                 Party[CurrentSlot!.Value] = null;
+                EnsureLeaders();
                 CurrentSlot = null;
+                Screen = entry.Target;
+                break;
+            case EntryAction.ToggleLeader:
+                ToggleLeader(int.Parse(entry.Arg!, CultureInfo.InvariantCulture));
                 Screen = entry.Target;
                 break;
             case EntryAction.EquipItem:
@@ -691,9 +717,13 @@ public sealed partial class GameSession
 
     /// <summary>현재 선택한 슬롯에 캐릭터가 있으면 "[0] 비우기" 항목 하나, 없으면 없음.</summary>
     IEnumerable<ScreenEntry> ClearEntries() =>
-        CurrentSlot is { } slot && PartyInstance.Units[slot] is not null
+        CurrentSlot is { } slot && PartyInstance.Units[slot] is { } unit && !IsLastLeaderWithCompany(unit)
             ? [new ScreenEntry(ClearEntryCode, "비우기", Screen.PartySetup, EntryAction.ClearSlot)]
             : [];
+
+    /// <summary>다른 유닛이 남아 있는데 이 유닛이 마지막 리더인가(비우면 파티에 리더가 없어지므로 비울 수 없다).</summary>
+    bool IsLastLeaderWithCompany(PartyUnit unit) =>
+        unit.IsLeader && LeaderCount(PartyInstance) <= 1 && PartyInstance.Units.Count(u => u is not null) > 1;
 
     /// <summary>
     /// 파티 설정 화면의 파티 선택 버튼 열여섯 개: [11] 파티-A ~ [26] 파티-P. 지금 보는 파티의 버튼은 선택할 수 없다(파란색).
@@ -731,6 +761,7 @@ public sealed partial class GameSession
     [
         new ScreenEntry(PlacementModeCode, "캐릭터 배치", Screen.PartySetup, Enabled: current != Screen.PartySetup),
         new ScreenEntry(EquipmentModeCode, "장비 착용", Screen.EquipmentSetup, Enabled: current != Screen.EquipmentSetup),
+        new ScreenEntry(LeaderModeCode, "리더 지정", Screen.LeaderSetup, Enabled: current != Screen.LeaderSetup),
     ];
 
     static string Text(long code) => code.ToString(CultureInfo.InvariantCulture);
@@ -756,7 +787,53 @@ public sealed partial class GameSession
         var at = PartyInstance.IndexOf(code);
         if (at == slot) return;
         if (at >= 0) (units[at], units[slot]) = (units[slot], units[at]);
-        else units[slot] = new PartyUnit(code);
+        else units[slot] = new PartyUnit(code, [], IsLeader: IsLeaderOnlySlot(slot));     // 아무도 없던 파티의 첫 유닛이나 리더 자리를 이은 유닛은 리더다
+        EnsureLeaders();
+    }
+
+    /// <summary>
+    /// 이 슬롯에 두는 캐릭터가 리더 태그를 가져야 하는가: 지금 보는 파티에 아무도 없거나 이 슬롯이 리더의 슬롯일 때.
+    /// 이때 새로 두는 유닛은 리더가 된다.
+    /// </summary>
+    bool IsLeaderOnlySlot(int slot) =>
+        PartyInstance.Units.All(u => u is null) || PartyInstance.Units[slot]?.IsLeader == true;
+
+    /// <summary>이 캐릭터가 리더 태그(<see cref="GamePack.LeaderTagCode"/>)를 가졌는가(캐릭터 인스턴스의 지금 태그 기준).</summary>
+    public bool HasLeaderTag(long characterCode) => CharacterTags(characterCode).Contains(GamePack.LeaderTagCode);
+
+    /// <summary>이 파티의 리더 수.</summary>
+    static int LeaderCount(PartyInstance party) => party.Units.Count(u => u is { IsLeader: true });
+
+    /// <summary>
+    /// 유닛이 있는데 리더가 한 명도 없는 파티는 리더 태그를 가진 첫 유닛(칸 순서)을 리더로 삼는다(그런 유닛이 없으면 그대로).
+    /// 리더가 리더 태그를 잃으면 먼저 리더에서 빠진다.
+    /// </summary>
+    void EnsureLeaders()
+    {
+        foreach (var party in Parties)
+        {
+            for (var i = 0; i < party.Units.Length; i++)
+                if (party.Units[i] is { IsLeader: true } leader && !HasLeaderTag(leader.CharacterCode))
+                    party.Units[i] = leader with { IsLeader = false };
+            if (party.Units.All(u => u is null) || LeaderCount(party) > 0) continue;
+            var first = Array.FindIndex(party.Units, u => u is not null && HasLeaderTag(u.CharacterCode));
+            if (first >= 0) party.Units[first] = party.Units[first]! with { IsLeader = true };
+        }
+    }
+
+    /// <summary>
+    /// 이 슬롯의 유닛을 리더로 지정하거나(이미 리더면) 해제한다. 리더 태그가 없으면 할 수 없고, 마지막 리더는 해제할 수 없다
+    /// (파티에는 리더가 한 명 이상 있어야 한다).
+    /// </summary>
+    void ToggleLeader(int slot)
+    {
+        if (PartyInstance.Units[slot] is not { } unit || !HasLeaderTag(unit.CharacterCode)) return;
+        if (unit.IsLeader && LeaderCount(PartyInstance) <= 1)
+        {
+            Message = "파티에는 리더가 한 명 이상 있어야 합니다.";
+            return;
+        }
+        PartyInstance.Units[slot] = unit with { IsLeader = !unit.IsLeader };
     }
 
     /// <summary>
@@ -907,6 +984,7 @@ public sealed partial class GameSession
                 if (party.Units[i]?.CharacterCode == characterCode) party.Units[i] = null;     // 유닛과 함께 장비가 빠져 보유로 돌아간다
         CharacterStatusEffects.Remove(characterCode);
         CharacterTagInstances.Remove(characterCode);
+        EnsureLeaders();
         return true;
     }
 
@@ -1059,6 +1137,7 @@ public sealed partial class GameSession
         var partyCodes = Enumerable.Range(0, PartyCount).Select(_ => new long?[PartySlotCount]).ToArray();
         var partyNames = Enumerable.Range(0, PartyCount).Select(DefaultPartyNameOf).ToArray();
         var partyEquipment = new Dictionary<long, Dictionary<long, EquipRef>>();
+        var partyLeaders = Enumerable.Range(0, PartyCount).Select(_ => new bool[PartySlotCount]).ToArray();
 
         void ReadParty(int index, PartyInstance? saved)
         {
@@ -1071,6 +1150,7 @@ public sealed partial class GameSession
             {
                 if (savedUnits[i] is not { } unit) continue;
                 partyCodes[index][i] = unit.CharacterCode;
+                partyLeaders[index][i] = unit.IsLeader;
                 if (unit.Equipment is { Count: > 0 }) partyEquipment[unit.CharacterCode] = unit.Equipment;
             }
         }
@@ -1107,7 +1187,8 @@ public sealed partial class GameSession
         var (uniqueItems, characterTags, equippedItems) =
             ValidateEquipment(pack, characters, inventory, save.UniqueItems, save.CharacterTags, partyEquipment);
         var parties = partyCodes.Select((codes, p) => new PartyInstance(partyNames[p],
-            codes.Select(c => c is { } code ? new PartyUnit(code, equippedItems.TryGetValue(code, out var slots) ? slots : []) : null).ToArray())).ToArray();
+            codes.Select((c, i) => c is { } code
+                ? new PartyUnit(code, equippedItems.TryGetValue(code, out var slots) ? slots : [], partyLeaders[p][i]) : null).ToArray())).ToArray();
 
         foreach (var (what, code) in new[] { ("파트너", save.Partner), ("어시스트", save.Assist) })
             if (code is { } support && !characters.ContainsKey(support))
@@ -1118,12 +1199,14 @@ public sealed partial class GameSession
             throw new SaveFormatException("세이브의 파트너와 어시스트가 같은 캐릭터입니다.");
 
         // 불러오기는 저장된 화면과 상관없이 항상 홈으로 들어간다.
-        return new GameSession(pack, Screen.Home, playerFlags, inventory, characters, parties, statusEffects, uniqueItems, characterTags)
+        var loaded = new GameSession(pack, Screen.Home, playerFlags, inventory, characters, parties, statusEffects, uniqueItems, characterTags)
         {
             CurrentPartyIndex = currentParty,
             PartnerCode = save.Partner,
             AssistCode = save.Assist,
             TurnCount = save.Turn ?? pack.FirstTurn.TurnCount,
         };
+        loaded.EnsureLeaders();       // 리더 정보가 없던 예전 세이브는 리더 태그를 가진 첫 유닛이 리더가 된다
+        return loaded;
     }
 }

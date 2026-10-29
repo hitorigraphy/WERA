@@ -106,7 +106,7 @@
         @foreach (var slot in session!.PartySlotViews)
         {
             var slotCode = (slot.Slot + 1).ToString();
-            var enabled = !equipmentMode || !slot.IsEmpty;
+            var enabled = session.Entries.Any(e => e.Code == slotCode && e.Enabled);      // 화면마다 고를 수 있는 슬롯이 다르다
             @if (slot.Slot % 3 == 0)
             {
                 <div class="row-label">@slot.RowName</div>
@@ -115,7 +115,7 @@
                 <button class="slot-icon" title="@slot.Name" disabled="@(!enabled)" @onclick="() => Activate(slotCode)">@noImage</button>
                 <div class="slot-info">
                     @* "Lv.XX            [x] 이름"(레벨은 왼쪽, "[x] 이름"은 줄 오른쪽 끝; 빈 슬롯은 레벨 자리가 빔): [x]는 슬롯 번호이고 입력해도 고를 수 있다 *@
-                    <button class="slot-name" disabled="@(!enabled)" @onclick="() => Activate(slotCode)">
+                    <button class="@(slot.IsLeader ? "slot-name leader" : "slot-name")" disabled="@(!enabled)" @onclick="() => Activate(slotCode)">
                         <span class="slot-level">@slot.LevelText</span><span class="slot-char">[@slotCode] @slot.Name</span>
                     </button>
                     <div class="gauge-line">HP : <span class="gauge gauge-@slot.Hp.Color.ToString().ToLowerInvariant()">@slot.Hp.Text</span></div>
@@ -248,6 +248,16 @@
             case Screen.EquipmentSetup:
                 <h2>파티 설정 : @partyNameButton</h2>
                 @partyGrid(true)
+                @partyCommands
+                break;
+
+            case Screen.LeaderSetup:
+                <h2>파티 설정 : @partyNameButton</h2>
+                @partyGrid(false)
+                @if (session.Message is not null)
+                {
+                    <p class="message" role="status">@session.Message</p>
+                }
                 @partyCommands
                 break;
 
