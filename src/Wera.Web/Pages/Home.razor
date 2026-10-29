@@ -458,7 +458,38 @@
 
             case Screen.Battle:
                 <h2>전투(임시)</h2>
-                <p class="end">전투는 아직 준비되지 않았습니다.</p>
+                @if (session.CurrentEnemyPartyCode is null)
+                {
+                    <p class="end">전투 마스터 @(GameSession.TemporaryBattleCode)의 적 파티가 없어 전투를 시작할 수 없습니다.</p>
+                }
+                else
+                {
+                    @* 작전 화면: 적 후위, 적 중위, 적 전위, 가운데 영역(경계선), 아군 전위, 아군 중위, 아군 후위 중 다섯 줄(슬롯 네 줄과 가운데 영역)을 한 번에 보여 준다 *@
+                    <div class="battle">
+                        @foreach (var row in session.BattleRows)
+                        {
+                            @if (row.Kind == BattleRowKind.Slots)
+                            {
+                                <div class="battle-row-label">@row.Title</div>
+                                <div class="battle-row">
+                                    @foreach (var slot in row.Slots)
+                                    {
+                                        @homeSlot((slot, null))
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="battle-border">
+                                    <span class="battle-border-left">@row.LeftText</span>
+                                    <span class="battle-border-center">@row.CenterText</span>
+                                    <span class="battle-border-right">@row.RightText</span>
+                                </div>
+                            }
+                        }
+                    </div>
+                    <div class="battle-scroll">@entryList(session.Entries.Where(e => e.Action == EntryAction.BattleScroll))</div>
+                }
                 break;
 
             case Screen.Load:

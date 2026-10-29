@@ -18,7 +18,7 @@ public enum Screen
     EquipmentSetup,
     /// <summary>파티 설정(리더 지정): 같은 3×3 슬롯. 리더 태그를 가진 캐릭터의 슬롯을 고르면 리더로 지정하거나 해제한다. 돌아가기는 홈.</summary>
     LeaderSetup,
-    /// <summary>전투(임시) 화면(110): 지금 보는 파티로 들어가는 전투 화면. 아직 내용이 없다. 돌아가기는 홈.</summary>
+    /// <summary>전투(임시) 화면(110): 정해진 전투의 작전 화면(슬롯 네 줄과 가운데 영역). 돌아가기는 홈.</summary>
     Battle,
     /// <summary>선택한 슬롯 캐릭터의 장비 슬롯 목록. 돌아가기는 장비 착용 화면.</summary>
     EquipmentList,
@@ -57,6 +57,10 @@ public enum EntryAction
     Trade,
     /// <summary>리더 지정 화면의 슬롯: Arg의 칸에 있는 유닛을 리더로 지정하거나(이미 리더면) 해제한다.</summary>
     ToggleLeader,
+    /// <summary>전투(임시)를 시작한다: 정해진 전투의 적 파티를 뽑고 작전 화면으로 간다.</summary>
+    StartBattle,
+    /// <summary>작전 화면을 위(-1)나 아래(1)로 한 줄 스크롤한다(Arg).</summary>
+    BattleScroll,
     /// <summary>파티 이름 변경 화면으로 간다(들어온 화면을 기억해 두었다가 끝나면 돌아간다).</summary>
     RenameParty,
     /// <summary>파티 선택 버튼: Arg의 번호(0이 파티-A)의 파티를 보는 파티로 한다. 화면은 그대로다.</summary>
@@ -474,7 +478,7 @@ public sealed partial class GameSession
             rpg.Add(new ScreenEntry(InteractionEntryCode, "교류", Screen.Interaction));
             rpg.Add(new ScreenEntry(PartyEntryCode, "파티 설정", Screen.PartySetup));
             // 리더가 없는 파티는 던전(전투)에 파견할 수 없다: 지금 보는 파티가 파견 가능하지 않으면 회색이다.
-            rpg.Add(new ScreenEntry(BattleEntryCode, "전투(임시)", Screen.Battle, Enabled: IsDispatchable(CurrentPartyIndex)));
+            rpg.Add(new ScreenEntry(BattleEntryCode, "전투(임시)", Screen.Battle, EntryAction.StartBattle, Enabled: IsDispatchable(CurrentPartyIndex)));
 
             return
             [
@@ -594,8 +598,9 @@ public sealed partial class GameSession
                 case Screen.CompanionCheck:
                 case Screen.EquipmentCheck:
                 case Screen.ItemCheck:
-                case Screen.Battle:
                     return [new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home)];
+                case Screen.Battle:
+                    return BattleEntries();
                 default:
                     return [];
             }
@@ -706,6 +711,13 @@ public sealed partial class GameSession
                 Message = UnequipFromScreen();
                 CurrentEquipmentSlotCode = null;
                 Screen = entry.Target;
+                break;
+            case EntryAction.StartBattle:
+                BeginBattle();
+                Screen = entry.Target;
+                break;
+            case EntryAction.BattleScroll:
+                ScrollBattle(int.Parse(entry.Arg!, CultureInfo.InvariantCulture));
                 break;
             case EntryAction.StartEvent:
                 BeginEvent(CodeOf(entry));

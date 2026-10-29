@@ -208,6 +208,13 @@ input.command { width: min(100%, 26rem); }
 .icon-line { overflow: hidden; }
 
 /* 줄 이름(전위/중위/후위): 각 줄의 슬롯 위에 한 줄로 나온다 */
+/* 전투 작전 화면: 슬롯 줄(줄 이름 + 슬롯 셋)과 가운데 영역(적 파티 이름 / 전투 이름 / 아군 파티 이름) */
+.battle-row-label { margin-top: .3rem; padding-bottom: .15rem; border-bottom: 1px solid #444; color: #aaa; }
+.battle-row { display: grid; grid-template-columns: repeat(3, max-content); gap: .5rem 1rem; margin: .3rem 0; }
+.battle-border { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: .6rem 0; padding: .3rem 0; border-top: 1px solid #888; border-bottom: 1px solid #888; line-height: var(--lh); }
+.battle-border-center { text-align: center; }
+.battle-border-right { text-align: right; }
+.battle-scroll .entries { display: flex; justify-content: flex-end; gap: 1.2rem; margin-top: .6rem; }
 .row-label { grid-column: 1 / -1; margin-top: .3rem; padding-bottom: .15rem; border-bottom: 1px solid #444; color: #aaa; }
 .row-label:first-child { margin-top: 0; }
 
