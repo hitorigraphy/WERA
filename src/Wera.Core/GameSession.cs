@@ -59,7 +59,7 @@ public enum EntryAction
     ToggleLeader,
     /// <summary>전투(임시)를 시작한다: 정해진 전투의 적 파티를 뽑고 작전 화면으로 간다.</summary>
     StartBattle,
-    /// <summary>작전 화면의 커맨드([101] 행동설정, [102] 실행). 아직 동작은 없다.</summary>
+    /// <summary>작전 화면의 커맨드([101] 이전 캐릭터 ~ [106] 퇴각). 아직 동작은 없다.</summary>
     BattleCommand,
     /// <summary>작전 화면을 위(-1)나 아래(1) 구성으로 바로 넘긴다(Arg): 적 3 / 아군 1 ↔ 적 1 / 아군 3.</summary>
     BattleScroll,

@@ -23,9 +23,15 @@ public sealed partial class GameSession
     /// <summary>[110] 전투(임시)가 고정으로 시작하는 전투의 코드(전투 마스터).</summary>
     public const long TemporaryBattleCode = 5001;
 
-    /// <summary>작전 화면의 커맨드: [101] 행동설정, [102] 실행(아직 동작은 없다).</summary>
-    public const string BattleActionSettingEntryCode = "101";
-    public const string BattleExecuteEntryCode = "102";
+    /// <summary>
+    /// 작전 화면의 커맨드(아직 동작은 없다): 윗줄 [101] 이전 캐릭터, [102] 행동 설정, [103] 상태 확인 / 아랫줄 [104] 다음 캐릭터, [105] 아이템, [106] 퇴각.
+    /// 윗줄 오른쪽 끝에는 구성 전환 [1000] ▲, [1001] ▼가 있다.
+    /// </summary>
+    static readonly (string Code, string Label)[] BattleCommands =
+    [
+        ("101", "이전 캐릭터"), ("102", "행동 설정"), ("103", "상태 확인"),
+        ("104", "다음 캐릭터"), ("105", "아이템"), ("106", "퇴각"),
+    ];
 
     /// <summary>작전 화면 구분선 아래 오른쪽의 구성 전환 버튼 코드: [1000] ▲, [1001] ▼.</summary>
     public const string BattleScrollUpEntryCode = "1000";
@@ -111,11 +117,10 @@ public sealed partial class GameSession
     /// <summary>지금 작전 화면에 보이는 줄들(<see cref="BattleWindowSize"/>개, <see cref="BattleTop"/>부터).</summary>
     public IReadOnlyList<BattleRowView> BattleRows => AllBattleRows().Skip(BattleTop).Take(BattleWindowSize).ToList();
 
-    /// <summary>작전 화면의 항목: [101] 행동설정, [102] 실행, [1000] ▲(적 3 / 아군 1 구성으로, 그 구성일 때는 회색), [1001] ▼(적 1 / 아군 3 구성으로, 그 구성일 때는 회색), 돌아가기.</summary>
+    /// <summary>작전 화면의 항목: 커맨드 [101]~[106], [1000] ▲(적 3 / 아군 1 구성으로, 그 구성일 때는 회색), [1001] ▼(적 1 / 아군 3 구성으로, 그 구성일 때는 회색), 돌아가기.</summary>
     IReadOnlyList<ScreenEntry> BattleEntries() =>
     [
-        new ScreenEntry(BattleActionSettingEntryCode, "행동설정", Screen.Battle, EntryAction.BattleCommand),
-        new ScreenEntry(BattleExecuteEntryCode, "실행", Screen.Battle, EntryAction.BattleCommand),
+        .. BattleCommands.Select(c => new ScreenEntry(c.Code, c.Label, Screen.Battle, EntryAction.BattleCommand)),
         new ScreenEntry(BattleScrollUpEntryCode, "▲", Screen.Battle, EntryAction.BattleScroll, "-1", Enabled: BattleTop > 0),
         new ScreenEntry(BattleScrollDownEntryCode, "▼", Screen.Battle, EntryAction.BattleScroll, "1", Enabled: BattleTop < BattleTopAllyHeavy),
         new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home),

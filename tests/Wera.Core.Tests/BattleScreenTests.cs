@@ -74,9 +74,9 @@ public class BattleScreenTests
     {
         var s = Started();
         Assert.Equal([false, true], s.Entries.Where(e => e.Action == EntryAction.BattleScroll).Select(e => e.Enabled));
-        Assert.Equal(["101", "102", "1000", "1001", "999"], s.Entries.Select(e => e.Code));
-        Assert.Equal(["행동설정", "실행"], s.Entries.Where(e => e.Action == EntryAction.BattleCommand).Select(e => e.Label));
-        s.Activate("101"); s.Activate("102");                      // 아직 동작이 없다
+        Assert.Equal(["101", "102", "103", "104", "105", "106", "1000", "1001", "999"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["이전 캐릭터", "행동 설정", "상태 확인", "다음 캐릭터", "아이템", "퇴각"], s.Entries.Where(e => e.Action == EntryAction.BattleCommand).Select(e => e.Label));
+        foreach (var code in new[] { "101", "102", "103", "104", "105", "106" }) s.Activate(code);      // 아직 동작이 없다
         Assert.Equal((Screen.Battle, 0), (s.Screen, s.BattleTop));
         Assert.Equal(["▲", "▼"], s.Entries.Where(e => e.Action == EntryAction.BattleScroll).Select(e => e.Label));
 

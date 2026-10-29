@@ -220,8 +220,9 @@ input.command { width: min(100%, 26rem); }
 .battle-border .bb-texts { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: center; }
 .bb-text-center { text-align: center; }
 .bb-text-right { text-align: right; }
-.battle-commands { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin-top: .6rem; padding-top: .6rem; border-top: 1px solid #888; }   /* 구분선 아래: 왼쪽 커맨드, 오른쪽 구성 전환 */
-.battle-command-list .entries, .battle-scroll .entries { display: flex; gap: 1.2rem; }
+.battle-commands { display: grid; grid-template-columns: 3fr 1fr; align-items: start; margin-top: .6rem; padding-top: .6rem; border-top: 1px solid #888; }   /* 구분선 아래: 왼쪽 세 칸(4분할 기준)에 커맨드 두 줄, 오른쪽 한 칸 끝에 구성 전환 */
+.battle-command-list .entries { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .15rem 1rem; }
+.battle-scroll .entries { display: flex; justify-content: flex-end; gap: 1.2rem; }
 .row-label { grid-column: 1 / -1; margin-top: .3rem; padding-bottom: .15rem; border-bottom: 1px solid #444; color: #aaa; }
 .row-label:first-child { margin-top: 0; }
 
