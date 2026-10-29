@@ -12,6 +12,8 @@ public enum Screen
     ShopList,
     /// <summary>파티 설정(캐릭터 배치): 3×3 슬롯. 슬롯을 고르면 그 슬롯에 배치할 캐릭터 목록으로 간다.</summary>
     PartySetup,
+    /// <summary>파티 이름 변경: 입력칸에 쓴 글이 새 파티 이름이 된다(Enter). 돌아가기는 들어온 화면(파티 설정 또는 장비 착용).</summary>
+    PartyRename,
     /// <summary>파티 설정(장비 착용): 같은 3×3 슬롯. 슬롯을 고르면 그 캐릭터의 장비 목록으로 간다. 돌아가기는 홈.</summary>
     EquipmentSetup,
     /// <summary>선택한 슬롯 캐릭터의 장비 슬롯 목록. 돌아가기는 장비 착용 화면.</summary>
@@ -49,6 +51,8 @@ public enum EntryAction
     Save,
     /// <summary>항목의 코드에 해당하는 상점 교환을 실행한다. 결과는 <see cref="GameSession.Message"/>.</summary>
     Trade,
+    /// <summary>파티 이름 변경 화면으로 간다(들어온 화면을 기억해 두었다가 끝나면 돌아간다).</summary>
+    RenameParty,
     /// <summary>파티 선택 버튼: Arg의 번호(0이 파티-A)의 파티를 보는 파티로 한다. 화면은 그대로다.</summary>
     SelectParty,
     /// <summary>항목의 코드에 해당하는 캐릭터를 선택한 슬롯에 배치한다(이미 배치된 캐릭터면 위치 교환).</summary>
@@ -137,6 +141,15 @@ public sealed partial class GameSession
 
     /// <summary>파티 선택 버튼의 코드는 파티 A가 11이고 파티 P가 26이다(<see cref="PartySelectCodeBase"/> + 파티 번호).</summary>
     public const int PartySelectCodeBase = 11;
+
+    /// <summary>파티 설정 화면 제목의 "[0] 파티명": 누르면 파티 이름을 바꾼다.</summary>
+    public const string RenamePartyEntryCode = "0";
+
+    /// <summary>파티 이름의 최대 글자 수.</summary>
+    public const int MaxPartyNameLength = 20;
+
+    /// <summary>파티 이름을 바꾸고 돌아갈 화면.</summary>
+    Screen partyRenameReturn = Screen.PartySetup;
 
     /// <summary>플레이어가 가진 파티 수: 파티-A ~ 파티-P. 파티끼리는 캐릭터도 장비도 공유할 수 없다(다른 전투에 파견하기 위함).</summary>
     public const int PartyCount = 16;
@@ -490,23 +503,27 @@ public sealed partial class GameSession
                         .ToList();
                 case Screen.PartySetup:
                     // 슬롯 번호 1~9를 입력하거나 슬롯의 이름/아이콘을 클릭하면 그 슬롯에 배치할 캐릭터 목록으로 간다.
-                    return PartySlotViews
+                    return RenamePartyEntries()
+                        .Concat(PartySlotViews
                         .Select(v => new ScreenEntry(
-                            (v.Slot + 1).ToString(), v.Name, Screen.CharacterSelect, Arg: v.Slot.ToString()))
+                            (v.Slot + 1).ToString(), v.Name, Screen.CharacterSelect, Arg: v.Slot.ToString())))
                         .Concat(PartySelectEntries(Screen.PartySetup))
                         .Concat(ModeEntries(Screen.PartySetup))
                         .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home))
                         .ToList();
                 case Screen.EquipmentSetup:
                     // 캐릭터가 있는 슬롯만 고를 수 있다. 이 화면에서 돌아가면 파티 설정이 아니라 홈으로 간다.
-                    return PartySlotViews
+                    return RenamePartyEntries()
+                        .Concat(PartySlotViews
                         .Where(v => !v.IsEmpty)
                         .Select(v => new ScreenEntry(
-                            (v.Slot + 1).ToString(), v.Name, Screen.EquipmentList, Arg: v.Slot.ToString()))
+                            (v.Slot + 1).ToString(), v.Name, Screen.EquipmentList, Arg: v.Slot.ToString())))
                         .Concat(PartySelectEntries(Screen.EquipmentSetup))
                         .Concat(ModeEntries(Screen.EquipmentSetup))
                         .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home))
                         .ToList();
+                case Screen.PartyRename:
+                    return [new ScreenEntry(BackEntryCode, "돌아가기", partyRenameReturn)];
                 case Screen.EquipmentList:
                     // 그 캐릭터가 가진 장비 슬롯(슬롯 코드를 입력하거나 클릭하면 그 슬롯에 낄 수 있는 장비 목록으로 간다).
                     return CurrentEquipmentSlots
@@ -588,6 +605,7 @@ public sealed partial class GameSession
     public ScreenEntry? Activate(string code)
     {
         Message = null;
+        if (Screen == Screen.PartyRename && code.Trim() != BackEntryCode) return RenamePartyTo(code);   // 쓴 글이 새 이름이다
         code = Normalize(code);
         var entry = Entries.Concat(HomeSlotEntries).FirstOrDefault(e => e.Code == code);
         if (entry is { Enabled: false }) return entry;       // 회색 항목은 눌러도 아무 반응이 없다
@@ -635,6 +653,10 @@ public sealed partial class GameSession
                 CurrentSlot = null;
                 Screen = entry.Target;
                 break;
+            case EntryAction.RenameParty:
+                partyRenameReturn = Screen;
+                Screen = entry.Target;
+                break;
             case EntryAction.SelectParty:
                 CurrentPartyIndex = int.Parse(entry.Arg!, CultureInfo.InvariantCulture);
                 Screen = entry.Target;
@@ -677,6 +699,28 @@ public sealed partial class GameSession
     /// 파티 설정 화면의 파티 선택 버튼 열여섯 개: [11] 파티-A ~ [26] 파티-P. 지금 보는 파티의 버튼은 선택할 수 없다(파란색).
     /// 고르면 그 파티를 보고(같은 화면에 머문다) 슬롯과 캐릭터 배치, 장비 착용은 그 파티를 따른다.
     /// </summary>
+    /// <summary>파티 설정 화면 제목의 "[0] 파티명" 항목 하나: 누르면 파티 이름 변경 화면으로 간다.</summary>
+    IEnumerable<ScreenEntry> RenamePartyEntries() =>
+        [new ScreenEntry(RenamePartyEntryCode, PartyName, Screen.PartyRename, EntryAction.RenameParty)];
+
+    /// <summary>
+    /// 파티 이름 변경 화면에서 입력칸에 쓴 글을 새 이름으로 받는다: 앞뒤 공백을 없앤 글이 비어 있으면 그대로 두고,
+    /// <see cref="MaxPartyNameLength"/>자를 넘으면 안내만 하고, 아니면 이름을 바꿔 들어온 화면으로 돌아간다.
+    /// </summary>
+    ScreenEntry? RenamePartyTo(string typed)
+    {
+        var name = typed.Trim();
+        if (name.Length == 0) return null;
+        if (name.Length > MaxPartyNameLength)
+        {
+            Message = $"파티 이름은 {MaxPartyNameLength}자까지입니다.";
+            return null;
+        }
+        PartyName = name;
+        Screen = partyRenameReturn;
+        return new ScreenEntry(RenamePartyEntryCode, name, Screen, EntryAction.RenameParty);
+    }
+
     IEnumerable<ScreenEntry> PartySelectEntries(Screen screen) =>
         Parties.Select((p, i) => new ScreenEntry(
             (PartySelectCodeBase + i).ToString(CultureInfo.InvariantCulture), p.Name, screen, EntryAction.SelectParty,

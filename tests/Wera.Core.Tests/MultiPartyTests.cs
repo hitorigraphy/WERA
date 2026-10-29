@@ -141,4 +141,70 @@ public class MultiPartyTests
         Assert.Equal(0, loaded.CurrentPartyIndex);
         Assert.Equal("파티-B", loaded.Parties[1].Name);
     }
+
+    // ---- 파티 이름 변경: 제목의 [0] 파티명 ----
+
+    [Fact]
+    public void Zero_opens_the_rename_screen_and_the_typed_text_becomes_the_party_name()
+    {
+        var s = Session();
+        s.Activate("105");
+        var title = s.Entries.Single(e => e.Code == "0");
+        Assert.Equal(("파티-A", EntryAction.RenameParty), (title.Label, title.Action));
+
+        s.Activate("0");
+        Assert.Equal(Screen.PartyRename, s.Screen);
+        Assert.Equal(["999"], s.Entries.Select(e => e.Code));
+        s.Activate("정예 부대");
+        Assert.Equal(Screen.PartySetup, s.Screen);                 // 들어온 화면으로 돌아간다
+        Assert.Equal("정예 부대", s.PartyName);
+        Assert.Equal("정예 부대", s.Entries.Single(e => e.Code == "0").Label);
+        Assert.Equal("정예 부대", s.Entries.Single(e => e.Action == EntryAction.SelectParty && !e.Enabled).Label);
+        Assert.Equal("파티-B", s.Parties[1].Name);                 // 다른 파티는 그대로
+    }
+
+    [Fact]
+    public void The_rename_returns_to_where_it_started_and_back_keeps_the_name()
+    {
+        var s = Session();
+        s.Party[0] = 7001;
+        s.Activate("105"); s.Activate("102");                      // 장비 착용 화면
+        s.Activate("0");
+        Assert.Equal(Screen.PartyRename, s.Screen);
+        s.Activate("999");                                         // 돌아가기: 이름은 그대로
+        Assert.Equal(Screen.EquipmentSetup, s.Screen);
+        Assert.Equal("파티-A", s.PartyName);
+
+        s.Activate("0");
+        s.Activate("007");                                         // 숫자도 이름이 된다(앞자리 0을 없애지 않는다)
+        Assert.Equal(Screen.EquipmentSetup, s.Screen);
+        Assert.Equal("007", s.PartyName);
+    }
+
+    [Fact]
+    public void An_empty_or_too_long_name_changes_nothing()
+    {
+        var s = Session();
+        s.Activate("105"); s.Activate("0");
+        Assert.Null(s.Activate("   "));
+        Assert.Equal(Screen.PartyRename, s.Screen);
+        Assert.Null(s.Activate(new string('가', GameSession.MaxPartyNameLength + 1)));
+        Assert.Equal(Screen.PartyRename, s.Screen);
+        Assert.Contains("20자", s.Message);
+        Assert.Equal("파티-A", s.PartyName);
+
+        s.Activate(new string('가', GameSession.MaxPartyNameLength));
+        Assert.Equal(new string('가', GameSession.MaxPartyNameLength), s.PartyName);
+    }
+
+    [Fact]
+    public void Renaming_follows_the_party_being_viewed()
+    {
+        var s = Session();
+        s.Activate("105"); s.Activate("13");                       // 파티-C
+        s.Activate("0"); s.Activate("순찰대");
+        Assert.Equal("순찰대", s.Parties[2].Name);
+        Assert.Equal("파티-A", s.Parties[0].Name);
+        Assert.Equal("순찰대", GameSession.FromSaveJson(s.Pack, s.ToSaveJson()).Parties[2].Name);
+    }
 }

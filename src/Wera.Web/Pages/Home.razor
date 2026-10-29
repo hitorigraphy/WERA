@@ -21,8 +21,11 @@
     // 지금 보는 파티와 지금 모드의 버튼은 파란색으로 눌리지 않고, 고를 수 있는 다른 것은 흰색이다.
     RenderFragment partyCommands = @<div class="party-commands">
         <div class="party-select">@entryList(session!.Entries.Where(e => e.Action == EntryAction.SelectParty))</div>
-        <div class="party-modes">@entryList(session!.Entries.Where(e => e.Arg is null && e.Target != Screen.Home))</div>
+        <div class="party-modes">@entryList(session!.Entries.Where(e => e.Action == EntryAction.Navigate && e.Arg is null && e.Target != Screen.Home))</div>
     </div>;
+
+    // 파티 설정 화면 제목의 "[0] 파티명": 누르면(또는 0을 입력하면) 파티 이름을 바꾼다.
+    RenderFragment partyNameButton = @<button class="textlink" @onclick="() => Activate(GameSession.RenamePartyEntryCode)">[@GameSession.RenamePartyEntryCode] @session!.PartyName</button>;
 
     RenderFragment commands = @<div class="commands">
         @entryList(session!.Entries)
@@ -237,15 +240,25 @@
                 break;
 
             case Screen.PartySetup:
-                <h2>파티 설정</h2>
+                <h2>파티 설정 : @partyNameButton</h2>
                 @partyGrid(false)
                 @partyCommands
                 break;
 
             case Screen.EquipmentSetup:
-                <h2>파티 설정</h2>
+                <h2>파티 설정 : @partyNameButton</h2>
                 @partyGrid(true)
                 @partyCommands
+                break;
+
+            case Screen.PartyRename:
+                <h2>파티 설정 : 이름 변경</h2>
+                <p>현재 이름: @session.PartyName</p>
+                <p>새 이름을 입력하고 Enter를 누르세요(최대 @(GameSession.MaxPartyNameLength)자).</p>
+                @if (session.Message is not null)
+                {
+                    <p class="message" role="status">@session.Message</p>
+                }
                 break;
 
             case Screen.EquipmentList:
@@ -490,6 +503,7 @@
     string CommandPlaceholder => session?.Screen switch
     {
         Screen.PartySetup => "슬롯 번호 1~9(왼쪽 위부터)를 입력하고 Enter",
+        Screen.PartyRename => "새 파티 이름을 입력하고 Enter",
         _ => "코드를 입력하고 Enter",
     };
 

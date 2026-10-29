@@ -111,7 +111,7 @@ public class PartyTests
         s.Activate("105");
         Assert.Equal(Screen.PartySetup, s.Screen);
         Assert.Equal(
-            ["1", "2", "3", "4", "5", "6", "7", "8", "9", .. Enumerable.Range(11, 16).Select(c => c.ToString()), "101", "102", "999"],
+            ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", .. Enumerable.Range(11, 16).Select(c => c.ToString()), "101", "102", "999"],
             s.Entries.Select(e => e.Code));
         Assert.Null(s.Activate("105"));
         Assert.NotNull(s.Activate("999"));
@@ -416,7 +416,7 @@ public class PartyTests
         s.Party[0] = 7001;
         Assert.Null(s.Activate("0"));                          // 홈
         s.Activate("105");
-        Assert.Null(s.Activate("0"));                          // 파티 설정 (슬롯 번호는 1~9)
+        Assert.Equal(EntryAction.RenameParty, s.Activate("0")!.Action);   // 파티 설정의 [0]은 파티 이름 변경이다(비우기가 아님)
         Assert.Equal(7001, s.Party[0]);
     }
 
