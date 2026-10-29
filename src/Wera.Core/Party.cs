@@ -84,7 +84,7 @@ public sealed record StatusBadge(long StatusEffectCode, string Name);
 /// </summary>
 public sealed record PartySlotView(
     int Slot, long? CharacterCode, string LevelText, string Name, GaugeView Hp, GaugeView Xp,
-    IReadOnlyList<AttributeBadge> Badges, IReadOnlyList<StatusBadge> StatusBadges, bool IsLeader = false)
+    IReadOnlyList<AttributeBadge> Badges, IReadOnlyList<StatusBadge> StatusBadges, bool IsLeader = false, bool IsSelected = false)
 {
     public const string EmptyName = "빈 슬롯";
 

@@ -59,8 +59,16 @@ public enum EntryAction
     ToggleLeader,
     /// <summary>전투(임시)를 시작한다: 정해진 전투의 적 파티를 뽑고 작전 화면으로 간다.</summary>
     StartBattle,
-    /// <summary>작전 화면의 커맨드([101] 이전 캐릭터 ~ [106] 퇴각). 아직 동작은 없다.</summary>
+    /// <summary>작전 화면의 커맨드 중 아직 동작이 없는 것([103] 상태 확인, [105] 아이템, [106] 실행).</summary>
     BattleCommand,
+    /// <summary>이전(-1)/다음(1) 캐릭터(Arg)로 보는 캐릭터를 옮긴다.</summary>
+    BattleSelectCharacter,
+    /// <summary>행동 설정: 커맨드를 보는 캐릭터의 행동 후보로 바꾸고 화면을 적 3 / 아군 1로 바꾼다.</summary>
+    BattleOpenActions,
+    /// <summary>행동 후보에서 스킬(Arg)을 고른다.</summary>
+    BattleChooseSkill,
+    /// <summary>행동 후보에서 나와 기본 커맨드로 돌아간다.</summary>
+    BattleCancelActions,
     /// <summary>작전 화면을 위(-1)나 아래(1) 구성으로 바로 넘긴다(Arg): 적 3 / 아군 1 ↔ 적 1 / 아군 3.</summary>
     BattleScroll,
     /// <summary>파티 이름 변경 화면으로 간다(들어온 화면을 기억해 두었다가 끝나면 돌아간다).</summary>
@@ -720,6 +728,18 @@ public sealed partial class GameSession
                 break;
             case EntryAction.BattleCommand:
                 break;                                 // 아직 동작이 없다
+            case EntryAction.BattleSelectCharacter:
+                SelectBattleCharacter(int.Parse(entry.Arg!, CultureInfo.InvariantCulture));
+                break;
+            case EntryAction.BattleOpenActions:
+                OpenBattleActionCandidates();
+                break;
+            case EntryAction.BattleChooseSkill:
+                ChooseBattleSkill(int.Parse(entry.Arg!, CultureInfo.InvariantCulture));
+                break;
+            case EntryAction.BattleCancelActions:
+                BattleCommands = BattleCommandMode.Basic;
+                break;
             case EntryAction.BattleScroll:
                 ScrollBattle(int.Parse(entry.Arg!, CultureInfo.InvariantCulture));
                 break;

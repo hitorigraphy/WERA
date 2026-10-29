@@ -5,7 +5,6 @@ namespace Wera.Core.Tests;
 // [110] 전투(임시): 정해진 전투(5001)를 시작하고 작전 화면(슬롯 네 줄과 가운데 영역)을 그린다.
 public class BattleScreenTests
 {
-    // 예시 게임팩의 전투 5001: 적 파티 1(전사 둘, 마법사 둘; 가중치 1)과 적 파티 2(전사 하나; 가중치 3).
     static GamePack SamplePack()
     {
         var root = AppContext.BaseDirectory;
@@ -14,25 +13,42 @@ public class BattleScreenTests
         return GamePack.Load(zip);
     }
 
-    static GameSession Started(long roll = 0)
+    // 예시 게임팩의 전투 5001: 적 파티 1(전사 둘, 마법사 둘; 가중치 1)과 적 파티 2(전사 하나; 가중치 3).
+    static GameSession Started(long roll = 0, bool twoUnits = false)
     {
         var s = GameSession.NewGame(SamplePack());
         s.NextRandom = _ => roll;
         s.Activate("105"); s.Activate("1"); s.Activate("1"); s.Activate("999");     // 파티-A의 첫 칸에 당신(리더 태그 있음) → 리더
+        if (twoUnits)
+        {
+            s.AddCharacter(7001);
+            s.Party[1] = 7001;                                                       // 둘째 칸에 용사(리더가 아닌 유닛)
+        }
         Assert.NotNull(s.Activate("110"));
         return s;
     }
 
-    static IEnumerable<string> Titles(GameSession s) => s.BattleRows.Select(r => r.Kind == BattleRowKind.Border ? "|" : (r.IsEnemy ? "적 " : "아군 ") + r.Title);
+    static string Titles(GameSession s) =>
+        string.Join(",", s.BattleRows.Select(r => r.Kind == BattleRowKind.Border ? "|" : (r.IsEnemy ? "적 " : "아군 ") + r.Title));
+
+    static IEnumerable<string> BattleCodes(GameSession s) => s.Entries.Where(e => e.Code != "999").Select(e => e.Code);
+
+    static ScreenEntry Entry(GameSession s, string code) => s.Entries.Single(e => e.Code == code);
+
+    static IReadOnlyList<PartySlotView> AllyFront(GameSession s) =>
+        s.BattleRows.First(r => !r.IsEnemy && r.Kind == BattleRowKind.Slots).Slots;
+
+    const string EnemyHeavy = "적 후위,적 중위,적 전위,|,아군 전위";
+    const string AllyHeavy = "적 전위,|,아군 전위,아군 중위,아군 후위";
 
     [Fact]
-    public void Entering_shows_enemy_back_middle_front_then_the_border_then_the_ally_front()
+    public void Entering_forces_enemy_one_ally_three_because_a_turn_has_begun()
     {
         var s = Started();
         Assert.Equal(Screen.Battle, s.Screen);
         Assert.Equal(GameSession.TemporaryBattleCode, s.CurrentBattleCode);
-        Assert.Equal(0, s.BattleTop);
-        Assert.Equal(["적 후위", "적 중위", "적 전위", "|", "아군 전위"], Titles(s));
+        Assert.Equal(GameSession.BattleTopAllyHeavy, s.BattleTop);
+        Assert.Equal(AllyHeavy, Titles(s));
     }
 
     [Fact]
@@ -40,6 +56,7 @@ public class BattleScreenTests
     {
         var s = Started(roll: 0);                                  // 가중치 1짜리 적 파티 1
         Assert.Equal(1, s.CurrentEnemyPartyCode);
+        s.Activate("1000");                                        // 적 3 / 아군 1 구성으로
         var rows = s.BattleRows;
         Assert.Equal(["빈 슬롯", "마법사", "빈 슬롯"], rows[0].Slots.Select(v => v.Name));       // 적 후위: 가운데
         Assert.Equal(["빈 슬롯", "마법사", "빈 슬롯"], rows[1].Slots.Select(v => v.Name));       // 적 중위: 가운데
@@ -73,37 +90,31 @@ public class BattleScreenTests
     public void The_buttons_jump_between_enemy_three_ally_one_and_enemy_one_ally_three()
     {
         var s = Started();
-        Assert.Equal([false, true], s.Entries.Where(e => e.Action == EntryAction.BattleScroll).Select(e => e.Enabled));
-        Assert.Equal(["101", "102", "103", "104", "105", "106", "1000", "1001", "999"], s.Entries.Select(e => e.Code));
-        Assert.Equal(["이전 캐릭터", "행동 설정", "상태 확인", "다음 캐릭터", "아이템", "퇴각"], s.Entries.Where(e => e.Action == EntryAction.BattleCommand).Select(e => e.Label));
-        foreach (var code in new[] { "101", "102", "103", "104", "105", "106" }) s.Activate(code);      // 아직 동작이 없다
-        Assert.Equal((Screen.Battle, 0), (s.Screen, s.BattleTop));
+        Assert.Equal(["101", "102", "103", "104", "105", "106", "1000", "1001"], BattleCodes(s));
+        Assert.Equal([true, false], s.Entries.Where(e => e.Action == EntryAction.BattleScroll).Select(e => e.Enabled));   // 지금 적 1 / 아군 3
         Assert.Equal(["▲", "▼"], s.Entries.Where(e => e.Action == EntryAction.BattleScroll).Select(e => e.Label));
 
-        s.Activate("1001");                                        // 가운데 구성(적 중위부터)을 건너뛰고 바로 적 1 / 아군 3
-        Assert.Equal(GameSession.BattleTopAllyHeavy, s.BattleTop);
-        Assert.Equal(["적 전위", "|", "아군 전위", "아군 중위", "아군 후위"], Titles(s));
+        s.Activate("1000");                                        // 가운데 구성(적 중위부터)을 건너뛰고 바로 적 3 / 아군 1
+        Assert.Equal(GameSession.BattleTopEnemyHeavy, s.BattleTop);
+        Assert.Equal(EnemyHeavy, Titles(s));
         Assert.Equal(Screen.Battle, s.Screen);
-        Assert.Equal([true, false], s.Entries.Where(e => e.Action == EntryAction.BattleScroll).Select(e => e.Enabled));
-        s.Activate("1001");                                        // 이미 그 구성이면 반응이 없다
-        Assert.Equal(2, s.BattleTop);
+        Assert.Equal([false, true], s.Entries.Where(e => e.Action == EntryAction.BattleScroll).Select(e => e.Enabled));
+        s.Activate("1000");                                        // 이미 그 구성이면 반응이 없다
+        Assert.Equal(0, s.BattleTop);
 
-        s.Activate("1000");                                        // 바로 적 3 / 아군 1로
-        Assert.Equal(0, s.BattleTop);
-        Assert.Equal(["적 후위", "적 중위", "적 전위", "|", "아군 전위"], Titles(s));
-        s.Activate("1000");
-        Assert.Equal(0, s.BattleTop);
+        s.Activate("1001");
+        Assert.Equal(AllyHeavy, Titles(s));
     }
 
     [Fact]
-    public void Starting_again_returns_to_the_top_and_back_leaves_for_home()
+    public void Starting_again_returns_to_the_forced_view_and_back_leaves_for_home()
     {
         var s = Started();
-        s.Activate("1001"); s.Activate("1001");
+        s.Activate("1000");
         s.Activate("999");
         Assert.Equal(Screen.Home, s.Screen);
         s.Activate("110");
-        Assert.Equal(0, s.BattleTop);
+        Assert.Equal(GameSession.BattleTopAllyHeavy, s.BattleTop);
     }
 
     [Fact]
@@ -116,6 +127,116 @@ public class BattleScreenTests
         Assert.Equal(Screen.Battle, s.Screen);
         Assert.Null(s.CurrentBattleCode);
         Assert.Null(s.CurrentEnemyPartyCode);
-        Assert.Equal(["적 후위", "적 중위", "적 전위", "|", "아군 전위"], Titles(s));
+        Assert.Equal(AllyHeavy, Titles(s));
+    }
+
+    // ---- 보는 캐릭터와 행동 설정 ----
+
+    [Fact]
+    public void The_first_unit_is_the_character_being_set_and_its_name_is_selected_even_for_the_leader()
+    {
+        var s = Started(twoUnits: true);
+        Assert.Equal(0, s.BattleCurrentSlot);
+        var ally = AllyFront(s);
+        Assert.Equal([true, false, false], ally.Select(v => v.IsSelected));
+        Assert.True(ally[0].IsLeader);                             // 리더이지만 선택되어 파란색이다(화면은 selected가 leader를 덮어쓴다)
+        Assert.False(ally[1].IsLeader);
+    }
+
+    [Fact]
+    public void Previous_and_next_character_move_through_the_units_in_slot_order_and_wrap_and_force_the_view()
+    {
+        var s = Started(twoUnits: true);
+        s.Activate("1000");                                        // 자유롭게 적 3 / 아군 1로 바꿔 두었다
+        s.Activate("104");                                         // 다음 캐릭터
+        Assert.Equal(1, s.BattleCurrentSlot);
+        Assert.Equal(GameSession.BattleTopAllyHeavy, s.BattleTop); // 강제로 적 1 / 아군 3
+        var front = AllyFront(s);
+        Assert.Equal([false, true, false], front.Select(v => v.IsSelected));
+        Assert.True(front[0].IsLeader);                            // 리더는 선택되지 않았을 때 연두색
+
+        s.Activate("104");                                         // 끝에서 처음으로
+        Assert.Equal(0, s.BattleCurrentSlot);
+        s.Activate("1000");
+        s.Activate("101");                                         // 이전 캐릭터: 처음에서 끝으로
+        Assert.Equal(1, s.BattleCurrentSlot);
+        Assert.Equal(GameSession.BattleTopAllyHeavy, s.BattleTop);
+    }
+
+    [Fact]
+    public void Action_settings_swap_the_commands_for_skill_candidates_and_show_enemy_three_ally_one()
+    {
+        var s = Started(twoUnits: true);
+        s.Activate("102");
+        Assert.Equal(GameSession.BattleCommandMode.ActionCandidates, s.BattleCommands);
+        Assert.Equal(GameSession.BattleTopEnemyHeavy, s.BattleTop);
+        Assert.Equal(["101", "102", "103", "104", "106", "1000", "1001"], BattleCodes(s));
+        Assert.Equal(["스킬1", "스킬2", "스킬3", "스킬4", "취소"],
+            s.Entries.Where(e => e.Action is EntryAction.BattleChooseSkill or EntryAction.BattleCancelActions).Select(e => e.Label));
+
+        s.Activate("1001");                                        // 이후 ▲▼는 행동 후보에서도 자유롭다
+        Assert.Equal(GameSession.BattleTopAllyHeavy, s.BattleTop);
+        Assert.Equal(GameSession.BattleCommandMode.ActionCandidates, s.BattleCommands);
+        s.Activate("1000");
+        Assert.Equal(GameSession.BattleTopEnemyHeavy, s.BattleTop);
+    }
+
+    [Fact]
+    public void Choosing_a_skill_sets_the_action_and_returns_to_the_basic_commands_and_cancel_sets_nothing()
+    {
+        var s = Started(twoUnits: true);
+        s.Activate("102"); s.Activate("106");                      // 취소
+        Assert.Equal(GameSession.BattleCommandMode.Basic, s.BattleCommands);
+        Assert.Null(s.BattleActionOf(0));
+
+        s.Activate("102"); s.Activate("103");                      // 스킬3
+        Assert.Equal(3, s.BattleActionOf(0));
+        Assert.Equal(GameSession.BattleCommandMode.Basic, s.BattleCommands);
+        Assert.Equal(0, s.BattleCurrentSlot);                      // 보는 캐릭터는 그대로
+    }
+
+    [Fact]
+    public void Execute_is_gray_until_every_unit_has_an_action()
+    {
+        var s = Started(twoUnits: true);
+        Assert.Equal(("실행", false), (Entry(s, "106").Label, Entry(s, "106").Enabled));
+        Assert.False(s.BattleAllActionsSet);
+
+        s.Activate("102"); s.Activate("101");                      // 첫 유닛: 스킬1
+        Assert.False(Entry(s, "106").Enabled);                     // 둘째 유닛이 아직
+        s.Activate("104");                                         // 다음 캐릭터
+        s.Activate("102"); s.Activate("104");                      // 둘째 유닛: 스킬4
+        Assert.True(s.BattleAllActionsSet);
+        Assert.True(Entry(s, "106").Enabled);
+        Assert.Equal((1, 4), (s.BattleActionOf(0)!.Value, s.BattleActionOf(1)!.Value));
+
+        s.Activate("106");                                         // 아직 동작은 없다
+        Assert.Equal(Screen.Battle, s.Screen);
+    }
+
+    [Fact]
+    public void A_new_turn_clears_the_actions_and_starts_with_the_first_unit_again()
+    {
+        var s = Started(twoUnits: true);
+        s.Activate("102"); s.Activate("101");
+        s.Activate("104");
+        s.Activate("999");
+        s.Activate("110");                                         // 전투를 다시 시작: 새 턴
+        Assert.Null(s.BattleActionOf(0));
+        Assert.Equal(0, s.BattleCurrentSlot);
+        Assert.Equal(GameSession.BattleTopAllyHeavy, s.BattleTop);
+        Assert.Equal(GameSession.BattleCommandMode.Basic, s.BattleCommands);
+    }
+
+    [Fact]
+    public void With_a_single_unit_previous_and_next_stay_on_it()
+    {
+        var s = Started();
+        s.Activate("104");
+        Assert.Equal(0, s.BattleCurrentSlot);
+        s.Activate("101");
+        Assert.Equal(0, s.BattleCurrentSlot);
+        s.Activate("102"); s.Activate("102");
+        Assert.True(s.BattleAllActionsSet);                        // 유닛이 하나뿐이면 하나만 정하면 실행할 수 있다
     }
 }

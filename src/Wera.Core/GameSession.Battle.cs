@@ -23,15 +23,36 @@ public sealed partial class GameSession
     /// <summary>[110] 전투(임시)가 고정으로 시작하는 전투의 코드(전투 마스터).</summary>
     public const long TemporaryBattleCode = 5001;
 
-    /// <summary>
-    /// 작전 화면의 커맨드(아직 동작은 없다): 윗줄 [101] 이전 캐릭터, [102] 행동 설정, [103] 상태 확인 / 아랫줄 [104] 다음 캐릭터, [105] 아이템, [106] 퇴각.
-    /// 윗줄 오른쪽 끝에는 구성 전환 [1000] ▲, [1001] ▼가 있다.
-    /// </summary>
-    static readonly (string Code, string Label)[] BattleCommands =
-    [
-        ("101", "이전 캐릭터"), ("102", "행동 설정"), ("103", "상태 확인"),
-        ("104", "다음 캐릭터"), ("105", "아이템"), ("106", "퇴각"),
-    ];
+    /// <summary>작전 화면 아래의 커맨드가 지금 어떤 모습인가.</summary>
+    public enum BattleCommandMode
+    {
+        /// <summary>기본 커맨드: 윗줄 [101] 이전 캐릭터, [102] 행동 설정, [103] 상태 확인 / 아랫줄 [104] 다음 캐릭터, [105] 아이템, [106] 실행.</summary>
+        Basic,
+        /// <summary>행동 후보: 지금 보고 있는 캐릭터가 고를 수 있는 스킬들(지금은 고정으로 스킬1~4)과 [106] 취소.</summary>
+        ActionCandidates,
+    }
+
+    /// <summary>행동 후보의 스킬 이름. 사용 가능한 스킬 목록은 나중에 쓰고, 지금은 고정으로 스킬1~4다.</summary>
+    public static IReadOnlyList<string> BattleSkillNames { get; } = ["스킬1", "스킬2", "스킬3", "스킬4"];
+
+    /// <summary>지금 보고 있는(행동을 설정하는) 아군 캐릭터의 파티 슬롯 번호. 파티에 유닛이 없으면 null.</summary>
+    public int? BattleCurrentSlot { get; private set; }
+
+    /// <summary>지금 작전 화면 아래의 커맨드 모습.</summary>
+    public BattleCommandMode BattleCommands { get; private set; }
+
+    /// <summary>이번 턴에 아군 유닛(파티 슬롯 번호)마다 설정한 행동(스킬 번호 1~4). 설정하지 않은 유닛은 없다.</summary>
+    readonly Dictionary<int, int> battleActions = [];
+
+    /// <summary>슬롯의 아군 유닛이 이번 턴에 설정한 행동(스킬 번호). 설정하지 않았으면 null.</summary>
+    public int? BattleActionOf(int slot) => battleActions.TryGetValue(slot, out var skill) ? skill : null;
+
+    /// <summary>파티의 모든 유닛이 이번 턴의 행동을 설정했는가([106] 실행은 이때만 누를 수 있다).</summary>
+    public bool BattleAllActionsSet => BattleUnitSlots().All(battleActions.ContainsKey);
+
+    /// <summary>아군 파티에 유닛이 있는 슬롯 번호들(칸 순서).</summary>
+    List<int> BattleUnitSlots() =>
+        Enumerable.Range(0, PartySlotCount).Where(i => PartyInstance.Units[i] is not null).ToList();
 
     /// <summary>작전 화면 구분선 아래 오른쪽의 구성 전환 버튼 코드: [1000] ▲, [1001] ▼.</summary>
     public const string BattleScrollUpEntryCode = "1000";
@@ -57,16 +78,17 @@ public sealed partial class GameSession
 
     /// <summary>
     /// 작전 화면에서 맨 위에 보이는 줄의 번호: <see cref="BattleTopEnemyHeavy"/>(0; 적 후위, 적 중위, 적 전위, 경계선, 아군 전위)나
-    /// <see cref="BattleTopAllyHeavy"/>(2; 적 전위, 경계선, 아군 전위, 아군 중위, 아군 후위). 처음 들어가면 0이다.
+    /// <see cref="BattleTopAllyHeavy"/>(2; 적 전위, 경계선, 아군 전위, 아군 중위, 아군 후위). 턴이 시작될 때(전투를 시작할 때 포함)와
+    /// 이전/다음 캐릭터로 다른 캐릭터를 설정할 때는 2로 강제로 바뀌고, 행동 설정을 열 때는 0으로 바뀐다. 그 밖에는 ▲▼로 자유롭게 바꾼다.
     /// </summary>
     public int BattleTop { get; private set; }
 
     /// <summary>전투를 시작한다: 전투(<see cref="TemporaryBattleCode"/>)에 나올 수 있는 프리셋 파티를 가중치로 하나 뽑고 맨 위 줄로 돌아간다.</summary>
     void BeginBattle()
     {
-        BattleTop = 0;
         CurrentEnemyPartyCode = null;
         CurrentBattleCode = Pack.FindBattle(TemporaryBattleCode) is null ? null : TemporaryBattleCode;
+        BeginTurn();
         if (CurrentBattleCode is not { } battle) return;
 
         var candidates = Pack.BattleEnemiesOf(battle);
@@ -78,6 +100,47 @@ public sealed partial class GameSession
             if (roll < candidate.Weight) { CurrentEnemyPartyCode = candidate.PresetPartyCode; return; }
             roll -= candidate.Weight;
         }
+    }
+
+    /// <summary>
+    /// 턴을 시작한다(전투를 시작할 때도): 설정해 둔 행동을 모두 지우고, 첫 유닛을 보는 캐릭터로 삼고, 기본 커맨드로 돌아가며,
+    /// 화면을 적 1 / 아군 3으로 강제로 바꾼다(보는 캐릭터의 이름이 파란색으로 보인다).
+    /// </summary>
+    void BeginTurn()
+    {
+        battleActions.Clear();
+        BattleCurrentSlot = BattleUnitSlots() is { Count: > 0 } slots ? slots[0] : null;
+        BattleCommands = BattleCommandMode.Basic;
+        BattleTop = BattleTopAllyHeavy;
+    }
+
+    /// <summary>
+    /// 이전(-1)/다음(1) 캐릭터로 보는 캐릭터를 옮긴다(칸 순서이고 끝에서 처음으로 이어진다). 기본 커맨드로 돌아가고
+    /// 화면을 적 1 / 아군 3으로 강제로 바꾼다.
+    /// </summary>
+    void SelectBattleCharacter(int delta)
+    {
+        var slots = BattleUnitSlots();
+        if (slots.Count == 0) return;
+        var at = BattleCurrentSlot is { } current ? slots.IndexOf(current) : -1;
+        BattleCurrentSlot = slots[((at + delta) % slots.Count + slots.Count) % slots.Count];
+        BattleCommands = BattleCommandMode.Basic;
+        BattleTop = BattleTopAllyHeavy;
+    }
+
+    /// <summary>[102] 행동 설정: 커맨드가 보는 캐릭터의 행동 후보로 바뀌고 화면은 적 3 / 아군 1로 바뀐다.</summary>
+    void OpenBattleActionCandidates()
+    {
+        if (BattleCurrentSlot is null) return;
+        BattleCommands = BattleCommandMode.ActionCandidates;
+        BattleTop = BattleTopEnemyHeavy;
+    }
+
+    /// <summary>행동 후보에서 스킬을 고르면 보는 캐릭터의 이번 턴 행동이 그 스킬로 정해지고 기본 커맨드로 돌아간다.</summary>
+    void ChooseBattleSkill(int skill)
+    {
+        if (BattleCurrentSlot is { } slot) battleActions[slot] = skill;
+        BattleCommands = BattleCommandMode.Basic;
     }
 
     /// <summary>적 슬롯 하나의 표시: 프리셋 유닛의 캐릭터를 캐릭터 스테이터스 마스터의 레벨 0 값으로 보여 준다. 빈 칸은 빈 슬롯.</summary>
@@ -99,7 +162,7 @@ public sealed partial class GameSession
     {
         var enemy = CurrentEnemyPartyCode is { } code ? Pack.FindPresetParty(code) : null;
         var enemySlots = Enumerable.Range(0, PartySlotCount).Select(i => EnemySlotView(i, enemy?.UnitCodes[i])).ToList();
-        var allySlots = PartySlotViews;
+        var allySlots = PartySlotViews.Select(v => v with { IsSelected = v.Slot == BattleCurrentSlot }).ToList();     // 보는 캐릭터의 이름은 파란색
 
         BattleRowView Row(bool isEnemy, int rowInSide) => new(
             BattleRowKind.Slots, isEnemy, BattleRowTitle(rowInSide),
@@ -117,14 +180,35 @@ public sealed partial class GameSession
     /// <summary>지금 작전 화면에 보이는 줄들(<see cref="BattleWindowSize"/>개, <see cref="BattleTop"/>부터).</summary>
     public IReadOnlyList<BattleRowView> BattleRows => AllBattleRows().Skip(BattleTop).Take(BattleWindowSize).ToList();
 
-    /// <summary>작전 화면의 항목: 커맨드 [101]~[106], [1000] ▲(적 3 / 아군 1 구성으로, 그 구성일 때는 회색), [1001] ▼(적 1 / 아군 3 구성으로, 그 구성일 때는 회색), 돌아가기.</summary>
+    /// <summary>
+    /// 작전 화면의 항목: 기본 커맨드나 행동 후보, [1000] ▲(적 3 / 아군 1 구성으로, 그 구성일 때는 회색), [1001] ▼(적 1 / 아군 3 구성으로, 그 구성일 때는 회색), 돌아가기.
+    /// [106] 실행은 모든 유닛의 행동이 설정되어야 누를 수 있다(아직 동작은 없다).
+    /// </summary>
     IReadOnlyList<ScreenEntry> BattleEntries() =>
     [
-        .. BattleCommands.Select(c => new ScreenEntry(c.Code, c.Label, Screen.Battle, EntryAction.BattleCommand)),
+        .. BattleCommandEntries(),
         new ScreenEntry(BattleScrollUpEntryCode, "▲", Screen.Battle, EntryAction.BattleScroll, "-1", Enabled: BattleTop > 0),
         new ScreenEntry(BattleScrollDownEntryCode, "▼", Screen.Battle, EntryAction.BattleScroll, "1", Enabled: BattleTop < BattleTopAllyHeavy),
         new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home),
     ];
+
+    IEnumerable<ScreenEntry> BattleCommandEntries()
+    {
+        if (BattleCommands == BattleCommandMode.ActionCandidates)
+        {
+            for (var i = 0; i < BattleSkillNames.Count; i++)
+                yield return new ScreenEntry((101 + i).ToString(CultureInfo.InvariantCulture), BattleSkillNames[i], Screen.Battle,
+                    EntryAction.BattleChooseSkill, (i + 1).ToString(CultureInfo.InvariantCulture));
+            yield return new ScreenEntry("106", "취소", Screen.Battle, EntryAction.BattleCancelActions);
+            yield break;
+        }
+        yield return new ScreenEntry("101", "이전 캐릭터", Screen.Battle, EntryAction.BattleSelectCharacter, "-1");
+        yield return new ScreenEntry("102", "행동 설정", Screen.Battle, EntryAction.BattleOpenActions);
+        yield return new ScreenEntry("103", "상태 확인", Screen.Battle, EntryAction.BattleCommand);
+        yield return new ScreenEntry("104", "다음 캐릭터", Screen.Battle, EntryAction.BattleSelectCharacter, "1");
+        yield return new ScreenEntry("105", "아이템", Screen.Battle, EntryAction.BattleCommand);
+        yield return new ScreenEntry("106", "실행", Screen.Battle, EntryAction.BattleCommand, Enabled: BattleAllActionsSet);
+    }
 
     /// <summary>▲(음수)는 적 3 / 아군 1 구성으로, ▼(양수)는 적 1 / 아군 3 구성으로 바로 넘어간다(그 사이 구성은 보여 주지 않는다).</summary>
     void ScrollBattle(int delta) =>
