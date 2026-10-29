@@ -59,7 +59,7 @@ public enum EntryAction
     ToggleLeader,
     /// <summary>전투(임시)를 시작한다: 정해진 전투의 적 파티를 뽑고 작전 화면으로 간다.</summary>
     StartBattle,
-    /// <summary>작전 화면을 위(-1)나 아래(1)로 한 줄 스크롤한다(Arg).</summary>
+    /// <summary>작전 화면을 위(-1)나 아래(1) 구성으로 바로 넘긴다(Arg): 적 3 / 아군 1 ↔ 적 1 / 아군 3.</summary>
     BattleScroll,
     /// <summary>파티 이름 변경 화면으로 간다(들어온 화면을 기억해 두었다가 끝나면 돌아간다).</summary>
     RenameParty,

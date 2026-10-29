@@ -220,6 +220,7 @@ input.command { width: min(100%, 26rem); }
 .battle-border .bb-texts { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: center; }
 .bb-text-center { text-align: center; }
 .bb-text-right { text-align: right; }
+.battle-commands { margin-top: .6rem; padding-top: .6rem; border-top: 1px solid #888; min-height: 3rem; }   /* ▲▼ 다음의 구분선과 커맨드 영역 */
 .battle-scroll .entries { display: flex; justify-content: flex-end; gap: 1.2rem; margin-top: .6rem; }
 .row-label { grid-column: 1 / -1; margin-top: .3rem; padding-bottom: .15rem; border-bottom: 1px solid #444; color: #aaa; }
 .row-label:first-child { margin-top: 0; }

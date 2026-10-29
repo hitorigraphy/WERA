@@ -70,25 +70,26 @@ public class BattleScreenTests
     }
 
     [Fact]
-    public void The_scroll_buttons_move_the_window_one_row_at_a_time_through_all_seven_rows()
+    public void The_buttons_jump_between_enemy_three_ally_one_and_enemy_one_ally_three()
     {
         var s = Started();
         Assert.Equal([false, true], s.Entries.Where(e => e.Action == EntryAction.BattleScroll).Select(e => e.Enabled));
         Assert.Equal(["1000", "1001", "999"], s.Entries.Select(e => e.Code));
         Assert.Equal(["▲", "▼"], s.Entries.Where(e => e.Action == EntryAction.BattleScroll).Select(e => e.Label));
 
-        s.Activate("1001");
-        Assert.Equal(["적 중위", "적 전위", "|", "아군 전위", "아군 중위"], Titles(s));
-        Assert.Equal(Screen.Battle, s.Screen);
-        s.Activate("1001");
+        s.Activate("1001");                                        // 가운데 구성(적 중위부터)을 건너뛰고 바로 적 1 / 아군 3
+        Assert.Equal(GameSession.BattleTopAllyHeavy, s.BattleTop);
         Assert.Equal(["적 전위", "|", "아군 전위", "아군 중위", "아군 후위"], Titles(s));
+        Assert.Equal(Screen.Battle, s.Screen);
         Assert.Equal([true, false], s.Entries.Where(e => e.Action == EntryAction.BattleScroll).Select(e => e.Enabled));
-        s.Activate("1001");                                        // 더는 내려가지 않는다
+        s.Activate("1001");                                        // 이미 그 구성이면 반응이 없다
         Assert.Equal(2, s.BattleTop);
 
-        s.Activate("1000"); s.Activate("1000"); s.Activate("1000");
+        s.Activate("1000");                                        // 바로 적 3 / 아군 1로
         Assert.Equal(0, s.BattleTop);
         Assert.Equal(["적 후위", "적 중위", "적 전위", "|", "아군 전위"], Titles(s));
+        s.Activate("1000");
+        Assert.Equal(0, s.BattleTop);
     }
 
     [Fact]
