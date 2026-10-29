@@ -160,9 +160,6 @@ a.button, button.button { border-color: #666; }
 .slot-name:hover .slot-char, .slot-name:focus-visible .slot-char { text-decoration: underline; }
 .slot-level { flex: none; text-align: left; }
 .party-grid .slot-info { width: 20ch; }
-.slot-name.numbered { justify-content: flex-start; gap: 0; }   /* 파티 슬롯: 레벨 칸 뒤에 "[번호] 이름"을 왼쪽 정렬 */
-.slot-name.numbered .slot-level { width: 8ch; }
-.slot-name.numbered .slot-char { text-align: left; }
 .slot-char { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
 .gauge-line { white-space: pre; }
 .gauge-white { color: #fff; }

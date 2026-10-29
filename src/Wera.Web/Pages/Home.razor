@@ -111,8 +111,8 @@
             <div class="slot" data-slot="@slotCode">
                 <button class="slot-icon" title="@slot.Name" disabled="@(!enabled)" @onclick="() => Activate(slotCode)">@noImage</button>
                 <div class="slot-info">
-                    @* "Lv.XX    [x] 이름" (빈 슬롯은 레벨 자리가 비고 "[x] 빈 슬롯"): [x]는 슬롯 번호이고 입력해도 고를 수 있다 *@
-                    <button class="slot-name numbered" disabled="@(!enabled)" @onclick="() => Activate(slotCode)">
+                    @* "Lv.XX            [x] 이름"(레벨은 왼쪽, "[x] 이름"은 줄 오른쪽 끝; 빈 슬롯은 레벨 자리가 빔): [x]는 슬롯 번호이고 입력해도 고를 수 있다 *@
+                    <button class="slot-name" disabled="@(!enabled)" @onclick="() => Activate(slotCode)">
                         <span class="slot-level">@slot.LevelText</span><span class="slot-char">[@slotCode] @slot.Name</span>
                     </button>
                     <div class="gauge-line">HP : <span class="gauge gauge-@slot.Hp.Color.ToString().ToLowerInvariant()">@slot.Hp.Text</span></div>
