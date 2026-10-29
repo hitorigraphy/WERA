@@ -134,7 +134,7 @@ a.button, button.button { border-color: #666; }
 .party-grid { display: grid; grid-template-columns: repeat(3, max-content); gap: .9rem 1rem; margin: 1rem 0; overflow-x: auto; }
 .party-commands { margin-top: 1rem; padding-top: .6rem; border-top: 1px solid #888; }
 .party-select .entries, .party-modes .entries { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .15rem 1rem; }
-.party-select { margin-bottom: .6rem; }
+.party-select { margin-bottom: .6rem; padding-bottom: .6rem; border-bottom: 1px solid #888; }   /* 파티 목록과 모드 버튼 사이의 구분선 */
 .party-commands .textlink { color: #fff; }
 .party-commands .textlink:disabled { color: #7ab7ff; cursor: default; text-decoration: none; }   /* 지금 보고 있는 모드: 파란색, 눌리지 않음 */
 .communication { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); min-height: 12rem; }
@@ -159,7 +159,6 @@ a.button, button.button { border-color: #666; }
 .slot-name:disabled { color: #888; cursor: default; }   /* 고를 수 없는 슬롯(장비 착용 모드의 빈 슬롯): 회색, 눌리지 않음 */
 .slot-name:hover .slot-char, .slot-name:focus-visible .slot-char { text-decoration: underline; }
 .slot-level { flex: none; text-align: left; }
-.party-grid .slot-info { width: 20ch; }
 .slot-char { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
 .gauge-line { white-space: pre; }
 .gauge-white { color: #fff; }
