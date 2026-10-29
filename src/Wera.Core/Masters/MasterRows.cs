@@ -367,6 +367,65 @@ public record BattleRow
     public required string Name { get; init; }
 }
 
+[MemoryTable("preset_unit"), MessagePackObject(true)]
+public record PresetUnitRow
+{
+    [PrimaryKey] public required long Code { get; init; }
+    public required long CharacterCode { get; init; }
+}
+
+/// <summary>프리셋 유닛 장비: 복합키는 (프리셋 유닛, 장비 슬롯)이고, 보조키 프리셋 유닛 코드로 그 유닛의 장비 전부를 찾는다.</summary>
+[MemoryTable("preset_unit_equip"), MessagePackObject(true)]
+public record PresetUnitEquipRow
+{
+    [PrimaryKey(keyOrder: 0)]
+    [SecondaryKey(0), NonUnique]
+    public required long PresetUnitCode { get; init; }
+
+    [PrimaryKey(keyOrder: 1)] public required long EquipmentSlotCode { get; init; }
+    public required long ItemCode { get; init; }
+}
+
+/// <summary>프리셋 유닛 드롭: 복합키는 (프리셋 유닛, 아이템)이고, 보조키 프리셋 유닛 코드로 그 유닛의 드롭 전부를 찾는다.</summary>
+[MemoryTable("preset_unit_drop"), MessagePackObject(true)]
+public record PresetUnitDropRow
+{
+    [PrimaryKey(keyOrder: 0)]
+    [SecondaryKey(0), NonUnique]
+    public required long PresetUnitCode { get; init; }
+
+    [PrimaryKey(keyOrder: 1)] public required long ItemCode { get; init; }
+    public required long Amount { get; init; }
+}
+
+/// <summary>프리셋 파티: 진형 아홉 칸의 프리셋 유닛 코드(빈 칸은 null).</summary>
+[MemoryTable("preset_party"), MessagePackObject(true)]
+public record PresetPartyRow
+{
+    [PrimaryKey] public required long Code { get; init; }
+    public required long? FrontLeftUnitCode { get; init; }
+    public required long? FrontCenterUnitCode { get; init; }
+    public required long? FrontRightUnitCode { get; init; }
+    public required long? MiddleLeftUnitCode { get; init; }
+    public required long? MiddleCenterUnitCode { get; init; }
+    public required long? MiddleRightUnitCode { get; init; }
+    public required long? BackLeftUnitCode { get; init; }
+    public required long? BackCenterUnitCode { get; init; }
+    public required long? BackRightUnitCode { get; init; }
+}
+
+/// <summary>전투 적: 복합키는 (전투, 프리셋 파티)이고, 보조키 전투 코드로 그 전투에 나올 파티 전부를 찾는다.</summary>
+[MemoryTable("battle_enemy"), MessagePackObject(true)]
+public record BattleEnemyRow
+{
+    [PrimaryKey(keyOrder: 0)]
+    [SecondaryKey(0), NonUnique]
+    public required long BattleCode { get; init; }
+
+    [PrimaryKey(keyOrder: 1)] public required long PresetPartyCode { get; init; }
+    public required long Weight { get; init; }
+}
+
 [MemoryTable("status"), MessagePackObject(true)]
 public record StatusRow
 {

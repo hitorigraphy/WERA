@@ -170,8 +170,13 @@ public sealed partial class GamePack
         var communicationSoloFlows = LoadCommunicationSoloFlows(zip, communications, inventory, tags);
         var communicationDuoFlows = LoadCommunicationDuoFlows(zip, communications, inventory, tags);
         var communicationDefaultFlows = LoadCommunicationDefaultFlows(zip, communications, inventory, tags);
+        var presetUnits = LoadPresetUnits(zip, characterInventory);
+        var presetUnitEquips = LoadPresetUnitEquips(zip, presetUnits, equipmentSlots, inventory);
+        var presetUnitDrops = LoadPresetUnitDrops(zip, presetUnits, inventory);
+        var presetParties = LoadPresetParties(zip, presetUnits);
+        var battleEnemies = LoadBattleEnemies(zip, battles, presetParties);
 
-        return new GamePack
+        var pack = new GamePack
         {
             Id = Need("id"),
             Title = Need("title"),
@@ -207,15 +212,23 @@ public sealed partial class GamePack
             CommunicationSoloFlows = communicationSoloFlows,
             CommunicationDuoFlows = communicationDuoFlows,
             CommunicationDefaultFlows = communicationDefaultFlows,
+            PresetUnits = presetUnits,
+            PresetUnitEquips = presetUnitEquips,
+            PresetUnitDrops = presetUnitDrops,
+            PresetParties = presetParties,
+            BattleEnemies = battleEnemies,
             Masters = BuildMasters(
                 dungeons, dungeonConditions, shops, shopConditions, itemInventory, bunchInventory, characterInventory, attributes,
                 trades, tradeConditions, statusEffects, statusEffectEffects,
                 equipmentSlots, tags, uniqueItems, uniqueItemTags, commonItemTags, characterTags, equipmentSlotTags,
                 statuses, characterStatuses, timeSlots, turns,
                 events, eventConditions, eventFlows, advs, battles, advFlows, communicationGroups, communications,
-                communicationSoloFlows, communicationDuoFlows, communicationDefaultFlows),
+                communicationSoloFlows, communicationDuoFlows, communicationDefaultFlows,
+                presetUnits, presetUnitEquips, presetUnitDrops, presetParties, battleEnemies),
             EmbeddedEffects = embeddedEffects,
         };
+        pack.CheckPresetUnitEquips();
+        return pack;
     }
 
     /// <summary>

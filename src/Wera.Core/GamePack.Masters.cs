@@ -42,7 +42,9 @@ public sealed partial class GamePack
         List<AdvEntry>? advs, List<BattleEntry>? battles, List<AdvFlow>? advFlows,
         List<CommunicationGroupEntry>? communicationGroups, List<CommunicationEntry>? communications,
         List<CommunicationSoloFlow>? communicationSoloFlows, List<CommunicationDuoFlow>? communicationDuoFlows,
-        List<CommunicationDefaultFlow>? communicationDefaultFlows)
+        List<CommunicationDefaultFlow>? communicationDefaultFlows,
+        List<PresetUnit>? presetUnits, List<PresetUnitEquip>? presetUnitEquips, List<PresetUnitDrop>? presetUnitDrops,
+        List<PresetParty>? presetParties, List<BattleEnemy>? battleEnemies)
     {
         var builder = new DatabaseBuilder();
 
@@ -151,6 +153,21 @@ public sealed partial class GamePack
             Param1 = f.Param1, Param2 = f.Param2, Param3 = f.Param3, Text = f.Text, ForceName = f.ForceName,
         }).ToList());
         builder.Append((battles ?? []).Select(b => new BattleRow { Code = b.Code, Name = b.Name }).ToList());
+
+        builder.Append((presetUnits ?? []).Select(u => new PresetUnitRow { Code = u.Code, CharacterCode = u.CharacterCode }).ToList());
+        builder.Append((presetUnitEquips ?? []).Select(e => new PresetUnitEquipRow
+            { PresetUnitCode = e.PresetUnitCode, EquipmentSlotCode = e.EquipmentSlotCode, ItemCode = e.ItemCode }).ToList());
+        builder.Append((presetUnitDrops ?? []).Select(d => new PresetUnitDropRow
+            { PresetUnitCode = d.PresetUnitCode, ItemCode = d.ItemCode, Amount = d.Amount }).ToList());
+        builder.Append((presetParties ?? []).Select(p => new PresetPartyRow
+        {
+            Code = p.Code,
+            FrontLeftUnitCode = p.UnitCodes[0], FrontCenterUnitCode = p.UnitCodes[1], FrontRightUnitCode = p.UnitCodes[2],
+            MiddleLeftUnitCode = p.UnitCodes[3], MiddleCenterUnitCode = p.UnitCodes[4], MiddleRightUnitCode = p.UnitCodes[5],
+            BackLeftUnitCode = p.UnitCodes[6], BackCenterUnitCode = p.UnitCodes[7], BackRightUnitCode = p.UnitCodes[8],
+        }).ToList());
+        builder.Append((battleEnemies ?? []).Select(b => new BattleEnemyRow
+            { BattleCode = b.BattleCode, PresetPartyCode = b.PresetPartyCode, Weight = b.Weight }).ToList());
 
         var db = new MemoryDatabase(builder.Build());
         var result = db.Validate();
