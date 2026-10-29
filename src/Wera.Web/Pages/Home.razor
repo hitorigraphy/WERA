@@ -480,10 +480,16 @@
                             }
                             else
                             {
+                                @* 가운데 영역: 세 칸의 넓이가 1/3씩이고 사선(30도)으로 나뉜다. 적 파티명은 위쪽 경계선이 없어 적 파티에, 아군 파티명은 아래쪽 경계선이 없어 아군 파티에 속해 보인다 *@
                                 <div class="battle-border">
-                                    <span class="battle-border-left">@row.LeftText</span>
-                                    <span class="battle-border-center">@row.CenterText</span>
-                                    <span class="battle-border-right">@row.RightText</span>
+                                    <span class="bb-line-left"></span>
+                                    <span class="bb-line-right"></span>
+                                    <span class="bb-slash"></span>
+                                    <div class="bb-texts">
+                                        <span class="bb-text-left">@row.LeftText</span>
+                                        <span class="bb-text-center">@row.CenterText</span>
+                                        <span class="bb-text-right">@row.RightText</span>
+                                    </div>
                                 </div>
                             }
                         }
