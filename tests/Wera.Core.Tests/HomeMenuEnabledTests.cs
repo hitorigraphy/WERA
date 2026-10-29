@@ -35,9 +35,9 @@ public class HomeMenuEnabledTests
         var s = GameSession.NewGame(Pack());
         Assert.False(Enabled(s, "101"));
         Assert.False(Enabled(s, "102"));
-        foreach (var e in s.Entries.Where(e => e.Code is not ("101" or "102")))
+        foreach (var e in s.Entries.Where(e => e.Code is not ("101" or "102" or "110")))
             Assert.True(e.Enabled, e.Code);
-        Assert.Equal(["101", "102", "103", "104", "105"], s.HomeMenu[0].Entries.Select(e => e.Code));
+        Assert.Equal(["101", "102", "103", "104", "105", "110"], s.HomeMenu[0].Entries.Select(e => e.Code));
     }
 
     [Fact]
@@ -92,6 +92,6 @@ public class HomeMenuEnabledTests
         var s = GameSession.NewGame(GamePack.Load(zip));
         Assert.True(Enabled(s, "101"));
         Assert.True(Enabled(s, "102"));
-        Assert.All(s.Entries, e => Assert.True(e.Enabled));
+        Assert.All(s.Entries.Where(e => e.Code != "110"), e => Assert.True(e.Enabled));      // 전투(임시)는 리더가 있는 파티가 있어야 열린다
     }
 }

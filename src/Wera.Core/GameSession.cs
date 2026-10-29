@@ -18,6 +18,8 @@ public enum Screen
     EquipmentSetup,
     /// <summary>파티 설정(리더 지정): 같은 3×3 슬롯. 리더 태그를 가진 캐릭터의 슬롯을 고르면 리더로 지정하거나 해제한다. 돌아가기는 홈.</summary>
     LeaderSetup,
+    /// <summary>전투(임시) 화면(110): 지금 보는 파티로 들어가는 전투 화면. 아직 내용이 없다. 돌아가기는 홈.</summary>
+    Battle,
     /// <summary>선택한 슬롯 캐릭터의 장비 슬롯 목록. 돌아가기는 장비 착용 화면.</summary>
     EquipmentList,
     /// <summary>선택한 장비 슬롯에 낄 수 있는 장비 목록(슬롯 태그 마스터에 부합하는 장비). 돌아가기는 장비 슬롯 목록.</summary>
@@ -129,6 +131,7 @@ public sealed partial class GameSession
     public const string EventEntryCode = "103";
     public const string InteractionEntryCode = "104";
     public const string PartyEntryCode = "105";
+    public const string BattleEntryCode = "110";
     public const string SaveEntryCode = "200";
     public const string CompanionCheckEntryCode = "201";
     public const string EquipmentCheckEntryCode = "202";
@@ -456,7 +459,7 @@ public sealed partial class GameSession
 
     /// <summary>
     /// 홈 화면의 메뉴: 구분선으로 나뉜 세 분류. [RPG] 던전(101, 입장 가능한 것이 없으면 회색), 상점(102, 열린 상점이 없으면 회색),
-    /// 이벤트(103), 교류(104), 파티 설정(105) / [정보] 동료 확인(201), 장비 확인(202), 아이템 확인(203) / [시스템] 세이브(200), 로드(300).
+    /// 이벤트(103), 교류(104), 파티 설정(105), 전투(임시)(110; 지금 보는 파티를 파견할 수 없으면 회색) / [정보] 동료 확인(201), 장비 확인(202), 아이템 확인(203) / [시스템] 세이브(200), 로드(300).
     /// 홈의 <see cref="Entries"/>는 이 분류들을 순서대로 이어 붙인 것이다.
     /// </summary>
     public IReadOnlyList<MenuGroup> HomeMenu
@@ -470,6 +473,8 @@ public sealed partial class GameSession
             rpg.Add(new ScreenEntry(EventEntryCode, "이벤트", Screen.Event));
             rpg.Add(new ScreenEntry(InteractionEntryCode, "교류", Screen.Interaction));
             rpg.Add(new ScreenEntry(PartyEntryCode, "파티 설정", Screen.PartySetup));
+            // 리더가 없는 파티는 던전(전투)에 파견할 수 없다: 지금 보는 파티가 파견 가능하지 않으면 회색이다.
+            rpg.Add(new ScreenEntry(BattleEntryCode, "전투(임시)", Screen.Battle, Enabled: IsDispatchable(CurrentPartyIndex)));
 
             return
             [
@@ -589,6 +594,7 @@ public sealed partial class GameSession
                 case Screen.CompanionCheck:
                 case Screen.EquipmentCheck:
                 case Screen.ItemCheck:
+                case Screen.Battle:
                     return [new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home)];
                 default:
                     return [];
@@ -684,7 +690,6 @@ public sealed partial class GameSession
                 break;
             case EntryAction.ClearSlot:
                 Party[CurrentSlot!.Value] = null;
-                EnsureLeaders();
                 CurrentSlot = null;
                 Screen = entry.Target;
                 break;
@@ -788,7 +793,6 @@ public sealed partial class GameSession
         if (at == slot) return;
         if (at >= 0) (units[at], units[slot]) = (units[slot], units[at]);
         else units[slot] = new PartyUnit(code, [], IsLeader: IsLeaderOnlySlot(slot));     // 아무도 없던 파티의 첫 유닛이나 리더 자리를 이은 유닛은 리더다
-        EnsureLeaders();
     }
 
     /// <summary>
@@ -805,20 +809,18 @@ public sealed partial class GameSession
     static int LeaderCount(PartyInstance party) => party.Units.Count(u => u is { IsLeader: true });
 
     /// <summary>
-    /// 유닛이 있는데 리더가 한 명도 없는 파티는 리더 태그를 가진 첫 유닛(칸 순서)을 리더로 삼는다(그런 유닛이 없으면 그대로).
-    /// 리더가 리더 태그를 잃으면 먼저 리더에서 빠진다.
+    /// 이 파티를 던전(전투)에 파견할 수 있는가: 리더가 한 명 이상 있어야 한다. 어떤 이유로 리더가 없는 파티(빈 파티, 리더가 리더 태그를 잃음,
+    /// 리더가 파티에서 빠짐)는 다른 유닛이 있어도 파견할 수 없고, 다른 유닛이 리더가 되지도 않는다(리더 지정에서 다시 지정해야 한다).
     /// </summary>
-    void EnsureLeaders()
+    public bool IsDispatchable(int partyIndex) => LeaderCount(Parties[partyIndex]) > 0;
+
+    /// <summary>리더가 리더 태그를 잃으면 리더에서 빠진다(리더 태그가 없는 리더는 없다). 다른 유닛이 대신 리더가 되지는 않는다.</summary>
+    void DropLeadersWithoutTag()
     {
         foreach (var party in Parties)
-        {
             for (var i = 0; i < party.Units.Length; i++)
                 if (party.Units[i] is { IsLeader: true } leader && !HasLeaderTag(leader.CharacterCode))
                     party.Units[i] = leader with { IsLeader = false };
-            if (party.Units.All(u => u is null) || LeaderCount(party) > 0) continue;
-            var first = Array.FindIndex(party.Units, u => u is not null && HasLeaderTag(u.CharacterCode));
-            if (first >= 0) party.Units[first] = party.Units[first]! with { IsLeader = true };
-        }
     }
 
     /// <summary>
@@ -986,7 +988,6 @@ public sealed partial class GameSession
                 if (party.Units[i]?.CharacterCode == characterCode) party.Units[i] = null;     // 유닛과 함께 장비가 빠져 보유로 돌아간다
         CharacterStatusEffects.Remove(characterCode);
         CharacterTagInstances.Remove(characterCode);
-        EnsureLeaders();
         return true;
     }
 
@@ -1201,14 +1202,12 @@ public sealed partial class GameSession
             throw new SaveFormatException("세이브의 파트너와 어시스트가 같은 캐릭터입니다.");
 
         // 불러오기는 저장된 화면과 상관없이 항상 홈으로 들어간다.
-        var loaded = new GameSession(pack, Screen.Home, playerFlags, inventory, characters, parties, statusEffects, uniqueItems, characterTags)
+        return new GameSession(pack, Screen.Home, playerFlags, inventory, characters, parties, statusEffects, uniqueItems, characterTags)
         {
             CurrentPartyIndex = currentParty,
             PartnerCode = save.Partner,
             AssistCode = save.Assist,
             TurnCount = save.Turn ?? pack.FirstTurn.TurnCount,
         };
-        loaded.EnsureLeaders();       // 리더 정보가 없던 예전 세이브는 리더 태그를 가진 첫 유닛이 리더가 된다
-        return loaded;
     }
 }

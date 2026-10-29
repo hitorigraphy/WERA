@@ -110,28 +110,30 @@ public class LeaderTests
     }
 
     [Fact]
-    public void A_leader_losing_the_leader_tag_passes_leadership_to_another_tagged_unit()
+    public void A_leader_losing_the_leader_tag_stops_being_a_leader_and_nobody_takes_over()
     {
         var s = Session();
         s.Activate("105"); s.Activate("1"); s.Activate("7001");
         s.Activate("2"); s.Activate("7003");
         Assert.True(s.RemoveCharacterTag(7001, GamePack.LeaderTagCode));
         Assert.False(s.PartyInstance.Units[0]!.IsLeader);
-        Assert.True(s.PartyInstance.Units[1]!.IsLeader);           // 리더 태그를 가진 다음 유닛이 리더가 된다
+        Assert.False(s.PartyInstance.Units[1]!.IsLeader);          // 다른 유닛이 대신 리더가 되지는 않는다
+        Assert.False(s.IsDispatchable(0));
     }
 
     [Fact]
-    public void Removing_the_leader_character_promotes_another_leader_tagged_unit()
+    public void Removing_the_leader_character_leaves_the_party_without_a_leader()
     {
         var s = Session();
         s.Activate("105"); s.Activate("1"); s.Activate("7001");
         s.Activate("2"); s.Activate("7003");
         Assert.True(s.RemoveCharacter(7001));
-        Assert.True(s.PartyInstance.Units[1]!.IsLeader);
+        Assert.False(s.PartyInstance.Units[1]!.IsLeader);
+        Assert.False(s.IsDispatchable(0));
     }
 
     [Fact]
-    public void Leaders_survive_the_save_and_old_saves_get_the_first_leader_tagged_unit_as_leader()
+    public void Leaders_survive_the_save_and_old_saves_without_leader_info_have_no_leader()
     {
         var s = Session();
         s.Activate("105"); s.Activate("1"); s.Activate("7001");
@@ -140,12 +142,13 @@ public class LeaderTests
         var loaded = GameSession.FromSaveJson(s.Pack, s.ToSaveJson());
         Assert.Equal([true, true], loaded.PartyInstance.Units.Take(2).Select(u => u!.IsLeader));
 
-        // 리더 정보가 없던 예전 세이브: 마법사(리더 태그 없음)가 앞에 있어도 리더 태그를 가진 첫 유닛이 리더가 된다
+        // 리더 정보가 없던 예전 세이브: 리더가 없는 파티로 읽는다(리더 지정에서 다시 지정한다)
         var old = GameSession.FromSaveJson(s.Pack,
             "{\"Version\":1,\"PackId\":\"demo\",\"Characters\":{\"7001\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xp\":0,\"XpMax\":10}," +
             "\"7002\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xp\":0,\"XpMax\":10},\"7003\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xp\":0,\"XpMax\":10}}," +
             "\"Party\":[7002,7003,7001]}");
-        Assert.Equal([false, true, false], old.PartyInstance.Units.Take(3).Select(u => u!.IsLeader));
+        Assert.Equal([false, false, false], old.PartyInstance.Units.Take(3).Select(u => u!.IsLeader));
+        Assert.False(old.IsDispatchable(0));
     }
 
     [Fact]
@@ -156,5 +159,48 @@ public class LeaderTests
             ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
             ("master/tag_master_v1.tsv", "tag_code\ttag_name\n1\t플레이어\n3\t메인 통화\n"))));
         Assert.Contains("리더", ex.Message);
+    }
+
+    // ---- 파견: 리더가 없는 파티는 던전(전투)에 파견할 수 없다 ----
+
+    [Fact]
+    public void A_party_without_a_leader_cannot_be_dispatched_and_the_battle_entry_is_gray()
+    {
+        var s = Session();
+        var battle = s.Entries.Single(e => e.Code == "110");
+        Assert.Equal(("전투(임시)", Screen.Battle, false), (battle.Label, battle.Target, battle.Enabled));   // 빈 파티: 리더 없음
+        s.Activate("110");
+        Assert.Equal(Screen.Home, s.Screen);                       // 회색 항목은 눌러도 반응이 없다
+
+        s.Activate("105"); s.Activate("1"); s.Activate("7001");   // 리더가 생겼다
+        s.Activate("999");
+        Assert.True(s.IsDispatchable(0));
+        Assert.True(s.Entries.Single(e => e.Code == "110").Enabled);
+        Assert.Equal(Screen.Battle, s.Activate("110")!.Target);
+        Assert.Equal(Screen.Battle, s.Screen);
+        s.Activate("999");
+        Assert.Equal(Screen.Home, s.Screen);
+    }
+
+    [Fact]
+    public void The_battle_entry_follows_the_party_being_viewed()
+    {
+        var s = Session();
+        s.Activate("105"); s.Activate("1"); s.Activate("7001");   // 파티-A: 리더 있음
+        s.Activate("12");                                          // 파티-B: 비어 있음
+        s.Activate("999");
+        Assert.False(s.IsDispatchable(1));
+        Assert.False(s.Entries.Single(e => e.Code == "110").Enabled);
+        s.Activate("105"); s.Activate("11"); s.Activate("999");
+        Assert.True(s.Entries.Single(e => e.Code == "110").Enabled);
+    }
+
+    [Fact]
+    public void A_party_with_units_but_no_leader_is_not_dispatchable()
+    {
+        var s = Session();
+        s.Party[0] = 7002;                                         // 코드로 리더 없이 편성(리더 지정 화면에서는 리더 태그가 있어야 지정)
+        Assert.False(s.IsDispatchable(0));
+        Assert.False(s.Entries.Single(e => e.Code == "110").Enabled);
     }
 }

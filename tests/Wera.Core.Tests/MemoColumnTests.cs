@@ -81,7 +81,7 @@ public class MemoColumnTests
         var s = GameSession.NewGame(pack);
         Assert.Equal(["테스트 던전"], s.AvailableDungeons.Select(d => d.Name));
         Assert.Equal(["테스트 상점"], s.AvailableShops.Select(x => x.Name));
-        Assert.Equal(["101", "102", "103", "104", "105", "201", "202", "203", "200", "300"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["101", "102", "103", "104", "105", "110", "201", "202", "203", "200", "300"], s.Entries.Select(e => e.Code));
     }
 
     [Fact]
