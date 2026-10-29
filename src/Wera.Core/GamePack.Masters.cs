@@ -161,7 +161,7 @@ public sealed partial class GamePack
             { PresetUnitCode = d.PresetUnitCode, ItemCode = d.ItemCode, Amount = d.Amount }).ToList());
         builder.Append((presetParties ?? []).Select(p => new PresetPartyRow
         {
-            Code = p.Code,
+            Code = p.Code, Name = p.Name,
             FrontLeftUnitCode = p.UnitCodes[0], FrontCenterUnitCode = p.UnitCodes[1], FrontRightUnitCode = p.UnitCodes[2],
             MiddleLeftUnitCode = p.UnitCodes[3], MiddleCenterUnitCode = p.UnitCodes[4], MiddleRightUnitCode = p.UnitCodes[5],
             BackLeftUnitCode = p.UnitCodes[6], BackCenterUnitCode = p.UnitCodes[7], BackRightUnitCode = p.UnitCodes[8],

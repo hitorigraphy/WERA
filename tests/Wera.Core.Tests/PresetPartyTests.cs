@@ -16,7 +16,7 @@ public class PresetPartyTests
     const string UniqueItemTags = "item_code\ttag_code\n8001\t4\n";
     const string Units = "code\tcharacter_code\n1\t7001\n2\t7002\n";
     const string PartyHeader =
-        "code\tfront_left_unit_code\tfront_center_unit_code\tfront_right_unit_code\tmiddle_left_unit_code\tmiddle_center_unit_code\t" +
+        "code\tname\tfront_left_unit_code\tfront_center_unit_code\tfront_right_unit_code\tmiddle_left_unit_code\tmiddle_center_unit_code\t" +
         "middle_right_unit_code\tback_left_unit_code\tback_center_unit_code\tback_right_unit_code\n";
 
     static (string, string)[] Base() =>
@@ -38,7 +38,7 @@ public class PresetPartyTests
         var pack = Load(
             (GamePack.PresetUnitEquipMasterPath, "preset_unit_code\tequipment_slot_code\titem_code\tmemo\n1\t1\t8001\t검\n"),
             (GamePack.PresetUnitDropMasterPath, "preset_unit_code\titem_code\tamount\n1\t2\t5\n1\t8002\t1\n"),
-            (GamePack.PresetPartyMasterPath, PartyHeader + "1\t1\t\t2\t\t\t\t\t\t\n2\t\t\t\t\t2\t\t\t\t\n"),
+            (GamePack.PresetPartyMasterPath, PartyHeader + "1\t셋\t1\t\t2\t\t\t\t\t\t\n2\t하나\t\t\t\t\t2\t\t\t\t\n"),
             (GamePack.BattleMasterPath, "code\tname\n5001\t전투\n"),
             (GamePack.BattleEnemyMasterPath, "battle_code\tpreset_party_code\tweight\n5001\t1\t1\n5001\t2\t3\n"));
 
@@ -51,6 +51,7 @@ public class PresetPartyTests
         // 진형 아홉 칸: 전위(왼, 가운데, 오른), 중위, 후위 순서. 비어 있으면 null
         Assert.Equal<long?>([1, null, 2, null, null, null, null, null, null], pack.FindPresetParty(1)!.UnitCodes);
         Assert.Equal<long?>([null, null, null, null, 2, null, null, null, null], pack.FindPresetParty(2)!.UnitCodes);
+        Assert.Equal(["셋", "하나"], [pack.FindPresetParty(1)!.Name, pack.FindPresetParty(2)!.Name]);
         Assert.Equal([new BattleEnemy(5001, 1, 1), new BattleEnemy(5001, 2, 3)], pack.BattleEnemiesOf(5001));
         Assert.Empty(pack.BattleEnemiesOf(9999));
     }
@@ -104,9 +105,9 @@ public class PresetPartyTests
     [Fact]
     public void Party_cells_are_known_units_or_blank_and_the_party_is_not_empty()
     {
-        Rejects("'9'가 프리셋 유닛 마스터에 없습니다", (GamePack.PresetPartyMasterPath, PartyHeader + "1\t9\t\t\t\t\t\t\t\t\n"));
-        Rejects("유닛이 하나도 없습니다", (GamePack.PresetPartyMasterPath, PartyHeader + "1\t\t\t\t\t\t\t\t\t\n"));
-        Rejects("중복", (GamePack.PresetPartyMasterPath, PartyHeader + "1\t1\t\t\t\t\t\t\t\t\n1\t2\t\t\t\t\t\t\t\t\n"));
+        Rejects("'9'가 프리셋 유닛 마스터에 없습니다", (GamePack.PresetPartyMasterPath, PartyHeader + "1\tA\t9\t\t\t\t\t\t\t\t\n"));
+        Rejects("유닛이 하나도 없습니다", (GamePack.PresetPartyMasterPath, PartyHeader + "1\tA\t\t\t\t\t\t\t\t\t\n"));
+        Rejects("중복", (GamePack.PresetPartyMasterPath, PartyHeader + "1\tA\t1\t\t\t\t\t\t\t\t\n1\tB\t2\t\t\t\t\t\t\t\t\n"));
         Rejects("헤더", (GamePack.PresetPartyMasterPath, "code\tfront_left_unit_code\n1\t1\n"));
     }
 
@@ -114,7 +115,7 @@ public class PresetPartyTests
     public void Battle_enemies_need_a_known_battle_a_known_party_and_a_positive_weight()
     {
         var battle = (GamePack.BattleMasterPath, "code\tname\n5001\t전투\n");
-        var party = (GamePack.PresetPartyMasterPath, PartyHeader + "1\t1\t\t\t\t\t\t\t\t\n");
+        var party = (GamePack.PresetPartyMasterPath, PartyHeader + "1\tA\t1\t\t\t\t\t\t\t\t\n");
         const string header = "battle_code\tpreset_party_code\tweight\n";
         Rejects("전투 코드 '9'", battle, party, (GamePack.BattleEnemyMasterPath, header + "9\t1\t1\n"));
         Rejects("프리셋 파티 코드 '9'", battle, party, (GamePack.BattleEnemyMasterPath, header + "5001\t9\t1\n"));

@@ -12,18 +12,18 @@ public sealed record PresetUnitEquip(long PresetUnitCode, long EquipmentSlotCode
 public sealed record PresetUnitDrop(long PresetUnitCode, long ItemCode, long Amount);
 
 /// <summary>
-/// 프리셋 파티 마스터의 한 행: 3×3 진형. <see cref="UnitCodes"/>는 아홉 칸이고 순서는
+/// 프리셋 파티 마스터의 한 행: 이름과 3×3 진형. <see cref="UnitCodes"/>는 아홉 칸이고 순서는
 /// 전위 왼쪽, 전위 가운데, 전위 오른쪽, 중위 왼쪽, 중위 가운데, 중위 오른쪽, 후위 왼쪽, 후위 가운데, 후위 오른쪽이다.
 /// 칸이 비어 있으면 null이다.
 /// </summary>
-public sealed record PresetParty(long Code, IReadOnlyList<long?> UnitCodes);
+public sealed record PresetParty(long Code, string Name, IReadOnlyList<long?> UnitCodes);
 
 /// <summary>전투 적 마스터의 한 행: 이 전투에 나올 수 있는 프리셋 파티와 그 가중치(1 이상).</summary>
 public sealed record BattleEnemy(long BattleCode, long PresetPartyCode, long Weight);
 
 // 전투 편성: preset_unit_master(code, character_code; code가 키), preset_unit_equip_master(preset_unit_code, equipment_slot_code, item_code; 앞의 두 열이 키),
 // preset_unit_drop_master(preset_unit_code, item_code, amount; 앞의 두 열이 키),
-// preset_party_master(code, front_left_unit_code ... back_right_unit_code; code가 키), battle_master(code, name; code가 키),
+// preset_party_master(code, name, front_left_unit_code ... back_right_unit_code; code가 키), battle_master(code, name; code가 키),
 // battle_enemy_master(battle_code, preset_party_code, weight; 앞의 두 열이 키).
 public sealed partial class GamePack
 {
@@ -160,7 +160,7 @@ public sealed partial class GamePack
         var unitCodes = units.Select(u => u.Code).ToHashSet();
         var rows = new List<PresetParty>();
         var seen = new HashSet<long>();
-        foreach (var r in Body(file, text, ["code", .. PresetPartyUnitColumns]))
+        foreach (var r in Body(file, text, ["code", "name", .. PresetPartyUnitColumns]))
         {
             var code = ParseLong(file, "프리셋 파티 코드", r[0]);
             if (!seen.Add(code))
@@ -168,7 +168,7 @@ public sealed partial class GamePack
             var slots = new long?[PresetPartyUnitColumns.Count];
             for (var i = 0; i < slots.Length; i++)
             {
-                var cell = r[i + 1].Trim();
+                var cell = r[i + 2].Trim();
                 if (cell.Length == 0) continue;
                 var unit = ParseLong(file, $"프리셋 파티 '{code}'의 {PresetPartyUnitColumns[i]}", cell);
                 if (!unitCodes.Contains(unit))
@@ -177,7 +177,7 @@ public sealed partial class GamePack
             }
             if (slots.All(s => s is null))
                 throw new PackFormatException($"{file}: 프리셋 파티 '{code}'에 유닛이 하나도 없습니다.");
-            rows.Add(new PresetParty(code, slots));
+            rows.Add(new PresetParty(code, r[1], slots));
         }
         return rows;
     }
@@ -260,7 +260,7 @@ public sealed partial class GamePack
 
     public PresetParty? FindPresetParty(long code) =>
         Masters.PresetPartyRowTable.TryFindByCode(code, out var r)
-            ? new PresetParty(r.Code,
+            ? new PresetParty(r.Code, r.Name,
             [
                 r.FrontLeftUnitCode, r.FrontCenterUnitCode, r.FrontRightUnitCode,
                 r.MiddleLeftUnitCode, r.MiddleCenterUnitCode, r.MiddleRightUnitCode,

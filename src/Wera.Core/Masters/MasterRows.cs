@@ -398,11 +398,12 @@ public record PresetUnitDropRow
     public required long Amount { get; init; }
 }
 
-/// <summary>프리셋 파티: 진형 아홉 칸의 프리셋 유닛 코드(빈 칸은 null).</summary>
+/// <summary>프리셋 파티: 이름과 진형 아홉 칸의 프리셋 유닛 코드(빈 칸은 null).</summary>
 [MemoryTable("preset_party"), MessagePackObject(true)]
 public record PresetPartyRow
 {
     [PrimaryKey] public required long Code { get; init; }
+    public required string Name { get; init; }
     public required long? FrontLeftUnitCode { get; init; }
     public required long? FrontCenterUnitCode { get; init; }
     public required long? FrontRightUnitCode { get; init; }
