@@ -196,16 +196,29 @@ public class TradeKindTests
     {
         var s = Session(coins: 0);
         s.AddCharacter(7002);
-        s.Party[4] = 7002;
         s.AddUniqueItem(8001);
-        s.Equip(7002, 1, 8001);                                       // 마법사에게는 슬롯이 없어 끼지 못한다(규칙 없음)
         s.AddCharacterTag(7002, 9);
 
         Assert.Equal("교환 완료: 마법사 ×1 → 금화 ×300", Trade(s, "5004"));
         Assert.False(s.Characters.ContainsKey(7002));
-        Assert.Null(s.Party[4]);
         Assert.False(s.CharacterTagInstances.ContainsKey(7002));
         Assert.Equal(300, s.InventoryItems[11].Amount);
+    }
+
+    [Fact]
+    public void A_character_set_in_a_party_cannot_be_paid()
+    {
+        var s = Session(coins: 0);
+        s.AddCharacter(7002);
+        s.Party[4] = 7002;                                            // 파티-A에 편성 중
+        Assert.StartsWith("교환 실패 - 파티에 편성된 캐릭터: 마법사", Blocked(s, "5004"));
+        Assert.True(s.Characters.ContainsKey(7002));
+
+        s.Activate("105"); s.Activate("12");                          // 다른 파티를 보고 있어도 마찬가지다
+        Assert.StartsWith("교환 실패 - 파티에 편성된 캐릭터: 마법사", Blocked(s, "5004"));
+
+        s.Parties[0].Units[4] = null;                                 // 파티에서 빼면 낼 수 있다
+        Assert.Equal("교환 완료: 마법사 ×1 → 금화 ×300", Trade(s, "5004"));
     }
 
     [Fact]

@@ -890,6 +890,8 @@ public sealed partial class GameSession
                     return $"교환 실패 - 플레이어는 낼 수 없습니다: {Pack.TradeTargetName(trade.CostKind, trade.CostItemCode)} [{text}]";
                 if (!Characters.ContainsKey(trade.CostItemCode))
                     return $"교환 실패 - 부족: {Pack.TradeTargetName(trade.CostKind, trade.CostItemCode)} (보유 0 / 필요 1) [{text}]";
+                if (PartyIndexOf(trade.CostItemCode) >= 0)
+                    return $"교환 실패 - 파티에 편성된 캐릭터: {Pack.TradeTargetName(trade.CostKind, trade.CostItemCode)} [{text}]";
                 if (EquippedCount(EquipRef.Char(trade.CostItemCode)) > 0)
                     return $"교환 실패 - 장비 슬롯에 끼워 둔 캐릭터: {Pack.TradeTargetName(trade.CostKind, trade.CostItemCode)} [{text}]";
                 paidCharacter = trade.CostItemCode;
