@@ -23,7 +23,7 @@ public class EquipmentOwnershipTests
     static GameSession InSelect(string partySlot, string equipmentSlot, params (long item, long count)[] owned)
     {
         var s = Session(owned);
-        s.Activate("105"); s.Activate("11"); s.Activate(partySlot); s.Activate(equipmentSlot);
+        s.Activate("105"); s.Activate("102"); s.Activate(partySlot); s.Activate(equipmentSlot);
         return s;
     }
 
@@ -163,11 +163,11 @@ public class EquipmentOwnershipTests
     public void The_party_has_a_name_that_survives_the_save()
     {
         var s = Session();
-        Assert.Equal(GameSession.DefaultPartyName, s.PartyName);
+        Assert.Equal(GameSession.DefaultPartyNameOf(0), s.PartyName);
         s.PartyName = "정예";
         var loaded = GameSession.FromSaveJson(s.Pack, s.ToSaveJson());
         Assert.Equal("정예", loaded.PartyName);
-        Assert.Equal(GameSession.DefaultPartyName, GameSession.FromSaveJson(s.Pack, "{\"Version\":1,\"PackId\":\"demo\"}").PartyName);
+        Assert.Equal(GameSession.DefaultPartyNameOf(0), GameSession.FromSaveJson(s.Pack, "{\"Version\":1,\"PackId\":\"demo\"}").PartyName);
     }
 
     [Fact]
@@ -181,7 +181,7 @@ public class EquipmentOwnershipTests
         Assert.Equal(9001, s.EquippedUniqueCode(7001, 1));
         Assert.Null(s.EquippedItemOf(7002, 1));
         Assert.Equal(1, s.FreeCopies(9003));
-        Assert.Equal(GameSession.DefaultPartyName, s.PartyName);
+        Assert.Equal(GameSession.DefaultPartyNameOf(0), s.PartyName);
         Assert.Equal(7001, s.PartyInstance.Units[0]!.CharacterCode);
     }
 
@@ -192,7 +192,7 @@ public class EquipmentOwnershipTests
     {
         var s = Session((9001, 1));
         s.Equip(7001, 1, 9001);
-        s.Activate("105"); s.Activate("11"); s.Activate("1");
+        s.Activate("105"); s.Activate("102"); s.Activate("1");
 
         Assert.Equal(["무기 : 철검", "방어구 : (없음)", "돌아가기"], s.Entries.Select(e => e.Label));
     }
@@ -302,7 +302,7 @@ public class EquipmentOwnershipTests
         // 지팡이 한 개를 마법사가 끼면, 용사의 목록에서는 사라진다.
         var s = Session((9003, 1), (9001, 1));
         s.Equip(7002, 1, 9003);
-        s.Activate("105"); s.Activate("11"); s.Activate("1"); s.Activate("1");
+        s.Activate("105"); s.Activate("102"); s.Activate("1"); s.Activate("1");
         Assert.Equal(["철검"], s.EquippableItems.Select(i => i.Name));
         Assert.Null(s.Activate("2"));
 

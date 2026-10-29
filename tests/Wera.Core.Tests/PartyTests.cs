@@ -110,7 +110,9 @@ public class PartyTests
         var s = Session();
         s.Activate("105");
         Assert.Equal(Screen.PartySetup, s.Screen);
-        Assert.Equal(["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "999"], s.Entries.Select(e => e.Code));
+        Assert.Equal(
+            ["1", "2", "3", "4", "5", "6", "7", "8", "9", .. Enumerable.Range(11, 16).Select(c => c.ToString()), "101", "102", "999"],
+            s.Entries.Select(e => e.Code));
         Assert.Null(s.Activate("105"));
         Assert.NotNull(s.Activate("999"));
         Assert.Equal(Screen.Home, s.Screen);
@@ -454,7 +456,7 @@ public class PartyTests
 
         var json = s.ToSaveJson();
         Assert.Contains("\"Characters\"", json);
-        Assert.Contains("\"PartyInstance\"", json);
+        Assert.Contains("\"Parties\"", json);
 
         var loaded = GameSession.FromSaveJson(pack, json);
         Assert.Equal(Screen.Home, loaded.Screen);

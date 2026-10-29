@@ -312,7 +312,7 @@ public class EquipmentTests
         foreach (var item in new long[] { 9001, 9002, 9003, 9004, 9005 }) s.AddUniqueItem(item);   // 장비는 하나씩 보유
         s.Party[8] = 7003;
         s.Activate("105");
-        s.Activate("11");
+        s.Activate("102");
         return s;
     }
 

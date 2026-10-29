@@ -17,9 +17,10 @@
         }
     </div>;
 
-    // 파티 설정 화면 아래: 구분선, 모드 버튼([10] 캐릭터 배치, [11] 장비 착용)을 4분할 위치에 가로로.
-    // 지금 모드의 버튼은 파란색으로 눌리지 않고, 고를 수 있는 다른 모드는 흰색이다.
+    // 파티 설정 화면 아래: 구분선, 파티 선택 버튼([11] 파티-A ~ [26] 파티-P, 한 줄에 4개씩), 모드 버튼([101] 캐릭터 배치, [102] 장비 착용)을 4분할 위치에 가로로.
+    // 지금 보는 파티와 지금 모드의 버튼은 파란색으로 눌리지 않고, 고를 수 있는 다른 것은 흰색이다.
     RenderFragment partyCommands = @<div class="party-commands">
+        <div class="party-select">@entryList(session!.Entries.Where(e => e.Action == EntryAction.SelectParty))</div>
         <div class="party-modes">@entryList(session!.Entries.Where(e => e.Arg is null && e.Target != Screen.Home))</div>
     </div>;
 
@@ -110,8 +111,9 @@
             <div class="slot" data-slot="@slotCode">
                 <button class="slot-icon" title="@slot.Name" disabled="@(!enabled)" @onclick="() => Activate(slotCode)">@noImage</button>
                 <div class="slot-info">
-                    <button class="slot-name" disabled="@(!enabled)" @onclick="() => Activate(slotCode)">
-                        <span class="slot-level">@slot.LevelText</span><span class="slot-char">@slot.Name</span>
+                    @* "Lv.XX    [x] 이름" (빈 슬롯은 레벨 자리가 비고 "[x] 빈 슬롯"): [x]는 슬롯 번호이고 입력해도 고를 수 있다 *@
+                    <button class="slot-name numbered" disabled="@(!enabled)" @onclick="() => Activate(slotCode)">
+                        <span class="slot-level">@slot.LevelText</span><span class="slot-char">[@slotCode] @slot.Name</span>
                     </button>
                     <div class="gauge-line">HP : <span class="gauge gauge-@slot.Hp.Color.ToString().ToLowerInvariant()">@slot.Hp.Text</span></div>
                     <div class="gauge-line">XP : <span class="gauge gauge-@slot.Xp.Color.ToString().ToLowerInvariant()">@slot.Xp.Text</span></div>

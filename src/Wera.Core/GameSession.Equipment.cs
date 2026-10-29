@@ -16,8 +16,8 @@ public sealed partial class GameSession
     /// </summary>
     public Dictionary<long, List<long>> CharacterTagInstances { get; }
 
-    /// <summary>파티의 유닛들(빈 칸 제외). 장비는 유닛이 가진다.</summary>
-    IEnumerable<PartyUnit> PartyUnits => PartyInstance.Units.OfType<PartyUnit>();
+    /// <summary>모든 파티의 유닛들(빈 칸 제외). 장비는 유닛이 가진다.</summary>
+    IEnumerable<PartyUnit> PartyUnits => Parties.SelectMany(p => p.Units).OfType<PartyUnit>();
 
     // ---- 유니크 아이템 인스턴스 ----
 
@@ -154,7 +154,7 @@ public sealed partial class GameSession
 
     /// <summary>파티에 있는 캐릭터의 슬롯에 끼고 있는 것. 비어 있거나 파티에 없는 캐릭터면 null.</summary>
     public EquipRef? EquippedItemOf(long characterCode, long equipmentSlotCode) =>
-        PartyInstance.UnitOf(characterCode) is { } unit && unit.Equipment.TryGetValue(equipmentSlotCode, out var item) ? item : null;
+        UnitOf(characterCode) is { } unit && unit.Equipment.TryGetValue(equipmentSlotCode, out var item) ? item : null;
 
     /// <summary>슬롯에 끼고 있는 것이 유니크 아이템이면 그 유니크 아이템 코드, 아니면 null.</summary>
     public long? EquippedUniqueCode(long characterCode, long equipmentSlotCode) =>
@@ -192,7 +192,7 @@ public sealed partial class GameSession
     /// </summary>
     public bool Equip(long characterCode, long equipmentSlotCode, EquipRef target)
     {
-        if (!Characters.ContainsKey(characterCode) || PartyInstance.UnitOf(characterCode) is not { } unit
+        if (!Characters.ContainsKey(characterCode) || UnitOf(characterCode) is not { } unit
             || !Fits(Pack, UniqueItemInstances, CharacterTagInstances, Characters, characterCode, equipmentSlotCode, target)) return false;
         if (EquippedItemOf(characterCode, equipmentSlotCode) == target) return true;
         if (FreeCopies(target) <= 0) return false;
@@ -208,7 +208,7 @@ public sealed partial class GameSession
     /// <summary>슬롯의 것을 뺀다(보유로 돌아간다). 낀 것이 없었으면 false.</summary>
     public bool Unequip(long characterCode, long equipmentSlotCode)
     {
-        return PartyInstance.UnitOf(characterCode) is { } unit && unit.Equipment.Remove(equipmentSlotCode);
+        return UnitOf(characterCode) is { } unit && unit.Equipment.Remove(equipmentSlotCode);
     }
 
     /// <summary>끼울 것의 이름. 마스터에 없으면 코드 그대로.</summary>

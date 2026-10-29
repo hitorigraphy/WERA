@@ -29,42 +29,44 @@ public class EquipmentFlowTests
     public void Party_setup_has_placement_and_equipment_mode_buttons_below_the_slots()
     {
         var s = Session();
-        var modes = s.Entries.Where(e => e.Code is "10" or "11").ToList();
+        var modes = s.Entries.Where(e => e.Code is "101" or "102").ToList();
         Assert.Equal(
-            [new ScreenEntry("10", "캐릭터 배치", Screen.PartySetup, Enabled: false), new ScreenEntry("11", "장비 착용", Screen.EquipmentSetup)],
+            [new ScreenEntry("101", "캐릭터 배치", Screen.PartySetup, Enabled: false), new ScreenEntry("102", "장비 착용", Screen.EquipmentSetup)],
             modes);                                                                // 지금 보고 있는 모드의 버튼은 선택할 수 없다
-        s.Activate("10");
+        s.Activate("101");
         Assert.Equal(Screen.PartySetup, s.Screen);
-        s.Activate("11");
+        s.Activate("102");
         Assert.Equal(
             [false, true],
-            s.Entries.Where(e => e.Code is "10" or "11").Select(e => !e.Enabled));
+            s.Entries.Where(e => e.Code is "101" or "102").Select(e => !e.Enabled));
         // 슬롯 항목(1~9) 다음, 돌아가기 앞에 온다.
-        Assert.Equal(["10", "11", "999"], s.Entries.Where(e => e.Arg is null).Select(e => e.Code));
+        Assert.Equal(["101", "102", "999"], s.Entries.Where(e => e.Arg is null).Select(e => e.Code));
     }
 
     [Fact]
     public void The_two_buttons_switch_between_placement_and_equipment_screens()
     {
         var s = Session();
-        Assert.NotNull(s.Activate("11"));
+        Assert.NotNull(s.Activate("102"));
         Assert.Equal(Screen.EquipmentSetup, s.Screen);
 
-        Assert.NotNull(s.Activate("10"));
+        Assert.NotNull(s.Activate("101"));
         Assert.Equal(Screen.PartySetup, s.Screen);
 
-        Assert.NotNull(s.Activate("11"));
-        Assert.NotNull(s.Activate("11"));                       // 지금 모드의 버튼을 눌러도 그대로
+        Assert.NotNull(s.Activate("102"));
+        Assert.NotNull(s.Activate("102"));                       // 지금 모드의 버튼을 눌러도 그대로
         Assert.Equal(Screen.EquipmentSetup, s.Screen);
     }
+
+    static readonly string[] PartyCodes = Enumerable.Range(11, 16).Select(c => c.ToString()).ToArray();
 
     [Fact]
     public void Equipment_setup_has_the_same_buttons_and_slot_codes_for_occupied_slots_only()
     {
         var s = Session();
-        s.Activate("11");
+        s.Activate("102");
 
-        Assert.Equal(["1", "5", "10", "11", "999"], s.Entries.Select(e => e.Code));   // 캐릭터가 있는 슬롯 1, 5만
+        Assert.Equal(["1", "5", .. PartyCodes, "101", "102", "999"], s.Entries.Select(e => e.Code));   // 캐릭터가 있는 슬롯 1, 5만, 파티 버튼 11~26
         Assert.Null(s.Activate("2"));                           // 빈 슬롯은 고를 수 없다
         Assert.Null(s.Activate("9"));
         Assert.Equal(Screen.EquipmentSetup, s.Screen);
@@ -76,7 +78,7 @@ public class EquipmentFlowTests
     public void Back_from_equipment_setup_goes_home_not_to_placement()
     {
         var s = Session();
-        s.Activate("11");
+        s.Activate("102");
         Assert.NotNull(s.Activate("999"));
         Assert.Equal(Screen.Home, s.Screen);
     }
@@ -86,9 +88,9 @@ public class EquipmentFlowTests
     {
         var s = GameSession.NewGame(Pack());
         s.Activate("105");
-        s.Activate("11");
-        s.Activate("10");
-        s.Activate("11");
+        s.Activate("102");
+        s.Activate("101");
+        s.Activate("102");
         s.Activate("999");
         Assert.Equal(Screen.Home, s.Screen);
     }
@@ -107,7 +109,7 @@ public class EquipmentFlowTests
     public void Picking_a_slot_in_equipment_setup_opens_that_characters_equipment_list()
     {
         var s = Session();
-        s.Activate("11");
+        s.Activate("102");
 
         Assert.NotNull(s.Activate("5"));
 
@@ -120,7 +122,7 @@ public class EquipmentFlowTests
     public void Back_from_the_equipment_list_returns_to_equipment_setup_and_clears_the_slot()
     {
         var s = Session();
-        s.Activate("11");
+        s.Activate("102");
         s.Activate("1");
         Assert.Equal(["999"], s.Entries.Select(e => e.Code));    // 장비 데이터가 정해질 때까지는 돌아가기뿐
 
@@ -136,7 +138,7 @@ public class EquipmentFlowTests
     public void Slot_numbers_in_the_equipment_list_screen_are_not_slot_codes()
     {
         var s = Session();
-        s.Activate("11");
+        s.Activate("102");
         s.Activate("1");
         Assert.Null(s.Activate("5"));                           // 다른 슬롯으로 바로 갈 수 없다
         Assert.Equal(Screen.EquipmentList, s.Screen);
@@ -159,7 +161,7 @@ public class EquipmentFlowTests
     public void Leaving_the_equipment_flow_by_save_and_load_ends_up_on_home()
     {
         var s = Session();
-        s.Activate("11");
+        s.Activate("102");
         s.Activate("1");
         Assert.Contains("\"EquipmentList\"", s.ToSaveJson());
 
@@ -173,7 +175,7 @@ public class EquipmentFlowTests
     {
         var s = Session();
         var placement = s.PartySlotViews;
-        s.Activate("11");
+        s.Activate("102");
         Assert.Equal(placement.Select(v => v.Name), s.PartySlotViews.Select(v => v.Name));
         Assert.Equal(placement.Select(v => v.RowName), s.PartySlotViews.Select(v => v.RowName));
     }
