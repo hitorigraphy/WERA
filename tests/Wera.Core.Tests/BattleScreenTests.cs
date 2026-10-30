@@ -71,10 +71,11 @@ public class BattleScreenTests
         var s = Started();
         var border = s.BattleRows.Single(r => r.Kind == BattleRowKind.Border);
         Assert.Equal(("전사 둘과 마법사", "테스트 전투", "파티-A"), (border.LeftText, border.CenterText, border.RightText));
-        s.Activate("999");
-        s.Activate("105"); s.Activate("0"); s.Activate("정예");
-        s.Activate("999"); s.Activate("110");
-        Assert.Equal("정예", s.BattleRows.Single(r => r.Kind == BattleRowKind.Border).RightText);
+        var renamed = GameSession.NewGame(SamplePack());
+        renamed.Activate("105"); renamed.Activate("1"); renamed.Activate("1"); renamed.Activate("999");
+        renamed.Activate("105"); renamed.Activate("0"); renamed.Activate("정예");
+        renamed.Activate("999"); renamed.Activate("110");
+        Assert.Equal("정예", renamed.BattleRows.Single(r => r.Kind == BattleRowKind.Border).RightText);
     }
 
     [Fact]
@@ -107,14 +108,12 @@ public class BattleScreenTests
     }
 
     [Fact]
-    public void Starting_again_returns_to_the_forced_view_and_back_leaves_for_home()
+    public void There_is_no_back_entry_during_a_battle()
     {
         var s = Started();
-        s.Activate("1000");
-        s.Activate("999");
-        Assert.Equal(Screen.Home, s.Screen);
-        s.Activate("110");
-        Assert.Equal(GameSession.BattleTopAllyHeavy, s.BattleTop);
+        Assert.DoesNotContain(s.Entries, e => e.Code == "999");
+        Assert.Null(s.Activate("999"));
+        Assert.Equal(Screen.Battle, s.Screen);
     }
 
     [Fact]
@@ -148,17 +147,17 @@ public class BattleScreenTests
     {
         var s = Started(twoUnits: true);
         s.Activate("1000");                                        // 자유롭게 적 3 / 아군 1로 바꿔 두었다
-        s.Activate("104");                                         // 다음 캐릭터
+        s.Activate("101");                                         // 다음 캐릭터
         Assert.Equal(1, s.BattleCurrentSlot);
         Assert.Equal(GameSession.BattleTopAllyHeavy, s.BattleTop); // 강제로 적 1 / 아군 3
         var front = AllyFront(s);
         Assert.Equal([false, true, false], front.Select(v => v.IsSelected));
         Assert.True(front[0].IsLeader);                            // 리더는 선택되지 않았을 때 연두색
 
-        s.Activate("104");                                         // 끝에서 처음으로
+        s.Activate("101");                                         // 끝에서 처음으로
         Assert.Equal(0, s.BattleCurrentSlot);
         s.Activate("1000");
-        s.Activate("101");                                         // 이전 캐릭터: 처음에서 끝으로
+        s.Activate("104");                                         // 이전 캐릭터: 처음에서 끝으로
         Assert.Equal(1, s.BattleCurrentSlot);
         Assert.Equal(GameSession.BattleTopAllyHeavy, s.BattleTop);
     }
@@ -204,7 +203,7 @@ public class BattleScreenTests
 
         s.Activate("102"); s.Activate("101");                      // 첫 유닛: 스킬1
         Assert.False(Entry(s, "106").Enabled);                     // 둘째 유닛이 아직
-        s.Activate("104");                                         // 다음 캐릭터
+        s.Activate("101");                                         // 다음 캐릭터
         s.Activate("102"); s.Activate("104");                      // 둘째 유닛: 스킬4
         Assert.True(s.BattleAllActionsSet);
         Assert.True(Entry(s, "106").Enabled);
@@ -215,17 +214,12 @@ public class BattleScreenTests
     }
 
     [Fact]
-    public void A_new_turn_clears_the_actions_and_starts_with_the_first_unit_again()
+    public void A_chosen_action_replaces_the_name_with_the_skill_name()
     {
         var s = Started(twoUnits: true);
-        s.Activate("102"); s.Activate("101");
-        s.Activate("104");
-        s.Activate("999");
-        s.Activate("110");                                         // 전투를 다시 시작: 새 턴
-        Assert.Null(s.BattleActionOf(0));
-        Assert.Equal(0, s.BattleCurrentSlot);
-        Assert.Equal(GameSession.BattleTopAllyHeavy, s.BattleTop);
-        Assert.Equal(GameSession.BattleCommandMode.Basic, s.BattleCommands);
+        Assert.Equal(["당신", "용사", "빈 슬롯"], AllyFront(s).Select(v => v.Name));
+        s.Activate("102"); s.Activate("103");                      // 첫 유닛: 스킬3
+        Assert.Equal(["스킬3", "용사", "빈 슬롯"], AllyFront(s).Select(v => v.Name));
     }
 
     [Fact]

@@ -162,7 +162,7 @@ public sealed partial class GameSession
     {
         var enemy = CurrentEnemyPartyCode is { } code ? Pack.FindPresetParty(code) : null;
         var enemySlots = Enumerable.Range(0, PartySlotCount).Select(i => EnemySlotView(i, enemy?.UnitCodes[i])).ToList();
-        var allySlots = PartySlotViews.Select(v => v with { IsSelected = v.Slot == BattleCurrentSlot }).ToList();     // 보는 캐릭터의 이름은 파란색
+        var allySlots = PartySlotViews.Select(v => v with { IsSelected = v.Slot == BattleCurrentSlot, Name = BattleActionOf(v.Slot) is { } skill ? BattleSkillNames[skill - 1] : v.Name }).ToList();     // 보는 캐릭터의 이름은 파란색
 
         BattleRowView Row(bool isEnemy, int rowInSide) => new(
             BattleRowKind.Slots, isEnemy, BattleRowTitle(rowInSide),
@@ -181,7 +181,7 @@ public sealed partial class GameSession
     public IReadOnlyList<BattleRowView> BattleRows => AllBattleRows().Skip(BattleTop).Take(BattleWindowSize).ToList();
 
     /// <summary>
-    /// 작전 화면의 항목: 기본 커맨드나 행동 후보, [1000] ▲(적 3 / 아군 1 구성으로, 그 구성일 때는 회색), [1001] ▼(적 1 / 아군 3 구성으로, 그 구성일 때는 회색), 돌아가기.
+    /// 작전 화면의 항목: 기본 커맨드나 행동 후보(돌아가기는 없다), [1000] ▲(적 3 / 아군 1 구성으로, 그 구성일 때는 회색), [1001] ▼(적 1 / 아군 3 구성으로, 그 구성일 때는 회색).
     /// [106] 실행은 모든 유닛의 행동이 설정되어야 누를 수 있다(아직 동작은 없다).
     /// </summary>
     IReadOnlyList<ScreenEntry> BattleEntries() =>
@@ -189,7 +189,6 @@ public sealed partial class GameSession
         .. BattleCommandEntries(),
         new ScreenEntry(BattleScrollUpEntryCode, "▲", Screen.Battle, EntryAction.BattleScroll, "-1", Enabled: BattleTop > 0),
         new ScreenEntry(BattleScrollDownEntryCode, "▼", Screen.Battle, EntryAction.BattleScroll, "1", Enabled: BattleTop < BattleTopAllyHeavy),
-        new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home),
     ];
 
     IEnumerable<ScreenEntry> BattleCommandEntries()
@@ -202,10 +201,10 @@ public sealed partial class GameSession
             yield return new ScreenEntry("106", "취소", Screen.Battle, EntryAction.BattleCancelActions);
             yield break;
         }
-        yield return new ScreenEntry("101", "이전 캐릭터", Screen.Battle, EntryAction.BattleSelectCharacter, "-1");
+        yield return new ScreenEntry("101", "다음 캐릭터", Screen.Battle, EntryAction.BattleSelectCharacter, "1");
         yield return new ScreenEntry("102", "행동 설정", Screen.Battle, EntryAction.BattleOpenActions);
         yield return new ScreenEntry("103", "상태 확인", Screen.Battle, EntryAction.BattleCommand);
-        yield return new ScreenEntry("104", "다음 캐릭터", Screen.Battle, EntryAction.BattleSelectCharacter, "1");
+        yield return new ScreenEntry("104", "이전 캐릭터", Screen.Battle, EntryAction.BattleSelectCharacter, "-1");
         yield return new ScreenEntry("105", "아이템", Screen.Battle, EntryAction.BattleCommand);
         yield return new ScreenEntry("106", "실행", Screen.Battle, EntryAction.BattleCommand, Enabled: BattleAllActionsSet);
     }

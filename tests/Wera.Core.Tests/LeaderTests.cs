@@ -178,8 +178,6 @@ public class LeaderTests
         Assert.True(s.Entries.Single(e => e.Code == "110").Enabled);
         Assert.Equal(Screen.Battle, s.Activate("110")!.Target);
         Assert.Equal(Screen.Battle, s.Screen);
-        s.Activate("999");
-        Assert.Equal(Screen.Home, s.Screen);
     }
 
     [Fact]
