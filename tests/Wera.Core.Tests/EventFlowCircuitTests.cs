@@ -4,7 +4,7 @@ namespace Wera.Core.Tests;
 
 // 이벤트는 (1) 더 진행할 flow_number가 없거나 (2) Finish 칸을 만나면 끝난다.
 // 조건에 따른 분기는 JumpFlag* 흐름 종류로 표현한다(칸 자체에는 조건이 없다).
-public class EventExecutionTests
+public class EventFlowCircuitTests
 {
     const string FlowHeader = "event_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\n";
 
@@ -24,7 +24,7 @@ public class EventExecutionTests
     }
 
     /// <summary>끝날 때까지 돌려서 (종류, 코드) 목록을 모은다.</summary>
-    static List<(EventStepKind Kind, long Code)> RunAll(EventExecution run)
+    static List<(EventStepKind Kind, long Code)> RunAll(EventFlowCircuit run)
     {
         var steps = new List<(EventStepKind, long)>();
         for (var i = 0; i < 100; i++)
@@ -415,7 +415,7 @@ public class AdvFlowMasterTests
         // 튜토리얼 플래그가 없으면 첫 선택지 묶음(2개), 있으면 10번 묶음(3개)이 나온다
         static List<string> Choices(GamePack pack, Dictionary<long, long> flags)
         {
-            var run = new AdvExecution(pack, 4001, flags);
+            var run = new AdvFlowCircuit(pack, 4001, flags);
             for (var i = 0; i < 20; i++)
             {
                 var step = run.Advance();

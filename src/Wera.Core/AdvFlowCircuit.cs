@@ -44,7 +44,7 @@ public readonly record struct AdvStep(
 /// Choice는 같은 선택지 그룹(param_1)의 이어진 행들 중 조건을 만족하는 것을 한 묶음으로 돌려주고 멈추며(만족하는 것이 없으면 건너뛴다),
 /// <see cref="Choose"/>로 하나를 고르면 그 선택지의 param_2 번호부터 이어 간다.
 /// </summary>
-public sealed class AdvExecution
+public sealed class AdvFlowCircuit
 {
     readonly IReadOnlyList<AdvFlow> flows;       // 흐름 번호 순
     readonly Dictionary<long, long> flags;
@@ -67,7 +67,7 @@ public sealed class AdvExecution
     /// <param name="uniqueItemHasTag">JumpUniqueItemHaveTag 칸이 부르는 동작(유니크 아이템 코드, 태그 코드 → 가졌는가). 세션이 넘기며, null이면 거짓으로 본다.</param>
     /// <param name="countInventory">JumpInventory* 칸이 부르는 동작(인벤토리 코드 → 가진 개수). 세션이 넘기며, null이면 개수를 0으로 본다.</param>
     /// <param name="addInventory">AddInventory 칸이 부르는 동작(인벤토리 코드, 개수). 세션이 넘기며, null이면 AddInventory 칸은 아무 일도 하지 않는다.</param>
-    public AdvExecution(GamePack pack, long advCode, Dictionary<long, long> flags, Action<long, long>? addInventory = null,
+    public AdvFlowCircuit(GamePack pack, long advCode, Dictionary<long, long> flags, Action<long, long>? addInventory = null,
         Func<long, long>? countInventory = null,
         Func<long, long, bool>? characterHasTag = null,
         Func<long, long, bool>? uniqueItemHasTag = null,
@@ -77,9 +77,9 @@ public sealed class AdvExecution
     }
 
     /// <summary>
-    /// 흐름 칸들을 직접 받아 실행한다(교류 흐름이 ADV 흐름 칸으로 바뀌어 같은 실행기를 쓴다). flows는 흐름 번호 순이어야 한다.
+    /// 흐름 칸들을 직접 받아 실행한다. flows는 흐름 번호 순이어야 한다(교류 흐름은 이 실행기가 아니라 <see cref="CommunicationFlowCircuit"/>이 돌린다).
     /// </summary>
-    public AdvExecution(GamePack pack, long advCode, IReadOnlyList<AdvFlow> flows, Dictionary<long, long> flags,
+    public AdvFlowCircuit(GamePack pack, long advCode, IReadOnlyList<AdvFlow> flows, Dictionary<long, long> flags,
         Action<long, long>? addInventory = null,
         Func<long, long>? countInventory = null,
         Func<long, long, bool>? characterHasTag = null,

@@ -51,7 +51,7 @@ public class JumpInventoryTests
     /// <summary>점프했으면 true(도착한 칸이 나온다), 점프하지 않았으면 false. 세션으로 돌리므로 가진 개수를 세션이 알려 준다.</summary>
     static bool Jumped(GameSession s, bool viaAdv)
     {
-        if (viaAdv) return new AdvExecution(s.Pack, 4001, s.PlayerFlags, s.AddInventory, s.CountInventory).Advance().Text == "도착한 칸";
+        if (viaAdv) return new AdvFlowCircuit(s.Pack, 4001, s.PlayerFlags, s.AddInventory, s.CountInventory).Advance().Text == "도착한 칸";
         return s.StartEvent(3001)!.Advance().Code == 4002;                          // 점프하면 3번 칸(ADV 4002), 아니면 2번 칸(ADV 4001)
     }
 
@@ -135,7 +135,7 @@ public class JumpInventoryTests
     {
         var s = Session(true, "GreaterThan", 3, 0);
         s.AddInventory(3, 5);
-        var run = new AdvExecution(s.Pack, 4001, s.PlayerFlags);                    // 세션 없이 직접 돌리면 가진 개수를 알 수 없어 0으로 본다
+        var run = new AdvFlowCircuit(s.Pack, 4001, s.PlayerFlags);                    // 세션 없이 직접 돌리면 가진 개수를 알 수 없어 0으로 본다
         Assert.Equal("건너뛴 칸", run.Advance().Text);
     }
 

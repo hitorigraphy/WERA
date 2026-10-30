@@ -106,7 +106,7 @@ public class AddInventoryTests
         Assert.Equal(2, Have(GameSession.FromSaveJson(s.Pack, s.ToSaveJson()), 3));
 
         var fresh = Session(false, (3, 2));
-        var run = new EventExecution(fresh.Pack, 3001, fresh.PlayerFlags);           // 세션 없이 직접 돌리면 인벤토리를 건드릴 수 없다
+        var run = new EventFlowCircuit(fresh.Pack, 3001, fresh.PlayerFlags);           // 세션 없이 직접 돌리면 인벤토리를 건드릴 수 없다
         run.Advance();
         Assert.Equal(0, Have(fresh, 3));
     }

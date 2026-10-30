@@ -207,7 +207,7 @@ public class AdvTextValidationTests
     public void A_step_exposes_the_parsed_text()
     {
         var pack = Load("TextMe", @"[b]굵게[/b]\n보통");
-        var step = new AdvExecution(pack, 4001, new Dictionary<long, long>()).Advance();
+        var step = new AdvFlowCircuit(pack, 4001, new Dictionary<long, long>()).Advance();
         Assert.Equal("굵게\n보통", step.Rich.PlainText);
         Assert.Contains("<b>굵게</b><br>보통", step.Rich.ToHtml());
     }

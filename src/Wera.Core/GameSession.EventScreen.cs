@@ -6,13 +6,16 @@ public sealed partial class GameSession
     public const string NextEventStepCode = "1";
 
     /// <summary>진행 중인 이벤트. 이벤트 진행 화면이 아니면 null(세이브에는 담기지 않는다).</summary>
-    public EventExecution? CurrentEvent { get; private set; }
+    public EventFlowCircuit? CurrentEvent { get; private set; }
 
     /// <summary>이벤트 진행 화면이 지금 보여 주는 장면(ADV 재생 또는 전투). 그 화면이 아니면 null.</summary>
     public EventStep? CurrentStep { get; private set; }
 
     /// <summary>재생 중인 ADV. 이벤트 장면이 ADV가 아니면 null.</summary>
-    public AdvExecution? CurrentAdv { get; private set; }
+    public AdvFlowCircuit? CurrentAdv { get; private set; }
+
+    /// <summary>재생 중인 교류 흐름(교류 진행 화면). 교류 흐름은 ADV 실행기와 따로의 실행기(<see cref="CommunicationFlowCircuit"/>)가 돌린다.</summary>
+    public CommunicationFlowCircuit? CurrentCommunicationFlow { get; private set; }
 
     /// <summary>재생 중인 ADV가 지금 보여 주는 장면(대사 또는 선택지 묶음). ADV가 아니면 null.</summary>
     public AdvStep? CurrentAdvStep { get; private set; }
@@ -52,7 +55,7 @@ public sealed partial class GameSession
     /// <summary>"다음": ADV를 재생 중이면 ADV의 다음 장면으로, 아니면 이벤트의 다음 장면으로 간다.</summary>
     void ContinueEvent()
     {
-        if (CurrentAdv is not null) ShowNextAdvStep();
+        if (CurrentAdv is not null || CurrentCommunicationFlow is not null) ShowNextAdvStep();
         else ShowNextEventStep();
     }
 
@@ -60,6 +63,7 @@ public sealed partial class GameSession
     void ShowNextEventStep()
     {
         CurrentAdv = null;
+        CurrentCommunicationFlow = null;
         CurrentAdvStep = null;
         advLog.Clear();
         var step = CurrentEvent?.Advance() ?? new EventStep(EventStepKind.Finished, 0, 0);
@@ -74,7 +78,7 @@ public sealed partial class GameSession
         Screen = Screen.EventPlay;
         if (step.Kind == EventStepKind.Adv)
         {
-            CurrentAdv = new AdvExecution(Pack, step.Code, PlayerFlags, AddInventory, CountInventory, CharacterHasTag, UniqueItemHasTag, NextRandom);
+            CurrentAdv = new AdvFlowCircuit(Pack, step.Code, PlayerFlags, AddInventory, CountInventory, CharacterHasTag, UniqueItemHasTag, NextRandom);
             ShowNextAdvStep();                          // 보여 줄 장면이 없는 ADV는 바로 이벤트의 다음 장면으로 넘어간다
         }
     }
@@ -82,7 +86,7 @@ public sealed partial class GameSession
     /// <summary>재생 중인 ADV의 다음 장면으로 간다. ADV가 끝나면 이벤트의 다음 장면으로 간다.</summary>
     void ShowNextAdvStep()
     {
-        var step = CurrentAdv!.Advance();
+        var step = CurrentCommunicationFlow is { } communicationFlow ? communicationFlow.Advance() : CurrentAdv!.Advance();
         if (step.Kind == AdvStepKind.Finished)
         {
             if (Screen == Screen.CommunicationPlay) EndCommunication();
@@ -100,7 +104,7 @@ public sealed partial class GameSession
     {
         if (CurrentAdvStep is not { Kind: AdvStepKind.Choice } choice || index < 0 || index >= choice.Choices.Count) return;
         var picked = choice.Choices[index];
-        if (CurrentAdv?.Choose(index) != true) return;
+        if ((CurrentCommunicationFlow is { } communicationFlow ? communicationFlow.Choose(index) : CurrentAdv?.Choose(index)) != true) return;
         advLog.Add(new AdvStep(AdvStepKind.Chosen, picked.FlowNumber, picked.Text, []));      // 고른 선택지는 로그에 남는다
         ShowNextAdvStep();
     }
@@ -136,26 +140,11 @@ public sealed partial class GameSession
     IEnumerable<CommunicationEntry> CurrentGroupCommunications =>
         (Pack.Communications ?? []).Where(c => c.GroupCode == CurrentCommunicationGroupCode).OrderBy(c => c.Code);
 
-    /// <summary>
-    /// 교류의 흐름(듀오 → 솔로 → 기본 순으로 찾은 것)을 ADV 흐름 칸으로 바꾼다: Text는 상대 캐릭터(교류가 is_assist면 어시스트, 아니면 파트너)의
-    /// 대사인 TextYou가 되고, 나머지 종류는 이름이 같은 ADV 흐름 종류가 된다. 슬롯이 비어 있으면 화자 코드는 0(이름 ???).
-    /// </summary>
-    List<AdvFlow> CommunicationAdvFlows(CommunicationEntry communication)
-    {
-        var speaker = (communication.IsAssist ? AssistCode : PartnerCode) ?? 0;
-        return CommunicationFlowOf(communication.Code)
-            .Select(f => f.FlowType == CommunicationFlowType.Text
-                ? new AdvFlow(communication.Code, f.FlowNumber, AdvFlowType.TextYou, speaker, 0, 0, f.Text, "")
-                : new AdvFlow(communication.Code, f.FlowNumber, Enum.Parse<AdvFlowType>(f.FlowType.ToString()),
-                    f.Param1, f.Param2, f.Param3, f.Text, ""))
-            .ToList();
-    }
-
     /// <summary>교류를 시작해 흐름 재생 화면으로 간다. 재생할 흐름이 없으면 교류 화면에 머문다.</summary>
     void BeginCommunication(long communicationCode)
     {
         var communication = Pack.Communications?.FirstOrDefault(c => c.Code == communicationCode);
-        var flows = communication is null ? [] : CommunicationAdvFlows(communication);
+        var flows = communication is null ? [] : CommunicationFlowOf(communication.Code);
         if (communication is null || flows.Count == 0)
         {
             Message = "교류 내용이 없습니다.";
@@ -164,7 +153,9 @@ public sealed partial class GameSession
         CurrentCommunicationCode = communicationCode;
         advLog.Clear();
         CurrentAdvStep = null;
-        CurrentAdv = new AdvExecution(Pack, communicationCode, flows, PlayerFlags, AddInventory, CountInventory, CharacterHasTag, UniqueItemHasTag, NextRandom);
+        CurrentAdv = null;
+        CurrentCommunicationFlow = new CommunicationFlowCircuit(Pack, communicationCode, flows, (communication.IsAssist ? AssistCode : PartnerCode) ?? 0,
+            PlayerFlags, AddInventory, CountInventory, CharacterHasTag, UniqueItemHasTag, NextRandom);
         Screen = Screen.CommunicationPlay;
         ShowNextAdvStep();                              // 보여 줄 장면이 없는 흐름은 바로 교류 화면으로 돌아간다
     }
@@ -174,6 +165,7 @@ public sealed partial class GameSession
     {
         CurrentCommunicationCode = null;
         CurrentAdv = null;
+        CurrentCommunicationFlow = null;
         CurrentAdvStep = null;
         advLog.Clear();
         Screen = Screen.Interaction;

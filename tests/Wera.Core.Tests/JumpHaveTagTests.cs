@@ -38,7 +38,7 @@ public class JumpHaveTagTests
     static bool Jumped(GameSession s, bool viaAdv)
     {
         if (viaAdv)
-            return new AdvExecution(s.Pack, 4001, s.PlayerFlags, s.AddInventory, s.CountInventory, s.CharacterHasTag, s.UniqueItemHasTag)
+            return new AdvFlowCircuit(s.Pack, 4001, s.PlayerFlags, s.AddInventory, s.CountInventory, s.CharacterHasTag, s.UniqueItemHasTag)
                 .Advance().Text == "도착한 칸";
         return s.StartEvent(3001)!.Advance().Code == 4002;
     }
@@ -115,7 +115,7 @@ public class JumpHaveTagTests
         };
         var s = GameSession.NewGame(GamePack.Load(CoreTests.PackZip(files)));
         if (viaAdv)
-            Assert.Equal("도착한 칸", new AdvExecution(s.Pack, 4001, s.PlayerFlags, s.AddInventory, s.CountInventory, s.CharacterHasTag, s.UniqueItemHasTag).Advance().Text);
+            Assert.Equal("도착한 칸", new AdvFlowCircuit(s.Pack, 4001, s.PlayerFlags, s.AddInventory, s.CountInventory, s.CharacterHasTag, s.UniqueItemHasTag).Advance().Text);
         else
             Assert.Equal(4002, s.StartEvent(3001)!.Advance().Code);
     }
@@ -124,7 +124,7 @@ public class JumpHaveTagTests
     public void Without_a_session_the_tag_jumps_never_jump()
     {
         var s = Session(true, "JumpCharacterHaveTag", 1, 1);
-        Assert.Equal("건너뛴 칸", new AdvExecution(s.Pack, 4001, s.PlayerFlags).Advance().Text);
+        Assert.Equal("건너뛴 칸", new AdvFlowCircuit(s.Pack, 4001, s.PlayerFlags).Advance().Text);
     }
 
     // ---- 로드 검증 ----

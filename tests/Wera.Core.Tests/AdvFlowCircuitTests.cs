@@ -3,7 +3,7 @@ using Wera.Core;
 namespace Wera.Core.Tests;
 
 // ADV 실행: 대사는 하나씩, 선택지는 묶음으로, 점프·종료는 이벤트 실행과 같은 규칙(조건은 JumpFlag* 흐름으로)
-public class AdvExecutionTests
+public class AdvFlowCircuitTests
 {
     const string FlowHeader = "adv_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\ttext\tforce_name\n";
 
@@ -21,7 +21,7 @@ public class AdvExecutionTests
         return GameSession.NewGame(GamePack.Load(CoreTests.PackZip(files.ToArray())));
     }
 
-    static AdvExecution Run(GameSession s, long adv = 4001) => new(s.Pack, adv, s.PlayerFlags);
+    static AdvFlowCircuit Run(GameSession s, long adv = 4001) => new(s.Pack, adv, s.PlayerFlags);
 
     [Fact]
     public void Plain_and_log_text_come_back_as_their_own_kinds_without_a_speaker()
@@ -200,7 +200,7 @@ public class AdvSpeakerNameTests
             ("master/adv_flow_master_v1.tsv", "adv_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\ttext\tforce_name\n" + flows),
         };
         var s = GameSession.NewGame(GamePack.Load(CoreTests.PackZip(files)));
-        return new AdvExecution(s.Pack, 4001, s.PlayerFlags).Advance();
+        return new AdvFlowCircuit(s.Pack, 4001, s.PlayerFlags).Advance();
     }
 
     [Fact]
@@ -399,7 +399,7 @@ public class AdvFlagFlowTests
     {
         var s = Session("4001\t1\tSetFlag\t1001\t5\t0\t\t\n4001\t2\tModFlag\t1001\t-2\t0\t\t\n4001\t3\tModFlag\t2002\t7\t0\t\t\n4001\t4\tTextPlain\t0\t0\t0\t끝\t\n");
         s.PlayerFlags[1001] = 100;
-        var step = new AdvExecution(s.Pack, 4001, s.PlayerFlags).Advance();
+        var step = new AdvFlowCircuit(s.Pack, 4001, s.PlayerFlags).Advance();
 
         Assert.Equal("끝", step.Text);                                    // 플래그 칸에서는 멈추지 않고 첫 대사까지 간다
         Assert.Equal(3, s.PlayerFlags[1001]);                             // 100 → Set 5 → Mod -2
@@ -412,7 +412,7 @@ public class AdvFlagFlowTests
         var s = Session(
             "4001\t1\tSetFlag\t1001\t1\t0\t\t\n4001\t2\tJumpFlagEqual\t9999\t0\t4\t\n4001\t3\tSetFlag\t3003\t9\t0\t\t\n" +
             "4001\t4\tJumpFlagLessThan\t1001\t1\t6\t\n4001\t5\tTextPlain\t0\t0\t0\t조건부\t\n4001\t6\tTextPlain\t0\t0\t0\t끝\t\n");
-        var run = new AdvExecution(s.Pack, 4001, s.PlayerFlags);
+        var run = new AdvFlowCircuit(s.Pack, 4001, s.PlayerFlags);
 
         Assert.Equal("조건부", run.Advance().Text);                       // 1번이 바꾼 플래그를 4번의 JumpFlag가 바로 보고 건너뛰지 않는다
         Assert.False(s.PlayerFlags.ContainsKey(3003));                    // 2번이 3번을 건너뛰어 실행되지 않았다
@@ -422,7 +422,7 @@ public class AdvFlagFlowTests
     public void ModFlag_stops_at_the_ends_of_the_long_range_instead_of_wrapping()
     {
         var s = Session($"4001\t1\tModFlag\t1\t{long.MaxValue}\t0\t\t\n4001\t2\tModFlag\t1\t5\t0\t\t\n4001\t3\tModFlag\t2\t{long.MinValue}\t0\t\t\n4001\t4\tModFlag\t2\t-5\t0\t\t\n");
-        Assert.Equal(AdvStepKind.Finished, new AdvExecution(s.Pack, 4001, s.PlayerFlags).Advance().Kind);
+        Assert.Equal(AdvStepKind.Finished, new AdvFlowCircuit(s.Pack, 4001, s.PlayerFlags).Advance().Kind);
         Assert.Equal(long.MaxValue, s.PlayerFlags[1]);
         Assert.Equal(long.MinValue, s.PlayerFlags[2]);
     }
@@ -487,7 +487,7 @@ public class JumpFlagTests
     static bool Jumped(bool viaAdv, string kind, long value)
     {
         var s = Session(viaAdv, kind, value);
-        if (viaAdv) return new AdvExecution(s.Pack, 4001, s.PlayerFlags).Advance().Text == "도착한 칸";
+        if (viaAdv) return new AdvFlowCircuit(s.Pack, 4001, s.PlayerFlags).Advance().Text == "도착한 칸";
         var step = s.StartEvent(3001)!.Advance();
         return step.Code == 4002;                                                    // 점프하면 3번 칸(ADV 4002), 아니면 2번 칸(ADV 4001)
     }
@@ -509,10 +509,10 @@ public class JumpFlagTests
     {
         var s = Session(true, "Equal", 0);
         s.PlayerFlags.Remove(1001);
-        Assert.Equal("도착한 칸", new AdvExecution(s.Pack, 4001, s.PlayerFlags).Advance().Text);
+        Assert.Equal("도착한 칸", new AdvFlowCircuit(s.Pack, 4001, s.PlayerFlags).Advance().Text);
 
         var unconditional = Session(true, "GreaterOrEqual", long.MinValue);
-        Assert.Equal("도착한 칸", new AdvExecution(unconditional.Pack, 4001, unconditional.PlayerFlags).Advance().Text);
+        Assert.Equal("도착한 칸", new AdvFlowCircuit(unconditional.Pack, 4001, unconditional.PlayerFlags).Advance().Text);
     }
 
     [Fact]
@@ -596,7 +596,7 @@ public class UnconditionalJumpTests
     public void Jump_goes_to_param_1_without_looking_at_any_flag_in_an_adv()
     {
         var s = Session(true, "4001\t1\tJump\t3\t9\t9\t\t\n4001\t2\tTextPlain\t0\t0\t0\t건너뜀\t\n4001\t3\tTextPlain\t0\t0\t0\t도착\t\n");
-        Assert.Equal("도착", new AdvExecution(s.Pack, 4001, s.PlayerFlags).Advance().Text);       // param_2, param_3은 보지 않는다
+        Assert.Equal("도착", new AdvFlowCircuit(s.Pack, 4001, s.PlayerFlags).Advance().Text);       // param_2, param_3은 보지 않는다
     }
 
     [Theory]

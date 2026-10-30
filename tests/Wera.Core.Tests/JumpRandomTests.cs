@@ -32,7 +32,7 @@ public class JumpRandomTests
         s.NextRandom = b => { asked = b; return roll; };
         askedBound = 0;
         bool jumped = viaAdv
-            ? new AdvExecution(s.Pack, 4001, s.PlayerFlags, random: s.NextRandom).Advance().Text == "도착한 칸"
+            ? new AdvFlowCircuit(s.Pack, 4001, s.PlayerFlags, random: s.NextRandom).Advance().Text == "도착한 칸"
             : s.StartEvent(3001)!.Advance().Code == 4002;
         askedBound = asked;
         return jumped;
@@ -86,7 +86,7 @@ public class JumpRandomTests
         for (var i = 0; i < trials; i++)
         {
             var jumped = viaAdv
-                ? new AdvExecution(s.Pack, 4001, s.PlayerFlags).Advance().Text == "도착한 칸"             // 난수 동작을 안 주면 기본 난수
+                ? new AdvFlowCircuit(s.Pack, 4001, s.PlayerFlags).Advance().Text == "도착한 칸"             // 난수 동작을 안 주면 기본 난수
                 : s.StartEvent(3001)!.Advance().Code == 4002;                                          // 세션의 기본 난수
             if (jumped) hits++;
         }
@@ -98,7 +98,7 @@ public class JumpRandomTests
     {
         var s = Session(true, 1, 1);                                                // rand(1)은 늘 0이므로 0 < 1 → 늘 점프
         for (var i = 0; i < 50; i++)
-            Assert.Equal("도착한 칸", new AdvExecution(s.Pack, 4001, s.PlayerFlags).Advance().Text);
+            Assert.Equal("도착한 칸", new AdvFlowCircuit(s.Pack, 4001, s.PlayerFlags).Advance().Text);
     }
 
     // ---- 로드 검증 ----
