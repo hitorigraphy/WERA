@@ -73,7 +73,27 @@ public sealed class SkillCircuit(GamePack pack, long skillCode, BattleUnit caste
             case EffectType.CacheToTargetSetValue:
                 if (CacheAt(effect.Value2) is { } set) Target.SetValue(effect.Value1, set);
                 break;
+            case EffectType.CacheToCasterModValue:
+                if (CacheAt(effect.Value2) is { } casterMod) Caster.ModValue(effect.Value1, casterMod);
+                break;
+            case EffectType.CacheToCasterSetValue:
+                if (CacheAt(effect.Value2) is { } casterSet) Caster.SetValue(effect.Value1, casterSet);
+                break;
+            case EffectType.CasterValueToCache:
+                if (Caster.ValueOf(effect.Value1) is { } casterValue) WriteCache(effect.Value2, casterValue);
+                break;
+            case EffectType.TargetValueToCache:
+                if (Target.ValueOf(effect.Value1) is { } targetValue) WriteCache(effect.Value2, targetValue);
+                break;
         }
+    }
+
+    /// <summary>캐시의 index번에 값을 쓴다. 캐시가 짧으면 모자란 칸을 0으로 채워 늘린다.</summary>
+    void WriteCache(long index, decimal value)
+    {
+        if (index < 0 || index > GamePack.MaxCacheIndex) return;
+        while (CacheValues.Count <= index) CacheValues.Add(0m);
+        CacheValues[(int)index] = value;
     }
 
     decimal? CacheAt(long index) => index >= 0 && index < CacheValues.Count ? CacheValues[(int)index] : null;

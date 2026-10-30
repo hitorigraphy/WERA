@@ -83,4 +83,59 @@ public class SkillCircuitTests
         Assert.Contains("value_2(cache_index) '-1'", Assert.Throws<PackFormatException>(() => Pack("1\t1\tCacheToTargetModValue\t2\t-1\t\n")).Message);
         Assert.NotNull(Pack("1\t1\tcachetotargetsetvalue\t2\t0\t\n"));  // 이름은 대소문자를 가리지 않는다
     }
+
+    // 공백으로 구분해 쓴 이펙트 행들을 TSV 본문으로 바꾼다
+    static string Rows(params string[] rows) => string.Concat(rows.Select(r => r.Replace(' ', '\t') + "\n"));
+
+    [Fact]
+    public void Cache_to_caster_changes_the_caster_and_leaves_the_target()
+    {
+        var pack = Pack(Rows("1 1 CacheToCasterModValue 4 0 ", "1 2 CacheToCasterSetValue 2 1 "));
+        var c = new SkillCircuit(pack, 1, BattleUnit.Create(pack, 7001), BattleUnit.Create(pack, 7001));
+        c.CacheValues.AddRange([-3m, 12m]);
+        c.Execute();
+        Assert.Equal((7m, 12m), (c.Caster.ValueOf(Mana)!.Value, c.Caster.ValueOf(Hp)!.Value));
+        Assert.Equal((10m, 40m), (c.Target.ValueOf(Mana)!.Value, c.Target.ValueOf(Hp)!.Value));
+    }
+
+    [Fact]
+    public void Value_to_cache_copies_the_status_into_the_cache_and_pads_with_zeros()
+    {
+        var pack = Pack(Rows("1 1 TargetValueToCache 4 2 ", "1 2 CasterValueToCache 2 0 "));
+        var c = new SkillCircuit(pack, 1, BattleUnit.Create(pack, 1), BattleUnit.Create(pack, 7001));
+        c.Execute();
+        Assert.Equal([40m, 0m, 10m], c.CacheValues);                  // 시전자 hp는 0번, 타겟 mana는 2번(1번은 0으로 채움)
+    }
+
+    [Fact]
+    public void Value_to_cache_overwrites_and_skips_a_status_the_unit_lacks()
+    {
+        var pack = Pack(Rows("1 1 CasterValueToCache 4 0 ", "1 2 TargetValueToCache 2 0 "));
+        var c = new SkillCircuit(pack, 1, BattleUnit.Create(pack, 1), BattleUnit.Create(pack, 7001));
+        c.CacheValues.Add(99m);
+        c.Execute();                                                   // 당신에게 mana는 없어 99가 남고, 그다음 타겟 hp 40으로 덮어쓴다
+        Assert.Equal([40m], c.CacheValues);
+    }
+
+    [Fact]
+    public void A_value_can_travel_from_one_unit_to_the_other_through_the_cache()
+    {
+        var pack = Pack(Rows("1 1 CasterValueToCache 2 0 ", "1 2 CacheToTargetSetValue 2 0 "));
+        var caster = BattleUnit.Create(pack, 7001);
+        caster.SetValue(Hp, 5);
+        var c = new SkillCircuit(pack, 1, caster, BattleUnit.Create(pack, 1));
+        c.Execute();
+        Assert.Equal(5m, c.Target.ValueOf(Hp));
+    }
+
+    [Fact]
+    public void The_loader_checks_every_cache_effect_and_bounds_the_cache_index()
+    {
+        foreach (var type in new[] { "CacheToCasterModValue", "CacheToCasterSetValue", "CasterValueToCache", "TargetValueToCache" })
+        {
+            Assert.Contains("value_1(status_code) '9'", Assert.Throws<PackFormatException>(() => Pack(Rows($"1 1 {type} 9 0 "))).Message);
+            Assert.Contains("value_2(cache_index) '256'", Assert.Throws<PackFormatException>(() => Pack(Rows($"1 1 {type} 2 256 "))).Message);
+            Assert.NotNull(Pack(Rows($"1 1 {type} 2 255 ")));
+        }
+    }
 }
