@@ -47,7 +47,8 @@ public sealed partial class GamePack
         List<PresetParty>? presetParties, List<BattleEnemy>? battleEnemies,
         List<SkillSlotEntry>? skillSlots, List<CharacterSkillSlotTag>? characterSkillSlotTags,
         List<SkillEntry>? skills, List<SkillTag>? skillTags, List<SkillExecuteEffect>? skillExecuteEffects,
-        List<SkillOrderEffect>? skillOrderEffects)
+        List<SkillOrderEffect>? skillOrderEffects,
+        List<OwnerStatus>? skillStatuses, List<OwnerStatus>? uniqueItemStatuses)
     {
         var builder = new DatabaseBuilder();
 
@@ -175,6 +176,10 @@ public sealed partial class GamePack
         builder.Append((skillSlots ?? []).Select(s => new SkillSlotRow { Code = s.Code, Name = s.Name }).ToList());
         builder.Append((characterSkillSlotTags ?? []).Select(t => new CharacterSkillSlotTagRow
             { CharacterCode = t.CharacterCode, SkillSlotCode = t.SkillSlotCode, GroupNumber = t.GroupNumber, TagCode = t.TagCode, IsPositive = t.IsPositive }).ToList());
+        builder.Append((skillStatuses ?? []).Select(s => new SkillStatusRow
+        { SkillCode = s.OwnerCode, StatusCode = s.StatusCode, InitialValue = s.InitialValue, MinValue = s.MinValue, MaxValue = s.MaxValue }).ToList());
+        builder.Append((uniqueItemStatuses ?? []).Select(s => new UniqueItemStatusRow
+        { ItemCode = s.OwnerCode, StatusCode = s.StatusCode, InitialValue = s.InitialValue, MinValue = s.MinValue, MaxValue = s.MaxValue }).ToList());
         builder.Append((skills ?? []).Select(s => new SkillRow { Code = s.Code, Name = s.Name }).ToList());
         builder.Append((skillTags ?? []).Select(t => new SkillTagRow { SkillCode = t.SkillCode, TagCode = t.TagCode }).ToList());
         builder.Append((skillExecuteEffects ?? []).Select(e => new SkillExecuteEffectRow

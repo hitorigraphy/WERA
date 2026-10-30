@@ -53,7 +53,20 @@ public readonly record struct EquipRef(
 /// 만들어질 때 유니크 아이템 태그 마스터의 태그를 복사해 가지고, 게임 중에 태그가 사라지거나 추가될 수 있다(그 태그가 세이브에 저장된다).
 /// OrderNumber는 목록의 순서다: 얻을 때 소지 유니크 아이템 수(0부터 시작)이고, 순서를 바꿀 때 이 값을 조작한다. 목록은 OrderNumber순, 같으면 InstanceId순이다.
 /// </summary>
-public sealed record UniqueItemInstance(string InstanceId, long ItemCode, long OrderNumber = 0, List<long>? Tags = null);
+public sealed record UniqueItemInstance(string InstanceId, long ItemCode, long OrderNumber = 0, List<long>? Tags = null,
+    Dictionary<long, long>? Statuses = null)
+{
+    /// <summary>Statuses(스테이터스 코드 → 값)는 유니크 아이템 스테이터스 마스터의 초깃값에서 복사해 가지고 게임 중에 바뀔 수 있다. 세이브에 없으면(null) 마스터에서 복사한다.</summary>
+    public bool Equals(UniqueItemInstance? other) =>
+        other is not null && InstanceId == other.InstanceId && ItemCode == other.ItemCode && OrderNumber == other.OrderNumber
+        && (Tags is null) == (other.Tags is null) && (Tags ?? []).SequenceEqual(other.Tags ?? [])
+        && StatusesEqual(Statuses, other.Statuses);
+
+    public override int GetHashCode() => HashCode.Combine(InstanceId, ItemCode, OrderNumber);
+
+    internal static bool StatusesEqual(Dictionary<long, long>? a, Dictionary<long, long>? b) =>
+        a is null || b is null ? a is null && b is null : a.Count == b.Count && a.All(kv => b.TryGetValue(kv.Key, out var v) && v == kv.Value);
+}
 
 /// <summary>낄 수 있는 것의 목록 항목.</summary>
 public sealed record EquipCandidate(EquipRef Ref, string Name);

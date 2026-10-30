@@ -2,8 +2,17 @@ using System.Text.Json.Serialization;
 
 namespace Wera.Core;
 
-/// <summary>캐릭터가 익힌 스킬 하나. 지금은 스킬 코드(스킬 마스터)뿐이다.</summary>
-public sealed record SkillInstance(long SkillCode);
+/// <summary>
+/// 캐릭터가 익힌 스킬 하나: 스킬 코드(스킬 마스터)와 <see cref="Statuses"/>(스테이터스 코드 → 값).
+/// Statuses는 스킬 스테이터스 마스터의 초깃값에서 복사해 가지고 게임 중에 바뀔 수 있다. 세이브에 없으면(null) 마스터에서 복사한다.
+/// </summary>
+public sealed record SkillInstance(long SkillCode, Dictionary<long, long>? Statuses = null)
+{
+    public bool Equals(SkillInstance? other) =>
+        other is not null && SkillCode == other.SkillCode && UniqueItemInstance.StatusesEqual(Statuses, other.Statuses);
+
+    public override int GetHashCode() => SkillCode.GetHashCode();
+}
 
 /// <summary>
 /// 보유 캐릭터 인스턴스: 인스턴스 ID(ULID 문자열)와 마스터 코드(캐릭터 인벤토리 코드)를 함께 가지고, 목록 순서(OrderNumber)와 현재 상태를 가진다.

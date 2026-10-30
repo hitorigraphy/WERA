@@ -36,6 +36,8 @@ TSV 파일 묶음(zip 형식)이고 확장자는 **`.wra`**입니다(zip 압축 
 | `master/equipment_slot_master_v1.tsv` | (선택) `equipment_slot_code`, `equipment_slot_name` |
 | `master/tag_master_v1.tsv` | **(필수)** `tag_code`, `tag_name` |
 | `master/unique_item_inventory_master_v1.tsv` | (선택) `inventory_code`, `item_name` |
+| `master/unique_item_status_master_v1.tsv` | (선택, 유니크 아이템 인벤토리/스테이터스 마스터 필요) `item_code`, `status_code`, `initial_value`, `min_value`, `max_value` |
+| `master/skill_status_master_v1.tsv` | (선택, 스킬/스테이터스 마스터 필요) `skill_code`, `status_code`, `initial_value`, `min_value`, `max_value` |
 | `master/unique_item_tag_master_v1.tsv` | (선택, 유니크 아이템 인벤토리/태그 마스터 필요) `item_code`, `tag_code` |
 | `master/common_item_tag_master_v1.tsv` | **(필수)** `item_code`, `tag_code` |
 | `master/character_tag_master_v1.tsv` | **(필수)** `character_code`, `tag_code` |
@@ -67,6 +69,8 @@ TSV 파일 묶음(zip 형식)이고 확장자는 **`.wra`**입니다(zip 압축 
 `(줄바꿈), `[b]…[/b]`(굵게), `[color=이름]…[/color]`(글자색: red, orange, yellow, green, cyan, blue, purple, pink, white, gray 또는 `#rgb`/`#rrggbb`)를 쓸 수 있고, 글자 `[`, `]`, `\`는 `\[`, `\]`, `\`로 적습니다. 모르는 태그, 닫히지 않거나 짝이 맞지 않는 태그, 이스케이프 없는 `[`는 게임팩 로드 오류입니다. 화면에는 허용한 태그만 HTML로 바뀌어 나갑니다. **대사 상자 검증**: 화면 너비가 960px로 고정이라(뷰포트도 `width=960`) 상자 안에 한 줄 **83칸**(영문 1칸, 한글 등 전각 2칸, 태그는 칸을 차지하지 않음)이 들어가고, 어느 글자에서나 줄을 바꾸는 규칙으로 센 줄 수가 **3줄**(이름 자리를 뺀 상자 높이)을 넘으면 `TextMe`/`TextYou`는 로드 오류입니다. `TextPlain`은 아이콘 자리를 포함한 가로 전체에 아이콘과 같은 높이로 그리는 상자(이름 자리 없음)라 한 줄 **94칸**(`AdvLayout.PlainBoxColumns`) × 3줄 안에 들어가야 하고, `TextLog`는 상자 없이 글만 나와 문법만 봅니다. 상자 크기 상수는 `AdvLayout`에 있고 CSS와 같아야 합니다. `force_name`은 화자 이름을 강제하는 특별 연출용 열로(`TextMe`와 `TextYou`), 비어 있으면 캐릭터 이름을 씁니다. `Choice`의 `text`는 선택지 문구로 쓸 수 있고, 그 외 종류는 비워 둡니다. ADV 재생에 쓰입니다.
 
 **memo 열:** 모든 마스터 TSV는 헤더에 `memo` 열을 둘 수 있고(위치 자유) 사람이 보는 메모일 뿐이라 엔진은 읽지 않으며 마스터메모리에도 올리지 않습니다. 기본 게임팩은 엔진이 요구하는 필수 행(예약 태그와 스테이터스, 플레이어 캐릭터와 그 속성/태그, 모든 캐릭터의 level/hp 레벨 0 행)의 메모에 "필수"라고 적어 두었고, 테스트용 던전(`1999`)과 상점(`2999`, 커먼/유니크/캐릭터 교환 포함)은 필수가 아니며 조건이 없어 새 게임부터 열려 있습니다.
+
+**스킬/유니크 아이템 스테이터스 마스터**(선택): `skill_status_master`의 키는 `(skill_code, status_code)`, `unique_item_status_master`의 키는 `(item_code, status_code)`이고 `initial_value`, `min_value`, `max_value`가 값입니다(모두 long, `memo` 열 선택). 스테이터스 종류는 캐릭터와 같은 `status_master`를 쓰고 레벨 열과 예약 코드는 없습니다. 로드 검증: 스킬/유니크 아이템은 각자의 마스터에, 스테이터스는 스테이터스 마스터에 있어야 하고 같은 키를 두 번 쓸 수 없으며 `min_value <= initial_value <= max_value`여야 합니다. 스킬을 익히거나 유니크 아이템을 얻을 때(`GamePack.NewSkillInstance`, `GameSession.AddUniqueItem`) 그 행들의 초깃값이 인스턴스의 `Statuses`(스테이터스 코드 → 값, 행이 없으면 빈 딕셔너리)로 복사되고, 게임 중에 바뀔 수 있으며 세이브에 담깁니다(`SkillInstance`는 `{SkillCode, Statuses}`, `UniqueItemInstance`는 `{InstanceId, ItemCode, OrderNumber, Tags, Statuses}`). 세이브에 `Statuses`가 없으면(예전 세이브) 마스터의 초깃값을 복사하고, 있으면 모든 코드가 스테이터스 마스터에 있어야 합니다.
 
 **필수 마스터 방침:** 엔진이 검증하는 마스터(예약 코드나 필수 항목이 있는 마스터)는 로드할 때 존재부터 확인합니다. 없으면 "`...`가 반드시 필요합니다" 오류로 로드되지 않습니다. 필수 마스터는 `attribute_master`, `tag_master`(예약 태그 1 플레이어, 2 리더), `status_master`(예약 스테이터스 1 level, 2 hp), `character_inventory_master`(캐릭터 1 = 플레이어), `character_tag_master`(캐릭터 1의 플레이어 태그), `character_status_master`(모든 캐릭터의 level/hp 레벨 0 행), `time_slot_master`와 `turn_master`(시간대 FK, 시작 턴 한 행 이상), `common_item_inventory_master`와 `common_item_tag_master`(메인 통화)입니다. 나머지는 선택이고, 선택 마스터가 있으면 가리키는 상위 마스터도 있어야 합니다.
 

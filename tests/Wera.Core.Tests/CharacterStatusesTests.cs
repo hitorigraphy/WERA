@@ -82,7 +82,7 @@ public class CharacterStatusesTests
         s.AddCharacter(7001);
         s.Characters[7001] = s.Characters[7001].WithStatus(6, 33) with
         {
-            SkillPool = [new SkillInstance(1), new SkillInstance(2)],
+            SkillPool = [pack.NewSkillInstance(1), pack.NewSkillInstance(2)],
             SkillSlots = new Dictionary<long, long> { [1] = 1, [2] = 0 },
         };
         var json = s.ToSaveJson();

@@ -26,7 +26,8 @@ public sealed partial class GameSession
     {
         if (Pack.FindUniqueItem(itemCode) is null) return null;
         var id = NewInstanceId();
-        UniqueItemInstances[id] = new UniqueItemInstance(id, itemCode, UniqueItemInstances.Count, Pack.MasterTagsOfUniqueItem(itemCode).ToList());
+        UniqueItemInstances[id] = new UniqueItemInstance(id, itemCode, UniqueItemInstances.Count, Pack.MasterTagsOfUniqueItem(itemCode).ToList(),
+            Pack.MasterStatusesOfUniqueItem(itemCode));
         return id;
     }
 
@@ -363,12 +364,26 @@ public sealed partial class GameSession
 
     Dictionary<string, UniqueItemInstance> CopyUniqueItems() =>
         UniqueItemInstances.ToDictionary(kv => kv.Key,
-            kv => new UniqueItemInstance(kv.Key, kv.Value.ItemCode, kv.Value.OrderNumber, (kv.Value.Tags ?? Pack.MasterTagsOfUniqueItem(kv.Value.ItemCode)).ToList()));
+            kv => new UniqueItemInstance(kv.Key, kv.Value.ItemCode, kv.Value.OrderNumber, (kv.Value.Tags ?? Pack.MasterTagsOfUniqueItem(kv.Value.ItemCode)).ToList(),
+                new Dictionary<long, long>(kv.Value.Statuses ?? Pack.MasterStatusesOfUniqueItem(kv.Value.ItemCode))));
 
     /// <summary>보유 캐릭터 전원의 현재 태그(아직 마스터 그대로인 캐릭터는 마스터에서 복사해 적는다).</summary>
     Dictionary<long, List<long>> CopyCharacterTags() =>
         Characters.Keys.ToDictionary(code => code,
             code => (CharacterTagInstances.TryGetValue(code, out var tags) ? tags : Pack.MasterTagsOfCharacter(code)).ToList());
+
+    /// <summary>
+    /// 스킬/유니크 아이템 인스턴스의 Statuses를 검증하고 복사한다: 세이브에 없으면(null) 마스터의 초깃값을 복사하고,
+    /// 있으면 모든 코드가 스테이터스 마스터에 있어야 한다.
+    /// </summary>
+    static Dictionary<long, long> CheckOwnerStatuses(GamePack pack, string who, Dictionary<long, long>? saved, Dictionary<long, long> master)
+    {
+        if (saved is null) return master;
+        foreach (var status in saved.Keys)
+            if (pack.FindStatus(status) is null)
+                throw new SaveFormatException($"세이브의 {who}의 스테이터스 '{status}'가 스테이터스 마스터에 없습니다.");
+        return new Dictionary<long, long>(saved);
+    }
 
     static List<long> CheckTags(GamePack pack, string who, IEnumerable<long> tags, InventoryKind kind, long code)
     {
@@ -414,7 +429,8 @@ public sealed partial class GameSession
                 : CheckTags(pack, $"유니크 아이템 인스턴스 '{id}'", item.Tags, InventoryKind.UniqueItem, item.ItemCode);
             if (!string.IsNullOrEmpty(item.InstanceId) && !(Ulid.TryParse(item.InstanceId, out var inner) && inner.ToString() == id))
                 throw new SaveFormatException($"세이브의 유니크 아이템 인스턴스 '{id}'에 적힌 인스턴스 ID '{item.InstanceId}'가 키와 다릅니다.");
-            instances[id] = new UniqueItemInstance(id, item.ItemCode, item.OrderNumber, tags);
+            var statuses = CheckOwnerStatuses(pack, $"유니크 아이템 인스턴스 '{id}'", item.Statuses, pack.MasterStatusesOfUniqueItem(item.ItemCode));
+            instances[id] = new UniqueItemInstance(id, item.ItemCode, item.OrderNumber, tags, statuses);
         }
 
         var characterTags = new Dictionary<long, List<long>>();

@@ -453,6 +453,38 @@ public record CharacterStatusRow
     public required long MaxValue { get; init; }
 }
 
+/// <summary>스킬 스테이터스 마스터: 복합키 (스킬, 스테이터스), 보조키 스킬로 그 스킬의 행 전부를 찾는다.</summary>
+[MemoryTable("skill_status"), MessagePackObject(true)]
+public record SkillStatusRow
+{
+    [PrimaryKey(keyOrder: 0)]
+    [SecondaryKey(0), NonUnique]
+    public required long SkillCode { get; init; }
+
+    [PrimaryKey(keyOrder: 1)]
+    public required long StatusCode { get; init; }
+
+    public required long InitialValue { get; init; }
+    public required long MinValue { get; init; }
+    public required long MaxValue { get; init; }
+}
+
+/// <summary>유니크 아이템 스테이터스 마스터: 복합키 (아이템, 스테이터스), 보조키 아이템으로 그 아이템의 행 전부를 찾는다.</summary>
+[MemoryTable("unique_item_status"), MessagePackObject(true)]
+public record UniqueItemStatusRow
+{
+    [PrimaryKey(keyOrder: 0)]
+    [SecondaryKey(0), NonUnique]
+    public required long ItemCode { get; init; }
+
+    [PrimaryKey(keyOrder: 1)]
+    public required long StatusCode { get; init; }
+
+    public required long InitialValue { get; init; }
+    public required long MinValue { get; init; }
+    public required long MaxValue { get; init; }
+}
+
 [MemoryTable("skill_slot"), MessagePackObject(true)]
 public record SkillSlotRow
 {

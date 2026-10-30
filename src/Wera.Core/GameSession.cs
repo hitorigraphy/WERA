@@ -1195,9 +1195,12 @@ public sealed partial class GameSession
             foreach (var status in loaded.Statuses.Keys)
                 if (pack.FindStatus(status) is null && pack.Statuses is not null && status > GamePack.XpMaxStatusCode)
                     throw new SaveFormatException($"세이브의 캐릭터 '{code}'의 스테이터스 '{status}'가 스테이터스 마스터에 없습니다.");
-            foreach (var skill in loaded.SkillPool)
-                if (pack.FindSkill(skill.SkillCode) is null)
-                    throw new SaveFormatException($"세이브의 캐릭터 '{code}'의 스킬 '{skill.SkillCode}'가 스킬 마스터에 없습니다.");
+            loaded = loaded with { SkillPool = loaded.SkillPool.Select(skill =>
+            {
+                if (skill is null || pack.FindSkill(skill.SkillCode) is null)
+                    throw new SaveFormatException($"세이브의 캐릭터 '{code}'의 스킬 '{skill?.SkillCode}'가 스킬 마스터에 없습니다.");
+                return skill with { Statuses = CheckOwnerStatuses(pack, $"캐릭터 '{code}'의 스킬 '{skill.SkillCode}'", skill.Statuses, pack.MasterStatusesOfSkill(skill.SkillCode)) };
+            }).ToList() };
             foreach (var (slot, index) in loaded.SkillSlots)
             {
                 if (pack.FindSkillSlot(slot) is null)
