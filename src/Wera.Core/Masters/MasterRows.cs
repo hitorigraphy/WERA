@@ -452,3 +452,67 @@ public record CharacterStatusRow
     public required long MinValue { get; init; }
     public required long MaxValue { get; init; }
 }
+
+[MemoryTable("skill_slot"), MessagePackObject(true)]
+public record SkillSlotRow
+{
+    [PrimaryKey] public required long Code { get; init; }
+    public required string Name { get; init; }
+}
+
+/// <summary>
+/// 캐릭터 스킬 슬롯 태그: 복합키는 (캐릭터, 스킬 슬롯, 그룹, 태그)다.
+/// 보조키 캐릭터 코드로 그 캐릭터의 규칙 전부를, 보조키 (캐릭터, 스킬 슬롯, 그룹)으로 한 그룹의 규칙 전부를 찾는다.
+/// </summary>
+[MemoryTable("character_skill_slot_tag"), MessagePackObject(true)]
+public record CharacterSkillSlotTagRow
+{
+    [PrimaryKey(keyOrder: 0)]
+    [SecondaryKey(0), NonUnique]
+    [SecondaryKey(1, keyOrder: 0), NonUnique]
+    public required long CharacterCode { get; init; }
+
+    [PrimaryKey(keyOrder: 1)]
+    [SecondaryKey(1, keyOrder: 1), NonUnique]
+    public required long SkillSlotCode { get; init; }
+
+    [PrimaryKey(keyOrder: 2)]
+    [SecondaryKey(1, keyOrder: 2), NonUnique]
+    public required long GroupCode { get; init; }
+
+    [PrimaryKey(keyOrder: 3)]
+    public required long TagCode { get; init; }
+}
+
+[MemoryTable("skill"), MessagePackObject(true)]
+public record SkillRow
+{
+    [PrimaryKey] public required long Code { get; init; }
+    public required string Name { get; init; }
+}
+
+/// <summary>스킬 태그: 복합키는 (스킬, 태그)이고, 보조키 스킬 코드로 그 스킬의 태그 전부를 찾는다.</summary>
+[MemoryTable("skill_tag"), MessagePackObject(true)]
+public record SkillTagRow
+{
+    [PrimaryKey(keyOrder: 0)]
+    [SecondaryKey(0), NonUnique]
+    public required long SkillCode { get; init; }
+
+    [PrimaryKey(keyOrder: 1)] public required long TagCode { get; init; }
+}
+
+/// <summary>스킬 이펙트: 복합키는 (스킬, 실행 번호)이고, 보조키 스킬 코드로 그 스킬의 이펙트 전부를 찾는다.</summary>
+[MemoryTable("skill_effect"), MessagePackObject(true)]
+public record SkillEffectRow
+{
+    [PrimaryKey(keyOrder: 0)]
+    [SecondaryKey(0), NonUnique]
+    public required long SkillCode { get; init; }
+
+    [PrimaryKey(keyOrder: 1)] public required long ExecuteNumber { get; init; }
+    public required EffectType EffectType { get; init; }
+    public required long Value1 { get; init; }
+    public required long Value2 { get; init; }
+    public required long Value3 { get; init; }
+}

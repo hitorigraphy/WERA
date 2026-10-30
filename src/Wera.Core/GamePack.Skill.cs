@@ -1,0 +1,196 @@
+using System.IO.Compression;
+using System.Text.Json.Serialization;
+
+namespace Wera.Core;
+
+/// <summary>스킬 슬롯 마스터의 한 행.</summary>
+public sealed record SkillSlotEntry(long Code, string Name);
+
+/// <summary>
+/// 캐릭터 스킬 슬롯 태그 마스터의 한 행: 캐릭터의 스킬 슬롯에 그룹 단위로 걸린 태그 규칙.
+/// 앞의 네 열(캐릭터, 스킬 슬롯, 그룹, 태그)이 복합키다.
+/// </summary>
+public sealed record CharacterSkillSlotTag(long CharacterCode, long SkillSlotCode, long GroupCode, long TagCode);
+
+/// <summary>스킬 마스터의 한 행.</summary>
+public sealed record SkillEntry(long Code, string Name);
+
+/// <summary>스킬 태그 마스터의 한 행.</summary>
+public sealed record SkillTag(long SkillCode, long TagCode);
+
+/// <summary>
+/// 스킬 이펙트가 하는 일의 종류. TSV에는 이름(대소문자 무시)으로 적는다.
+/// 마스터만으로는 스킬의 동작을 정할 수 없으므로 종류마다 동작을 코드로 구현하고, 마스터는 어느 종류를 어떤 값(value_1~3)으로 쓸지만 적는다.
+/// 숫자 값은 정해진 번호다: None 0.
+/// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter<EffectType>))]
+public enum EffectType
+{
+    /// <summary>아무 일도 하지 않는다. 값은 보지 않는다.</summary>
+    None = 0,
+}
+
+/// <summary>스킬 이펙트 마스터의 한 행: 스킬을 쓰면 execute_number 순서대로 실행하는 이펙트 하나(종류와 값 셋).</summary>
+public sealed record SkillEffect(long SkillCode, long ExecuteNumber, EffectType EffectType, long Value1, long Value2, long Value3);
+
+// 스킬 마스터: skill_slot_master(code, name; code가 키), character_skill_slot_tag_master(character_code, skill_slot_code, group_code, tag_code; 네 열이 키),
+// skill_master(code, name; code가 키), skill_tag_master(skill_code, tag_code; 두 열이 키), skill_effect_master(skill_code, execute_number, effect_type, value_1, value_2, value_3; 앞의 두 열이 키).
+// 모두 선택이다.
+public sealed partial class GamePack
+{
+    public const string SkillSlotMasterPath = "master/skill_slot_master_v1.tsv";
+    public const string CharacterSkillSlotTagMasterPath = "master/character_skill_slot_tag_master_v1.tsv";
+    public const string SkillMasterPath = "master/skill_master_v1.tsv";
+    public const string SkillTagMasterPath = "master/skill_tag_master_v1.tsv";
+    public const string SkillEffectMasterPath = "master/skill_effect_master_v1.tsv";
+
+    /// <summary>스킬 슬롯 마스터(게임팩 파일 순서). 마스터가 없으면 null.</summary>
+    public IReadOnlyList<SkillSlotEntry>? SkillSlots { get; init; }
+
+    /// <summary>캐릭터 스킬 슬롯 태그 마스터(게임팩 파일 순서). 마스터가 없으면 null.</summary>
+    public IReadOnlyList<CharacterSkillSlotTag>? CharacterSkillSlotTags { get; init; }
+
+    /// <summary>스킬 마스터(게임팩 파일 순서). 마스터가 없으면 null.</summary>
+    public IReadOnlyList<SkillEntry>? Skills { get; init; }
+
+    /// <summary>스킬 태그 마스터(게임팩 파일 순서). 마스터가 없으면 null.</summary>
+    public IReadOnlyList<SkillTag>? SkillTags { get; init; }
+
+    /// <summary>스킬 이펙트 마스터(게임팩 파일 순서). 마스터가 없으면 null.</summary>
+    public IReadOnlyList<SkillEffect>? SkillEffects { get; init; }
+
+    static List<SkillSlotEntry>? LoadSkillSlots(ZipArchive zip) =>
+        LoadCodeNames(zip, SkillSlotMasterPath, "code", "name", "스킬 슬롯", (code, name) => new SkillSlotEntry(code, name));
+
+    static List<SkillEntry>? LoadSkills(ZipArchive zip) =>
+        LoadCodeNames(zip, SkillMasterPath, "code", "name", "스킬", (code, name) => new SkillEntry(code, name));
+
+    /// <summary>캐릭터 스킬 슬롯 태그 마스터: 캐릭터는 캐릭터 인벤토리에, 스킬 슬롯은 스킬 슬롯 마스터에, 태그는 태그 마스터에 있어야 하고 네 열이 키라 같은 키를 두 번 쓸 수 없다.</summary>
+    static List<CharacterSkillSlotTag>? LoadCharacterSkillSlotTags(
+        ZipArchive zip, List<CharacterEntry>? characters, List<SkillSlotEntry>? skillSlots, List<TagEntry>? tags)
+    {
+        const string file = CharacterSkillSlotTagMasterPath;
+        var text = TryReadEntry(zip, file);
+        if (text is null) return null;
+        if (characters is null) throw new PackFormatException($"{file}가 있으려면 {CharacterInventoryMasterPath}도 필요합니다.");
+        if (skillSlots is null) throw new PackFormatException($"{file}가 있으려면 {SkillSlotMasterPath}도 필요합니다.");
+        if (tags is null) throw new PackFormatException($"{file}가 있으려면 {TagMasterPath}도 필요합니다.");
+
+        var characterCodes = characters.Select(c => c.Code).ToHashSet();
+        var slotCodes = skillSlots.Select(s => s.Code).ToHashSet();
+        var tagCodes = tags.Select(t => t.Code).ToHashSet();
+        var rows = new List<CharacterSkillSlotTag>();
+        var seen = new HashSet<(long, long, long, long)>();
+        foreach (var r in Body(file, text, "character_code", "skill_slot_code", "group_code", "tag_code"))
+        {
+            var character = ParseLong(file, "캐릭터 코드", r[0]);
+            var slot = ParseLong(file, $"캐릭터 '{character}'의 스킬 슬롯 코드", r[1]);
+            var group = ParseLong(file, $"캐릭터 '{character}' 스킬 슬롯 '{slot}'의 그룹 코드", r[2]);
+            var tag = ParseLong(file, $"캐릭터 '{character}' 스킬 슬롯 '{slot}'의 태그 코드", r[3]);
+            var who = $"캐릭터 '{character}' 스킬 슬롯 '{slot}'의";
+            if (!characterCodes.Contains(character))
+                throw new PackFormatException($"{file}: 캐릭터 '{character}'가 캐릭터 인벤토리 마스터에 없습니다.");
+            if (!slotCodes.Contains(slot))
+                throw new PackFormatException($"{file}: {who} 스킬 슬롯 '{slot}'가 스킬 슬롯 마스터에 없습니다.");
+            if (!tagCodes.Contains(tag))
+                throw new PackFormatException($"{file}: {who} 태그 '{tag}'가 태그 마스터에 없습니다.");
+            if (!seen.Add((character, slot, group, tag)))
+                throw new PackFormatException($"{file}: 같은 키(캐릭터 {character}, 스킬 슬롯 {slot}, 그룹 {group}, 태그 {tag})가 두 번 있습니다.");
+            rows.Add(new CharacterSkillSlotTag(character, slot, group, tag));
+        }
+        return rows;
+    }
+
+    /// <summary>스킬 태그 마스터: 스킬은 스킬 마스터에, 태그는 태그 마스터에 있어야 하고 같은 (스킬, 태그)는 한 번만 쓸 수 있다.</summary>
+    static List<SkillTag>? LoadSkillTags(ZipArchive zip, List<SkillEntry>? skills, List<TagEntry>? tags)
+    {
+        const string file = SkillTagMasterPath;
+        var text = TryReadEntry(zip, file);
+        if (text is null) return null;
+        if (skills is null) throw new PackFormatException($"{file}가 있으려면 {SkillMasterPath}도 필요합니다.");
+        if (tags is null) throw new PackFormatException($"{file}가 있으려면 {TagMasterPath}도 필요합니다.");
+
+        var skillCodes = skills.Select(s => s.Code).ToHashSet();
+        var tagCodes = tags.Select(t => t.Code).ToHashSet();
+        var rows = new List<SkillTag>();
+        var seen = new HashSet<(long, long)>();
+        foreach (var r in Body(file, text, "skill_code", "tag_code"))
+        {
+            var skill = ParseLong(file, "스킬 코드", r[0]);
+            var tag = ParseLong(file, $"스킬 '{skill}'의 태그 코드", r[1]);
+            if (!skillCodes.Contains(skill))
+                throw new PackFormatException($"{file}: 스킬 코드 '{skill}'가 스킬 마스터에 없습니다.");
+            if (!tagCodes.Contains(tag))
+                throw new PackFormatException($"{file}: 스킬 '{skill}'의 태그 코드 '{tag}'가 태그 마스터에 없습니다.");
+            if (!seen.Add((skill, tag)))
+                throw new PackFormatException($"{file}: 스킬 '{skill}'의 태그 '{tag}'가 두 번 적혀 있습니다.");
+            rows.Add(new SkillTag(skill, tag));
+        }
+        return rows;
+    }
+
+    /// <summary>스킬 이펙트 마스터: 스킬은 스킬 마스터에 있어야 하고 키 (스킬, 실행 번호)를 두 번 쓸 수 없다. 종류는 이름으로 적고 값 셋은 비우면 0이다.</summary>
+    static List<SkillEffect>? LoadSkillEffects(ZipArchive zip, List<SkillEntry>? skills)
+    {
+        const string file = SkillEffectMasterPath;
+        var text = TryReadEntry(zip, file);
+        if (text is null) return null;
+        if (skills is null) throw new PackFormatException($"{file}가 있으려면 {SkillMasterPath}도 필요합니다.");
+
+        var skillCodes = skills.Select(s => s.Code).ToHashSet();
+        var rows = new List<SkillEffect>();
+        var seen = new HashSet<(long, long)>();
+        foreach (var r in Body(file, text, "skill_code", "execute_number", "effect_type", "value_1", "value_2", "value_3"))
+        {
+            var skill = ParseLong(file, "스킬 코드", r[0]);
+            var who = $"스킬 '{skill}'의";
+            var number = ParseLong(file, $"{who} 실행 번호", r[1]);
+            var where = $"{who} 실행 {number}의";
+            // 숫자("0")도 Enum.TryParse를 통과하므로 이름 목록으로 먼저 거른다.
+            if (!Enum.GetNames<EffectType>().Contains(r[2], StringComparer.OrdinalIgnoreCase)
+                || !Enum.TryParse<EffectType>(r[2], ignoreCase: true, out var type))
+                throw new PackFormatException(
+                    $"{file}: {where} 이펙트 종류 '{r[2]}'을(를) 알 수 없습니다. ({string.Join(", ", Enum.GetNames<EffectType>())})");
+            var value1 = r[3].Trim().Length == 0 ? 0 : ParseLong(file, $"{where} value_1", r[3]);
+            var value2 = r[4].Trim().Length == 0 ? 0 : ParseLong(file, $"{where} value_2", r[4]);
+            var value3 = r[5].Trim().Length == 0 ? 0 : ParseLong(file, $"{where} value_3", r[5]);
+
+            if (!skillCodes.Contains(skill))
+                throw new PackFormatException($"{file}: 스킬 코드 '{skill}'가 스킬 마스터에 없습니다.");
+            if (!seen.Add((skill, number)))
+                throw new PackFormatException($"{file}: 스킬 '{skill}'의 실행 번호 '{number}'가 두 번 적혀 있습니다.");
+            rows.Add(new SkillEffect(skill, number, type, value1, value2, value3));
+        }
+        return rows;
+    }
+
+    // ---- 조회 ----
+
+    public SkillSlotEntry? FindSkillSlot(long code) =>
+        Masters.SkillSlotRowTable.TryFindByCode(code, out var r) ? new SkillSlotEntry(r.Code, r.Name) : null;
+
+    public SkillEntry? FindSkill(long code) =>
+        Masters.SkillRowTable.TryFindByCode(code, out var r) ? new SkillEntry(r.Code, r.Name) : null;
+
+    /// <summary>캐릭터의 스킬 슬롯 태그 전부(스킬 슬롯, 그룹, 태그 코드 순).</summary>
+    public IReadOnlyList<CharacterSkillSlotTag> SkillSlotTagsOf(long characterCode) =>
+        Masters.CharacterSkillSlotTagRowTable.FindByCharacterCode(characterCode)
+            .OrderBy(r => r.SkillSlotCode).ThenBy(r => r.GroupCode).ThenBy(r => r.TagCode)
+            .Select(r => new CharacterSkillSlotTag(r.CharacterCode, r.SkillSlotCode, r.GroupCode, r.TagCode)).ToList();
+
+    /// <summary>캐릭터의 스킬 슬롯 하나의 한 그룹에 걸린 태그(태그 코드 순).</summary>
+    public IReadOnlyList<CharacterSkillSlotTag> SkillSlotTagsOf(long characterCode, long skillSlotCode, long groupCode) =>
+        Masters.CharacterSkillSlotTagRowTable.FindByCharacterCodeAndSkillSlotCodeAndGroupCode((characterCode, skillSlotCode, groupCode))
+            .OrderBy(r => r.TagCode)
+            .Select(r => new CharacterSkillSlotTag(r.CharacterCode, r.SkillSlotCode, r.GroupCode, r.TagCode)).ToList();
+
+    /// <summary>스킬에 붙은 태그 코드(코드 순).</summary>
+    public IReadOnlyList<long> TagsOfSkill(long skillCode) =>
+        Masters.SkillTagRowTable.FindBySkillCode(skillCode).OrderBy(r => r.TagCode).Select(r => r.TagCode).ToList();
+
+    /// <summary>스킬의 이펙트(실행 번호 순).</summary>
+    public IReadOnlyList<SkillEffect> SkillEffectsOf(long skillCode) =>
+        Masters.SkillEffectRowTable.FindBySkillCode(skillCode)
+            .OrderBy(r => r.ExecuteNumber)
+            .Select(r => new SkillEffect(r.SkillCode, r.ExecuteNumber, r.EffectType, r.Value1, r.Value2, r.Value3)).ToList();
+}

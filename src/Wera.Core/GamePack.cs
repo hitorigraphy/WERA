@@ -175,6 +175,11 @@ public sealed partial class GamePack
         var presetUnitDrops = LoadPresetUnitDrops(zip, presetUnits, inventory);
         var presetParties = LoadPresetParties(zip, presetUnits);
         var battleEnemies = LoadBattleEnemies(zip, battles, presetParties);
+        var skillSlots = LoadSkillSlots(zip);
+        var characterSkillSlotTags = LoadCharacterSkillSlotTags(zip, characterInventory, skillSlots, tags);
+        var skills = LoadSkills(zip);
+        var skillTags = LoadSkillTags(zip, skills, tags);
+        var skillEffects = LoadSkillEffects(zip, skills);
 
         var pack = new GamePack
         {
@@ -217,6 +222,11 @@ public sealed partial class GamePack
             PresetUnitDrops = presetUnitDrops,
             PresetParties = presetParties,
             BattleEnemies = battleEnemies,
+            SkillSlots = skillSlots,
+            CharacterSkillSlotTags = characterSkillSlotTags,
+            Skills = skills,
+            SkillTags = skillTags,
+            SkillEffects = skillEffects,
             Masters = BuildMasters(
                 dungeons, dungeonConditions, shops, shopConditions, itemInventory, bunchInventory, characterInventory, attributes,
                 trades, tradeConditions, statusEffects, statusEffectEffects,
@@ -224,7 +234,8 @@ public sealed partial class GamePack
                 statuses, characterStatuses, timeSlots, turns,
                 events, eventConditions, eventFlows, advs, battles, advFlows, communicationGroups, communications,
                 communicationSoloFlows, communicationDuoFlows, communicationDefaultFlows,
-                presetUnits, presetUnitEquips, presetUnitDrops, presetParties, battleEnemies),
+                presetUnits, presetUnitEquips, presetUnitDrops, presetParties, battleEnemies,
+                skillSlots, characterSkillSlotTags, skills, skillTags, skillEffects),
             EmbeddedEffects = embeddedEffects,
         };
         pack.CheckPresetUnitEquips();
