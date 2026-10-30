@@ -21,7 +21,7 @@ public sealed record SkillTag(long SkillCode, long TagCode);
 /// <summary>
 /// 스킬 이펙트가 하는 일의 종류. TSV에는 이름(대소문자 무시)으로 적는다.
 /// 마스터만으로는 스킬의 동작을 정할 수 없으므로 종류마다 동작을 코드로 구현하고, 마스터는 어느 종류를 어떤 값(value_1~3)으로 쓸지만 적는다.
-/// 숫자 값은 정해진 번호다: None 0, CacheToTargetModValue 1, CacheToTargetSetValue 2, CacheToCasterModValue 3, CacheToCasterSetValue 4, CasterValueToCache 5, TargetValueToCache 6.
+/// 숫자 값은 정해진 번호다: None 0, CacheToTargetModValue 1, CacheToTargetSetValue 2, CacheToCasterModValue 3, CacheToCasterSetValue 4, CasterValueToCache 5, TargetValueToCache 6, CacheAdd 7, CacheSubtract 8, CacheMultiply 9, CacheDivide 10.
 /// 이펙트는 스킬 서킷(<see cref="SkillCircuit"/>)에서 실행 번호 순서로 실행된다.
 /// </summary>
 [JsonConverter(typeof(JsonStringEnumConverter<EffectType>))]
@@ -48,6 +48,17 @@ public enum EffectType
     CasterValueToCache = 5,
     /// <summary>타겟의 스테이터스 값을 서킷 캐시의 cache_index번에 쓴다. 인자와 예외는 <see cref="CasterValueToCache"/>와 같다.</summary>
     TargetValueToCache = 6,
+    /// <summary>
+    /// 캐시 계산: cache[value_1] = cache[value_2] + cache[value_3]. 세 값 모두 cache_index(0~<see cref="MaxCacheIndex"/>)다.
+    /// 결과를 쓸 번호가 캐시보다 뒤면 모자란 칸을 0으로 채워 늘린다. 계산할 칸(value_2나 value_3)이 캐시에 없거나 결과가 decimal 범위를 넘으면 아무 일도 하지 않는다.
+    /// </summary>
+    CacheAdd = 7,
+    /// <summary>cache[value_1] = cache[value_2] - cache[value_3]. 인자와 예외는 <see cref="CacheAdd"/>와 같다.</summary>
+    CacheSubtract = 8,
+    /// <summary>cache[value_1] = cache[value_2] * cache[value_3]. 인자와 예외는 <see cref="CacheAdd"/>와 같다.</summary>
+    CacheMultiply = 9,
+    /// <summary>cache[value_1] = cache[value_2] / cache[value_3](나눗셈은 decimal 그대로, 반올림 없음). 인자와 예외는 <see cref="CacheAdd"/>와 같고, value_3의 칸이 0이면 아무 일도 하지 않는다.</summary>
+    CacheDivide = 10,
 }
 
 /// <summary>스킬 이펙트 마스터의 한 행: 스킬을 쓰면 execute_number 순서대로 실행하는 이펙트 하나(종류와 값 셋).</summary>
@@ -182,7 +193,13 @@ public sealed partial class GamePack
                 throw new PackFormatException($"{file}: 스킬 코드 '{skill}'가 스킬 마스터에 없습니다.");
             if (!seen.Add((skill, number)))
                 throw new PackFormatException($"{file}: 스킬 '{skill}'의 실행 번호 '{number}'가 두 번 적혀 있습니다.");
-            if (type != EffectType.None)
+            if (type is >= EffectType.CacheAdd and <= EffectType.CacheDivide)
+            {
+                foreach (var (index, column) in new[] { (value1, "value_1"), (value2, "value_2"), (value3, "value_3") })
+                    if (index < 0 || index > MaxCacheIndex)
+                        throw new PackFormatException($"{file}: {where} {column}(cache_index) '{index}'는 0~{MaxCacheIndex}이어야 합니다.");
+            }
+            else if (type != EffectType.None)
             {
                 if (statuses is null) throw new PackFormatException($"{file}: {where} {type}에는 {StatusMasterPath}가 필요합니다.");
                 if (statuses.All(st => st.Code != value1))

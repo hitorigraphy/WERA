@@ -138,4 +138,74 @@ public class SkillCircuitTests
             Assert.NotNull(Pack(Rows($"1 1 {type} 2 255 ")));
         }
     }
+
+    static List<decimal> Calc(string type, decimal left, decimal right, int into = 2)
+    {
+        var pack = Pack(Rows($"1 1 {type} {into} 0 1"));
+        var c = Circuit(pack);
+        c.CacheValues.AddRange([left, right]);
+        c.Execute();
+        return c.CacheValues;
+    }
+
+    [Fact]
+    public void The_four_operations_write_cache_value_2_op_value_3_into_value_1()
+    {
+        Assert.Equal([7m, 2m, 9m], Calc("CacheAdd", 7m, 2m));
+        Assert.Equal([7m, 2m, 5m], Calc("CacheSubtract", 7m, 2m));
+        Assert.Equal([7m, 2m, 14m], Calc("CacheMultiply", 7m, 2m));
+        Assert.Equal([7m, 2m, 3.5m], Calc("CacheDivide", 7m, 2m));
+    }
+
+    [Fact]
+    public void The_result_can_overwrite_an_operand_and_a_far_index_pads_with_zeros()
+    {
+        Assert.Equal([7m, 9m], Calc("CacheAdd", 7m, 2m, into: 1));          // 오른쪽 칸을 덮어쓴다
+        Assert.Equal([9m, 2m], Calc("CacheAdd", 7m, 2m, into: 0));          // 왼쪽 칸을 덮어쓴다
+        Assert.Equal([7m, 2m, 0m, 9m], Calc("CacheAdd", 7m, 2m, into: 3));
+    }
+
+    [Fact]
+    public void Division_does_not_round()
+    {
+        Assert.Equal(1m / 3m, Calc("CacheDivide", 1m, 3m)[2]);
+    }
+
+    [Fact]
+    public void Missing_operands_division_by_zero_and_overflow_do_nothing()
+    {
+        Assert.Equal([7m, 0m], Calc("CacheDivide", 7m, 0m));
+        Assert.Equal([decimal.MaxValue, 2m], Calc("CacheMultiply", decimal.MaxValue, 2m));
+        Assert.Equal([decimal.MinValue, 1m], Calc("CacheSubtract", decimal.MinValue, 1m));
+
+        var pack = Pack(Rows("1 1 CacheAdd 2 0 5"));                        // 5번 칸이 없다
+        var c = Circuit(pack);
+        c.CacheValues.AddRange([1m, 2m]);
+        c.Execute();
+        Assert.Equal([1m, 2m], c.CacheValues);
+    }
+
+    [Fact]
+    public void Operations_chain_through_the_cache_with_unit_values()
+    {
+        // 타겟 hp를 (시전자 hp / 2)만큼 깎는다: [0]=시전자 hp, [1]=2, [2]=[0]/[1], [3]=0-[2]
+        var pack = Pack(Rows("1 1 CasterValueToCache 2 0", "1 2 CacheDivide 2 0 1", "1 3 CacheSubtract 3 4 2", "1 4 CacheToTargetModValue 2 3"));
+        var c = Circuit(pack);
+        c.CacheValues.AddRange([0m, 2m, 0m, 0m, 0m]);
+        c.Execute();
+        Assert.Equal([40m, 2m, 20m, -20m, 0m], c.CacheValues);
+        Assert.Equal(20m, c.Target.ValueOf(Hp));
+    }
+
+    [Fact]
+    public void The_loader_treats_all_three_arguments_of_a_calculation_as_cache_indexes()
+    {
+        foreach (var type in new[] { "CacheAdd", "CacheSubtract", "CacheMultiply", "CacheDivide" })
+        {
+            Assert.NotNull(Pack(Rows($"1 1 {type} 255 0 255")));                          // 상태 코드 검사는 하지 않는다
+            Assert.Contains("value_1(cache_index) '256'", Assert.Throws<PackFormatException>(() => Pack(Rows($"1 1 {type} 256 0 0"))).Message);
+            Assert.Contains("value_2(cache_index) '-1'", Assert.Throws<PackFormatException>(() => Pack(Rows($"1 1 {type} 0 -1 0"))).Message);
+            Assert.Contains("value_3(cache_index) '300'", Assert.Throws<PackFormatException>(() => Pack(Rows($"1 1 {type} 0 0 300"))).Message);
+        }
+    }
 }

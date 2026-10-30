@@ -85,6 +85,36 @@ public sealed class SkillCircuit(GamePack pack, long skillCode, BattleUnit caste
             case EffectType.TargetValueToCache:
                 if (Target.ValueOf(effect.Value1) is { } targetValue) WriteCache(effect.Value2, targetValue);
                 break;
+            case EffectType.CacheAdd:
+            case EffectType.CacheSubtract:
+            case EffectType.CacheMultiply:
+            case EffectType.CacheDivide:
+                Calculate(effect);
+                break;
+        }
+    }
+
+    /// <summary>캐시 계산 이펙트: cache[value_1] = cache[value_2] (연산) cache[value_3]. 칸이 없거나 0으로 나누거나 decimal 범위를 넘으면 아무 일도 하지 않는다.</summary>
+    void Calculate(SkillEffect effect)
+    {
+        if (CacheAt(effect.Value2) is not { } left || CacheAt(effect.Value3) is not { } right) return;
+        try
+        {
+            decimal result;
+            switch (effect.EffectType)
+            {
+                case EffectType.CacheAdd: result = left + right; break;
+                case EffectType.CacheSubtract: result = left - right; break;
+                case EffectType.CacheMultiply: result = left * right; break;
+                default:
+                    if (right == 0m) return;
+                    result = left / right;
+                    break;
+            }
+            WriteCache(effect.Value1, result);
+        }
+        catch (OverflowException)
+        {
         }
     }
 
