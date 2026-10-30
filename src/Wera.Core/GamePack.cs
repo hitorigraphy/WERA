@@ -179,7 +179,7 @@ public sealed partial class GamePack
         var characterSkillSlotTags = LoadCharacterSkillSlotTags(zip, characterInventory, skillSlots, tags);
         var skills = LoadSkills(zip);
         var skillTags = LoadSkillTags(zip, skills, tags);
-        var skillEffects = LoadSkillEffects(zip, skills);
+        var skillEffects = LoadSkillEffects(zip, skills, statuses);
 
         var pack = new GamePack
         {

@@ -21,13 +21,22 @@ public sealed record SkillTag(long SkillCode, long TagCode);
 /// <summary>
 /// 스킬 이펙트가 하는 일의 종류. TSV에는 이름(대소문자 무시)으로 적는다.
 /// 마스터만으로는 스킬의 동작을 정할 수 없으므로 종류마다 동작을 코드로 구현하고, 마스터는 어느 종류를 어떤 값(value_1~3)으로 쓸지만 적는다.
-/// 숫자 값은 정해진 번호다: None 0.
+/// 숫자 값은 정해진 번호다: None 0, CacheToTargetModValue 1, CacheToTargetSetValue 2.
+/// 이펙트는 스킬 서킷(<see cref="SkillCircuit"/>)에서 실행 번호 순서로 실행된다.
 /// </summary>
 [JsonConverter(typeof(JsonStringEnumConverter<EffectType>))]
 public enum EffectType
 {
     /// <summary>아무 일도 하지 않는다. 값은 보지 않는다.</summary>
     None = 0,
+    /// <summary>
+    /// 서킷 캐시의 값을 타겟의 스테이터스에 더한다(음수면 뺀다). value_1이 status_code(스테이터스 마스터에 있어야 함),
+    /// value_2가 cache_index(0 이상)이고 value_3은 보지 않는다. 결과는 그 캐릭터 스테이터스의 최솟값~최댓값으로 맞춘다.
+    /// 타겟에게 그 스테이터스가 없거나 캐시에 그 번호의 값이 없으면 아무 일도 하지 않는다.
+    /// </summary>
+    CacheToTargetModValue = 1,
+    /// <summary>서킷 캐시의 값으로 타겟의 스테이터스를 바꾼다. 인자와 예외는 <see cref="CacheToTargetModValue"/>와 같다.</summary>
+    CacheToTargetSetValue = 2,
 }
 
 /// <summary>스킬 이펙트 마스터의 한 행: 스킬을 쓰면 execute_number 순서대로 실행하는 이펙트 하나(종류와 값 셋).</summary>
@@ -130,7 +139,7 @@ public sealed partial class GamePack
     }
 
     /// <summary>스킬 이펙트 마스터: 스킬은 스킬 마스터에 있어야 하고 키 (스킬, 실행 번호)를 두 번 쓸 수 없다. 종류는 이름으로 적고 값 셋은 비우면 0이다.</summary>
-    static List<SkillEffect>? LoadSkillEffects(ZipArchive zip, List<SkillEntry>? skills)
+    static List<SkillEffect>? LoadSkillEffects(ZipArchive zip, List<SkillEntry>? skills, List<StatusEntry>? statuses)
     {
         const string file = SkillEffectMasterPath;
         var text = TryReadEntry(zip, file);
@@ -159,6 +168,14 @@ public sealed partial class GamePack
                 throw new PackFormatException($"{file}: 스킬 코드 '{skill}'가 스킬 마스터에 없습니다.");
             if (!seen.Add((skill, number)))
                 throw new PackFormatException($"{file}: 스킬 '{skill}'의 실행 번호 '{number}'가 두 번 적혀 있습니다.");
+            if (type is EffectType.CacheToTargetModValue or EffectType.CacheToTargetSetValue)
+            {
+                if (statuses is null) throw new PackFormatException($"{file}: {where} {type}에는 {StatusMasterPath}가 필요합니다.");
+                if (statuses.All(st => st.Code != value1))
+                    throw new PackFormatException($"{file}: {where} value_1(status_code) '{value1}'가 스테이터스 마스터에 없습니다.");
+                if (value2 < 0)
+                    throw new PackFormatException($"{file}: {where} value_2(cache_index) '{value2}'는 0 이상이어야 합니다.");
+            }
             rows.Add(new SkillEffect(skill, number, type, value1, value2, value3));
         }
         return rows;
