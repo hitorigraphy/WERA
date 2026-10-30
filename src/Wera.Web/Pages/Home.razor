@@ -261,6 +261,12 @@
                 @partyCommands
                 break;
 
+            case Screen.SkillSetup:
+                <h2>파티 설정 : @partyNameButton</h2>
+                @partyGrid(true)
+                @partyCommands
+                break;
+
             case Screen.PartyRename:
                 <h2>파티 설정 : 이름 변경</h2>
                 <p>현재 이름: @session.PartyName</p>

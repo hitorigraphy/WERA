@@ -89,11 +89,11 @@ public class LeaderTests
         s.Activate("2"); s.Activate("7002");
         s.Activate("3"); s.Activate("7003");
 
-        s.Activate("103");
+        s.Activate("104");
         Assert.Equal(Screen.LeaderSetup, s.Screen);
         Assert.Equal(["1", "3"], s.Entries.Where(e => e.Action == EntryAction.ToggleLeader && e.Enabled).Select(e => e.Code));   // 마법사(슬롯 2)는 회색
         Assert.False(s.Entries.Single(e => e.Code == "2").Enabled);
-        Assert.False(s.Entries.Single(e => e.Code == "103").Enabled);                                              // 지금 모드
+        Assert.False(s.Entries.Single(e => e.Code == "104").Enabled);                                              // 지금 모드
 
         s.Activate("2");                                          // 리더 태그가 없는 캐릭터: 반응 없음
         Assert.False(s.PartyInstance.Units[1]!.IsLeader);
@@ -138,7 +138,7 @@ public class LeaderTests
         var s = Session();
         s.Activate("105"); s.Activate("1"); s.Activate("7001");
         s.Activate("2"); s.Activate("7003");
-        s.Activate("103"); s.Activate("2");                       // 전사도 리더
+        s.Activate("104"); s.Activate("2");                       // 전사도 리더
         var loaded = GameSession.FromSaveJson(s.Pack, s.ToSaveJson());
         Assert.Equal([true, true], loaded.PartyInstance.Units.Take(2).Select(u => u!.IsLeader));
 
@@ -200,5 +200,26 @@ public class LeaderTests
         s.Party[0] = 7002;                                         // 코드로 리더 없이 편성(리더 지정 화면에서는 리더 태그가 있어야 지정)
         Assert.False(s.IsDispatchable(0));
         Assert.False(s.Entries.Single(e => e.Code == "110").Enabled);
+    }
+
+    [Fact]
+    public void The_modes_are_101_placement_102_equipment_103_skill_and_104_leader()
+    {
+        var s = Session();
+        s.Activate("105");
+        Assert.Equal(["101", "102", "103", "104"], s.Entries.Where(e => e.Arg is null && e.Code != "0" && e.Code != "999").Select(e => e.Code));
+        Assert.Equal(["캐릭터 배치", "장비 착용", "스킬 설정", "리더 지정"],
+            s.Entries.Where(e => e.Code is "101" or "102" or "103" or "104").Select(e => e.Label));
+        Assert.Equal("103", GameSession.SkillModeCode);
+        Assert.Equal("104", GameSession.LeaderModeCode);
+
+        Assert.Equal(Screen.SkillSetup, s.Activate("103")!.Target);
+        Assert.Equal(Screen.SkillSetup, s.Screen);
+        Assert.False(s.Entries.Single(e => e.Code == "103").Enabled);                      // 지금 모드
+        Assert.All(s.Entries.Where(e => e.Arg is not null && e.Code.Length == 1 && e.Code != "0"), e => Assert.False(e.Enabled));   // 슬롯은 아직 고를 수 없다
+        s.Activate("104");
+        Assert.Equal(Screen.LeaderSetup, s.Screen);
+        s.Activate("999");
+        Assert.Equal(Screen.Home, s.Screen);
     }
 }

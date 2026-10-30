@@ -18,6 +18,7 @@ public enum Screen
     EquipmentSetup,
     /// <summary>파티 설정(리더 지정): 같은 3×3 슬롯. 리더 태그를 가진 캐릭터의 슬롯을 고르면 리더로 지정하거나 해제한다. 돌아가기는 홈.</summary>
     LeaderSetup,
+    SkillSetup,
     /// <summary>전투(임시) 화면(110): 정해진 전투의 작전 화면(슬롯 네 줄과 가운데 영역). 돌아가기는 홈.</summary>
     Battle,
     /// <summary>선택한 슬롯 캐릭터의 장비 슬롯 목록. 돌아가기는 장비 착용 화면.</summary>
@@ -159,7 +160,8 @@ public sealed partial class GameSession
     /// <summary>파티 설정 화면 아래의 텍스트 버튼: 캐릭터 배치 화면 / 장비 착용 화면으로 바꾼다.</summary>
     public const string PlacementModeCode = "101";
     public const string EquipmentModeCode = "102";
-    public const string LeaderModeCode = "103";
+    public const string SkillModeCode = "103";
+    public const string LeaderModeCode = "104";
 
     /// <summary>파티 선택 버튼의 코드는 파티 A가 11이고 파티 P가 26이다(<see cref="PartySelectCodeBase"/> + 파티 번호).</summary>
     public const int PartySelectCodeBase = 11;
@@ -562,6 +564,17 @@ public sealed partial class GameSession
                         .Concat(ModeEntries(Screen.LeaderSetup))
                         .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home))
                         .ToList();
+                case Screen.SkillSetup:
+                    // 아직 만들지 않은 모드: 캐릭터가 있는 슬롯이 보이지만 고를 수 없다(눌러도 반응이 없다). 돌아가면 홈으로 간다.
+                    return RenamePartyEntries()
+                        .Concat(PartySlotViews
+                        .Where(v => !v.IsEmpty)
+                        .Select(v => new ScreenEntry(
+                            (v.Slot + 1).ToString(), v.Name, Screen.SkillSetup, Arg: v.Slot.ToString(), Enabled: false)))
+                        .Concat(PartySelectEntries(Screen.SkillSetup))
+                        .Concat(ModeEntries(Screen.SkillSetup))
+                        .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home))
+                        .ToList();
                 case Screen.PartyRename:
                     return [new ScreenEntry(BackEntryCode, "돌아가기", partyRenameReturn)];
                 case Screen.EquipmentList:
@@ -797,11 +810,12 @@ public sealed partial class GameSession
             (PartySelectCodeBase + i).ToString(CultureInfo.InvariantCulture), p.Name, screen, EntryAction.SelectParty,
             i.ToString(CultureInfo.InvariantCulture), Enabled: i != CurrentPartyIndex));
 
-    /// <summary>파티 설정 화면 아래의 모드 버튼들: [10] 캐릭터 배치, [11] 장비 착용. 지금 보고 있는 모드의 버튼은 선택할 수 없다.</summary>
+    /// <summary>파티 설정 화면 아래의 모드 버튼들: [101] 캐릭터 배치, [102] 장비 착용, [103] 스킬 설정, [104] 리더 지정. 지금 보고 있는 모드의 버튼은 선택할 수 없다.</summary>
     static IEnumerable<ScreenEntry> ModeEntries(Screen current) =>
     [
         new ScreenEntry(PlacementModeCode, "캐릭터 배치", Screen.PartySetup, Enabled: current != Screen.PartySetup),
         new ScreenEntry(EquipmentModeCode, "장비 착용", Screen.EquipmentSetup, Enabled: current != Screen.EquipmentSetup),
+        new ScreenEntry(SkillModeCode, "스킬 설정", Screen.SkillSetup, Enabled: current != Screen.SkillSetup),
         new ScreenEntry(LeaderModeCode, "리더 지정", Screen.LeaderSetup, Enabled: current != Screen.LeaderSetup),
     ];
 

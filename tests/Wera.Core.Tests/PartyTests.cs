@@ -112,7 +112,7 @@ public class PartyTests
         s.Activate("105");
         Assert.Equal(Screen.PartySetup, s.Screen);
         Assert.Equal(
-            ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", .. Enumerable.Range(11, 16).Select(c => c.ToString()), "101", "102", "103", "999"],
+            ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", .. Enumerable.Range(11, 16).Select(c => c.ToString()), "101", "102", "103", "104", "999"],
             s.Entries.Select(e => e.Code));
         Assert.Null(s.Activate("105"));
         Assert.NotNull(s.Activate("999"));
