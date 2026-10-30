@@ -7,10 +7,24 @@ namespace Wera.Core;
 public sealed record SkillSlotEntry(long Code, string Name);
 
 /// <summary>
-/// 캐릭터 스킬 슬롯 태그 마스터의 한 행: 캐릭터의 스킬 슬롯에 그룹 단위로 걸린 태그 규칙.
-/// 앞의 네 열(캐릭터, 스킬 슬롯, 그룹, 태그)이 복합키다.
+/// 캐릭터 스킬 슬롯 태그 마스터의 한 행. 캐릭터(CharacterCode)의 스킬 슬롯(SkillSlotCode)에 스킬을 넣을 수 있는 조건의 일부:
+/// 같은 (캐릭터, 슬롯)에서 같은 GroupNumber인 행들이 한 그룹이고, 그룹 안은 모두 만족해야 한다(AND).
+/// IsPositive가 참이면 스킬이 그 태그를 가져야 하고, 거짓이면 가지면 안 된다(장비 슬롯 태그와 같다).
+/// 복합키는 (CharacterCode, SkillSlotCode, GroupNumber, TagCode) 네 열이고 IsPositive는 값이다.
 /// </summary>
-public sealed record CharacterSkillSlotTag(long CharacterCode, long SkillSlotCode, long GroupCode, long TagCode);
+public sealed record CharacterSkillSlotTag(long CharacterCode, long SkillSlotCode, int GroupNumber, long TagCode, bool IsPositive);
+
+/// <summary>"이 스킬이 이 슬롯의 태그 조건에 부합하는가"의 판정(<see cref="EquipmentRules"/>와 같은 규칙).</summary>
+public static class SkillSlotRules
+{
+    /// <summary>
+    /// 한 (캐릭터, 스킬 슬롯)의 태그 규칙에 태그가 부합하는지. 그룹 안은 AND(양성 태그는 있어야 하고 음성 태그는 없어야 함),
+    /// 그룹끼리는 OR이다. 규칙이 하나도 없으면 아무것도 넣을 수 없다.
+    /// </summary>
+    public static bool Matches(IEnumerable<CharacterSkillSlotTag> rules, IReadOnlySet<long> tags) =>
+        rules.GroupBy(r => r.GroupNumber)
+            .Any(group => group.All(r => tags.Contains(r.TagCode) == r.IsPositive));
+}
 
 /// <summary>스킬 마스터의 한 행.</summary>
 public sealed record SkillEntry(long Code, string Name);
@@ -22,7 +36,7 @@ public sealed record SkillTag(long SkillCode, long TagCode);
 /// 스킬 이펙트가 하는 일의 종류. TSV에는 이름(대소문자 무시)으로 적는다.
 /// 마스터만으로는 스킬의 동작을 정할 수 없으므로 종류마다 동작을 코드로 구현하고, 마스터는 어느 종류를 어떤 값(value_1~3)으로 쓸지만 적는다.
 /// 숫자 값은 정해진 번호다: None 0, CacheToTargetModValue 1, CacheToTargetSetValue 2, CacheToCasterModValue 3, CacheToCasterSetValue 4, CasterValueToCache 5, TargetValueToCache 6, CacheAdd 7, CacheSubtract 8, CacheMultiply 9, CacheDivide 10, SetCacheValue 11, Jump 12, Finish 13, JumpCacheEqual 14, JumpCacheNotEqual 15, JumpCacheGreaterThan 16, JumpCacheGreaterOrEqual 17, JumpCacheLessThan 18, JumpCacheLessOrEqual 19.
-/// 이펙트는 스킬 서킷(<see cref="SkillCircuit"/>)에서 실행 번호 순서로 실행된다.
+/// 이펙트는 스킬 서킷(<see cref="SkillExecuteCircuit"/>)에서 실행 번호 순서로 실행된다.
 /// </summary>
 [JsonConverter(typeof(JsonStringEnumConverter<EffectType>))]
 public enum EffectType
@@ -127,7 +141,7 @@ public static class SkillJump
 /// <summary>스킬 이펙트 마스터의 한 행: 스킬을 쓰면 execute_number 순서대로 실행하는 이펙트 하나(종류와 값 셋).</summary>
 public sealed record SkillExecuteEffect(long SkillCode, long ExecuteNumber, EffectType EffectType, long Value1, long Value2, long Value3);
 
-// 스킬 마스터: skill_slot_master(code, name; code가 키), character_skill_slot_tag_master(character_code, skill_slot_code, group_code, tag_code; 네 열이 키),
+// 스킬 마스터: skill_slot_master(code, name; code가 키), character_skill_slot_tag_master(character_code, skill_slot_code, group_number, tag_code, is_positive; 앞의 네 열이 키),
 // skill_master(code, name; code가 키), skill_tag_master(skill_code, tag_code; 두 열이 키), skill_execute_effect_master(skill_code, execute_number, effect_type, value_1, value_2, value_3; 앞의 두 열이 키).
 // 모두 선택이다.
 public sealed partial class GamePack
@@ -177,14 +191,16 @@ public sealed partial class GamePack
         var slotCodes = skillSlots.Select(s => s.Code).ToHashSet();
         var tagCodes = tags.Select(t => t.Code).ToHashSet();
         var rows = new List<CharacterSkillSlotTag>();
-        var seen = new HashSet<(long, long, long, long)>();
-        foreach (var r in Body(file, text, "character_code", "skill_slot_code", "group_code", "tag_code"))
+        var seen = new HashSet<(long, long, int, long)>();
+        foreach (var r in Body(file, text, "character_code", "skill_slot_code", "group_number", "tag_code", "is_positive"))
         {
             var character = ParseLong(file, "캐릭터 코드", r[0]);
             var slot = ParseLong(file, $"캐릭터 '{character}'의 스킬 슬롯 코드", r[1]);
-            var group = ParseLong(file, $"캐릭터 '{character}' 스킬 슬롯 '{slot}'의 그룹 코드", r[2]);
-            var tag = ParseLong(file, $"캐릭터 '{character}' 스킬 슬롯 '{slot}'의 태그 코드", r[3]);
             var who = $"캐릭터 '{character}' 스킬 슬롯 '{slot}'의";
+            if (!int.TryParse(r[2], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var group))
+                throw new PackFormatException($"{file}: {who} 그룹넘버 '{r[2]}'이(가) 정수가 아닙니다.");
+            var tag = ParseLong(file, $"캐릭터 '{character}' 스킬 슬롯 '{slot}'의 태그 코드", r[3]);
+            var positive = ParseBool(file, $"{who} is_positive", r[4]);
             if (!characterCodes.Contains(character))
                 throw new PackFormatException($"{file}: 캐릭터 '{character}'가 캐릭터 인벤토리 마스터에 없습니다.");
             if (!slotCodes.Contains(slot))
@@ -193,7 +209,7 @@ public sealed partial class GamePack
                 throw new PackFormatException($"{file}: {who} 태그 '{tag}'가 태그 마스터에 없습니다.");
             if (!seen.Add((character, slot, group, tag)))
                 throw new PackFormatException($"{file}: 같은 키(캐릭터 {character}, 스킬 슬롯 {slot}, 그룹 {group}, 태그 {tag})가 두 번 있습니다.");
-            rows.Add(new CharacterSkillSlotTag(character, slot, group, tag));
+            rows.Add(new CharacterSkillSlotTag(character, slot, group, tag, positive));
         }
         return rows;
     }
@@ -315,14 +331,14 @@ public sealed partial class GamePack
     /// <summary>캐릭터의 스킬 슬롯 태그 전부(스킬 슬롯, 그룹, 태그 코드 순).</summary>
     public IReadOnlyList<CharacterSkillSlotTag> SkillSlotTagsOf(long characterCode) =>
         Masters.CharacterSkillSlotTagRowTable.FindByCharacterCode(characterCode)
-            .OrderBy(r => r.SkillSlotCode).ThenBy(r => r.GroupCode).ThenBy(r => r.TagCode)
-            .Select(r => new CharacterSkillSlotTag(r.CharacterCode, r.SkillSlotCode, r.GroupCode, r.TagCode)).ToList();
+            .OrderBy(r => r.SkillSlotCode).ThenBy(r => r.GroupNumber).ThenBy(r => r.TagCode)
+            .Select(r => new CharacterSkillSlotTag(r.CharacterCode, r.SkillSlotCode, r.GroupNumber, r.TagCode, r.IsPositive)).ToList();
 
     /// <summary>캐릭터의 스킬 슬롯 하나의 한 그룹에 걸린 태그(태그 코드 순).</summary>
-    public IReadOnlyList<CharacterSkillSlotTag> SkillSlotTagsOf(long characterCode, long skillSlotCode, long groupCode) =>
-        Masters.CharacterSkillSlotTagRowTable.FindByCharacterCodeAndSkillSlotCodeAndGroupCode((characterCode, skillSlotCode, groupCode))
+    public IReadOnlyList<CharacterSkillSlotTag> SkillSlotTagsOf(long characterCode, long skillSlotCode, int groupNumber) =>
+        Masters.CharacterSkillSlotTagRowTable.FindByCharacterCodeAndSkillSlotCodeAndGroupNumber((characterCode, skillSlotCode, groupNumber))
             .OrderBy(r => r.TagCode)
-            .Select(r => new CharacterSkillSlotTag(r.CharacterCode, r.SkillSlotCode, r.GroupCode, r.TagCode)).ToList();
+            .Select(r => new CharacterSkillSlotTag(r.CharacterCode, r.SkillSlotCode, r.GroupNumber, r.TagCode, r.IsPositive)).ToList();
 
     /// <summary>스킬에 붙은 태그 코드(코드 순).</summary>
     public IReadOnlyList<long> TagsOfSkill(long skillCode) =>
@@ -333,4 +349,26 @@ public sealed partial class GamePack
         Masters.SkillExecuteEffectRowTable.FindBySkillCode(skillCode)
             .OrderBy(r => r.ExecuteNumber)
             .Select(r => new SkillExecuteEffect(r.SkillCode, r.ExecuteNumber, r.EffectType, r.Value1, r.Value2, r.Value3)).ToList();
+
+    /// <summary>
+    /// 합친 태그(캐릭터의 태그 + 스킬의 태그)가 이 캐릭터의 이 스킬 슬롯 규칙에 부합하는가. 규칙이 하나도 없는 슬롯에는 아무것도 넣을 수 없다.
+    /// </summary>
+    public bool SkillFits(long characterCode, long skillSlotCode, IReadOnlySet<long> tags)
+    {
+        var rules = SkillSlotTagsOf(characterCode).Where(r => r.SkillSlotCode == skillSlotCode).ToList();
+        return rules.Count > 0 && SkillSlotRules.Matches(rules, tags);
+    }
+
+    /// <summary>마스터 태그 기준으로 이 스킬을 이 캐릭터의 이 스킬 슬롯에 넣을 수 있는가(캐릭터의 마스터 태그와 스킬의 태그를 합쳐서 본다).</summary>
+    public bool CanSlotSkill(long characterCode, long skillSlotCode, long skillCode)
+    {
+        if (FindSkill(skillCode) is null) return false;
+        var tags = TagsOfSkill(skillCode).ToHashSet();
+        tags.UnionWith(MasterTagsOfCharacter(characterCode));
+        return SkillFits(characterCode, skillSlotCode, tags);
+    }
+
+    /// <summary>이 캐릭터의 이 스킬 슬롯에 넣을 수 있는 스킬들(스킬 마스터 순서).</summary>
+    public IReadOnlyList<SkillEntry> SlottableSkills(long characterCode, long skillSlotCode) =>
+        (Skills ?? []).Where(s => CanSlotSkill(characterCode, skillSlotCode, s.Code)).ToList();
 }

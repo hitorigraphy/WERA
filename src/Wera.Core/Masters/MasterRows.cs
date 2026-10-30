@@ -461,8 +461,8 @@ public record SkillSlotRow
 }
 
 /// <summary>
-/// 캐릭터 스킬 슬롯 태그: 복합키는 (캐릭터, 스킬 슬롯, 그룹, 태그)다.
-/// 보조키 캐릭터 코드로 그 캐릭터의 규칙 전부를, 보조키 (캐릭터, 스킬 슬롯, 그룹)으로 한 그룹의 규칙 전부를 찾는다.
+/// 캐릭터 스킬 슬롯 태그: 복합키는 (캐릭터, 스킬 슬롯, 그룹넘버, 태그)이고 IsPositive는 값이다.
+/// 보조키 캐릭터 코드로 그 캐릭터의 규칙 전부를, 보조키 (캐릭터, 스킬 슬롯, 그룹넘버)로 한 그룹의 규칙 전부를 찾는다.
 /// </summary>
 [MemoryTable("character_skill_slot_tag"), MessagePackObject(true)]
 public record CharacterSkillSlotTagRow
@@ -478,10 +478,12 @@ public record CharacterSkillSlotTagRow
 
     [PrimaryKey(keyOrder: 2)]
     [SecondaryKey(1, keyOrder: 2), NonUnique]
-    public required long GroupCode { get; init; }
+    public required int GroupNumber { get; init; }
 
     [PrimaryKey(keyOrder: 3)]
     public required long TagCode { get; init; }
+
+    public required bool IsPositive { get; init; }
 }
 
 [MemoryTable("skill"), MessagePackObject(true)]

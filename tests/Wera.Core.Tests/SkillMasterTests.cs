@@ -30,7 +30,7 @@ public class SkillMasterTests
     {
         var pack = Load(
             (GamePack.CharacterSkillSlotTagMasterPath,
-                "character_code\tskill_slot_code\tgroup_code\ttag_code\tmemo\n7001\t1\t1\t4\t검\n7001\t1\t1\t5\t\n7001\t1\t2\t5\t\n7001\t2\t1\t4\t\n1\t1\t1\t4\t\n"),
+                "character_code\tskill_slot_code\tgroup_number\ttag_code\tis_positive\tmemo\n7001\t1\t1\t4\ttrue\t검\n7001\t1\t1\t5\tfalse\t\n7001\t1\t2\t5\t1\t\n7001\t2\t1\t4\t0\t\n1\t1\t1\t4\ttrue\t\n"),
             (GamePack.SkillTagMasterPath, "skill_code\ttag_code\n1\t4\n1\t5\n2\t5\n"),
             (GamePack.SkillExecuteEffectMasterPath,
                 "skill_code\texecute_number\teffect_type\tvalue_1\tvalue_2\tvalue_3\n1\t2\tNone\t7\t8\t9\n1\t1\tnone\t\t\t\n2\t1\tNONE\t1\t\t\n"));
@@ -42,8 +42,8 @@ public class SkillMasterTests
         Assert.Null(pack.FindSkillSlot(99));
 
         Assert.Equal(
-            [(1L, 1L, 4L), (1, 1, 5), (1, 2, 5), (2, 1, 4)],
-            pack.SkillSlotTagsOf(7001).Select(t => (t.SkillSlotCode, t.GroupCode, t.TagCode)));      // 캐릭터로 찾기
+            [(1L, 1, 4L), (1, 1, 5), (1, 2, 5), (2, 1, 4)],
+            pack.SkillSlotTagsOf(7001).Select(t => (t.SkillSlotCode, t.GroupNumber, t.TagCode)));      // 캐릭터로 찾기
         Assert.Equal([4L, 5L], pack.SkillSlotTagsOf(7001, 1, 1).Select(t => t.TagCode));              // (캐릭터, 슬롯, 그룹)으로 찾기
         Assert.Equal([5L], pack.SkillSlotTagsOf(7001, 1, 2).Select(t => t.TagCode));
         Assert.Empty(pack.SkillSlotTagsOf(7001, 2, 2));
@@ -91,12 +91,14 @@ public class SkillMasterTests
     [Fact]
     public void Slot_tags_must_point_at_known_characters_slots_and_tags_and_keys_cannot_repeat()
     {
-        const string head = "character_code\tskill_slot_code\tgroup_code\ttag_code\n";
-        Rejects("캐릭터 '9'가 캐릭터 인벤토리 마스터에 없습니다", (GamePack.CharacterSkillSlotTagMasterPath, head + "9\t1\t1\t4\n"));
-        Rejects("스킬 슬롯 '9'가 스킬 슬롯 마스터에 없습니다", (GamePack.CharacterSkillSlotTagMasterPath, head + "7001\t9\t1\t4\n"));
-        Rejects("태그 '9'가 태그 마스터에 없습니다", (GamePack.CharacterSkillSlotTagMasterPath, head + "7001\t1\t1\t9\n"));
-        Rejects("같은 키", (GamePack.CharacterSkillSlotTagMasterPath, head + "7001\t1\t1\t4\n7001\t1\t1\t4\n"));
-        Rejects("그룹 코드 'x'", (GamePack.CharacterSkillSlotTagMasterPath, head + "7001\t1\tx\t4\n"));
+        const string head = "character_code\tskill_slot_code\tgroup_number\ttag_code\tis_positive\n";
+        Rejects("캐릭터 '9'가 캐릭터 인벤토리 마스터에 없습니다", (GamePack.CharacterSkillSlotTagMasterPath, head + "9\t1\t1\t4\ttrue\n"));
+        Rejects("스킬 슬롯 '9'가 스킬 슬롯 마스터에 없습니다", (GamePack.CharacterSkillSlotTagMasterPath, head + "7001\t9\t1\t4\ttrue\n"));
+        Rejects("태그 '9'가 태그 마스터에 없습니다", (GamePack.CharacterSkillSlotTagMasterPath, head + "7001\t1\t1\t9\ttrue\n"));
+        Rejects("같은 키", (GamePack.CharacterSkillSlotTagMasterPath, head + "7001\t1\t1\t4\ttrue\n7001\t1\t1\t4\tfalse\n"));
+        Rejects("그룹넘버 'x'", (GamePack.CharacterSkillSlotTagMasterPath, head + "7001\t1\tx\t4\ttrue\n"));
+        Rejects("그룹넘버 '1.5'", (GamePack.CharacterSkillSlotTagMasterPath, head + "7001\t1\t1.5\t4\ttrue\n"));
+        Rejects("is_positive", (GamePack.CharacterSkillSlotTagMasterPath, head + "7001\t1\t1\t4\tmaybe\n"));
     }
 
     [Fact]
@@ -123,7 +125,7 @@ public class SkillMasterTests
     public void A_child_master_needs_its_parent_master()
     {
         var noSlots = Base().Where(b => b.Item1 != GamePack.SkillSlotMasterPath).Append(
-            (GamePack.CharacterSkillSlotTagMasterPath, "character_code\tskill_slot_code\tgroup_code\ttag_code\n")).ToArray();
+            (GamePack.CharacterSkillSlotTagMasterPath, "character_code\tskill_slot_code\tgroup_number\ttag_code\tis_positive\n")).ToArray();
         Assert.Contains(GamePack.SkillSlotMasterPath, Assert.Throws<PackFormatException>(() => GamePack.Load(CoreTests.PackZip(noSlots))).Message);
 
         var noSkills = Base().Where(b => b.Item1 != GamePack.SkillMasterPath).Append(

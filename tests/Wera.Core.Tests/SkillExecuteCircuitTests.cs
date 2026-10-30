@@ -3,7 +3,7 @@ using Wera.Core;
 namespace Wera.Core.Tests;
 
 // 스킬 서킷: 이펙트를 실행 번호 순서로 실행하고, CacheToTargetModValue/SetValue가 캐시 값을 타겟의 스테이터스에 쓴다.
-public class SkillCircuitTests
+public class SkillExecuteCircuitTests
 {
     const long Hp = GamePack.HpStatusCode;
     const long Mana = 4;
@@ -20,7 +20,7 @@ public class SkillCircuitTests
         (GamePack.SkillMasterPath, "code\tname\n1\t테스트\n"),
         (GamePack.SkillExecuteEffectMasterPath, "skill_code\texecute_number\teffect_type\tvalue_1\tvalue_2\tvalue_3\n" + effects)));
 
-    static SkillCircuit Circuit(GamePack pack) =>
+    static SkillExecuteCircuit Circuit(GamePack pack) =>
         new(pack, 1, BattleUnit.Create(pack, 1), BattleUnit.Create(pack, 7001));
 
     [Fact]
@@ -69,7 +69,7 @@ public class SkillCircuitTests
     public void A_missing_cache_value_or_a_status_the_target_lacks_does_nothing()
     {
         var pack = Pack("1\t1\tCacheToTargetModValue\t2\t5\t\n1\t2\tCacheToTargetSetValue\t4\t0\t\n");
-        var c = new SkillCircuit(pack, 1, BattleUnit.Create(pack, 7001), BattleUnit.Create(pack, 1));    // 타겟은 mana가 없는 캐릭터
+        var c = new SkillExecuteCircuit(pack, 1, BattleUnit.Create(pack, 7001), BattleUnit.Create(pack, 1));    // 타겟은 mana가 없는 캐릭터
         c.CacheValues.Add(9m);
         c.Execute();                                                    // 번호 5의 캐시는 없고, 타겟에게 mana는 없다
         Assert.Equal(40m, c.Target.ValueOf(Hp));
@@ -91,7 +91,7 @@ public class SkillCircuitTests
     public void Cache_to_caster_changes_the_caster_and_leaves_the_target()
     {
         var pack = Pack(Rows("1 1 CacheToCasterModValue 4 0 ", "1 2 CacheToCasterSetValue 2 1 "));
-        var c = new SkillCircuit(pack, 1, BattleUnit.Create(pack, 7001), BattleUnit.Create(pack, 7001));
+        var c = new SkillExecuteCircuit(pack, 1, BattleUnit.Create(pack, 7001), BattleUnit.Create(pack, 7001));
         c.CacheValues.AddRange([-3m, 12m]);
         c.Execute();
         Assert.Equal((7m, 12m), (c.Caster.ValueOf(Mana)!.Value, c.Caster.ValueOf(Hp)!.Value));
@@ -102,7 +102,7 @@ public class SkillCircuitTests
     public void Value_to_cache_copies_the_status_into_the_cache_and_pads_with_zeros()
     {
         var pack = Pack(Rows("1 1 TargetValueToCache 4 2 ", "1 2 CasterValueToCache 2 0 "));
-        var c = new SkillCircuit(pack, 1, BattleUnit.Create(pack, 1), BattleUnit.Create(pack, 7001));
+        var c = new SkillExecuteCircuit(pack, 1, BattleUnit.Create(pack, 1), BattleUnit.Create(pack, 7001));
         c.Execute();
         Assert.Equal([40m, 0m, 10m], c.CacheValues);                  // 시전자 hp는 0번, 타겟 mana는 2번(1번은 0으로 채움)
     }
@@ -111,7 +111,7 @@ public class SkillCircuitTests
     public void Value_to_cache_overwrites_and_skips_a_status_the_unit_lacks()
     {
         var pack = Pack(Rows("1 1 CasterValueToCache 4 0 ", "1 2 TargetValueToCache 2 0 "));
-        var c = new SkillCircuit(pack, 1, BattleUnit.Create(pack, 1), BattleUnit.Create(pack, 7001));
+        var c = new SkillExecuteCircuit(pack, 1, BattleUnit.Create(pack, 1), BattleUnit.Create(pack, 7001));
         c.CacheValues.Add(99m);
         c.Execute();                                                   // 당신에게 mana는 없어 99가 남고, 그다음 타겟 hp 40으로 덮어쓴다
         Assert.Equal([40m], c.CacheValues);
@@ -123,7 +123,7 @@ public class SkillCircuitTests
         var pack = Pack(Rows("1 1 CasterValueToCache 2 0 ", "1 2 CacheToTargetSetValue 2 0 "));
         var caster = BattleUnit.Create(pack, 7001);
         caster.SetValue(Hp, 5);
-        var c = new SkillCircuit(pack, 1, caster, BattleUnit.Create(pack, 1));
+        var c = new SkillExecuteCircuit(pack, 1, caster, BattleUnit.Create(pack, 1));
         c.Execute();
         Assert.Equal(5m, c.Target.ValueOf(Hp));
     }
@@ -209,7 +209,7 @@ public class SkillCircuitTests
         }
     }
 
-    static SkillCircuit Run(params string[] rows)
+    static SkillExecuteCircuit Run(params string[] rows)
     {
         var c = Circuit(Pack(Rows(rows)));
         c.Execute();

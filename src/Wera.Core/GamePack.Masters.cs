@@ -174,7 +174,7 @@ public sealed partial class GamePack
 
         builder.Append((skillSlots ?? []).Select(s => new SkillSlotRow { Code = s.Code, Name = s.Name }).ToList());
         builder.Append((characterSkillSlotTags ?? []).Select(t => new CharacterSkillSlotTagRow
-            { CharacterCode = t.CharacterCode, SkillSlotCode = t.SkillSlotCode, GroupCode = t.GroupCode, TagCode = t.TagCode }).ToList());
+            { CharacterCode = t.CharacterCode, SkillSlotCode = t.SkillSlotCode, GroupNumber = t.GroupNumber, TagCode = t.TagCode, IsPositive = t.IsPositive }).ToList());
         builder.Append((skills ?? []).Select(s => new SkillRow { Code = s.Code, Name = s.Name }).ToList());
         builder.Append((skillTags ?? []).Select(t => new SkillTagRow { SkillCode = t.SkillCode, TagCode = t.TagCode }).ToList());
         builder.Append((skillExecuteEffects ?? []).Select(e => new SkillExecuteEffectRow

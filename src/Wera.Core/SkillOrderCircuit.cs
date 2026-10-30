@@ -3,7 +3,7 @@ namespace Wera.Core;
 /// <summary>
 /// 스킬 순서 서킷: 스킬을 쓰는 순서를 정하는 OrderPoint를 계산한다. 시전자와 타겟, 캐시(<see cref="CacheValues"/>), 그리고 <see cref="Result"/>를 갖고,
 /// 스킬의 순서 이펙트(스킬 순서 이펙트 마스터)를 실행 번호 순서로 실행한 뒤의 Result가 OrderPoint다. 순서 이펙트는 유닛의 스테이터스를 읽기만 하고 바꾸지 않는다.
-/// 점프와 Finish 규칙은 <see cref="SkillCircuit"/>과 같다.
+/// 점프와 Finish 규칙은 <see cref="SkillExecuteCircuit"/>과 같다.
 /// </summary>
 public sealed class SkillOrderCircuit(GamePack pack, long skillCode, BattleUnit caster, BattleUnit target)
 {
