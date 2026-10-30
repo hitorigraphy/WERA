@@ -2,7 +2,7 @@ using Wera.Core;
 
 namespace Wera.Core.Tests;
 
-// 스킬 마스터: skill_slot, character_skill_slot_tag, skill, skill_tag, skill_effect.
+// 스킬 마스터: skill_slot, character_skill_slot_tag, skill, skill_tag, skill_execute_effect.
 public class SkillMasterTests
 {
     const string Characters =
@@ -32,7 +32,7 @@ public class SkillMasterTests
             (GamePack.CharacterSkillSlotTagMasterPath,
                 "character_code\tskill_slot_code\tgroup_code\ttag_code\tmemo\n7001\t1\t1\t4\t검\n7001\t1\t1\t5\t\n7001\t1\t2\t5\t\n7001\t2\t1\t4\t\n1\t1\t1\t4\t\n"),
             (GamePack.SkillTagMasterPath, "skill_code\ttag_code\n1\t4\n1\t5\n2\t5\n"),
-            (GamePack.SkillEffectMasterPath,
+            (GamePack.SkillExecuteEffectMasterPath,
                 "skill_code\texecute_number\teffect_type\tvalue_1\tvalue_2\tvalue_3\n1\t2\tNone\t7\t8\t9\n1\t1\tnone\t\t\t\n2\t1\tNONE\t1\t\t\n"));
 
         Assert.Equal(["스킬 슬롯 1", "스킬 슬롯 2"], pack.SkillSlots!.Select(s => s.Name));
@@ -52,12 +52,12 @@ public class SkillMasterTests
         Assert.Equal([4L, 5L], pack.TagsOfSkill(1));
         Assert.Equal([5L], pack.TagsOfSkill(2));
 
-        var effects = pack.SkillEffectsOf(1);
+        var effects = pack.SkillExecuteEffectsOf(1);
         Assert.Equal([1L, 2L], effects.Select(e => e.ExecuteNumber));                                   // 실행 번호 순
         Assert.All(effects, e => Assert.Equal(EffectType.None, e.EffectType));
         Assert.Equal((0L, 0L, 0L), (effects[0].Value1, effects[0].Value2, effects[0].Value3));         // 빈 값은 0
         Assert.Equal((7L, 8L, 9L), (effects[1].Value1, effects[1].Value2, effects[1].Value3));
-        Assert.Single(pack.SkillEffectsOf(2));
+        Assert.Single(pack.SkillExecuteEffectsOf(2));
     }
 
     [Fact]
@@ -68,16 +68,16 @@ public class SkillMasterTests
         Assert.Null(pack.CharacterSkillSlotTags);
         Assert.Null(pack.Skills);
         Assert.Null(pack.SkillTags);
-        Assert.Null(pack.SkillEffects);
+        Assert.Null(pack.SkillExecuteEffects);
         Assert.Null(pack.FindSkill(1));
-        Assert.Empty(pack.SkillEffectsOf(1));
+        Assert.Empty(pack.SkillExecuteEffectsOf(1));
     }
 
     [Fact]
     public void A_skill_without_effects_or_tags_is_fine()
     {
         var pack = Load();
-        Assert.Empty(pack.SkillEffectsOf(1));
+        Assert.Empty(pack.SkillExecuteEffectsOf(1));
         Assert.Empty(pack.TagsOfSkill(1));
     }
 
@@ -112,11 +112,11 @@ public class SkillMasterTests
     public void Skill_effects_need_a_known_skill_a_known_type_and_a_unique_execute_number()
     {
         const string head = "skill_code\texecute_number\teffect_type\tvalue_1\tvalue_2\tvalue_3\n";
-        Rejects("스킬 코드 '9'가 스킬 마스터에 없습니다", (GamePack.SkillEffectMasterPath, head + "9\t1\tNone\t\t\t\n"));
-        Rejects("이펙트 종류 'Fly'을(를) 알 수 없습니다", (GamePack.SkillEffectMasterPath, head + "1\t1\tFly\t\t\t\n"));
-        Rejects("이펙트 종류 '0'을(를) 알 수 없습니다", (GamePack.SkillEffectMasterPath, head + "1\t1\t0\t\t\t\n"));       // 숫자는 안 된다
-        Rejects("실행 번호 '1'가 두 번", (GamePack.SkillEffectMasterPath, head + "1\t1\tNone\t\t\t\n1\t1\tNone\t\t\t\n"));
-        Rejects("value_2", (GamePack.SkillEffectMasterPath, head + "1\t1\tNone\t\tx\t\n"));
+        Rejects("스킬 코드 '9'가 스킬 마스터에 없습니다", (GamePack.SkillExecuteEffectMasterPath, head + "9\t1\tNone\t\t\t\n"));
+        Rejects("이펙트 종류 'Fly'을(를) 알 수 없습니다", (GamePack.SkillExecuteEffectMasterPath, head + "1\t1\tFly\t\t\t\n"));
+        Rejects("이펙트 종류 '0'을(를) 알 수 없습니다", (GamePack.SkillExecuteEffectMasterPath, head + "1\t1\t0\t\t\t\n"));       // 숫자는 안 된다
+        Rejects("실행 번호 '1'가 두 번", (GamePack.SkillExecuteEffectMasterPath, head + "1\t1\tNone\t\t\t\n1\t1\tNone\t\t\t\n"));
+        Rejects("value_2", (GamePack.SkillExecuteEffectMasterPath, head + "1\t1\tNone\t\tx\t\n"));
     }
 
     [Fact]
@@ -127,7 +127,7 @@ public class SkillMasterTests
         Assert.Contains(GamePack.SkillSlotMasterPath, Assert.Throws<PackFormatException>(() => GamePack.Load(CoreTests.PackZip(noSlots))).Message);
 
         var noSkills = Base().Where(b => b.Item1 != GamePack.SkillMasterPath).Append(
-            (GamePack.SkillEffectMasterPath, "skill_code\texecute_number\teffect_type\tvalue_1\tvalue_2\tvalue_3\n")).ToArray();
+            (GamePack.SkillExecuteEffectMasterPath, "skill_code\texecute_number\teffect_type\tvalue_1\tvalue_2\tvalue_3\n")).ToArray();
         Assert.Contains(GamePack.SkillMasterPath, Assert.Throws<PackFormatException>(() => GamePack.Load(CoreTests.PackZip(noSkills))).Message);
     }
 }

@@ -61,7 +61,7 @@ public sealed class SkillCircuit(GamePack pack, long skillCode, BattleUnit caste
     /// </summary>
     public void Execute()
     {
-        var effects = pack.SkillEffectsOf(SkillCode);
+        var effects = pack.SkillExecuteEffectsOf(SkillCode);
         for (var at = 0; at < effects.Count; at++)
         {
             var effect = effects[at];
@@ -76,7 +76,7 @@ public sealed class SkillCircuit(GamePack pack, long skillCode, BattleUnit caste
     }
 
     /// <summary>점프하는 이펙트가 이번에 점프하면 그 대상의 execute_number, 점프하지 않으면(조건이 거짓이거나 점프하는 종류가 아니면) null.</summary>
-    long? JumpTarget(SkillEffect effect)
+    long? JumpTarget(SkillExecuteEffect effect)
     {
         if (effect.EffectType == EffectType.Jump) return effect.Value1;
         if (SkillJump.Of(effect.EffectType) is not { } comparison) return null;
@@ -85,7 +85,7 @@ public sealed class SkillCircuit(GamePack pack, long skillCode, BattleUnit caste
             : null;
     }
 
-    void Apply(SkillEffect effect)
+    void Apply(SkillExecuteEffect effect)
     {
         switch (effect.EffectType)
         {
@@ -122,43 +122,22 @@ public sealed class SkillCircuit(GamePack pack, long skillCode, BattleUnit caste
     }
 
     /// <summary>캐시 계산 이펙트: cache[value_1] = cache[value_2] (연산) cache[value_3]. 칸이 없거나 0으로 나누거나 decimal 범위를 넘으면 아무 일도 하지 않는다.</summary>
-    void Calculate(SkillEffect effect)
+    void Calculate(SkillExecuteEffect effect)
     {
         if (CacheAt(effect.Value2) is not { } left || CacheAt(effect.Value3) is not { } right) return;
-        try
+        var op = effect.EffectType switch
         {
-            decimal result;
-            switch (effect.EffectType)
-            {
-                case EffectType.CacheAdd: result = left + right; break;
-                case EffectType.CacheSubtract: result = left - right; break;
-                case EffectType.CacheMultiply: result = left * right; break;
-                default:
-                    if (right == 0m) return;
-                    result = left / right;
-                    break;
-            }
-            WriteCache(effect.Value1, result);
-        }
-        catch (OverflowException)
-        {
-        }
+            EffectType.CacheAdd => SkillCache.Op.Add,
+            EffectType.CacheSubtract => SkillCache.Op.Subtract,
+            EffectType.CacheMultiply => SkillCache.Op.Multiply,
+            _ => SkillCache.Op.Divide,
+        };
+        if (SkillCache.Calculate(op, left, right) is { } result) WriteCache(effect.Value1, result);
     }
 
-    /// <summary>캐시의 index번에 값을 쓴다. 캐시가 짧으면 모자란 칸을 0으로 채워 늘린다.</summary>
-    void WriteCache(long index, decimal value)
-    {
-        if (index < 0 || index > GamePack.MaxCacheIndex) return;
-        while (CacheValues.Count <= index) CacheValues.Add(0m);
-        CacheValues[(int)index] = value;
-    }
+    void WriteCache(long index, decimal value) => SkillCache.Write(CacheValues, index, value);
 
-    static decimal Pow10(long digits)
-    {
-        var result = 1m;
-        for (var i = 0; i < digits; i++) result *= 10m;
-        return result;
-    }
+    static decimal Pow10(long digits) => SkillCache.Pow10(digits);
 
-    decimal? CacheAt(long index) => index >= 0 && index < CacheValues.Count ? CacheValues[(int)index] : null;
+    decimal? CacheAt(long index) => SkillCache.At(CacheValues, index);
 }

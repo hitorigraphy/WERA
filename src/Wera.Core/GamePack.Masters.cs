@@ -46,7 +46,8 @@ public sealed partial class GamePack
         List<PresetUnit>? presetUnits, List<PresetUnitEquip>? presetUnitEquips, List<PresetUnitDrop>? presetUnitDrops,
         List<PresetParty>? presetParties, List<BattleEnemy>? battleEnemies,
         List<SkillSlotEntry>? skillSlots, List<CharacterSkillSlotTag>? characterSkillSlotTags,
-        List<SkillEntry>? skills, List<SkillTag>? skillTags, List<SkillEffect>? skillEffects)
+        List<SkillEntry>? skills, List<SkillTag>? skillTags, List<SkillExecuteEffect>? skillExecuteEffects,
+        List<SkillOrderEffect>? skillOrderEffects)
     {
         var builder = new DatabaseBuilder();
 
@@ -176,7 +177,11 @@ public sealed partial class GamePack
             { CharacterCode = t.CharacterCode, SkillSlotCode = t.SkillSlotCode, GroupCode = t.GroupCode, TagCode = t.TagCode }).ToList());
         builder.Append((skills ?? []).Select(s => new SkillRow { Code = s.Code, Name = s.Name }).ToList());
         builder.Append((skillTags ?? []).Select(t => new SkillTagRow { SkillCode = t.SkillCode, TagCode = t.TagCode }).ToList());
-        builder.Append((skillEffects ?? []).Select(e => new SkillEffectRow
+        builder.Append((skillExecuteEffects ?? []).Select(e => new SkillExecuteEffectRow
+        { SkillCode = e.SkillCode, ExecuteNumber = e.ExecuteNumber, EffectType = e.EffectType,
+            Value1 = e.Value1, Value2 = e.Value2, Value3 = e.Value3,
+        }).ToList());
+        builder.Append((skillOrderEffects ?? []).Select(e => new SkillOrderEffectRow
         { SkillCode = e.SkillCode, ExecuteNumber = e.ExecuteNumber, EffectType = e.EffectType,
             Value1 = e.Value1, Value2 = e.Value2, Value3 = e.Value3,
         }).ToList());

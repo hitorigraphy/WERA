@@ -1,0 +1,5 @@
+skill_code	execute_number	effect_type	value_1	value_2	value_3	memo
+1001	1	CasterValueToCache	1	0		순서: 시전자 레벨
+1001	2	CacheToResult	0			
+1002	1	CasterValueToCache	1	0		
+1002	2	CacheToResult	0			

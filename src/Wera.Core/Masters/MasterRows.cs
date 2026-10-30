@@ -503,8 +503,8 @@ public record SkillTagRow
 }
 
 /// <summary>스킬 이펙트: 복합키는 (스킬, 실행 번호)이고, 보조키 스킬 코드로 그 스킬의 이펙트 전부를 찾는다.</summary>
-[MemoryTable("skill_effect"), MessagePackObject(true)]
-public record SkillEffectRow
+[MemoryTable("skill_execute_effect"), MessagePackObject(true)]
+public record SkillExecuteEffectRow
 {
     [PrimaryKey(keyOrder: 0)]
     [SecondaryKey(0), NonUnique]
@@ -512,6 +512,21 @@ public record SkillEffectRow
 
     [PrimaryKey(keyOrder: 1)] public required long ExecuteNumber { get; init; }
     public required EffectType EffectType { get; init; }
+    public required long Value1 { get; init; }
+    public required long Value2 { get; init; }
+    public required long Value3 { get; init; }
+}
+
+/// <summary>스킬 순서 이펙트: 복합키는 (스킬, 실행 번호)이고, 보조키 스킬 코드로 그 스킬의 순서 이펙트 전부를 찾는다.</summary>
+[MemoryTable("skill_order_effect"), MessagePackObject(true)]
+public record SkillOrderEffectRow
+{
+    [PrimaryKey(keyOrder: 0)]
+    [SecondaryKey(0), NonUnique]
+    public required long SkillCode { get; init; }
+
+    [PrimaryKey(keyOrder: 1)] public required long ExecuteNumber { get; init; }
+    public required OrderEffectType EffectType { get; init; }
     public required long Value1 { get; init; }
     public required long Value2 { get; init; }
     public required long Value3 { get; init; }

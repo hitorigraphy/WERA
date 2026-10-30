@@ -92,9 +92,12 @@ public static class SkillJump
 {
     const string Prefix = "JumpCache";
 
-    public static FlagComparison? Of(EffectType type) =>
-        type.ToString() is var name && name.StartsWith(Prefix, StringComparison.Ordinal)
-        && Enum.TryParse<FlagComparison>(name[Prefix.Length..], out var comparison)
+    public static FlagComparison? Of(EffectType type) => OfName(type.ToString());
+
+    public static FlagComparison? Of(OrderEffectType type) => OfName(type.ToString());
+
+    static FlagComparison? OfName(string name) =>
+        name.StartsWith(Prefix, StringComparison.Ordinal) && Enum.TryParse<FlagComparison>(name[Prefix.Length..], out var comparison)
             ? comparison
             : null;
 
@@ -102,8 +105,12 @@ public static class SkillJump
     public static bool IsJump(EffectType type) => type == EffectType.Jump || Of(type) is not null;
 
     /// <summary>점프할 execute_number가 어느 값(value_1, value_3)에 있는가. 점프하는 종류가 아니면 null.</summary>
-    public static long? TargetOf(SkillEffect effect) =>
+    public static long? TargetOf(SkillExecuteEffect effect) =>
         effect.EffectType == EffectType.Jump ? effect.Value1 : Of(effect.EffectType) is not null ? effect.Value3 : null;
+
+    /// <summary>순서 이펙트(<see cref="OrderEffectType"/>)의 점프 대상. 점프하는 종류가 아니면 null.</summary>
+    public static long? TargetOf(SkillOrderEffect effect) =>
+        effect.EffectType == OrderEffectType.Jump ? effect.Value1 : Of(effect.EffectType) is not null ? effect.Value3 : null;
 
     public static bool Test(FlagComparison comparison, decimal left, decimal right) => comparison switch
     {
@@ -118,10 +125,10 @@ public static class SkillJump
 }
 
 /// <summary>스킬 이펙트 마스터의 한 행: 스킬을 쓰면 execute_number 순서대로 실행하는 이펙트 하나(종류와 값 셋).</summary>
-public sealed record SkillEffect(long SkillCode, long ExecuteNumber, EffectType EffectType, long Value1, long Value2, long Value3);
+public sealed record SkillExecuteEffect(long SkillCode, long ExecuteNumber, EffectType EffectType, long Value1, long Value2, long Value3);
 
 // 스킬 마스터: skill_slot_master(code, name; code가 키), character_skill_slot_tag_master(character_code, skill_slot_code, group_code, tag_code; 네 열이 키),
-// skill_master(code, name; code가 키), skill_tag_master(skill_code, tag_code; 두 열이 키), skill_effect_master(skill_code, execute_number, effect_type, value_1, value_2, value_3; 앞의 두 열이 키).
+// skill_master(code, name; code가 키), skill_tag_master(skill_code, tag_code; 두 열이 키), skill_execute_effect_master(skill_code, execute_number, effect_type, value_1, value_2, value_3; 앞의 두 열이 키).
 // 모두 선택이다.
 public sealed partial class GamePack
 {
@@ -132,7 +139,7 @@ public sealed partial class GamePack
     public const string CharacterSkillSlotTagMasterPath = "master/character_skill_slot_tag_master_v1.tsv";
     public const string SkillMasterPath = "master/skill_master_v1.tsv";
     public const string SkillTagMasterPath = "master/skill_tag_master_v1.tsv";
-    public const string SkillEffectMasterPath = "master/skill_effect_master_v1.tsv";
+    public const string SkillExecuteEffectMasterPath = "master/skill_execute_effect_master_v1.tsv";
 
     /// <summary>스킬 슬롯 마스터(게임팩 파일 순서). 마스터가 없으면 null.</summary>
     public IReadOnlyList<SkillSlotEntry>? SkillSlots { get; init; }
@@ -147,7 +154,7 @@ public sealed partial class GamePack
     public IReadOnlyList<SkillTag>? SkillTags { get; init; }
 
     /// <summary>스킬 이펙트 마스터(게임팩 파일 순서). 마스터가 없으면 null.</summary>
-    public IReadOnlyList<SkillEffect>? SkillEffects { get; init; }
+    public IReadOnlyList<SkillExecuteEffect>? SkillExecuteEffects { get; init; }
 
     static List<SkillSlotEntry>? LoadSkillSlots(ZipArchive zip) =>
         LoadCodeNames(zip, SkillSlotMasterPath, "code", "name", "스킬 슬롯", (code, name) => new SkillSlotEntry(code, name));
@@ -220,15 +227,15 @@ public sealed partial class GamePack
     }
 
     /// <summary>스킬 이펙트 마스터: 스킬은 스킬 마스터에 있어야 하고 키 (스킬, 실행 번호)를 두 번 쓸 수 없다. 종류는 이름으로 적고 값 셋은 비우면 0이다.</summary>
-    static List<SkillEffect>? LoadSkillEffects(ZipArchive zip, List<SkillEntry>? skills, List<StatusEntry>? statuses)
+    static List<SkillExecuteEffect>? LoadSkillExecuteEffects(ZipArchive zip, List<SkillEntry>? skills, List<StatusEntry>? statuses)
     {
-        const string file = SkillEffectMasterPath;
+        const string file = SkillExecuteEffectMasterPath;
         var text = TryReadEntry(zip, file);
         if (text is null) return null;
         if (skills is null) throw new PackFormatException($"{file}가 있으려면 {SkillMasterPath}도 필요합니다.");
 
         var skillCodes = skills.Select(s => s.Code).ToHashSet();
-        var rows = new List<SkillEffect>();
+        var rows = new List<SkillExecuteEffect>();
         var seen = new HashSet<(long, long)>();
         foreach (var r in Body(file, text, "skill_code", "execute_number", "effect_type", "value_1", "value_2", "value_3"))
         {
@@ -280,7 +287,7 @@ public sealed partial class GamePack
                 if (value2 < 0 || value2 > MaxCacheIndex)
                     throw new PackFormatException($"{file}: {where} value_2(cache_index) '{value2}'는 0~{MaxCacheIndex}이어야 합니다.");
             }
-            rows.Add(new SkillEffect(skill, number, type, value1, value2, value3));
+            rows.Add(new SkillExecuteEffect(skill, number, type, value1, value2, value3));
         }
 
         // 점프는 같은 스킬에 있는, 자신보다 큰 execute_number로만 갈 수 있다.
@@ -322,8 +329,8 @@ public sealed partial class GamePack
         Masters.SkillTagRowTable.FindBySkillCode(skillCode).OrderBy(r => r.TagCode).Select(r => r.TagCode).ToList();
 
     /// <summary>스킬의 이펙트(실행 번호 순).</summary>
-    public IReadOnlyList<SkillEffect> SkillEffectsOf(long skillCode) =>
-        Masters.SkillEffectRowTable.FindBySkillCode(skillCode)
+    public IReadOnlyList<SkillExecuteEffect> SkillExecuteEffectsOf(long skillCode) =>
+        Masters.SkillExecuteEffectRowTable.FindBySkillCode(skillCode)
             .OrderBy(r => r.ExecuteNumber)
-            .Select(r => new SkillEffect(r.SkillCode, r.ExecuteNumber, r.EffectType, r.Value1, r.Value2, r.Value3)).ToList();
+            .Select(r => new SkillExecuteEffect(r.SkillCode, r.ExecuteNumber, r.EffectType, r.Value1, r.Value2, r.Value3)).ToList();
 }

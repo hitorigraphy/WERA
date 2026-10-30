@@ -179,7 +179,8 @@ public sealed partial class GamePack
         var characterSkillSlotTags = LoadCharacterSkillSlotTags(zip, characterInventory, skillSlots, tags);
         var skills = LoadSkills(zip);
         var skillTags = LoadSkillTags(zip, skills, tags);
-        var skillEffects = LoadSkillEffects(zip, skills, statuses);
+        var skillExecuteEffects = LoadSkillExecuteEffects(zip, skills, statuses);
+        var skillOrderEffects = LoadSkillOrderEffects(zip, skills, statuses);
 
         var pack = new GamePack
         {
@@ -226,7 +227,8 @@ public sealed partial class GamePack
             CharacterSkillSlotTags = characterSkillSlotTags,
             Skills = skills,
             SkillTags = skillTags,
-            SkillEffects = skillEffects,
+            SkillExecuteEffects = skillExecuteEffects,
+            SkillOrderEffects = skillOrderEffects,
             Masters = BuildMasters(
                 dungeons, dungeonConditions, shops, shopConditions, itemInventory, bunchInventory, characterInventory, attributes,
                 trades, tradeConditions, statusEffects, statusEffectEffects,
@@ -235,7 +237,7 @@ public sealed partial class GamePack
                 events, eventConditions, eventFlows, advs, battles, advFlows, communicationGroups, communications,
                 communicationSoloFlows, communicationDuoFlows, communicationDefaultFlows,
                 presetUnits, presetUnitEquips, presetUnitDrops, presetParties, battleEnemies,
-                skillSlots, characterSkillSlotTags, skills, skillTags, skillEffects),
+                skillSlots, characterSkillSlotTags, skills, skillTags, skillExecuteEffects, skillOrderEffects),
             EmbeddedEffects = embeddedEffects,
         };
         pack.CheckPresetUnitEquips();

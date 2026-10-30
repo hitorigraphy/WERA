@@ -18,7 +18,7 @@ public class SkillCircuitTests
             "1\t1\t0\t1\t1\t99\n1\t2\t0\t40\t0\t40\n" +
             "7001\t1\t0\t1\t1\t99\n7001\t2\t0\t40\t0\t40\n7001\t4\t0\t10\t0\t20\n"),
         (GamePack.SkillMasterPath, "code\tname\n1\t테스트\n"),
-        (GamePack.SkillEffectMasterPath, "skill_code\texecute_number\teffect_type\tvalue_1\tvalue_2\tvalue_3\n" + effects)));
+        (GamePack.SkillExecuteEffectMasterPath, "skill_code\texecute_number\teffect_type\tvalue_1\tvalue_2\tvalue_3\n" + effects)));
 
     static SkillCircuit Circuit(GamePack pack) =>
         new(pack, 1, BattleUnit.Create(pack, 1), BattleUnit.Create(pack, 7001));
