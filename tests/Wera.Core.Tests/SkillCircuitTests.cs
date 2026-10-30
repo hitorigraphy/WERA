@@ -208,4 +208,89 @@ public class SkillCircuitTests
             Assert.Contains("value_3(cache_index) '300'", Assert.Throws<PackFormatException>(() => Pack(Rows($"1 1 {type} 0 0 300"))).Message);
         }
     }
+
+    static SkillCircuit Run(params string[] rows)
+    {
+        var c = Circuit(Pack(Rows(rows)));
+        c.Execute();
+        return c;
+    }
+
+    [Fact]
+    public void SetCacheValue_writes_a_constant_with_decimal_places_and_pads()
+    {
+        Assert.Equal([0m, 0m, 0.15m], Run("1 1 SetCacheValue 2 15 2").CacheValues);
+        Assert.Equal([-3m], Run("1 1 SetCacheValue 0 -3 0").CacheValues);
+        Assert.Equal([0.0000000000000000000000000001m], Run("1 1 SetCacheValue 0 1 28").CacheValues);
+    }
+
+    [Fact]
+    public void Constants_make_a_percentage_skill_possible_with_masters_only()
+    {
+        // 타겟 hp를 시전자 hp의 15%만큼 깎는다
+        var c = Run("1 1 CasterValueToCache 2 0", "1 2 SetCacheValue 1 15 2", "1 3 CacheMultiply 2 0 1",
+                    "1 4 SetCacheValue 3 -1 0", "1 5 CacheMultiply 2 2 3", "1 6 CacheToTargetModValue 2 2");
+        Assert.Equal(34m, c.Target.ValueOf(Hp));                       // 40 - 6
+    }
+
+    [Fact]
+    public void Jump_skips_forward_and_Finish_stops()
+    {
+        Assert.Equal([1m, 3m], Run("1 1 SetCacheValue 0 1 0", "1 2 Jump 4", "1 3 SetCacheValue 1 2 0", "1 4 SetCacheValue 1 3 0").CacheValues);
+        Assert.Equal([1m], Run("1 1 SetCacheValue 0 1 0", "1 2 Finish", "1 3 SetCacheValue 1 2 0").CacheValues);
+    }
+
+    [Theory]
+    [InlineData("Equal", 5, 5, true)]
+    [InlineData("Equal", 5, 6, false)]
+    [InlineData("NotEqual", 5, 6, true)]
+    [InlineData("NotEqual", 5, 5, false)]
+    [InlineData("GreaterThan", 6, 5, true)]
+    [InlineData("GreaterThan", 5, 5, false)]
+    [InlineData("GreaterOrEqual", 5, 5, true)]
+    [InlineData("GreaterOrEqual", 4, 5, false)]
+    [InlineData("LessThan", 4, 5, true)]
+    [InlineData("LessThan", 5, 5, false)]
+    [InlineData("LessOrEqual", 5, 5, true)]
+    [InlineData("LessOrEqual", 6, 5, false)]
+    public void The_conditional_jumps_compare_two_cache_values_and_jump_only_when_true(string comparison, int left, int right, bool jumps)
+    {
+        var c = Run($"1 1 SetCacheValue 0 {left} 0", $"1 2 SetCacheValue 1 {right} 0", $"1 3 JumpCache{comparison} 0 1 5",
+                    "1 4 SetCacheValue 2 1 0", "1 5 SetCacheValue 3 1 0");
+        Assert.Equal(jumps ? [(decimal)left, right, 0m, 1m] : [(decimal)left, right, 1m, 1m], c.CacheValues);
+    }
+
+    [Fact]
+    public void A_conditional_jump_with_a_missing_operand_does_not_jump()
+    {
+        var c = Run("1 1 SetCacheValue 0 1 0", "1 2 JumpCacheEqual 0 9 4", "1 3 SetCacheValue 1 7 0", "1 4 SetCacheValue 2 8 0");
+        Assert.Equal([1m, 7m, 8m], c.CacheValues);
+    }
+
+    [Fact]
+    public void A_branch_picks_a_different_effect_depending_on_a_unit_value()
+    {
+        // 타겟 hp가 시전자 hp보다 적으면 타겟을 1로 만든다, 아니면 그대로(2번에서 3번 건너뜀)
+        var rows = new[] { "1 1 CasterValueToCache 2 0", "1 2 TargetValueToCache 2 1", "1 3 JumpCacheGreaterOrEqual 1 0 6",
+                           "1 4 SetCacheValue 2 1 0", "1 5 CacheToTargetSetValue 2 2", "1 6 Finish" };
+        var weak = Circuit(Pack(Rows(rows)));
+        weak.Target.SetValue(Hp, 10);
+        weak.Execute();
+        Assert.Equal(1m, weak.Target.ValueOf(Hp));
+        var strong = Circuit(Pack(Rows(rows)));
+        strong.Execute();                                              // 40 >= 40 이라 점프한다
+        Assert.Equal(40m, strong.Target.ValueOf(Hp));
+    }
+
+    [Fact]
+    public void The_loader_checks_the_new_effect_arguments_and_jump_targets()
+    {
+        Assert.Contains("value_1(cache_index) '256'", Assert.Throws<PackFormatException>(() => Pack(Rows("1 1 SetCacheValue 256 1 0"))).Message);
+        Assert.Contains("value_3(소수 자릿수) '29'", Assert.Throws<PackFormatException>(() => Pack(Rows("1 1 SetCacheValue 0 1 29"))).Message);
+        Assert.Contains("value_2(cache_index) '256'", Assert.Throws<PackFormatException>(() => Pack(Rows("1 1 JumpCacheEqual 0 256 2", "1 2 Finish"))).Message);
+        Assert.Contains("자신의 실행 번호보다 커야", Assert.Throws<PackFormatException>(() => Pack(Rows("1 1 Jump 1"))).Message);
+        Assert.Contains("자신의 실행 번호보다 커야", Assert.Throws<PackFormatException>(() => Pack(Rows("1 1 Finish", "1 2 JumpCacheEqual 0 0 1"))).Message);
+        Assert.Contains("같은 스킬에 없습니다", Assert.Throws<PackFormatException>(() => Pack(Rows("1 1 Jump 5", "1 2 Finish"))).Message);
+        Assert.NotNull(Pack(Rows("1 1 Jump 3", "1 3 Finish")));        // 사이의 번호가 비어 있어도 된다
+    }
 }

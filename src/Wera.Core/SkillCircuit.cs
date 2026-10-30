@@ -55,10 +55,34 @@ public sealed class SkillCircuit(GamePack pack, long skillCode, BattleUnit caste
     /// <summary>이펙트들이 공유하는 값 목록(cache_index가 이 목록의 번호).</summary>
     public List<decimal> CacheValues { get; } = [];
 
-    /// <summary>스킬의 이펙트를 실행 번호 순서로 모두 실행한다.</summary>
+    /// <summary>
+    /// 스킬의 이펙트를 실행 번호 순서로 실행한다. Jump와 JumpCache*는 뒤의 실행 번호로 건너뛰고 Finish는 거기서 끝낸다
+    /// (점프는 뒤로만 가므로 반드시 끝난다).
+    /// </summary>
     public void Execute()
     {
-        foreach (var effect in pack.SkillEffectsOf(SkillCode)) Apply(effect);
+        var effects = pack.SkillEffectsOf(SkillCode);
+        for (var at = 0; at < effects.Count; at++)
+        {
+            var effect = effects[at];
+            if (effect.EffectType == EffectType.Finish) return;
+            if (JumpTarget(effect) is { } target)
+            {
+                var to = effects.ToList().FindIndex(e => e.ExecuteNumber == target);
+                if (to > at) at = to - 1;
+            }
+            else Apply(effect);
+        }
+    }
+
+    /// <summary>점프하는 이펙트가 이번에 점프하면 그 대상의 execute_number, 점프하지 않으면(조건이 거짓이거나 점프하는 종류가 아니면) null.</summary>
+    long? JumpTarget(SkillEffect effect)
+    {
+        if (effect.EffectType == EffectType.Jump) return effect.Value1;
+        if (SkillJump.Of(effect.EffectType) is not { } comparison) return null;
+        return CacheAt(effect.Value1) is { } left && CacheAt(effect.Value2) is { } right && SkillJump.Test(comparison, left, right)
+            ? effect.Value3
+            : null;
     }
 
     void Apply(SkillEffect effect)
@@ -84,6 +108,9 @@ public sealed class SkillCircuit(GamePack pack, long skillCode, BattleUnit caste
                 break;
             case EffectType.TargetValueToCache:
                 if (Target.ValueOf(effect.Value1) is { } targetValue) WriteCache(effect.Value2, targetValue);
+                break;
+            case EffectType.SetCacheValue:
+                WriteCache(effect.Value1, effect.Value2 / Pow10(effect.Value3));
                 break;
             case EffectType.CacheAdd:
             case EffectType.CacheSubtract:
@@ -124,6 +151,13 @@ public sealed class SkillCircuit(GamePack pack, long skillCode, BattleUnit caste
         if (index < 0 || index > GamePack.MaxCacheIndex) return;
         while (CacheValues.Count <= index) CacheValues.Add(0m);
         CacheValues[(int)index] = value;
+    }
+
+    static decimal Pow10(long digits)
+    {
+        var result = 1m;
+        for (var i = 0; i < digits; i++) result *= 10m;
+        return result;
     }
 
     decimal? CacheAt(long index) => index >= 0 && index < CacheValues.Count ? CacheValues[(int)index] : null;

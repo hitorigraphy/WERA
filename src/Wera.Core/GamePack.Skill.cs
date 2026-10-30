@@ -21,7 +21,7 @@ public sealed record SkillTag(long SkillCode, long TagCode);
 /// <summary>
 /// 스킬 이펙트가 하는 일의 종류. TSV에는 이름(대소문자 무시)으로 적는다.
 /// 마스터만으로는 스킬의 동작을 정할 수 없으므로 종류마다 동작을 코드로 구현하고, 마스터는 어느 종류를 어떤 값(value_1~3)으로 쓸지만 적는다.
-/// 숫자 값은 정해진 번호다: None 0, CacheToTargetModValue 1, CacheToTargetSetValue 2, CacheToCasterModValue 3, CacheToCasterSetValue 4, CasterValueToCache 5, TargetValueToCache 6, CacheAdd 7, CacheSubtract 8, CacheMultiply 9, CacheDivide 10.
+/// 숫자 값은 정해진 번호다: None 0, CacheToTargetModValue 1, CacheToTargetSetValue 2, CacheToCasterModValue 3, CacheToCasterSetValue 4, CasterValueToCache 5, TargetValueToCache 6, CacheAdd 7, CacheSubtract 8, CacheMultiply 9, CacheDivide 10, SetCacheValue 11, Jump 12, Finish 13, JumpCacheEqual 14, JumpCacheNotEqual 15, JumpCacheGreaterThan 16, JumpCacheGreaterOrEqual 17, JumpCacheLessThan 18, JumpCacheLessOrEqual 19.
 /// 이펙트는 스킬 서킷(<see cref="SkillCircuit"/>)에서 실행 번호 순서로 실행된다.
 /// </summary>
 [JsonConverter(typeof(JsonStringEnumConverter<EffectType>))]
@@ -59,6 +59,62 @@ public enum EffectType
     CacheMultiply = 9,
     /// <summary>cache[value_1] = cache[value_2] / cache[value_3](나눗셈은 decimal 그대로, 반올림 없음). 인자와 예외는 <see cref="CacheAdd"/>와 같고, value_3의 칸이 0이면 아무 일도 하지 않는다.</summary>
     CacheDivide = 10,
+    /// <summary>
+    /// 캐시에 상수를 쓴다: cache[value_1] = value_2 / 10^value_3. value_1이 cache_index(0~<see cref="MaxCacheIndex"/>), value_2가 정수 값,
+    /// value_3이 소수 자릿수(0~28)다(15, 2는 0.15). 캐시가 짧으면 모자란 칸을 0으로 채워 늘린다.
+    /// </summary>
+    SetCacheValue = 11,
+    /// <summary>
+    /// 조건 없이 점프한다. value_1이 점프할 execute_number이고, 같은 스킬에 있어야 하며 자신의 execute_number보다 커야 한다(뒤로만 가서 무한 반복이 없다).
+    /// </summary>
+    Jump = 12,
+    /// <summary>스킬의 이펙트 실행을 끝낸다(뒤의 이펙트는 실행하지 않는다).</summary>
+    Finish = 13,
+    /// <summary>
+    /// cache[value_1]과 cache[value_2]를 견주어(같다) 참이면 value_3의 execute_number로 점프하고, 거짓이면 다음 이펙트로 간다. value_1과 value_2는 cache_index이고
+    /// 둘 중 하나가 캐시에 없으면 거짓이다. 점프 대상의 규칙은 <see cref="Jump"/>와 같다.
+    /// </summary>
+    JumpCacheEqual = 14,
+    /// <summary>같지 않다. 인자와 규칙은 <see cref="JumpCacheEqual"/>과 같다.</summary>
+    JumpCacheNotEqual = 15,
+    /// <summary>cache[value_1] &gt; cache[value_2]. 인자와 규칙은 <see cref="JumpCacheEqual"/>과 같다.</summary>
+    JumpCacheGreaterThan = 16,
+    /// <summary>cache[value_1] &gt;= cache[value_2]. 인자와 규칙은 <see cref="JumpCacheEqual"/>과 같다.</summary>
+    JumpCacheGreaterOrEqual = 17,
+    /// <summary>cache[value_1] &lt; cache[value_2]. 인자와 규칙은 <see cref="JumpCacheEqual"/>과 같다.</summary>
+    JumpCacheLessThan = 18,
+    /// <summary>cache[value_1] &lt;= cache[value_2]. 인자와 규칙은 <see cref="JumpCacheEqual"/>과 같다.</summary>
+    JumpCacheLessOrEqual = 19,
+}
+
+/// <summary>스킬 이펙트의 JumpCache* 종류가 쓰는 규칙: 이름이 JumpCache로 시작하는 종류의 비교 방법.</summary>
+public static class SkillJump
+{
+    const string Prefix = "JumpCache";
+
+    public static FlagComparison? Of(EffectType type) =>
+        type.ToString() is var name && name.StartsWith(Prefix, StringComparison.Ordinal)
+        && Enum.TryParse<FlagComparison>(name[Prefix.Length..], out var comparison)
+            ? comparison
+            : null;
+
+    /// <summary>점프하는 종류(Jump, JumpCache*)인가.</summary>
+    public static bool IsJump(EffectType type) => type == EffectType.Jump || Of(type) is not null;
+
+    /// <summary>점프할 execute_number가 어느 값(value_1, value_3)에 있는가. 점프하는 종류가 아니면 null.</summary>
+    public static long? TargetOf(SkillEffect effect) =>
+        effect.EffectType == EffectType.Jump ? effect.Value1 : Of(effect.EffectType) is not null ? effect.Value3 : null;
+
+    public static bool Test(FlagComparison comparison, decimal left, decimal right) => comparison switch
+    {
+        FlagComparison.Equal => left == right,
+        FlagComparison.NotEqual => left != right,
+        FlagComparison.GreaterThan => left > right,
+        FlagComparison.GreaterOrEqual => left >= right,
+        FlagComparison.LessThan => left < right,
+        FlagComparison.LessOrEqual => left <= right,
+        _ => false,
+    };
 }
 
 /// <summary>스킬 이펙트 마스터의 한 행: 스킬을 쓰면 execute_number 순서대로 실행하는 이펙트 하나(종류와 값 셋).</summary>
@@ -193,7 +249,24 @@ public sealed partial class GamePack
                 throw new PackFormatException($"{file}: 스킬 코드 '{skill}'가 스킬 마스터에 없습니다.");
             if (!seen.Add((skill, number)))
                 throw new PackFormatException($"{file}: 스킬 '{skill}'의 실행 번호 '{number}'가 두 번 적혀 있습니다.");
-            if (type is >= EffectType.CacheAdd and <= EffectType.CacheDivide)
+            if (type == EffectType.SetCacheValue)
+            {
+                if (value1 < 0 || value1 > MaxCacheIndex)
+                    throw new PackFormatException($"{file}: {where} value_1(cache_index) '{value1}'는 0~{MaxCacheIndex}이어야 합니다.");
+                if (value3 < 0 || value3 > 28)
+                    throw new PackFormatException($"{file}: {where} value_3(소수 자릿수) '{value3}'는 0~28이어야 합니다.");
+            }
+            else if (type == EffectType.Jump || type == EffectType.Finish)
+            {
+                // 점프 대상은 모든 행을 읽은 뒤에 확인한다.
+            }
+            else if (SkillJump.Of(type) is not null)
+            {
+                foreach (var (index, column) in new[] { (value1, "value_1"), (value2, "value_2") })
+                    if (index < 0 || index > MaxCacheIndex)
+                        throw new PackFormatException($"{file}: {where} {column}(cache_index) '{index}'는 0~{MaxCacheIndex}이어야 합니다.");
+            }
+            else if (type is >= EffectType.CacheAdd and <= EffectType.CacheDivide)
             {
                 foreach (var (index, column) in new[] { (value1, "value_1"), (value2, "value_2"), (value3, "value_3") })
                     if (index < 0 || index > MaxCacheIndex)
@@ -209,6 +282,18 @@ public sealed partial class GamePack
             }
             rows.Add(new SkillEffect(skill, number, type, value1, value2, value3));
         }
+
+        // 점프는 같은 스킬에 있는, 자신보다 큰 execute_number로만 갈 수 있다.
+        var numbers = rows.GroupBy(e => e.SkillCode).ToDictionary(g => g.Key, g => g.Select(e => e.ExecuteNumber).ToHashSet());
+        foreach (var e in rows)
+            if (SkillJump.TargetOf(e) is { } target)
+            {
+                var where = $"스킬 '{e.SkillCode}'의 실행 {e.ExecuteNumber}의";
+                if (target <= e.ExecuteNumber)
+                    throw new PackFormatException($"{file}: {where} 점프 대상 '{target}'는 자신의 실행 번호보다 커야 합니다.");
+                if (!numbers[e.SkillCode].Contains(target))
+                    throw new PackFormatException($"{file}: {where} 점프 대상 '{target}'가 같은 스킬에 없습니다.");
+            }
         return rows;
     }
 
