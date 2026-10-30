@@ -24,6 +24,6 @@ public sealed class HealEffect(Character target, long value1, long value2, long 
 
         // 매우 큰 값이어도 넘치지 않게 long 범위 안에서 더한다.
         var hp = (decimal)state.Hp + Value1;
-        Target.State = state with { Hp = (long)Math.Clamp(hp, 0m, Math.Max(0, state.MaxHp)) };
+        Target.State = state.WithStatus(GamePack.HpStatusCode, (long)Math.Clamp(hp, 0m, Math.Max(0, state.MaxHp)));
     }
 }

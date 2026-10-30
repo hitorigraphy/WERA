@@ -17,6 +17,10 @@ public sealed partial class GamePack
     public const long HpStatusCode = 2;
     /// <summary>경험치: 초깃값이 현재 경험치, 최댓값이 다음 레벨까지 필요한 경험치.</summary>
     public const long XpStatusCode = 3;
+    /// <summary>최대 HP: 초깃값이 새 캐릭터의 최대 HP. 마스터에 이 스테이터스의 행이 없으면 hp 행의 최댓값을 쓴다.</summary>
+    public const long MaxHpStatusCode = 4;
+    /// <summary>다음 레벨까지 필요한 경험치: 초깃값이 새 캐릭터의 필요 경험치. 마스터에 이 스테이터스의 행이 없으면 xp 행의 최댓값을 쓴다(그것도 없으면 0).</summary>
+    public const long XpMaxStatusCode = 5;
 
     /// <summary>스테이터스 마스터가 없으면 null.</summary>
     public IReadOnlyList<StatusEntry>? Statuses { get; init; }
@@ -119,19 +123,22 @@ public sealed partial class GamePack
             .ToList();
 
     /// <summary>
-    /// 새로 얻는 캐릭터의 상태. 레벨이 정해지기 전이므로 레벨 0의 행으로 채운다: 레벨 = level의 초깃값,
-    /// HP = hp의 초깃값(최대 HP는 최댓값), 경험치 = xp의 초깃값(필요 경험치는 최댓값).
-    /// 캐릭터 스테이터스 마스터가 있으면 level과 hp의 레벨 0 행이 반드시 있다(로드 때 검증). 마스터가 없는 게임팩이나 xp 행이 없는 캐릭터는
-    /// 레벨 1, HP 1/1(마스터가 없을 때), 경험치 0/0으로 시작한다.
+    /// 새로 얻는 캐릭터의 상태. 레벨이 정해지기 전이므로 레벨 0의 행으로 채운다: 마스터에 그 캐릭터의 행이 있는 모든 스테이터스를 초깃값으로
+    /// <see cref="CharacterInstance.Statuses"/>에 넣는다. 예약된 다섯 코드(level 1, hp 2, xp 3, max_hp 4, xp_max 5)는 늘 들어간다:
+    /// 행이 없으면 level 1, hp 1, xp 0이고, max_hp는 hp 행의 최댓값(없으면 1), xp_max는 xp 행의 최댓값(없으면 0)이다.
+    /// 캐릭터 스테이터스 마스터가 있으면 level과 hp의 레벨 0 행이 반드시 있다(로드 때 검증). 스킬은 아직 하나도 익히지 않았다.
     /// </summary>
     public CharacterInstance NewCharacterInstance(long characterCode, string instanceId = "", long orderNumber = 0)
     {
-        var level = InitialCharacterStatus(characterCode, LevelStatusCode);
-        var hp = InitialCharacterStatus(characterCode, HpStatusCode);
-        var xp = InitialCharacterStatus(characterCode, XpStatusCode);
-        return new CharacterInstance(instanceId, characterCode, orderNumber,
-            level?.InitialValue ?? 1,
-            hp?.InitialValue ?? 1, hp?.MaxValue ?? 1,
-            xp?.InitialValue ?? 0, xp?.MaxValue ?? 0).Clamped();
+        var statuses = new Dictionary<long, long>();
+        foreach (var code in CharacterStatusesOf(characterCode).Select(r => r.StatusCode).Distinct())
+            if (InitialCharacterStatus(characterCode, code) is { } row)
+                statuses[code] = row.InitialValue;
+        statuses.TryAdd(LevelStatusCode, 1);
+        statuses.TryAdd(HpStatusCode, 1);
+        statuses.TryAdd(XpStatusCode, 0);
+        statuses.TryAdd(MaxHpStatusCode, InitialCharacterStatus(characterCode, HpStatusCode)?.MaxValue ?? 1);
+        statuses.TryAdd(XpMaxStatusCode, InitialCharacterStatus(characterCode, XpStatusCode)?.MaxValue ?? 0);
+        return new CharacterInstance { InstanceId = instanceId, CharacterCode = characterCode, OrderNumber = orderNumber, Statuses = statuses }.Clamped();
     }
 }

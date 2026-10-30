@@ -72,8 +72,8 @@ public class CharacterInstanceTests
         var s = GameSession.NewGame(Pack());
         s.AddCharacter(7001);
         s.AddCharacter(7002);
-        s.Characters[7001] = s.Characters[7001] with { Level = 12, Hp = 100, Xp = 5 };
-        s.Characters[7002] = s.Characters[7002] with { OrderNumber = 10, Level = 3, Hp = 7, Xp = 250 };
+        s.Characters[7001] = s.Characters[7001].WithStatus(GamePack.LevelStatusCode, 12).WithStatus(GamePack.HpStatusCode, 100).WithStatus(GamePack.XpStatusCode, 5);
+        s.Characters[7002] = s.Characters[7002].WithStatus(GamePack.LevelStatusCode, 3).WithStatus(GamePack.HpStatusCode, 7).WithStatus(GamePack.XpStatusCode, 250) with { OrderNumber = 10 };
         Assert.Equal((8, 32, 8), (GameSession.CompanionCodeColumns, GameSession.CompanionNameColumns, GameSession.CompanionStatColumns));
 
         var rows = s.Companions;

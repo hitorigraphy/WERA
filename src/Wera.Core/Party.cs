@@ -1,25 +1,90 @@
+using System.Text.Json.Serialization;
+
 namespace Wera.Core;
+
+/// <summary>캐릭터가 익힌 스킬 하나. 지금은 스킬 코드(스킬 마스터)뿐이다.</summary>
+public sealed record SkillInstance(long SkillCode);
 
 /// <summary>
 /// 보유 캐릭터 인스턴스: 인스턴스 ID(ULID 문자열)와 마스터 코드(캐릭터 인벤토리 코드)를 함께 가지고, 목록 순서(OrderNumber)와 현재 상태를 가진다.
-/// XpMax는 다음 레벨까지 필요한 경험치. 얻을 때 OrderNumber는 소지 캐릭터 수(0부터 시작)이고(순서를 바꿀 때는 OrderNumber를 조작한다), 목록은 OrderNumber순, 같으면 InstanceId순이다.
+/// 얻을 때 OrderNumber는 소지 캐릭터 수(0부터 시작)이고(순서를 바꿀 때는 OrderNumber를 조작한다), 목록은 OrderNumber순, 같으면 InstanceId순이다.
+/// 상태는 <see cref="Statuses"/>(스테이터스 코드 → 값)에 있다: 예약된 코드는 level(1), hp(2), xp(3), max_hp(4), xp_max(5)이고
+/// <see cref="Level"/>, <see cref="Hp"/>, <see cref="MaxHp"/>, <see cref="Xp"/>, <see cref="XpMax"/>는 그 값을 읽는 편의 속성이다.
+/// 스킬은 <see cref="SkillPool"/>(익힌 스킬들)에 있고 <see cref="SkillSlots"/>가 스킬 슬롯 코드 → SkillPool의 번호(0부터)로 어느 슬롯에 어느 스킬을 넣어 두었는지 가진다.
+/// 값을 바꿀 때는 <see cref="WithStatus"/>처럼 새 인스턴스를 만들어 돌려주는 메서드를 쓴다(딕셔너리를 직접 고치면 복사본과 공유한다).
 /// </summary>
-public readonly record struct CharacterInstance(
-    string InstanceId, long CharacterCode, long OrderNumber, long Level, long Hp, long MaxHp, long Xp, long XpMax)
+public sealed record CharacterInstance
 {
+    public string InstanceId { get; init; } = "";
+    public long CharacterCode { get; init; }
+    public long OrderNumber { get; init; }
+
+    /// <summary>스테이터스 코드 → 현재 값.</summary>
+    public Dictionary<long, long> Statuses { get; init; } = [];
+
+    /// <summary>익힌 스킬들.</summary>
+    public List<SkillInstance> SkillPool { get; init; } = [];
+
+    /// <summary>스킬 슬롯 코드 → <see cref="SkillPool"/>의 번호.</summary>
+    public Dictionary<long, long> SkillSlots { get; init; } = [];
+
+    // 예전 세이브의 고정 필드(Level, Hp, MaxHp, Xp, XpMax). 읽을 때만 쓰고 세이브에는 쓰지 않는다(불러오면 Statuses로 옮긴다).
+    [JsonPropertyName("Level")] public long? LegacyLevel { get; init; }
+    [JsonPropertyName("Hp")] public long? LegacyHp { get; init; }
+    [JsonPropertyName("MaxHp")] public long? LegacyMaxHp { get; init; }
+    [JsonPropertyName("Xp")] public long? LegacyXp { get; init; }
+    [JsonPropertyName("XpMax")] public long? LegacyXpMax { get; init; }
+
+    [JsonIgnore] public long Level => Statuses.GetValueOrDefault(GamePack.LevelStatusCode);
+    [JsonIgnore] public long Hp => Statuses.GetValueOrDefault(GamePack.HpStatusCode);
+    [JsonIgnore] public long MaxHp => Statuses.GetValueOrDefault(GamePack.MaxHpStatusCode);
+    [JsonIgnore] public long Xp => Statuses.GetValueOrDefault(GamePack.XpStatusCode);
+    [JsonIgnore] public long XpMax => Statuses.GetValueOrDefault(GamePack.XpMaxStatusCode);
+
     /// <summary>상태만 아는 인스턴스(시험, 임베디드 이펙트): ID는 비어 있고 코드와 순서는 0이다. 세션은 보유할 때 ID와 코드를 채운다.</summary>
     public static CharacterInstance Stats(long level, long hp, long maxHp, long xp, long xpMax) =>
-        new("", 0, 0, level, hp, maxHp, xp, xpMax);
+        new()
+        {
+            Statuses = new Dictionary<long, long>
+            {
+                [GamePack.LevelStatusCode] = level, [GamePack.HpStatusCode] = hp, [GamePack.MaxHpStatusCode] = maxHp,
+                [GamePack.XpStatusCode] = xp, [GamePack.XpMaxStatusCode] = xpMax,
+            },
+        };
 
     public bool IsDead => Hp <= 0;
 
-    /// <summary>세이브가 받아들이는 범위로 맞춘다: 레벨 1 이상, HP 0~최대 HP, XP 0~필요 XP.</summary>
+    /// <summary>스테이터스 하나를 바꾼 새 인스턴스(원래 인스턴스는 그대로).</summary>
+    public CharacterInstance WithStatus(long statusCode, long value) =>
+        this with { Statuses = new Dictionary<long, long>(Statuses) { [statusCode] = value } };
+
+    /// <summary>세이브가 받아들이는 범위로 맞춘다: 레벨 1 이상, 최대 HP와 필요 XP 0 이상, HP 0~최대 HP, XP 0~필요 XP.</summary>
     public CharacterInstance Clamped()
     {
         var maxHp = Math.Max(0, MaxHp);
         var xpMax = Math.Max(0, XpMax);
-        return this with { Level = Math.Max(1, Level), Hp = Math.Clamp(Hp, 0, maxHp), MaxHp = maxHp, Xp = Math.Clamp(Xp, 0, xpMax), XpMax = xpMax };
+        var statuses = new Dictionary<long, long>(Statuses)
+        {
+            [GamePack.LevelStatusCode] = Math.Max(1, Level),
+            [GamePack.MaxHpStatusCode] = maxHp,
+            [GamePack.HpStatusCode] = Math.Clamp(Hp, 0, maxHp),
+            [GamePack.XpMaxStatusCode] = xpMax,
+            [GamePack.XpStatusCode] = Math.Clamp(Xp, 0, xpMax),
+        };
+        return this with { Statuses = statuses };
     }
+
+    // 딕셔너리와 목록은 내용으로 견준다(레코드의 기본 동등성은 참조를 견주므로 직접 쓴다).
+    public bool Equals(CharacterInstance? other) =>
+        other is not null
+        && InstanceId == other.InstanceId && CharacterCode == other.CharacterCode && OrderNumber == other.OrderNumber
+        && SameEntries(Statuses, other.Statuses) && SameEntries(SkillSlots, other.SkillSlots)
+        && SkillPool.SequenceEqual(other.SkillPool);
+
+    public override int GetHashCode() => HashCode.Combine(InstanceId, CharacterCode, OrderNumber, Statuses.Count, SkillPool.Count, SkillSlots.Count);
+
+    static bool SameEntries(Dictionary<long, long> a, Dictionary<long, long> b) =>
+        a.Count == b.Count && a.All(kv => b.TryGetValue(kv.Key, out var v) && v == kv.Value);
 }
 
 public enum GaugeColor

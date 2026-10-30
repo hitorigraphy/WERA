@@ -62,7 +62,7 @@ public class HealEffectTests
         var target = Hero(hp: 10);
         var before = target.State;
         new HealEffect(target, 5, 99, 12345).Execute();
-        Assert.Equal(before with { Hp = 15 }, target.State);
+        Assert.Equal(before.WithStatus(GamePack.HpStatusCode, 15), target.State);
     }
 
     [Theory]

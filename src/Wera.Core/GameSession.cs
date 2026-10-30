@@ -1171,10 +1171,41 @@ public sealed partial class GameSession
             else if (!Ulid.TryParse(s.InstanceId, out var ulid))
                 throw new SaveFormatException($"세이브의 캐릭터 '{code}'의 인스턴스 ID '{s.InstanceId}'가 ULID가 아닙니다.");
             else instanceId = ulid.ToString();
-            characters[code] = s with { InstanceId = instanceId, CharacterCode = code };
-            if (s.Level < 1 || s.MaxHp < 0 || s.Hp < 0 || s.Hp > s.MaxHp || s.XpMax < 0 || s.Xp < 0 || s.Xp > s.XpMax)
+            // 고정 필드(Level, Hp, MaxHp, Xp, XpMax)로 저장한 예전 세이브는 Statuses로 옮긴다.
+            // (JSON에 없는 항목은 null로 올 수 있다)
+            var statuses = new Dictionary<long, long>((Dictionary<long, long>?)s.Statuses ?? []);
+            if (s.LegacyLevel is not null || s.LegacyHp is not null || s.LegacyMaxHp is not null || s.LegacyXp is not null || s.LegacyXpMax is not null)
+            {
+                statuses.TryAdd(GamePack.LevelStatusCode, s.LegacyLevel ?? 1);
+                statuses.TryAdd(GamePack.HpStatusCode, s.LegacyHp ?? 0);
+                statuses.TryAdd(GamePack.MaxHpStatusCode, s.LegacyMaxHp ?? 0);
+                statuses.TryAdd(GamePack.XpStatusCode, s.LegacyXp ?? 0);
+                statuses.TryAdd(GamePack.XpMaxStatusCode, s.LegacyXpMax ?? 0);
+            }
+            var loaded = s with
+            {
+                InstanceId = instanceId, CharacterCode = code, Statuses = statuses,
+                SkillPool = (List<SkillInstance>?)s.SkillPool ?? [], SkillSlots = (Dictionary<long, long>?)s.SkillSlots ?? [],
+                LegacyLevel = null, LegacyHp = null, LegacyMaxHp = null, LegacyXp = null, LegacyXpMax = null,
+            };
+            if (loaded.Level < 1 || loaded.MaxHp < 0 || loaded.Hp < 0 || loaded.Hp > loaded.MaxHp
+                || loaded.XpMax < 0 || loaded.Xp < 0 || loaded.Xp > loaded.XpMax)
                 throw new SaveFormatException(
-                    $"세이브의 캐릭터 '{code}' 상태가 올바르지 않습니다 (Lv {s.Level}, HP {s.Hp}/{s.MaxHp}, XP {s.Xp}/{s.XpMax}).");
+                    $"세이브의 캐릭터 '{code}' 상태가 올바르지 않습니다 (Lv {loaded.Level}, HP {loaded.Hp}/{loaded.MaxHp}, XP {loaded.Xp}/{loaded.XpMax}).");
+            foreach (var status in loaded.Statuses.Keys)
+                if (pack.FindStatus(status) is null && pack.Statuses is not null && status > GamePack.XpMaxStatusCode)
+                    throw new SaveFormatException($"세이브의 캐릭터 '{code}'의 스테이터스 '{status}'가 스테이터스 마스터에 없습니다.");
+            foreach (var skill in loaded.SkillPool)
+                if (pack.FindSkill(skill.SkillCode) is null)
+                    throw new SaveFormatException($"세이브의 캐릭터 '{code}'의 스킬 '{skill.SkillCode}'가 스킬 마스터에 없습니다.");
+            foreach (var (slot, index) in loaded.SkillSlots)
+            {
+                if (pack.FindSkillSlot(slot) is null)
+                    throw new SaveFormatException($"세이브의 캐릭터 '{code}'의 스킬 슬롯 '{slot}'가 스킬 슬롯 마스터에 없습니다.");
+                if (index < 0 || index >= loaded.SkillPool.Count)
+                    throw new SaveFormatException($"세이브의 캐릭터 '{code}'의 스킬 슬롯 '{slot}'이 가리키는 번호 {index}가 스킬 풀(스킬 {loaded.SkillPool.Count}개)에 없습니다.");
+            }
+            characters[code] = loaded;
         }
 
         // 플레이어(캐릭터 1)는 늘 보유한다. 세이브에 없으면(예전 세이브) 새 캐릭터 상태로 채운다.

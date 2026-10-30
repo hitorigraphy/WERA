@@ -12,12 +12,10 @@ public class EffectTests
     sealed class GrowEffect(Character target, long v1, long v2, long v3) : EmbeddedEffect(target, v1, v2, v3)
     {
         public override long EffectCode => 2;
-        public override void Execute() => Target.State = Target.State with
-        {
-            Xp = Target.State.Xp + Value1,
-            Level = Target.State.Level + Value2,
-            MaxHp = Target.State.MaxHp + Value3,
-        };
+        public override void Execute() => Target.State = Target.State
+            .WithStatus(GamePack.XpStatusCode, Target.State.Xp + Value1)
+            .WithStatus(GamePack.LevelStatusCode, Target.State.Level + Value2)
+            .WithStatus(GamePack.MaxHpStatusCode, Target.State.MaxHp + Value3);
     }
 
     /// <summary>3: 실행될 때 저장해 둔 값을 기록한다.</summary>
