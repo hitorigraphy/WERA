@@ -184,6 +184,7 @@ public sealed partial class GamePack
         var afterLoadCharacterFlows = LoadAfterLoadCharacterFlows(zip, statuses);
         var afterLoadUniqueItemFlows = LoadAfterLoadUniqueItemFlows(zip, statuses);
         var afterHitEffects = LoadAfterHitEffects(zip, statuses);
+        var afterAttackEffects = LoadAfterAttackEffects(zip, statuses);
         var skillStatuses = LoadOwnerStatuses(zip, SkillStatusMasterPath, "skill_code", "스킬", SkillMasterPath, skills?.Select(s => s.Code), statuses);
         var uniqueItemStatuses = LoadOwnerStatuses(zip, UniqueItemStatusMasterPath, "item_code", "유니크 아이템", UniqueItemInventoryMasterPath, uniqueItems?.Select(u => u.ItemCode), statuses);
 
@@ -237,6 +238,7 @@ public sealed partial class GamePack
             AfterLoadCharacterFlows = afterLoadCharacterFlows,
             AfterLoadUniqueItemFlows = afterLoadUniqueItemFlows,
             AfterHitEffects = afterHitEffects,
+            AfterAttackEffects = afterAttackEffects,
             SkillStatuses = skillStatuses,
             UniqueItemStatuses = uniqueItemStatuses,
             Masters = BuildMasters(
@@ -249,7 +251,7 @@ public sealed partial class GamePack
                 presetUnits, presetUnitEquips, presetUnitDrops, presetParties, battleEnemies,
                 skillSlots, characterSkillSlotTags, skills, skillTags, skillExecuteEffects, skillOrderEffects,
                 skillStatuses, uniqueItemStatuses, afterLoadCharacterFlows, afterLoadUniqueItemFlows,
-                afterHitEffects),
+                afterHitEffects, afterAttackEffects),
             EmbeddedEffects = embeddedEffects,
         };
         pack.CheckPresetUnitEquips();
