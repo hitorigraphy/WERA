@@ -49,7 +49,7 @@ public sealed partial class GamePack
         List<SkillEntry>? skills, List<SkillTag>? skillTags, List<SkillExecuteEffect>? skillExecuteEffects,
         List<SkillOrderEffect>? skillOrderEffects,
         List<OwnerStatus>? skillStatuses, List<OwnerStatus>? uniqueItemStatuses,
-        List<LoadCharacterFlow>? afterLoadCharacterFlows)
+        List<LoadCharacterFlow>? afterLoadCharacterFlows, List<LoadUniqueItemFlow>? afterLoadUniqueItemFlows)
     {
         var builder = new DatabaseBuilder();
 
@@ -178,6 +178,8 @@ public sealed partial class GamePack
         builder.Append((characterSkillSlotTags ?? []).Select(t => new CharacterSkillSlotTagRow
             { CharacterCode = t.CharacterCode, SkillSlotCode = t.SkillSlotCode, GroupNumber = t.GroupNumber, TagCode = t.TagCode, IsPositive = t.IsPositive }).ToList());
         builder.Append((afterLoadCharacterFlows ?? []).Select(f => new AfterLoadCharacterFlowRow
+        { ExecuteNumber = f.ExecuteNumber, FlowType = f.FlowType, Value1 = f.Value1, Value2 = f.Value2, Value3 = f.Value3 }).ToList());
+        builder.Append((afterLoadUniqueItemFlows ?? []).Select(f => new AfterLoadUniqueItemFlowRow
         { ExecuteNumber = f.ExecuteNumber, FlowType = f.FlowType, Value1 = f.Value1, Value2 = f.Value2, Value3 = f.Value3 }).ToList());
         builder.Append((skillStatuses ?? []).Select(s => new SkillStatusRow
         { SkillCode = s.OwnerCode, StatusCode = s.StatusCode, InitialValue = s.InitialValue, MinValue = s.MinValue, MaxValue = s.MaxValue }).ToList());

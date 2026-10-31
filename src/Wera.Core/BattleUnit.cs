@@ -30,13 +30,21 @@ public sealed class BattleUnit
     /// 캐릭터 인스턴스로 유닛을 만든다: 인스턴스의 모든 스테이터스를 현재 값으로 채우고, 범위는 인스턴스의 레벨에 맞는 캐릭터 스테이터스 마스터 행의
     /// 최솟값~최댓값이다(행이 없는 스테이터스는 범위 제한이 없다).
     /// </summary>
-    public static BattleUnit FromInstance(GamePack pack, CharacterInstance character)
+    public static BattleUnit FromInstance(GamePack pack, CharacterInstance character) =>
+        FromStatuses(character.CharacterCode, character.Statuses,
+            status => pack.CharacterStatusAt(character.CharacterCode, status, character.Level) is { } row ? (row.MinValue, row.MaxValue) : null);
+
+    /// <summary>
+    /// 스테이터스 값들(코드 → 현재 값)로 유닛을 만든다. 범위는 <paramref name="range"/>가 스테이터스 코드마다 (최솟값, 최댓값)으로 알려 주고
+    /// null이면 범위 제한이 없다. 캐릭터가 아닌 것(유니크 아이템)의 서킷도 쓴다(그때 <see cref="CharacterCode"/>는 그 코드).
+    /// </summary>
+    public static BattleUnit FromStatuses(long code, IReadOnlyDictionary<long, long> values, Func<long, (long Min, long Max)?> range)
     {
-        var unit = new BattleUnit(character.CharacterCode);
-        foreach (var (status, value) in character.Statuses)
+        var unit = new BattleUnit(code);
+        foreach (var (status, value) in values)
         {
-            var row = pack.CharacterStatusAt(character.CharacterCode, status, character.Level);
-            unit.statuses[status] = (value, row?.MinValue ?? decimal.MinValue, row?.MaxValue ?? decimal.MaxValue);
+            var r = range(status);
+            unit.statuses[status] = (value, r?.Min ?? decimal.MinValue, r?.Max ?? decimal.MaxValue);
         }
         return unit;
     }

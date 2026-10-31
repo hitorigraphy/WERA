@@ -430,7 +430,8 @@ public sealed partial class GameSession
             if (!string.IsNullOrEmpty(item.InstanceId) && !(Ulid.TryParse(item.InstanceId, out var inner) && inner.ToString() == id))
                 throw new SaveFormatException($"세이브의 유니크 아이템 인스턴스 '{id}'에 적힌 인스턴스 ID '{item.InstanceId}'가 키와 다릅니다.");
             var statuses = CheckOwnerStatuses(pack, $"유니크 아이템 인스턴스 '{id}'", item.Statuses, pack.MasterStatusesOfUniqueItem(item.ItemCode));
-            instances[id] = new UniqueItemInstance(id, item.ItemCode, item.OrderNumber, tags, statuses);
+            // 불러온 뒤 유니크 아이템 인스턴스마다 로드 후 유니크 아이템 서킷을 돌려 게임팩의 정의대로 조작한다.
+            instances[id] = new AfterLoadUniqueItemCircuit(pack, new UniqueItemInstance(id, item.ItemCode, item.OrderNumber, tags, statuses)).Execute();
         }
 
         var characterTags = new Dictionary<long, List<long>>();
