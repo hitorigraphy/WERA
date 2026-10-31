@@ -116,6 +116,8 @@ public sealed partial class GameSession
     void BeginBattle()
     {
         CurrentEnemyPartyCode = null;
+        BattleOutcome = BattleOutcomeKind.None;
+        battleLog.Clear();
         enemyInstances.Clear();
         enemyItems.Clear();
         Array.Clear(enemyUnits);
@@ -281,6 +283,7 @@ public sealed partial class GameSession
 
     IEnumerable<ScreenEntry> BattleCommandEntries()
     {
+        if (BattleOutcome != BattleOutcomeKind.None) yield break;       // 결판이 났으면 커맨드는 없다
         if (BattleCommands == BattleCommandMode.ActionCandidates)
         {
             for (var i = 0; i < BattleSkillNames.Count; i++)
@@ -302,7 +305,7 @@ public sealed partial class GameSession
         yield return new ScreenEntry("103", "상태 확인", Screen.Battle, EntryAction.BattleCommand);
         yield return new ScreenEntry("104", "이전 캐릭터", Screen.Battle, EntryAction.BattleSelectCharacter, "-1");
         yield return new ScreenEntry("105", "아이템", Screen.Battle, EntryAction.BattleCommand);
-        yield return new ScreenEntry("106", "실행", Screen.Battle, EntryAction.BattleCommand, Enabled: BattleAllActionsSet);
+        yield return new ScreenEntry("106", "실행", Screen.Battle, EntryAction.BattleExecute, Enabled: BattleAllActionsSet);
     }
 
     /// <summary>▲(음수)는 적 3 / 아군 1 구성으로, ▼(양수)는 적 1 / 아군 3 구성으로 바로 넘어간다(그 사이 구성은 보여 주지 않는다).</summary>

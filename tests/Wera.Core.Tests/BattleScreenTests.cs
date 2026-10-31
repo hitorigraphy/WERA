@@ -280,4 +280,49 @@ public class BattleScreenTests
         s.Activate("102"); s.Activate("102"); s.Activate("1");
         Assert.True(s.BattleAllActionsSet);                        // 유닛이 하나뿐이면 하나만 정하면 실행할 수 있다
     }
+
+    // 모든 호출이 첫 후보를 고르게 한다(적의 스킬과 대상, 쓰러진 대상 바꾸기)
+    static void FirstOnly(GameSession s) => s.NextRandom = _ => 0;
+
+    [Fact]
+    public void Execute_has_everyone_act_once_in_order_point_order_then_starts_the_next_turn()
+    {
+        var s = Started(twoUnits: true);
+        FirstOnly(s);
+        var enemyCount = s.EnemyInstances.Count;
+        s.Activate("102"); s.Activate("101"); s.Activate("1");       // 첫 유닛: 스킬1 → 적 슬롯 0
+        s.Activate("102"); s.Activate("102"); s.Activate("1");       // 둘째 유닛: 스킬2 → 적 슬롯 0
+        s.Activate("106");
+
+        Assert.Equal(GameSession.BattleOutcomeKind.None, s.BattleOutcome);
+        Assert.Equal(2 + enemyCount, s.BattleLog.Count);             // 전원이 1회씩
+        Assert.Equal(s.BattleLog.OrderByDescending(a => a.OrderPoint).Select(a => (a.IsEnemy, a.Slot)), s.BattleLog.Select(a => (a.IsEnemy, a.Slot)));
+        Assert.True(s.EnemyInstances[0].Hp < s.EnemyInstances[0].MaxHp);   // 스킬 피해가 들어갔다
+        Assert.Null(s.BattleActionOf(0));                            // 다음 턴: 행동은 지워지고 첫 유닛부터
+        Assert.Equal(0, s.BattleCurrentSlot);
+        Assert.False(Entry(s, "106").Enabled);
+    }
+
+    [Fact]
+    public void Execute_is_a_win_when_every_enemy_falls_and_a_loss_when_every_ally_falls()
+    {
+        var win = Started(roll: 1);                                   // 적 파티 2: 전사 하나
+        FirstOnly(win);
+        var slot = win.EnemyInstances.Keys.Single();
+        win.EnemyInstances[slot].Statuses[GamePack.HpStatusCode] = 5;
+        win.Activate("102"); win.Activate("102"); win.Activate((slot + 1).ToString());
+        win.Activate("106");
+        Assert.Equal(GameSession.BattleOutcomeKind.Win, win.BattleOutcome);
+        Assert.DoesNotContain(win.Entries, e => e.Action != EntryAction.BattleScroll && e.Code != "999");   // 커맨드는 없다
+
+        var lose = Started(roll: 1);
+        FirstOnly(lose);
+        slot = lose.EnemyInstances.Keys.Single();
+        lose.EnemyInstances[slot].Statuses[GamePack.HpStatusCode] = 100;
+        lose.EnemyInstances[slot].Statuses[GamePack.MaxHpStatusCode] = 100;
+        lose.Characters[1].Statuses[GamePack.HpStatusCode] = 1;
+        lose.Activate("102"); lose.Activate("101"); lose.Activate((slot + 1).ToString());
+        lose.Activate("106");
+        Assert.Equal(GameSession.BattleOutcomeKind.Lose, lose.BattleOutcome);
+    }
 }

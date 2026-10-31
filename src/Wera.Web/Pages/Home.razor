@@ -539,6 +539,10 @@
                             }
                         }
                     </div>
+                    @if (session.BattleOutcome != GameSession.BattleOutcomeKind.None)
+                    {
+                        <p class="end">@(session.BattleOutcome == GameSession.BattleOutcomeKind.Win ? "전투에서 승리했습니다!" : "전투에서 패배했습니다...")</p>
+                    }
                     @* 구분선 아래: 왼쪽 네 칸 중 세 칸에 커맨드(윗줄 [101]~[103], 아랫줄 [104]~[106]), 윗줄 오른쪽 끝에 구성 전환([1000] ▲, [1001] ▼) *@
                     <div class="battle-commands">
                         <div class="battle-command-list">@entryList(session.Entries.Where(e => e.Action != EntryAction.BattleScroll))</div>

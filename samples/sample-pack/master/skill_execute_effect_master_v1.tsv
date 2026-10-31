@@ -1,3 +1,7 @@
 skill_code	execute_number	effect_type	value_1	value_2	value_3	memo
-1001	1	None				이펙트 종류는 구현되는 대로 늘어난다
-1002	1	None				
+1001	1	SetCacheValue	0	-10		피해 10
+1001	2	FocusMainTargetCharacter				
+1001	3	CacheToFocusedCharacterModValue	2	0		메인 타겟의 hp에 더함
+1002	1	SetCacheValue	0	-20		피해 20
+1002	2	FocusMainTargetCharacter				
+1002	3	CacheToFocusedCharacterModValue	2	0		
