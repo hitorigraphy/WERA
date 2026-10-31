@@ -286,7 +286,7 @@ public sealed partial class GameSession
         ContinueTileEffects();
     }
 
-    /// <summary>던전 이동 화면: 지금 던전의 지금 맵(<see cref="DungeonLayer"/>)을 위에서부터 줄마다 그린 것. 오른쪽 끝의 빈 칸 열은 잘라 낸다. 던전에 있지 않으면 빈 목록.</summary>
+    /// <summary>던전 이동 화면: 지금 던전의 지금 맵(<see cref="DungeonLayer"/>)을 위에서부터 30줄(<see cref="GamePack.DungeonMapHeight"/>)로 그린 것. 오른쪽 끝의 빈 칸 열은 잘라 낸다. 던전에 있지 않으면 빈 목록.</summary>
     public IReadOnlyList<IReadOnlyList<DungeonCellView>> DungeonMapRows
     {
         get
@@ -295,7 +295,7 @@ public sealed partial class GameSession
             var lines = Pack.DungeonMapOf(code, DungeonLayer);
             var width = lines.Count == 0 ? 0 : lines.Max(l => l.Cells.ToList().FindLastIndex(c => c != "") + 1);
             var rows = new List<IReadOnlyList<DungeonCellView>>();
-            for (var y = 0L; y <= (lines.Count == 0 ? -1 : lines.Max(l => l.PosY)); y++)
+            for (var y = 0L; y < GamePack.DungeonMapHeight; y++)      // 맵은 늘 30줄로 그린다(없는 줄은 빈 칸)
             {
                 var line = lines.FirstOrDefault(l => l.PosY == y);
                 rows.Add(Enumerable.Range(0, width).Select(x =>

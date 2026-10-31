@@ -74,6 +74,9 @@ public sealed partial class GamePack
     /// <summary>던전 맵의 가로 칸 수(pos_x_0 ~ pos_x_29).</summary>
     public const int DungeonMapWidth = 30;
 
+    /// <summary>던전 맵의 세로 줄 수(pos_y 0 ~ 29). 던전 이동 화면은 맵을 늘 이 줄 수로 그린다.</summary>
+    public const int DungeonMapHeight = 30;
+
     /// <summary>타일 마스터가 없으면 null. 게임팩 파일 순서.</summary>
     public IReadOnlyList<TileEffect>? TileEffects { get; init; }
 
@@ -131,8 +134,8 @@ public sealed partial class GamePack
                 case TileEffectType.FixedBattle:
                     CheckBattle(v1);
                     break;
-                case TileEffectType.Warp when v1 < 0 || v2 < 0 || v2 >= DungeonMapWidth || v3 < 0:
-                    throw new PackFormatException($"{file}: {where} Warp의 도착(layer_number {v1}, pos_x {v2}, pos_y {v3})은 layer_number와 pos_y가 0 이상, pos_x가 0 이상 {DungeonMapWidth} 미만이어야 합니다.");
+                case TileEffectType.Warp when v1 < 0 || v2 < 0 || v2 >= DungeonMapWidth || v3 < 0 || v3 >= DungeonMapHeight:
+                    throw new PackFormatException($"{file}: {where} Warp의 도착(layer_number {v1}, pos_x {v2}, pos_y {v3})은 layer_number와 pos_y가 0 이상 {DungeonMapHeight} 미만, pos_x가 0 이상 {DungeonMapWidth} 미만이어야 합니다.");
                 case TileEffectType.DungeonEvent:
                     if (dungeonEventCodes is null) throw new PackFormatException($"{file}: {where} DungeonEvent가 있으려면 {DungeonEventMasterPath}도 필요합니다.");
                     if (!dungeonEventCodes.Contains(v1)) throw new PackFormatException($"{file}: {where} DungeonEvent의 던전 이벤트 '{v1}'가 던전 이벤트 마스터에 없습니다.");
@@ -211,8 +214,8 @@ public sealed partial class GamePack
                 throw new PackFormatException($"{file}: 던전 코드 '{dungeon}'가 던전 마스터에 없습니다.");
             if (layer < 0)
                 throw new PackFormatException($"{file}: 던전 '{dungeon}'의 layer_number '{layer}'는 0 이상이어야 합니다.");
-            if (posY < 0)
-                throw new PackFormatException($"{file}: 던전 '{dungeon}'의 레이어 {layer}의 pos_y '{posY}'는 0 이상이어야 합니다.");
+            if (posY < 0 || posY >= DungeonMapHeight)
+                throw new PackFormatException($"{file}: 던전 '{dungeon}'의 레이어 {layer}의 pos_y '{posY}'는 0 이상 {DungeonMapHeight} 미만이어야 합니다.");
             if (!seen.Add((dungeon, layer, posY)))
                 throw new PackFormatException($"{file}: 같은 키(던전 {dungeon}, layer_number {layer}, pos_y {posY})가 두 번 있습니다.");
             var cells = r.Skip(3).ToList();

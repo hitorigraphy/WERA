@@ -227,7 +227,7 @@
     }
     else
     {
-        <div class="@(session.Screen == Screen.Interaction ? "screen interaction" : "screen")" @ref="screenArea">
+        <div class="@(session.Screen switch { Screen.Interaction => "screen interaction", Screen.DungeonMove => "screen dungeon-move", _ => "screen" })" @ref="screenArea">
         @switch (session.Screen)
         {
             case Screen.Home:
@@ -257,17 +257,21 @@
             case Screen.DungeonMove:
                 @* 던전 맵: 칸마다 맵 TSV의 글자를 그리고(칸 폭은 전각 한 글자), 현재 위치는 @로 덮는다. 벽, 계단, 출구, 전투, ADV, 이동 칸은 색으로 구분한다 *@
                 @* 왼쪽은 맵(가로 30칸 × 2 = 반각 60칸), 세로 구분선, 오른쪽에는 맵 이름, 층 이름, 스테이터스 확인, 아이템 확인, 세이브 *@
+                @* 맵은 30줄, 그 아래 가로 구분선, 그 밑은 로그 영역. 세로 구분선은 입력칸 위까지 이어진다 *@
                 <div class="dungeon-layout">
-                    <div class="dungeon-map">
-                        @foreach (var row in session.DungeonMapRows)
-                        {
-                            <div class="dungeon-row">
-                                @foreach (var cell in row)
-                                {
-                                    <span class="@DungeonCellClass(cell)">@(cell.IsPlayer ? "@" : cell.Text)</span>
-                                }
-                            </div>
-                        }
+                    <div class="dungeon-left">
+                        <div class="dungeon-map">
+                            @foreach (var row in session.DungeonMapRows)
+                            {
+                                <div class="dungeon-row">
+                                    @foreach (var cell in row)
+                                    {
+                                        <span class="@DungeonCellClass(cell)">@(cell.IsPlayer ? "@" : cell.Text)</span>
+                                    }
+                                </div>
+                            }
+                        </div>
+                        <div class="dungeon-log"></div>
                     </div>
                     <div class="dungeon-side">
                         <div class="dungeon-name">@session.DungeonName</div>

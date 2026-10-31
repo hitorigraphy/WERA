@@ -183,6 +183,7 @@ public class DungeonMapTests
         Rejects("던전 코드 '9'", (GamePack.DungeonMapMasterPath, MapHeader + Row(9, 0, 0, "#")));
         Rejects("pos_y '-1'", (GamePack.DungeonMapMasterPath, MapHeader + Row(1001, 0, -1, "#")));
         Rejects("layer_number '-1'", (GamePack.DungeonMapMasterPath, MapHeader + Row(1001, -1, 0, "#")));
+        Rejects("pos_y '30'", (GamePack.DungeonMapMasterPath, MapHeader + Row(1001, 0, 30, "#")));      // 맵은 30줄까지
         Rejects("두 번", (GamePack.DungeonMapMasterPath, MapHeader + Row(1001, 0, 0, "#") + Row(1001, 0, 0, ".")));
         Assert.Equal([0L, 1L], Load((GamePack.DungeonMapMasterPath, MapHeader + Row(1001, 0, 0, "#") + Row(1001, 1, 0, "."))).DungeonLayersOf(1001));   // 같은 pos_y라도 맵이 다르면 따로
         Rejects("글자 'x'", (GamePack.DungeonMapMasterPath, MapHeader + Row(1001, 0, 0, "#x")));

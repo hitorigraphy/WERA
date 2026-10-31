@@ -349,9 +349,9 @@ public sealed partial class GamePack
         var layer = ParseLong(DungeonMasterPath, $"던전 '{code}'의 entry_layer_number", r[2]);
         var x = ParseLong(DungeonMasterPath, $"던전 '{code}'의 entry_pos_x", r[3]);
         var y = ParseLong(DungeonMasterPath, $"던전 '{code}'의 entry_pos_y", r[4]);
-        if (layer < 0 || y < 0 || x < 0 || x >= DungeonMapWidth)
+        if (layer < 0 || y < 0 || y >= DungeonMapHeight || x < 0 || x >= DungeonMapWidth)
             throw new PackFormatException(
-                $"{DungeonMasterPath}: 던전 '{code}'의 도입 지점(layer_number {layer}, pos_x {x}, pos_y {y})은 layer_number와 pos_y가 0 이상, pos_x가 0 이상 {DungeonMapWidth} 미만이어야 합니다.");
+                $"{DungeonMasterPath}: 던전 '{code}'의 도입 지점(layer_number {layer}, pos_x {x}, pos_y {y})은 layer_number가 0 이상, pos_y가 0 이상 {DungeonMapHeight} 미만, pos_x가 0 이상 {DungeonMapWidth} 미만이어야 합니다.");
         return new DungeonEntry(layer, x, y);
     }
 

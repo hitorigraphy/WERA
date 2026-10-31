@@ -188,7 +188,8 @@ public class DungeonFlowTests
     {
         var s = Entered();
         var rows = s.DungeonMapRows;
-        Assert.Equal(7, rows.Count);
+        Assert.Equal(30, rows.Count);                                                         // 맵은 늘 30줄(없는 줄은 빈 칸)
+        Assert.All(rows.Skip(7), r => Assert.All(r, c => Assert.Equal("", c.Text)));
         Assert.Equal(12, rows[0].Count);                                                      // 오른쪽 끝의 빈 열은 잘린다
         Assert.True(rows[0][0].Look.HasFlag(DungeonCellLook.Wall) && rows[0][0].Look.HasFlag(DungeonCellLook.Impassable));
         Assert.True(rows[1][1].IsPlayer);
