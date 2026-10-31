@@ -77,6 +77,13 @@ public sealed partial class GameSession
     public long? CurrentEnemyPartyCode { get; private set; }
 
     /// <summary>
+    /// 이 전투의 적 유닛(적 슬롯 번호 → 임시 캐릭터 인스턴스). 전투를 시작할 때 만난 프리셋 파티의 유닛마다 그 캐릭터의 마스터 초깃값(레벨 0 행)으로
+    /// 만들고 InstanceId는 "enemy-슬롯"이다. 세이브에 들어가지 않고 다음 전투를 시작하면 새로 만든다(포획한 적은 이 인스턴스를 보유 캐릭터로 옮긴다).
+    /// </summary>
+    public IReadOnlyDictionary<int, CharacterInstance> EnemyInstances => enemyInstances;
+    readonly Dictionary<int, CharacterInstance> enemyInstances = [];
+
+    /// <summary>
     /// 작전 화면에서 맨 위에 보이는 줄의 번호: <see cref="BattleTopEnemyHeavy"/>(0; 적 후위, 적 중위, 적 전위, 경계선, 아군 전위)나
     /// <see cref="BattleTopAllyHeavy"/>(2; 적 전위, 경계선, 아군 전위, 아군 중위, 아군 후위). 턴이 시작될 때(전투를 시작할 때 포함)와
     /// 이전/다음 캐릭터로 다른 캐릭터를 설정할 때는 2로 강제로 바뀌고, 행동 설정을 열 때는 0으로 바뀐다. 그 밖에는 ▲▼로 자유롭게 바꾼다.
@@ -87,6 +94,7 @@ public sealed partial class GameSession
     void BeginBattle()
     {
         CurrentEnemyPartyCode = null;
+        enemyInstances.Clear();
         CurrentBattleCode = Pack.FindBattle(TemporaryBattleCode) is null ? null : TemporaryBattleCode;
         BeginTurn();
         if (CurrentBattleCode is not { } battle) return;
@@ -97,9 +105,18 @@ public sealed partial class GameSession
         var roll = NextRandom(total);
         foreach (var candidate in candidates)
         {
-            if (roll < candidate.Weight) { CurrentEnemyPartyCode = candidate.PresetPartyCode; return; }
+            if (roll < candidate.Weight) { CurrentEnemyPartyCode = candidate.PresetPartyCode; CreateEnemyInstances(); return; }
             roll -= candidate.Weight;
         }
+    }
+
+    /// <summary>만난 적 파티의 유닛마다 임시 캐릭터 인스턴스를 만든다(<see cref="EnemyInstances"/>).</summary>
+    void CreateEnemyInstances()
+    {
+        if (CurrentEnemyPartyCode is not { } code || Pack.FindPresetParty(code) is not { } party) return;
+        for (var slot = 0; slot < party.UnitCodes.Count; slot++)
+            if (party.UnitCodes[slot] is { } unitCode && Pack.FindPresetUnit(unitCode) is { } unit)
+                enemyInstances[slot] = Pack.NewCharacterInstance(unit.CharacterCode, $"enemy-{slot}", slot);
     }
 
     /// <summary>
@@ -143,16 +160,15 @@ public sealed partial class GameSession
         BattleCommands = BattleCommandMode.Basic;
     }
 
-    /// <summary>적 슬롯 하나의 표시: 프리셋 유닛의 캐릭터를 캐릭터 스테이터스 마스터의 레벨 0 값으로 보여 준다. 빈 칸은 빈 슬롯.</summary>
-    PartySlotView EnemySlotView(int slot, long? presetUnitCode)
+    /// <summary>적 슬롯 하나의 표시: 임시 캐릭터 인스턴스의 현재 값을 보여 준다. 빈 칸은 빈 슬롯.</summary>
+    PartySlotView EnemySlotView(int slot)
     {
-        if (presetUnitCode is not { } unitCode || Pack.FindPresetUnit(unitCode) is not { } unit) return PartySlotView.Empty(slot);
-        var state = Pack.NewCharacterInstance(unit.CharacterCode);
+        if (!enemyInstances.TryGetValue(slot, out var state)) return PartySlotView.Empty(slot);
         return new PartySlotView(
-            slot, unit.CharacterCode, $"Lv.{state.Level}", CharacterName(unit.CharacterCode),
+            slot, state.CharacterCode, $"Lv.{state.Level}", CharacterName(state.CharacterCode),
             Gauge.Render(state.Hp, state.MaxHp, gray: state.IsDead),
             Gauge.Render(state.Xp, state.XpMax, gray: state.IsDead),
-            AttributeBadges(unit.CharacterCode), []);
+            AttributeBadges(state.CharacterCode), []);
     }
 
     static string BattleRowTitle(int rowInSide) => rowInSide switch { 0 => "전위", 1 => "중위", _ => "후위" };
@@ -161,7 +177,7 @@ public sealed partial class GameSession
     IReadOnlyList<BattleRowView> AllBattleRows()
     {
         var enemy = CurrentEnemyPartyCode is { } code ? Pack.FindPresetParty(code) : null;
-        var enemySlots = Enumerable.Range(0, PartySlotCount).Select(i => EnemySlotView(i, enemy?.UnitCodes[i])).ToList();
+        var enemySlots = Enumerable.Range(0, PartySlotCount).Select(EnemySlotView).ToList();
         var allySlots = PartySlotViews.Select(v => v with { IsSelected = v.Slot == BattleCurrentSlot, Name = BattleActionOf(v.Slot) is { } skill ? BattleSkillNames[skill - 1] : v.Name }).ToList();     // 보는 캐릭터의 이름은 파란색
 
         BattleRowView Row(bool isEnemy, int rowInSide) => new(

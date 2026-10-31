@@ -117,6 +117,17 @@ public class BattleScreenTests
     }
 
     [Fact]
+    public void Each_enemy_unit_gets_a_temporary_character_instance_when_the_battle_starts()
+    {
+        var s = Started(roll: 0);                                  // 적 파티 1: 전사 둘, 마법사 둘
+        Assert.Equal(4, s.EnemyInstances.Count);
+        Assert.All(s.EnemyInstances, kv => Assert.Equal($"enemy-{kv.Key}", kv.Value.InstanceId));
+        Assert.All(s.EnemyInstances.Values, c => Assert.True(c.Hp > 0));
+        Assert.NotSame(s.EnemyInstances[0], s.EnemyInstances.Values.Skip(1).First());
+        Assert.Empty(Started(roll: 0).ToSaveJson().Split("enemy-").Skip(1));       // 세이브에 들어가지 않는다
+    }
+
+    [Fact]
     public void A_pack_without_the_battle_starts_nothing_but_the_screen_still_opens()
     {
         var s = GameSession.NewGame(GamePack.Load(CoreTests.PackZip(("pack.tsv", "id\tdemo\ntitle\t데모\n"))));
