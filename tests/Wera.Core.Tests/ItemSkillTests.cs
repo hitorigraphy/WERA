@@ -66,4 +66,35 @@ public class ItemSkillTests
         Assert.NotEqual(a, new UniqueItemInstance("a", 8001, 0, null, null, new SkillInstance(1002)));
         Assert.NotEqual(a, new UniqueItemInstance("a", 8001, 0, null, null, null));
     }
+
+    [Fact]
+    public void The_unique_item_after_create_circuit_focuses_the_items_skill_and_writes_its_statuses_back()
+    {
+        const string Effects = "item_code\texecute_number\teffect_type\tvalue_1\tvalue_2\tvalue_3\n" +
+            "8001\t1\tSetCacheValue\t0\t255\t1\n" +                  // cache[0] = 25.5
+            "8001\t2\tCacheToFocusedSkillSetValue\t7\t0\t0\n" +       // 스킬 스테이터스 7 = 25.5 -> 25
+            "8001\t3\tFocusedSkillValueToCache\t7\t2\t0\n" +
+            "8002\t1\tSetCacheValue\t0\t5\t0\n" +
+            "8002\t2\tCacheToFocusedSkillSetValue\t7\t0\t0\n";        // 스킬이 없는 아이템: 아무 일도 하지 않음
+        var pack = GamePack.Load(CoreTests.PackZip(
+            ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
+            (GamePack.TagMasterPath, Tags),
+            (GamePack.CommonItemInventoryMasterPath, Common),
+            (GamePack.CommonItemTagMasterPath, "item_code\ttag_code\n2\t3\n"),
+            (GamePack.UniqueItemInventoryMasterPath, Unique),
+            (GamePack.StatusMasterPath, "status_code\tstatus_name\n1\tlevel\n2\thp\n7\tdurability\n"),
+            (GamePack.SkillStatusMasterPath, "skill_code\tstatus_code\tinitial_value\tmin_value\tmax_value\n1001\t7\t50\t0\t99\n"),
+            (GamePack.SkillMasterPath, "code\tname\n1001\t베기\n1002\t불꽃\n"),
+            (GamePack.UniqueItemAfterCreateEffectMasterPath, Effects)));
+
+        var session = GameSession.NewGame(pack);
+        var sword = session.UniqueItemInstances[session.AddUniqueItem(8001)!];
+        Assert.Equal(new Dictionary<long, long> { [7] = 25 }, sword.Skill!.Statuses);
+
+        var circuit = new UniqueItemAfterCreateCircuit(pack, pack.NewUniqueItemInstance("x", 8001, 0));
+        Assert.Equal(25, circuit.Execute().Skill!.Statuses![7]);
+        Assert.Equal(25.5m, circuit.CacheValues[2]);
+
+        Assert.Null(session.UniqueItemInstances[session.AddUniqueItem(8002)!].Skill);   // 스킬이 없으면 포커스도 비어 있음
+    }
 }

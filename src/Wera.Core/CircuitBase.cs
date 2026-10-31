@@ -27,17 +27,20 @@ public abstract class CircuitBase
         public StatusBuffer Buffer { get; } = buffer;
     }
 
-    sealed class SkillWork(CharacterWork owner, int index, StatusBuffer buffer)
+    // 스킬은 캐릭터의 스킬 풀 안(owner와 풀 번호) 아니면 유니크 아이템이 가진 스킬(item) 둘 중 하나에 있다.
+    sealed class SkillWork(CharacterWork? owner, ItemWork? item, int index, StatusBuffer buffer)
     {
-        public CharacterWork Owner { get; } = owner;
+        public CharacterWork? Owner { get; } = owner;
+        public ItemWork? Item { get; } = item;
         public int Index { get; } = index;
         public StatusBuffer Buffer { get; } = buffer;
-        public SkillInstance Skill => Owner.Instance.SkillPool[Index];
+        public SkillInstance Skill => Item is { } i ? i.Instance.Skill! : Owner!.Instance.SkillPool[Index];
     }
 
     readonly Dictionary<CharacterInstance, CharacterWork> characterWorks = new(ReferenceEqualityComparer.Instance);
     readonly Dictionary<UniqueItemInstance, ItemWork> itemWorks = new(ReferenceEqualityComparer.Instance);
     readonly Dictionary<(CharacterWork, int), SkillWork> skillWorks = [];
+    readonly Dictionary<ItemWork, SkillWork> itemSkillWorks = [];
     CharacterWork? focusedCharacter;
     ItemWork? focusedItem;
     SkillWork? focusedSkill;
@@ -101,16 +104,30 @@ public abstract class CircuitBase
         var skill = owner.Instance.SkillPool[index];
         var buffer = StatusBuffer.From(skill.Statuses ?? Pack.MasterStatusesOfSkill(skill.SkillCode),
             status => Pack.SkillStatusesOf(skill.SkillCode).FirstOrDefault(r => r.StatusCode == status) is { } r ? (r.MinValue, r.MaxValue) : null);
-        return skillWorks[(owner, index)] = new SkillWork(owner, index, buffer);
+        return skillWorks[(owner, index)] = new SkillWork(owner, null, index, buffer);
+    }
+
+    /// <summary>유니크 아이템이 가진 스킬의 작업 사본. 그 아이템에 스킬이 없으면 null.</summary>
+    SkillWork? SkillWorkOf(ItemWork item)
+    {
+        if (item.Instance.Skill is not { } skill) return null;
+        if (itemSkillWorks.TryGetValue(item, out var work)) return work;
+        var buffer = StatusBuffer.From(skill.Statuses ?? Pack.MasterStatusesOfSkill(skill.SkillCode),
+            status => Pack.SkillStatusesOf(skill.SkillCode).FirstOrDefault(r => r.StatusCode == status) is { } r ? (r.MinValue, r.MaxValue) : null);
+        return itemSkillWorks[item] = new SkillWork(null, item, 0, buffer);
     }
 
     // ---- 포커스 ----
 
-    /// <summary>서킷을 시작하기 전에 포커스를 미리 정한다(캐릭터 하나나 아이템 하나를 초기화하는 서킷).</summary>
+    /// <summary>서킷을 시작하기 전에 포커스를 미리 정한다(캐릭터 하나나 아이템 하나를 초기화하는 서킷). 아이템을 포커스하면 그 아이템이 가진 스킬도 함께 포커스한다.</summary>
     protected void PresetFocus(CharacterInstance? character = null, UniqueItemInstance? item = null)
     {
         if (character is not null) focusedCharacter = WorkOf(character);
-        if (item is not null) focusedItem = WorkOf(item);
+        if (item is not null)
+        {
+            focusedItem = WorkOf(item);
+            focusedSkill = SkillWorkOf(focusedItem);
+        }
     }
 
     void FocusCharacter(PartyUnit? unit) =>
@@ -253,9 +270,15 @@ public abstract class CircuitBase
 
     static void Refresh(SkillWork work)
     {
-        var pool = new List<SkillInstance>(work.Owner.Instance.SkillPool);
+        if (work.Item is { } holder)
+        {
+            holder.Instance = holder.Instance with { Skill = holder.Instance.Skill! with { Statuses = work.Buffer.ToStatuses() } };
+            return;
+        }
+        var owner = work.Owner!;
+        var pool = new List<SkillInstance>(owner.Instance.SkillPool);
         pool[work.Index] = pool[work.Index] with { Statuses = work.Buffer.ToStatuses() };
-        work.Owner.Instance = work.Owner.Instance with { SkillPool = pool };
+        owner.Instance = owner.Instance with { SkillPool = pool };
     }
 
     /// <summary>캐시 계산: cache[value_1] = cache[value_2] (연산) cache[value_3]. 칸이 없거나 0으로 나누거나 decimal 범위를 넘으면 아무 일도 하지 않는다.</summary>
@@ -272,13 +295,13 @@ public abstract class CircuitBase
         if (SkillCache.Calculate(op, left, right) is { } result) SkillCache.Write(CacheValues, effect.Value1, result);
     }
 
-    /// <summary>값을 바꾼 캐릭터(범위에 맞춤), 유니크 아이템을 저장소에 되돌린다. 값을 바꾸지 않은 것은 그대로 둔다.</summary>
+    /// <summary>값을 바꾼 캐릭터(범위에 맞춤), 유니크 아이템(아이템이 가진 스킬을 바꾼 것도)을 저장소에 되돌린다. 값을 바꾸지 않은 것은 그대로 둔다.</summary>
     void Commit()
     {
         foreach (var work in characterWorks.Values)
             if (!ReferenceEquals(work.Instance, work.Original)) Store.Replace(work.Original, work.Instance.Clamped());
         foreach (var work in itemWorks.Values)
-            if (work.Buffer.Changed) Store.Replace(work.Original, work.Instance);
+            if (!ReferenceEquals(work.Instance, work.Original)) Store.Replace(work.Original, work.Instance);
     }
 
     /// <summary>캐시의 index번 값. 없으면 null.</summary>
