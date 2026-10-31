@@ -34,7 +34,7 @@ public sealed partial class GameSession
 
     /// <summary>캐릭터 상세 화면의 내용: 이름, 레벨, Exp 바, HP, XPP, (상태값은 아직 정해지지 않음), 장비 슬롯, 스킬 슬롯, 설명문.</summary>
     public sealed record CharacterDetailView(
-        string Name, string LevelText, GaugeView Exp, GaugeView Hp, GaugeView Xp, string XpName,
+        string Name, string LevelText, GaugeView Exp, GaugeView Hp, GaugeView Xp, XpTag XpTag,
         IReadOnlyList<UnitStatusLine> Equipment, IReadOnlyList<UnitStatusLine> Skills, string Description);
 
     /// <summary>지금 보는 캐릭터 상세 화면의 내용. 캐릭터 상세 화면이 아니거나 보유하지 않은 캐릭터면 null.</summary>
@@ -54,7 +54,7 @@ public sealed partial class GameSession
                 CharacterName(code), $"Lv.{state.Level}",
                 Gauge.Render(state.Exp, state.ExpMax, gray: state.IsDead, CharacterDetailExpWidth),
                 Gauge.Render(state.Hp, state.MaxHp, gray: state.IsDead),
-                xp.Gauge, xp.Name,
+                xp.Gauge, xp.Tag,
                 equipment, skills, Pack.FindCharacter(code)?.Description ?? "");
         }
     }

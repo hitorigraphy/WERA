@@ -1,0 +1,7 @@
+@using Wera.Core
+@* XP 줄의 앞머리: 약칭은 XP 종류의 색, 뒤의 "  : "는 HP 줄과 줄을 맞추는 6칸 *@
+@if (Tag.Abbreviation == "") { <span>@GameSession.XpLabel(Tag)</span> } else { <span style="color:@Tag.Color">@Tag.Abbreviation</span><span>  : </span> }
+
+@code {
+    [Parameter, EditorRequired] public XpTag Tag { get; set; } = XpTag.Blank;
+}

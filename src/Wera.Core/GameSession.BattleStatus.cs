@@ -20,7 +20,7 @@ public sealed partial class GameSession
     public sealed record UnitStatusLine(string Label, string Value);
 
     /// <summary>상태 확인 페이지의 내용: 이름과 레벨, 스테이터스, 장비 슬롯, 스킬 슬롯.</summary>
-    public sealed record UnitStatusView(string Name, string LevelText, GaugeView Hp, GaugeView Xp, string XpName,
+    public sealed record UnitStatusView(string Name, string LevelText, GaugeView Hp, GaugeView Xp, XpTag XpTag,
         IReadOnlyList<UnitStatusLine> Statuses, IReadOnlyList<UnitStatusLine> Equipment, IReadOnlyList<UnitStatusLine> Skills);
 
     /// <summary>지금 보는 상태 확인 페이지의 내용. 유닛을 찾을 수 없으면 null.</summary>
@@ -42,7 +42,7 @@ public sealed partial class GameSession
                 .Select(slot => new UnitStatusLine(slot.Name, EquippedSkillName(character, slot.Code) ?? "비어 있음")).ToList();
             var xp = XpLine(character with { CharacterCode = unit.CharacterCode });
             return new UnitStatusView(CharacterName(unit.CharacterCode), $"Lv.{character.Level}",
-                Gauge.Render(character.Hp, character.MaxHp, gray: character.IsDead), xp.Gauge, xp.Name, statuses, equipment, skills);
+                Gauge.Render(character.Hp, character.MaxHp, gray: character.IsDead), xp.Gauge, xp.Tag, statuses, equipment, skills);
         }
     }
 

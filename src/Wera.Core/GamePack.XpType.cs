@@ -4,7 +4,15 @@ using System.Text.Json.Serialization;
 namespace Wera.Core;
 
 /// <summary>XP 종류 마스터의 한 행: XP(MP, SP, TP 등 캐릭터가 스킬을 쓸 때 쓰는 자원들의 통칭)의 종류. 캐릭터는 각각 하나의 XP 종류(xp_type_code)를 가진다.</summary>
-public sealed record XpType(long Code, string Name);
+public sealed record XpType(long Code, string Name, string Abbreviation, string Color);
+
+/// <summary>슬롯 등에서 XP 앞머리에 쓰는 약칭(대문자 두 글자)과 그 색(#RRGGBB). 빈 약칭은 XP 줄이 없는 빈 슬롯이다.</summary>
+public sealed record XpTag(string Abbreviation, string Color)
+{
+    /// <summary>XP 종류가 없는 캐릭터(xp_type_code 0)의 기본 표기: 이름 None, 약칭 NA, 회색.</summary>
+    public static readonly XpTag None = new("NA", "#888888");
+    public static readonly XpTag Blank = new("", "");
+}
 
 /// <summary>
 /// XPP가 바뀌었을 때 서킷이 하는 일의 종류. TSV에는 이름(대소문자 무시)으로 적는다. <see cref="XpCalculateCircuit"/>이 실행한다(XPP가 바뀐 캐릭터가 시전자이자 메인 타겟이고 처음부터 포커스되어 있다).
@@ -82,7 +90,7 @@ public enum XpCalculateEffectType
 /// <summary>XPP 변경 이펙트 마스터의 한 행: XPP가 바뀌면 서킷이 그 캐릭터의 XP 종류(xp_type_code)가 같은 행을 execute_number 순서대로 실행하는 이펙트 하나(종류와 값 셋).</summary>
 public sealed record XpCalculateEffect(long XpTypeCode, long ExecuteNumber, XpCalculateEffectType EffectType, long Value1, long Value2, long Value3);
 
-// xp_type_master(xp_type_code, xp_type_name; 첫 열이 키)와 xp_calculate_effect_master(xp_type_code, execute_number, effect_type, value_1, value_2, value_3; 앞의 두 열이 키). 둘 다 선택이다.
+// xp_type_master(xp_type_code, xp_type_name, xp_type_abbr, xp_type_color; 첫 열이 키)와 xp_calculate_effect_master(xp_type_code, execute_number, effect_type, value_1, value_2, value_3; 앞의 두 열이 키). 둘 다 선택이다.
 public sealed partial class GamePack
 {
     public const string XpTypeMasterPath = "master/xp_type_master_v1.tsv";
@@ -96,7 +104,11 @@ public sealed partial class GamePack
 
     public XpType? FindXpType(long code) => XpTypes?.FirstOrDefault(x => x.Code == code);
 
-    /// <summary>XP 종류 마스터: xp_type_code(정수)와 xp_type_name(비울 수 없음), 코드는 두 번 쓸 수 없다.</summary>
+    /// <summary>XP 종류의 약칭과 색. 코드 0(XP 종류 없음)은 마스터에 0번 행이 있으면 그 행을, 없으면 <see cref="XpTag.None"/>(NA, 회색)을 쓴다. 마스터에 없는 코드도 <see cref="XpTag.None"/>이다.</summary>
+    public XpTag XpTagOf(long code) =>
+        FindXpType(code) is { } t ? new XpTag(t.Abbreviation, t.Color) : XpTag.None;
+
+    /// <summary>XP 종류 마스터: xp_type_code(정수), xp_type_name(비울 수 없음), xp_type_abbr(대문자 두 글자), xp_type_color(#RRGGBB). 코드는 두 번 쓸 수 없다. 코드 0은 XP 종류가 없는 캐릭터의 표기로 쓸 수 있다.</summary>
     static List<XpType>? LoadXpTypes(ZipArchive zip)
     {
         const string file = XpTypeMasterPath;
@@ -104,14 +116,18 @@ public sealed partial class GamePack
         if (text is null) return null;
         var rows = new List<XpType>();
         var seen = new HashSet<long>();
-        foreach (var r in Body(file, text, "xp_type_code", "xp_type_name"))
+        foreach (var r in Body(file, text, "xp_type_code", "xp_type_name", "xp_type_abbr", "xp_type_color"))
         {
             var code = ParseLong(file, "XP 종류 코드", r[0]);
             if (!seen.Add(code))
                 throw new PackFormatException($"{file}: XP 종류 코드 '{code}'가 중복됩니다.");
             if (r[1].Trim() == "")
                 throw new PackFormatException($"{file}: XP 종류 '{code}'의 이름이 비어 있습니다.");
-            rows.Add(new XpType(code, r[1]));
+            if (!System.Text.RegularExpressions.Regex.IsMatch(r[2], "^[A-Z]{2}$"))
+                throw new PackFormatException($"{file}: XP 종류 '{code}'의 약칭 '{r[2]}'은(는) 대문자 두 글자여야 합니다.");
+            if (!System.Text.RegularExpressions.Regex.IsMatch(r[3], "^#[0-9A-Fa-f]{6}$"))
+                throw new PackFormatException($"{file}: XP 종류 '{code}'의 색 '{r[3]}'은(는) #RRGGBB 형식이어야 합니다.");
+            rows.Add(new XpType(code, r[1], r[2], r[3]));
         }
         return rows;
     }

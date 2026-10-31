@@ -13,13 +13,16 @@ public sealed partial class GameSession
         return new XpCalculateCircuit(Pack, character).Execute() is { } result ? (type.Name, result) : null;
     }
 
-    /// <summary>XP 줄의 앞머리 "{XP 이름} : ". 이름은 3칸 이상으로 맞춰 "HP  : "와 같은 6칸이 되게 한다("MP  : "). XP가 없는 캐릭터는 같은 길이의 빈칸이다.</summary>
-    public static string XpLabel(string xpName) =>
-        xpName == "" ? new string(' ', 6) : PadColumns(xpName, 3) + " : ";
+    /// <summary>XP 줄의 앞머리 "{약칭}  : ". 약칭은 두 글자라 "HP  : "와 같은 6칸이다. 약칭이 빈 슬롯은 같은 길이의 빈칸이다.</summary>
+    public static string XpLabel(XpTag tag) =>
+        tag.Abbreviation == "" ? new string(' ', 6) : tag.Abbreviation + "  : ";
 
-    /// <summary>XP 게이지 한 줄: 이름과 게이지. XP가 없는 캐릭터는 이름이 빈 글이고 빈 회색 게이지다.</summary>
-    (string Name, GaugeView Gauge) XpLine(CharacterInstance character, int width = Gauge.Width) =>
-        XpOf(character) is { } xp
-            ? (xp.Name, Gauge.Render(xp.Result.Value, xp.Result.Max, gray: character.IsDead, width))
-            : ("", Gauge.Render(0, 0, gray: true, width));
+    /// <summary>XP 게이지 한 줄: 약칭(색)과 게이지. XP가 없는 캐릭터는 NA 회색 약칭과 빈 회색 게이지다.</summary>
+    (XpTag Tag, GaugeView Gauge) XpLine(CharacterInstance character, int width = Gauge.Width)
+    {
+        var tag = Pack.XpTagOf(Pack.FindCharacter(character.CharacterCode)?.XpTypeCode ?? 0);
+        return XpOf(character) is { } xp
+            ? (tag, Gauge.Render(xp.Result.Value, xp.Result.Max, gray: character.IsDead, width))
+            : (tag, Gauge.Render(0, 0, gray: true, width));
+    }
 }

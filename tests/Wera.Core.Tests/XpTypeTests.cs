@@ -6,7 +6,7 @@ namespace Wera.Core.Tests;
 // XP는 MP, SP, TP처럼 캐릭터가 스킬을 쓸 때 쓰는 자원들의 통칭이고, 각 XP는 XPP(XP로 바꾸기 전 단계의 값)를 바탕으로 계산한다.
 public class XpTypeTests
 {
-    const string XpTypes = "xp_type_code\txp_type_name\n1\tMP\n2\tTP\n";
+    const string XpTypes = "xp_type_code\txp_type_name\txp_type_abbr\txp_type_color\n1\tMP\tMP\t#3366FF\n2\t기력\tTP\t#33CC66\n";
     const string EffectHead = "xp_type_code\texecute_number\teffect_type\tvalue_1\tvalue_2\tvalue_3\n";
     const long Xpp = GamePack.XppStatusCode;
 
@@ -44,8 +44,10 @@ public class XpTypeTests
     public void The_xp_type_master_lists_the_kinds_of_xp_and_is_optional()
     {
         var pack = Pack();
-        Assert.Equal([new XpType(1, "MP"), new XpType(2, "TP")], pack.XpTypes);
-        Assert.Equal("TP", pack.FindXpType(2)!.Name);
+        Assert.Equal([new XpType(1, "MP", "MP", "#3366FF"), new XpType(2, "기력", "TP", "#33CC66")], pack.XpTypes);
+        Assert.Equal("기력", pack.FindXpType(2)!.Name);
+        Assert.Equal(new XpTag("TP", "#33CC66"), pack.XpTagOf(2));
+        Assert.Equal(XpTag.None, pack.XpTagOf(0));                                          // XP 종류가 없으면 NA, 회색
         Assert.Null(pack.FindXpType(3));
         Assert.Null(Pack(null, characters: Characters("")).XpTypes);
     }
@@ -70,10 +72,23 @@ public class XpTypeTests
     }
 
     [Fact]
+    public void The_abbreviation_is_two_capital_letters_and_the_color_is_rrggbb()
+    {
+        string Row(string abbr, string color) => "xp_type_code\txp_type_name\txp_type_abbr\txp_type_color\n1\tMP\t" + abbr + "\t" + color + "\n";
+        Assert.NotNull(Pack(Row("MP", "#3366ff")));
+        foreach (var bad in new[] { "mp", "M", "MPS", "M1", "마나", "" })
+            Assert.Contains("대문자 두 글자", Assert.Throws<PackFormatException>(() => Pack(Row(bad, "#3366FF"))).Message);
+        foreach (var bad in new[] { "blue", "#36F", "3366FF", "#3366GG", "" })
+            Assert.Contains("#RRGGBB", Assert.Throws<PackFormatException>(() => Pack(Row("MP", bad))).Message);
+        var zero = Pack("xp_type_code\txp_type_name\txp_type_abbr\txp_type_color\n0\tNone\tNA\t#888888\n", characters: Characters(""));
+        Assert.Equal(new XpTag("NA", "#888888"), zero.XpTagOf(0));
+    }
+
+    [Fact]
     public void Bad_xp_masters_are_rejected()
     {
-        Assert.Contains("중복", Assert.Throws<PackFormatException>(() => Pack("xp_type_code\txp_type_name\n1\tMP\n1\tTP\n")).Message);
-        Assert.Contains("이름이 비어", Assert.Throws<PackFormatException>(() => Pack("xp_type_code\txp_type_name\n1\t\n")).Message);
+        Assert.Contains("중복", Assert.Throws<PackFormatException>(() => Pack("xp_type_code\txp_type_name\txp_type_abbr\txp_type_color\n1\tMP\tMP\t#3366FF\n1\tTP\tTP\t#3366FF\n")).Message);
+        Assert.Contains("이름이 비어", Assert.Throws<PackFormatException>(() => Pack("xp_type_code\txp_type_name\txp_type_abbr\txp_type_color\n1\t\tMP\t#3366FF\n")).Message);
         Assert.Contains("xp_type_code '9'", Assert.Throws<PackFormatException>(() => Pack(characters: Characters("9"))).Message);
         Assert.Contains("xp_type_code '1'", Assert.Throws<PackFormatException>(() => Pack(null, characters: Characters("1"))).Message);   // XP 종류 마스터가 없으면 코드를 쓸 수 없다
         Assert.Contains("XP 종류 코드 '9'", Assert.Throws<PackFormatException>(() => Pack(effects: EffectHead + Rows("9 1 None"))).Message);
@@ -105,14 +120,15 @@ public class XpTypeTests
         s.Party[0] = 7001;
         s.Party[1] = 7002;
         var v = s.PartySlotViews[0];
-        Assert.Equal("MP", v.XpName);
+        Assert.Equal(new XpTag("MP", "#3366FF"), v.XpTag);
         Assert.Equal(Gauge.Render(20, 100, gray: false), v.Xp);                             // 결과 20/100
         s.Characters[7001] = s.Characters[7001].WithStatus(Xpp, 40);                       // XPP가 바뀌면 다음에 보일 때 다시 계산된다
         Assert.Equal(Gauge.Render(80, 100, gray: false), s.PartySlotViews[0].Xp);
 
-        Assert.Equal("", s.PartySlotViews[1].XpName);                                       // XP 종류가 없는 캐릭터
+        Assert.Equal(XpTag.None, s.PartySlotViews[1].XpTag);                                       // XP 종류가 없는 캐릭터
         Assert.Equal(Gauge.Render(0, 0, gray: true), s.PartySlotViews[1].Xp);
-        Assert.Equal("MP  : ", GameSession.XpLabel("MP"));
-        Assert.Equal("마나 : ", GameSession.XpLabel("마나"));
+        Assert.Equal("MP  : ", GameSession.XpLabel(new XpTag("MP", "#3366FF")));            // "HP  : "와 같은 6칸
+        Assert.Equal("      ", GameSession.XpLabel(XpTag.Blank));
+        Assert.Equal("HP  : ".Length, GameSession.XpLabel(XpTag.None).Length);
     }
 }
