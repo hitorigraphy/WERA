@@ -13,6 +13,8 @@ public enum Screen
     DungeonPartySelect,
     /// <summary>던전 이동 화면: 맵과 위·아래·왼쪽·오른쪽 한 칸씩 이동. 나가기는 홈.</summary>
     DungeonMove,
+    /// <summary>게임 오버: 던전 전투에서 주인공이 있는 파티가 졌을 때. [999]로 홈으로 돌아간다.</summary>
+    GameOver,
     ShopList,
     /// <summary>파티 설정(캐릭터 배치): 3×3 슬롯. 슬롯을 고르면 그 슬롯에 배치할 캐릭터 목록으로 간다.</summary>
     PartySetup,
@@ -658,6 +660,8 @@ public sealed partial class GameSession
                     return DungeonPartySelectEntries();
                 case Screen.DungeonMove:
                     return DungeonMoveEntries();
+                case Screen.GameOver:
+                    return [new ScreenEntry(BackEntryCode, "홈으로", Screen.Home)];
                 case Screen.Event:
                     // 조건을 만족하는 이벤트를 코드로 입력하거나 클릭하면 시작한다.
                     return AvailableEvents
@@ -854,7 +858,8 @@ public sealed partial class GameSession
                     PlayerFlagOps.Set(PlayerFlags, battleResultFlag, BattleOutcome switch { BattleOutcomeKind.Win => 1, BattleOutcomeKind.Run => 2, _ => 3 });
                 battleResultFlag = 0;
                 Screen = entry.Target;
-                if (CurrentEvent is not null && Screen == Screen.EventPlay) ShowNextEventStep();      // 이벤트의 Battle 칸 다음부터 이어 간다
+                if (CurrentDungeonCode is not null && BattleOutcome == BattleOutcomeKind.Lose) EndDungeonByDefeat();      // 던전 전투 패배: 주인공이 있으면 게임 오버, 없으면 홈
+                else if (CurrentEvent is not null && Screen == Screen.EventPlay) ShowNextEventStep();      // 이벤트의 Battle 칸 다음부터 이어 간다
                 else if (CurrentDungeonCode is not null && Screen == Screen.DungeonMove) ContinueTileEffects();      // 던전: 남은 타일 효과를 이어 간다
                 break;
             case EntryAction.BattleOpenMove:

@@ -84,6 +84,14 @@ public sealed partial class GameSession
         Screen = Screen.Home;
     }
 
+    /// <summary>던전 전투에서 졌다: 던전에 들어온 파티에 주인공(캐릭터 1)이 있으면 게임 오버, 없으면 홈으로 돌아온다. (도망은 이동 화면으로 돌아와 계속한다.)</summary>
+    void EndDungeonByDefeat()
+    {
+        var leaderLost = Parties[CurrentPartyIndex].IndexOf(GamePack.PlayerCharacterCode) >= 0;
+        LeaveDungeon();
+        if (leaderLost) Screen = Screen.GameOver;
+    }
+
     static (int dx, int dy) Direction(char dir) => dir switch { 'U' => (0, -1), 'D' => (0, 1), 'L' => (-1, 0), _ => (1, 0) };
 
     /// <summary>지금 던전 맵의 (x, y) 칸의 글자. 맵 밖(범위 밖이거나 빈 칸)이면 null.</summary>

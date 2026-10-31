@@ -162,6 +162,52 @@ public class DungeonFlowTests
         Assert.Equal((0L, 8L, 3L), At(s));
     }
 
+    /// <summary>고정 전투(8,3)로 가서 우리 파티(리더 체력 1)가 지는 전투를 치른다.</summary>
+    static void LoseTheFixedBattle(GameSession s, long hero)
+    {
+        Walk(s, "RRDDRRUURRDDR");
+        Assert.Equal(Screen.Battle, s.Screen);
+        s.NextRandom = _ => 0;
+        foreach (var enemy in s.EnemyInstances.Values)
+        {
+            enemy.Statuses[GamePack.HpStatusCode] = 100;
+            enemy.Statuses[GamePack.MaxHpStatusCode] = 100;
+        }
+        s.Characters[hero].Statuses[GamePack.HpStatusCode] = 1;
+        s.Activate("102"); s.Activate("101"); s.Activate((s.EnemyInstances.Keys.First() + 1).ToString());
+        s.Activate("107");
+        Assert.Equal(GameSession.BattleOutcomeKind.Lose, s.BattleOutcome);
+    }
+
+    [Fact]
+    public void Losing_a_dungeon_battle_with_the_player_in_the_party_is_a_game_over()
+    {
+        var s = Entered(SamplePackWith(("master/battle_master_v1.tsv", "code\tname\tcan_run\n5001\t테스트 전투\ttrue\n")));
+        s.NextRandom = _ => 1;
+        LoseTheFixedBattle(s, 1);
+        s.Activate("999");
+        Assert.Equal(Screen.GameOver, s.Screen);
+        Assert.Null(s.CurrentDungeonCode);
+        Assert.Equal(Screen.Home, s.Activate("999")!.Target);
+        Assert.Equal(Screen.Home, s.Screen);
+    }
+
+    [Fact]
+    public void Losing_a_dungeon_battle_without_the_player_in_the_party_returns_home()
+    {
+        var s = GameSession.NewGame(SamplePackWith(("master/battle_master_v1.tsv", "code\tname\tcan_run\n5001\t테스트 전투\ttrue\n")));
+        s.NextRandom = _ => 1;
+        s.Activate("105"); s.Activate("1"); s.Activate("1"); s.Activate("999");
+        s.AddCharacter(7001);
+        s.Parties[1].Units[0] = s.Parties[0].Units[0]! with { CharacterCode = 7001 };       // 파티-B: 리더 용사 혼자
+        s.Activate("101"); s.Activate("1999"); s.Activate("12");
+        Assert.Equal(Screen.DungeonMove, s.Screen);
+        LoseTheFixedBattle(s, 7001);
+        s.Activate("999");
+        Assert.Equal(Screen.Home, s.Screen);
+        Assert.Null(s.CurrentDungeonCode);
+    }
+
     [Fact]
     public void A_random_battle_tile_fights_only_when_the_roll_is_below_the_chance()
     {
