@@ -393,7 +393,7 @@ public record DungeonTileRow
     public required long TileCode { get; init; }
 }
 
-/// <summary>던전 맵의 한 줄: 복합키는 (던전, pos_y)이고, 보조키 던전 코드로 그 던전의 줄 전부를 찾는다. Cells는 pos_x_0부터의 글자(빈 칸은 "").</summary>
+/// <summary>던전 맵의 한 줄: 복합키는 (던전, 맵 번호, pos_y)이고, 보조키 던전 코드로 그 던전의 줄 전부를 찾는다. Cells는 pos_x_0부터의 글자(빈 칸은 "").</summary>
 [MemoryTable("dungeon_map"), MessagePackObject(true)]
 public record DungeonMapRow
 {
@@ -401,7 +401,8 @@ public record DungeonMapRow
     [SecondaryKey(0), NonUnique]
     public required long DungeonCode { get; init; }
 
-    [PrimaryKey(keyOrder: 1)] public required long PosY { get; init; }
+    [PrimaryKey(keyOrder: 1)] public required long LayerNumber { get; init; }
+    [PrimaryKey(keyOrder: 2)] public required long PosY { get; init; }
     public required string[] Cells { get; init; }
 }
 

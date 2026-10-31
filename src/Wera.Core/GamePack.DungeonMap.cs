@@ -36,12 +36,12 @@ public sealed record TileEffect(long TileCode, TileEffectType EffectType, long V
 /// <summary>던전 타일 마스터의 한 행: 그 던전의 맵 TSV에서 한 글자(LocalTileText)가 가리키는 타일(TileCode). 키는 (DungeonCode, LocalTileText).</summary>
 public sealed record DungeonTile(long DungeonCode, string LocalTileText, long TileCode);
 
-/// <summary>던전 맵 마스터의 한 줄: 그 던전의 위쪽에서 PosY번째 줄(0부터). Cells는 pos_x_0 ~ pos_x_29의 글자이고 빈 칸은 ""(맵 밖)이다.</summary>
-public sealed record DungeonMapLine(long DungeonCode, long PosY, IReadOnlyList<string> Cells);
+/// <summary>던전 맵 마스터의 한 줄: 그 던전의 LayerNumber번 맵(던전 안에 맵이 여러 개일 수 있다)의 위쪽에서 PosY번째 줄(0부터). Cells는 pos_x_0 ~ pos_x_29의 글자이고 빈 칸은 ""(맵 밖)이다.</summary>
+public sealed record DungeonMapLine(long DungeonCode, long LayerNumber, long PosY, IReadOnlyList<string> Cells);
 
 // 타일 마스터, 던전 타일 마스터, 던전 맵 마스터. 모두 선택이다.
 // tile_master(code, tile_effect, value_1, value_2, value_3; 앞의 두 열이 키), dungeon_tile_master(dungeon_code, local_tile_text, tile_code; 앞의 두 열이 키),
-// dungeon_map_master(dungeon_code, pos_y, pos_x_0 ~ pos_x_29; 앞의 두 열이 키).
+// dungeon_map_master(dungeon_code, layer_number, pos_y, pos_x_0 ~ pos_x_29; 앞의 세 열이 키).
 public sealed partial class GamePack
 {
     public const string TileMasterPath = "master/tile_master_v1.tsv";
@@ -150,7 +150,7 @@ public sealed partial class GamePack
     }
 
     /// <summary>
-    /// 던전 맵 마스터를 읽는다. 던전은 던전 마스터에 있어야 하고, 키 (던전, pos_y)를 두 번 쓸 수 없으며 pos_y는 0 이상이다.
+    /// 던전 맵 마스터를 읽는다. 던전은 던전 마스터에 있어야 하고, 키 (던전, layer_number, pos_y)를 두 번 쓸 수 없으며 layer_number와 pos_y는 0 이상이다.
     /// pos_x_0 ~ pos_x_29의 칸은 비어 있거나(맵 밖) 그 던전의 던전 타일 마스터에 있는 글자여야 한다.
     /// </summary>
     static List<DungeonMapLine>? LoadDungeonMaps(ZipArchive zip, List<Dungeon>? dungeons, List<DungeonTile>? dungeonTiles)
@@ -162,25 +162,28 @@ public sealed partial class GamePack
 
         var dungeonCodes = dungeons.Select(d => d.Code).ToHashSet();
         var known = (dungeonTiles ?? []).Select(t => (t.DungeonCode, t.LocalTileText)).ToHashSet();
-        string[] header = ["dungeon_code", "pos_y", .. Enumerable.Range(0, DungeonMapWidth).Select(x => $"pos_x_{x.ToString(CultureInfo.InvariantCulture)}")];
+        string[] header = ["dungeon_code", "layer_number", "pos_y", .. Enumerable.Range(0, DungeonMapWidth).Select(x => $"pos_x_{x.ToString(CultureInfo.InvariantCulture)}")];
         var rows = new List<DungeonMapLine>();
-        var seen = new HashSet<(long, long)>();
+        var seen = new HashSet<(long, long, long)>();
         foreach (var r in Body(file, text, header))
         {
             var dungeon = ParseLong(file, "던전 코드", r[0]);
-            var posY = ParseLong(file, $"던전 '{dungeon}'의 pos_y", r[1]);
+            var layer = ParseLong(file, $"던전 '{dungeon}'의 layer_number", r[1]);
+            var posY = ParseLong(file, $"던전 '{dungeon}'의 레이어 {layer}의 pos_y", r[2]);
             if (!dungeonCodes.Contains(dungeon))
                 throw new PackFormatException($"{file}: 던전 코드 '{dungeon}'가 던전 마스터에 없습니다.");
+            if (layer < 0)
+                throw new PackFormatException($"{file}: 던전 '{dungeon}'의 layer_number '{layer}'는 0 이상이어야 합니다.");
             if (posY < 0)
-                throw new PackFormatException($"{file}: 던전 '{dungeon}'의 pos_y '{posY}'는 0 이상이어야 합니다.");
-            if (!seen.Add((dungeon, posY)))
-                throw new PackFormatException($"{file}: 같은 키(던전 {dungeon}, pos_y {posY})가 두 번 있습니다.");
-            var cells = r.Skip(2).ToList();
+                throw new PackFormatException($"{file}: 던전 '{dungeon}'의 레이어 {layer}의 pos_y '{posY}'는 0 이상이어야 합니다.");
+            if (!seen.Add((dungeon, layer, posY)))
+                throw new PackFormatException($"{file}: 같은 키(던전 {dungeon}, layer_number {layer}, pos_y {posY})가 두 번 있습니다.");
+            var cells = r.Skip(3).ToList();
             for (var x = 0; x < cells.Count; x++)
                 if (cells[x] != "" && !known.Contains((dungeon, cells[x])))
                     throw new PackFormatException(
-                        $"{file}: 던전 '{dungeon}'의 pos_y {posY}, pos_x_{x}의 글자 '{cells[x]}'가 {DungeonTileMasterPath}에 없습니다.");
-            rows.Add(new DungeonMapLine(dungeon, posY, cells));
+                        $"{file}: 던전 '{dungeon}'의 레이어 {layer}, pos_y {posY}, pos_x_{x}의 글자 '{cells[x]}'가 {DungeonTileMasterPath}에 없습니다.");
+            rows.Add(new DungeonMapLine(dungeon, layer, posY, cells));
         }
         return rows;
     }
@@ -199,9 +202,17 @@ public sealed partial class GamePack
     public long? DungeonTileCodeOf(long dungeonCode, string localTileText) =>
         Masters.DungeonTileRowTable.TryFindByDungeonCodeAndLocalTileText((dungeonCode, localTileText), out var r) ? r.TileCode : null;
 
-    /// <summary>던전의 맵 줄들(pos_y 순).</summary>
+    /// <summary>던전의 모든 맵 줄들(layer_number 순, 같은 맵 안에서는 pos_y 순).</summary>
     public IReadOnlyList<DungeonMapLine> DungeonMapOf(long dungeonCode) =>
         Masters.DungeonMapRowTable.FindByDungeonCode(dungeonCode)
-            .OrderBy(r => r.PosY)
-            .Select(r => new DungeonMapLine(r.DungeonCode, r.PosY, r.Cells)).ToList();
+            .OrderBy(r => r.LayerNumber).ThenBy(r => r.PosY)
+            .Select(r => new DungeonMapLine(r.DungeonCode, r.LayerNumber, r.PosY, r.Cells)).ToList();
+
+    /// <summary>던전의 맵 하나(layer_number번)의 줄들(pos_y 순). 없으면 빈 목록.</summary>
+    public IReadOnlyList<DungeonMapLine> DungeonMapOf(long dungeonCode, long layerNumber) =>
+        DungeonMapOf(dungeonCode).Where(l => l.LayerNumber == layerNumber).ToList();
+
+    /// <summary>던전에 있는 맵들의 layer_number(오름차순).</summary>
+    public IReadOnlyList<long> DungeonLayersOf(long dungeonCode) =>
+        DungeonMapOf(dungeonCode).Select(l => l.LayerNumber).Distinct().ToList();
 }

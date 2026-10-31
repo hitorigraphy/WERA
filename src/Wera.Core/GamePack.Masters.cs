@@ -170,7 +170,7 @@ public sealed partial class GamePack
         builder.Append((dungeonTiles ?? []).Select(t => new DungeonTileRow
             { DungeonCode = t.DungeonCode, LocalTileText = t.LocalTileText, TileCode = t.TileCode }).ToList());
         builder.Append((dungeonMaps ?? []).Select(m => new DungeonMapRow
-            { DungeonCode = m.DungeonCode, PosY = m.PosY, Cells = [.. m.Cells] }).ToList());
+            { DungeonCode = m.DungeonCode, LayerNumber = m.LayerNumber, PosY = m.PosY, Cells = [.. m.Cells] }).ToList());
         builder.Append((presetUnits ?? []).Select(u => new PresetUnitRow { Code = u.Code, CharacterCode = u.CharacterCode }).ToList());
         builder.Append((presetUnitEquips ?? []).Select(e => new PresetUnitEquipRow
             { PresetUnitCode = e.PresetUnitCode, EquipmentSlotCode = e.EquipmentSlotCode, ItemCode = e.ItemCode }).ToList());
