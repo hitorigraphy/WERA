@@ -1218,6 +1218,10 @@ public sealed partial class GameSession
         if (characters.Values.GroupBy(v => v.InstanceId).Any(g => g.Count() > 1))
             throw new SaveFormatException("세이브의 캐릭터 인스턴스 ID가 두 번 이상 있습니다.");
 
+        // 불러온 뒤 보유 캐릭터마다 로드 후 캐릭터 서킷을 돌려 게임팩의 정의대로 캐릭터를 조작한다.
+        foreach (var code in characters.Keys.ToList())
+            characters[code] = new AfterLoadCharacterCircuit(pack, characters[code]).Execute();
+
         // 파티: 새 형식은 Parties(파티-A ~ 파티-P, 각각 이름 + 유닛[])와 CurrentParty, 그 전 형식은 PartyInstance 하나(파티-A),
         // 가장 예전 세이브는 Party(캐릭터 코드 배열)와 EquippedItems(캐릭터별 장비)다. 예전 세이브에서 파티에 없는 캐릭터가
         // 끼고 있던 장비는 보유로 돌아간다. 파티끼리는 캐릭터를 공유할 수 없다.

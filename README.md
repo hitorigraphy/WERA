@@ -37,6 +37,7 @@ TSV 파일 묶음(zip 형식)이고 확장자는 **`.wra`**입니다(zip 압축 
 | `master/tag_master_v1.tsv` | **(필수)** `tag_code`, `tag_name` |
 | `master/unique_item_inventory_master_v1.tsv` | (선택) `inventory_code`, `item_name` |
 | `master/unique_item_status_master_v1.tsv` | (선택, 유니크 아이템 인벤토리/스테이터스 마스터 필요) `item_code`, `status_code`, `initial_value`, `min_value`, `max_value` |
+| `master/after_load_character_flow_master_v1.tsv` | (선택) `execute_number`(키), `flow_type`, `value_1`, `value_2`, `value_3` |
 | `master/skill_status_master_v1.tsv` | (선택, 스킬/스테이터스 마스터 필요) `skill_code`, `status_code`, `initial_value`, `min_value`, `max_value` |
 | `master/unique_item_tag_master_v1.tsv` | (선택, 유니크 아이템 인벤토리/태그 마스터 필요) `item_code`, `tag_code` |
 | `master/common_item_tag_master_v1.tsv` | **(필수)** `item_code`, `tag_code` |
@@ -71,6 +72,8 @@ TSV 파일 묶음(zip 형식)이고 확장자는 **`.wra`**입니다(zip 압축 
 **memo 열:** 모든 마스터 TSV는 헤더에 `memo` 열을 둘 수 있고(위치 자유) 사람이 보는 메모일 뿐이라 엔진은 읽지 않으며 마스터메모리에도 올리지 않습니다. 기본 게임팩은 엔진이 요구하는 필수 행(예약 태그와 스테이터스, 플레이어 캐릭터와 그 속성/태그, 모든 캐릭터의 level/hp 레벨 0 행)의 메모에 "필수"라고 적어 두었고, 테스트용 던전(`1999`)과 상점(`2999`, 커먼/유니크/캐릭터 교환 포함)은 필수가 아니며 조건이 없어 새 게임부터 열려 있습니다.
 
 **스킬/유니크 아이템 스테이터스 마스터**(선택): `skill_status_master`의 키는 `(skill_code, status_code)`, `unique_item_status_master`의 키는 `(item_code, status_code)`이고 `initial_value`, `min_value`, `max_value`가 값입니다(모두 long, `memo` 열 선택). 스테이터스 종류는 캐릭터와 같은 `status_master`를 쓰고 레벨 열과 예약 코드는 없습니다. 로드 검증: 스킬/유니크 아이템은 각자의 마스터에, 스테이터스는 스테이터스 마스터에 있어야 하고 같은 키를 두 번 쓸 수 없으며 `min_value <= initial_value <= max_value`여야 합니다. 스킬을 익히거나 유니크 아이템을 얻을 때(`GamePack.NewSkillInstance`, `GameSession.AddUniqueItem`) 그 행들의 초깃값이 인스턴스의 `Statuses`(스테이터스 코드 → 값, 행이 없으면 빈 딕셔너리)로 복사되고, 게임 중에 바뀔 수 있으며 세이브에 담깁니다(`SkillInstance`는 `{SkillCode, Statuses}`, `UniqueItemInstance`는 `{InstanceId, ItemCode, OrderNumber, Tags, Statuses}`). 세이브에 `Statuses`가 없으면(예전 세이브) 마스터의 초깃값을 복사하고, 있으면 모든 코드가 스테이터스 마스터에 있어야 합니다.
+
+**로드 후 캐릭터 흐름 마스터**(선택): `after_load_character_flow_master`의 키는 `execute_number` 하나이고 `flow_type`(`LoadCharacterFlowType`, 이름으로 적음; 지금은 `None`=0뿐)과 정수 `value_1`~`value_3`(비우면 0)이 값입니다. **세이브를 불러오면 보유한 캐릭터마다** `AfterLoadCharacterCircuit`이 이 흐름을 `execute_number` 순서로 실행해 게임팩의 정의대로 캐릭터 데이터를 조작합니다(서킷은 캐릭터와 캐시를 가짐). 같은 `execute_number`를 두 번 쓰거나 모르는 종류를 적으면 로드 오류입니다. 종류별 동작과 인자 검증은 아직 정해지지 않았습니다.
 
 **필수 마스터 방침:** 엔진이 검증하는 마스터(예약 코드나 필수 항목이 있는 마스터)는 로드할 때 존재부터 확인합니다. 없으면 "`...`가 반드시 필요합니다" 오류로 로드되지 않습니다. 필수 마스터는 `attribute_master`, `tag_master`(예약 태그 1 플레이어, 2 리더), `status_master`(예약 스테이터스 1 level, 2 hp), `character_inventory_master`(캐릭터 1 = 플레이어), `character_tag_master`(캐릭터 1의 플레이어 태그), `character_status_master`(모든 캐릭터의 level/hp 레벨 0 행), `time_slot_master`와 `turn_master`(시간대 FK, 시작 턴 한 행 이상), `common_item_inventory_master`와 `common_item_tag_master`(메인 통화)입니다. 나머지는 선택이고, 선택 마스터가 있으면 가리키는 상위 마스터도 있어야 합니다.
 
