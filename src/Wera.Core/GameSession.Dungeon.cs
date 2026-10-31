@@ -89,8 +89,13 @@ public sealed partial class GameSession
     {
         var leaderLost = Parties[CurrentPartyIndex].IndexOf(GamePack.PlayerCharacterCode) >= 0;
         LeaveDungeon();
-        if (leaderLost) Screen = Screen.GameOver;
+        if (!leaderLost) return;
+        gameOver = true;
+        Screen = Screen.GameOver;
     }
+
+    /// <summary>게임 오버가 났다: 이 세션은 로드 화면에서 세이브를 불러오는 것밖에 할 수 없다(돌아가기 없음).</summary>
+    bool gameOver;
 
     static (int dx, int dy) Direction(char dir) => dir switch { 'U' => (0, -1), 'D' => (0, 1), 'L' => (-1, 0), _ => (1, 0) };
 

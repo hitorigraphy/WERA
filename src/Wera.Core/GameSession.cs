@@ -682,6 +682,7 @@ public sealed partial class GameSession
                         .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home))
                         .ToList();
                 case Screen.Load:
+                    return gameOver ? [] : [new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home)];      // 게임 오버 뒤의 로드 화면은 돌아갈 수 없다
                 case Screen.CompanionCheck:
                 case Screen.EquipmentCheck:
                 case Screen.ItemCheck:

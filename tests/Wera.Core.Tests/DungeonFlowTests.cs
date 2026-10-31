@@ -190,6 +190,9 @@ public class DungeonFlowTests
         Assert.Null(s.CurrentDungeonCode);
         Assert.Equal(Screen.Load, s.Activate("999")!.Target);
         Assert.Equal(Screen.Load, s.Screen);
+        Assert.Empty(s.Entries);                                                              // 게임 오버 뒤의 로드 화면에는 돌아가기가 없다
+        Assert.Null(s.Activate("999"));
+        Assert.Equal(Screen.Load, s.Screen);
     }
 
     [Fact]
