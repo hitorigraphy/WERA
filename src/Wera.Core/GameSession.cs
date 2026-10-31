@@ -401,7 +401,8 @@ public sealed partial class GameSession
     {
         if (Pack.FindCharacter(characterCode) is null || Characters.ContainsKey(characterCode)) return false;
         Characters[characterCode] = new CharacterAfterCreateCircuit(Pack,
-            Pack.NewCharacterInstance(characterCode, NewInstanceId(), NextOrderNumber(Characters.Values))).Execute();
+            Pack.NewCharacterInstance(characterCode, NewInstanceId(), NextOrderNumber(Characters.Values)),
+            UniqueItemInstances, code => AddUniqueItem(code) is { } id ? UniqueItemInstances[id] : null).Execute();
         CharacterTagInstances[characterCode] = Pack.MasterTagsOfCharacter(characterCode).ToList();
         return true;
     }

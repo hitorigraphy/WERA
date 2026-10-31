@@ -127,6 +127,29 @@ public abstract class CircuitBase
         if (owner.Instance.SkillSlots.TryGetValue(skillSlotCode, out var index)) focusedSkill = WorkOf(owner, (int)index);
     }
 
+    /// <summary>유니크 아이템 인스턴스를 포커스한다(이펙트가 방금 만든 아이템).</summary>
+    protected void FocusItem(UniqueItemInstance item) => focusedItem = WorkOf(item);
+
+    /// <summary>스킬을 만들어 포커스한 캐릭터의 스킬 풀 맨 뒤에 더하고 그 스킬을 포커스한다. 포커스한 캐릭터가 없으면 false.</summary>
+    protected bool AddSkillToFocusedPool(long skillCode)
+    {
+        if (focusedCharacter is not { } owner) return false;
+        var pool = new List<SkillInstance>(owner.Instance.SkillPool) { Pack.NewSkillInstance(skillCode) };
+        owner.Instance = owner.Instance with { SkillPool = pool };
+        focusedSkill = WorkOf(owner, pool.Count - 1);
+        return true;
+    }
+
+    /// <summary>포커스한 스킬(포커스한 캐릭터의 풀 안)을 스킬 슬롯에 장착한다. 같은 스킬이 다른 슬롯에 있었으면 옮겨 온다. 장착하지 못하면 false.</summary>
+    protected bool SetFocusedSkillToSlot(long skillSlotCode)
+    {
+        if (focusedSkill is not { } skill || focusedCharacter is not { } owner || !ReferenceEquals(skill.Owner, owner)) return false;
+        var slots = owner.Instance.SkillSlots.Where(s => s.Value != skill.Index).ToDictionary(s => s.Key, s => s.Value);
+        slots[skillSlotCode] = skill.Index;
+        owner.Instance = owner.Instance with { SkillSlots = slots };
+        return true;
+    }
+
     PartyUnit? SubTargetAt(long index) => index >= 0 && index < SubTarget.Count ? SubTarget[(int)index] : null;
 
     // ---- 실행 ----

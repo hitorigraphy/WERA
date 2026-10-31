@@ -1,7 +1,8 @@
 namespace Wera.Core;
 
 /// <summary>이펙트 행의 인자를 로드할 때 맞춰 볼 마스터의 코드들. 마스터가 없으면 null이다.</summary>
-public sealed record EffectCheck(IReadOnlySet<long>? Statuses, IReadOnlySet<long>? EquipmentSlots, IReadOnlySet<long>? SkillSlots);
+public sealed record EffectCheck(IReadOnlySet<long>? Statuses, IReadOnlySet<long>? EquipmentSlots, IReadOnlySet<long>? SkillSlots,
+    IReadOnlySet<long>? Skills = null, IReadOnlySet<long>? UniqueItems = null);
 
 /// <summary>모든 이펙트 마스터(스킬 실행, 순서, 피격 후, ..., 생성 후)가 함께 쓰는 이펙트 종류의 인자 규칙과 점프 규칙.</summary>
 public static class EffectArgs
@@ -35,6 +36,39 @@ public static class EffectArgs
         if (slots is null) throw new PackFormatException($"{file}: {where} {type}에는 {masterPath}가 필요합니다.");
         if (!slots.Contains(code))
             throw new PackFormatException($"{file}: {where} {column}({kind} 코드) '{code}'가 {kind} 마스터에 없습니다.");
+    }
+
+    /// <summary>
+    /// 캐릭터 생성 후 이펙트 한 행의 인자를 검사한다. 생성 후에만 있는 종류(AddSkillToPool, AddEquipment, SetSkillToSlot, SetEquipmentToSlot)는
+    /// value_1이 각각 스킬 마스터, 유니크 아이템 마스터, 스킬 슬롯 마스터, 장비 슬롯 마스터의 코드여야 하고, 나머지 종류는 <see cref="Check"/>를 따른다.
+    /// </summary>
+    public static void CheckCharacterCreate(string file, string where, CharacterAfterCreateEffectType type, long value1, long value2, long value3, EffectCheck check)
+    {
+        switch (type)
+        {
+            case CharacterAfterCreateEffectType.AddSkillToPool:
+                Known(file, where, type, check.Skills, GamePack.SkillMasterPath, "스킬", value1);
+                break;
+            case CharacterAfterCreateEffectType.AddEquipment:
+                Known(file, where, type, check.UniqueItems, GamePack.UniqueItemInventoryMasterPath, "유니크 아이템", value1);
+                break;
+            case CharacterAfterCreateEffectType.SetSkillToSlot:
+                Known(file, where, type, check.SkillSlots, GamePack.SkillSlotMasterPath, "스킬 슬롯", value1);
+                break;
+            case CharacterAfterCreateEffectType.SetEquipmentToSlot:
+                Known(file, where, type, check.EquipmentSlots, GamePack.EquipmentSlotMasterPath, "장비 슬롯", value1);
+                break;
+            default:
+                Check(file, where, (EffectType)(int)type, value1, value2, value3, check);
+                break;
+        }
+    }
+
+    static void Known(string file, string where, CharacterAfterCreateEffectType type, IReadOnlySet<long>? codes, string masterPath, string kind, long code)
+    {
+        if (codes is null) throw new PackFormatException($"{file}: {where} {type}에는 {masterPath}가 필요합니다.");
+        if (!codes.Contains(code))
+            throw new PackFormatException($"{file}: {where} value_1({kind} 코드) '{code}'가 {kind} 마스터에 없습니다.");
     }
 
     /// <summary>

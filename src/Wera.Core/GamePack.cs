@@ -180,7 +180,8 @@ public sealed partial class GamePack
         var skills = LoadSkills(zip);
         var skillTags = LoadSkillTags(zip, skills, tags);
         var effectCheck = new EffectCheck(
-            statuses?.Select(s => s.Code).ToHashSet(), equipmentSlots?.Select(e => e.Code).ToHashSet(), skillSlots?.Select(s => s.Code).ToHashSet());
+            statuses?.Select(s => s.Code).ToHashSet(), equipmentSlots?.Select(e => e.Code).ToHashSet(), skillSlots?.Select(s => s.Code).ToHashSet(),
+            skills?.Select(s => s.Code).ToHashSet(), uniqueItems?.Select(u => u.ItemCode).ToHashSet());
         var skillExecuteEffects = LoadSkillExecuteEffects(zip, skills, effectCheck);
         var skillOrderEffects = LoadSkillOrderEffects(zip, skills, effectCheck);
         var afterLoadCharacterFlows = LoadAfterLoadCharacterFlows(zip, effectCheck);
