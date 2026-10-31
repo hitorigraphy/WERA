@@ -370,6 +370,41 @@ public record BattleRow
     public required bool CanRun { get; init; }
 }
 
+/// <summary>타일 효과: 복합키는 (타일, 효과 종류)이고, 보조키 타일 코드로 그 타일의 효과 전부를 찾는다.</summary>
+[MemoryTable("tile_effect"), MessagePackObject(true)]
+public record TileEffectRow
+{
+    [PrimaryKey(keyOrder: 0)]
+    [SecondaryKey(0), NonUnique]
+    public required long TileCode { get; init; }
+
+    [PrimaryKey(keyOrder: 1)] public required TileEffectType EffectType { get; init; }
+    public required long Value1 { get; init; }
+    public required long Value2 { get; init; }
+    public required long Value3 { get; init; }
+}
+
+/// <summary>던전 타일: 복합키는 (던전, 맵 글자)이고 값은 타일 코드다.</summary>
+[MemoryTable("dungeon_tile"), MessagePackObject(true)]
+public record DungeonTileRow
+{
+    [PrimaryKey(keyOrder: 0)] public required long DungeonCode { get; init; }
+    [PrimaryKey(keyOrder: 1)] public required string LocalTileText { get; init; }
+    public required long TileCode { get; init; }
+}
+
+/// <summary>던전 맵의 한 줄: 복합키는 (던전, pos_y)이고, 보조키 던전 코드로 그 던전의 줄 전부를 찾는다. Cells는 pos_x_0부터의 글자(빈 칸은 "").</summary>
+[MemoryTable("dungeon_map"), MessagePackObject(true)]
+public record DungeonMapRow
+{
+    [PrimaryKey(keyOrder: 0)]
+    [SecondaryKey(0), NonUnique]
+    public required long DungeonCode { get; init; }
+
+    [PrimaryKey(keyOrder: 1)] public required long PosY { get; init; }
+    public required string[] Cells { get; init; }
+}
+
 [MemoryTable("preset_unit"), MessagePackObject(true)]
 public record PresetUnitRow
 {

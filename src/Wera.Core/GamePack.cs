@@ -175,6 +175,9 @@ public sealed partial class GamePack
         var presetUnitDrops = LoadPresetUnitDrops(zip, presetUnits, inventory);
         var presetParties = LoadPresetParties(zip, presetUnits);
         var battleEnemies = LoadBattleEnemies(zip, battles, presetParties);
+        var tileEffects = LoadTileEffects(zip, advs, battles);
+        var dungeonTiles = LoadDungeonTiles(zip, dungeons, tileEffects);
+        var dungeonMaps = LoadDungeonMaps(zip, dungeons, dungeonTiles);
         var skillSlots = LoadSkillSlots(zip);
         var characterSkillSlotTags = LoadCharacterSkillSlotTags(zip, characterInventory, skillSlots, tags);
         var skills = LoadSkills(zip);
@@ -241,6 +244,9 @@ public sealed partial class GamePack
             PresetUnitDrops = presetUnitDrops,
             PresetParties = presetParties,
             BattleEnemies = battleEnemies,
+            TileEffects = tileEffects,
+            DungeonTiles = dungeonTiles,
+            DungeonMaps = dungeonMaps,
             SkillSlots = skillSlots,
             CharacterSkillSlotTags = characterSkillSlotTags,
             Skills = skills,
@@ -267,6 +273,7 @@ public sealed partial class GamePack
                 events, eventConditions, eventFlows, advs, battles, advFlows, communicationGroups, communications,
                 communicationSoloFlows, communicationDuoFlows, communicationDefaultFlows,
                 presetUnits, presetUnitEquips, presetUnitDrops, presetParties, battleEnemies,
+                tileEffects, dungeonTiles, dungeonMaps,
                 skillSlots, characterSkillSlotTags, skills, skillTags, skillExecuteEffects, skillOrderEffects, skillAutoTargetEffects,
                 skillStatuses, uniqueItemStatuses, afterLoadCharacterFlows, afterLoadUniqueItemFlows,
                 afterHitEffects, afterAttackEffects, afterBattleWinEffects, afterBattleLoseEffects, afterBattleRunEffects,

@@ -45,6 +45,7 @@ public sealed partial class GamePack
         List<CommunicationDefaultFlow>? communicationDefaultFlows,
         List<PresetUnit>? presetUnits, List<PresetUnitEquip>? presetUnitEquips, List<PresetUnitDrop>? presetUnitDrops,
         List<PresetParty>? presetParties, List<BattleEnemy>? battleEnemies,
+        List<TileEffect>? tileEffects, List<DungeonTile>? dungeonTiles, List<DungeonMapLine>? dungeonMaps,
         List<SkillSlotEntry>? skillSlots, List<CharacterSkillSlotTag>? characterSkillSlotTags,
         List<SkillEntry>? skills, List<SkillTag>? skillTags, List<SkillExecuteEffect>? skillExecuteEffects,
         List<SkillOrderEffect>? skillOrderEffects, List<SkillAutoTargetEffect>? skillAutoTargetEffects,
@@ -164,6 +165,12 @@ public sealed partial class GamePack
         }).ToList());
         builder.Append((battles ?? []).Select(b => new BattleRow { Code = b.Code, Name = b.Name, CanRun = b.CanRun }).ToList());
 
+        builder.Append((tileEffects ?? []).Select(t => new TileEffectRow
+            { TileCode = t.TileCode, EffectType = t.EffectType, Value1 = t.Value1, Value2 = t.Value2, Value3 = t.Value3 }).ToList());
+        builder.Append((dungeonTiles ?? []).Select(t => new DungeonTileRow
+            { DungeonCode = t.DungeonCode, LocalTileText = t.LocalTileText, TileCode = t.TileCode }).ToList());
+        builder.Append((dungeonMaps ?? []).Select(m => new DungeonMapRow
+            { DungeonCode = m.DungeonCode, PosY = m.PosY, Cells = [.. m.Cells] }).ToList());
         builder.Append((presetUnits ?? []).Select(u => new PresetUnitRow { Code = u.Code, CharacterCode = u.CharacterCode }).ToList());
         builder.Append((presetUnitEquips ?? []).Select(e => new PresetUnitEquipRow
             { PresetUnitCode = e.PresetUnitCode, EquipmentSlotCode = e.EquipmentSlotCode, ItemCode = e.ItemCode }).ToList());

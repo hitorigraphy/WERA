@@ -1,0 +1,8 @@
+dungeon_code	local_tile_text	tile_code	memo
+1999	.	1	바닥
+1999	#	2	벽
+1999	S	3	시작
+1999	E	4	출구
+1999	B	5	고정 전투
+1999	R	6	랜덤 전투
+1999	A	7	ADV
