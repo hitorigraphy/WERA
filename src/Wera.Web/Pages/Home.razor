@@ -227,7 +227,7 @@
     }
     else
     {
-        <div class="@(session.Screen switch { Screen.Interaction => "screen interaction", Screen.DungeonMove => "screen dungeon-move", _ => "screen" })" @ref="screenArea">
+        <div class="@(session.Screen switch { Screen.Interaction => "screen interaction", Screen.DungeonMove => "screen dungeon-move", Screen.CharacterDetail => "screen char-detail-page", _ => "screen" })" @ref="screenArea">
         @switch (session.Screen)
         {
             case Screen.Home:
@@ -517,6 +517,40 @@
                 break;
 
             case Screen.CharacterDetail:
+                @* 캐릭터 상세: 좌측 하단에 250×750 이미지 칸, 오른쪽에 이름/레벨, Exp 바, HP/XP, 상태값(미정), 장비, 스킬, 설명문을 구분선으로 나눠 놓는다 *@
+                @if (session.CharacterDetail is { } detail)
+                {
+                    <div class="char-detail">
+                        <div class="char-image" role="img" aria-label="No Image">No Image</div>
+                        <div class="char-info">
+                            <div class="char-head"><span class="char-name">@detail.Name</span><span class="char-level">@detail.LevelText</span></div>
+                            <div class="gauge-line">Exp : <span class="gauge gauge-@detail.Exp.Color.ToString().ToLowerInvariant()">@detail.Exp.Text</span></div>
+                            <hr />
+                            <div class="gauge-line">HP : <span class="gauge gauge-@detail.Hp.Color.ToString().ToLowerInvariant()">@detail.Hp.Text</span></div>
+                            <div class="gauge-line">XP : <span class="gauge gauge-@detail.Xp.Color.ToString().ToLowerInvariant()">@detail.Xp.Text</span></div>
+                            <hr />
+                            <div class="char-statuses"></div>
+                            <hr />
+                            <div class="char-columns">
+                                @foreach (var line in detail.Equipment)
+                                {
+                                    <div>@line.Label : @line.Value</div>
+                                }
+                            </div>
+                            <hr />
+                            <div class="char-columns">
+                                @foreach (var line in detail.Skills)
+                                {
+                                    <div>@line.Label : @line.Value</div>
+                                }
+                            </div>
+                            <hr />
+                            <p class="char-description">@detail.Description</p>
+                        </div>
+                    </div>
+                }
+                break;
+
             case Screen.EquipmentDetail:
             case Screen.ItemDetail:
                 @* 상세 화면의 내용은 아직 정의되지 않았다: 무엇을 보고 있는지 이름만 보여 준다 *@

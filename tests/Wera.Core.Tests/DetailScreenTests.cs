@@ -68,4 +68,22 @@ public class DetailScreenTests
         Assert.Equal(Screen.StatusCheck, s.Activate("999")!.Target);
         Assert.Equal(Screen.DungeonMove, s.Activate("999")!.Target);                 // 던전에서 연 화면은 던전으로
     }
+
+    [Fact]
+    public void The_character_detail_shows_name_level_bars_equipment_and_skill_slots_and_the_description()
+    {
+        var s = SampleSession();
+        s.Activate("201");
+        s.Activate(s.Entries.First(e => e.Code != "999").Code);
+        var d = s.CharacterDetail!;
+        Assert.Equal(s.DetailHeading!.Value.Name, d.Name);
+        Assert.StartsWith("Lv.", d.LevelText);
+        Assert.Equal(GameSession.CharacterDetailExpWidth, d.Exp.Text.Length);             // Exp 바는 HP/XP 게이지보다 길다
+        Assert.Equal(Gauge.Width, d.Hp.Text.Length);
+        Assert.Equal(Gauge.Width, d.Xp.Text.Length);
+        Assert.Equal("이야기의 주인공. 아직 아무것도 알려지지 않았다.", d.Description);        // 샘플 팩의 캐릭터 1
+        Assert.All(d.Equipment.Concat(d.Skills), l => Assert.NotEqual("", l.Value));
+        s.Activate("999");
+        Assert.Null(s.CharacterDetail);
+    }
 }

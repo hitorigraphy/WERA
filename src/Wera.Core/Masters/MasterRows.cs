@@ -119,6 +119,7 @@ public record CharacterInventoryRow
     public required long CarryLimit { get; init; }
     public required long AdvantageAttributeCode { get; init; }
     public required long DisadvantageAttributeCode { get; init; }
+    public string Description { get; init; } = "";
 }
 
 [MemoryTable("shop_trade"), MessagePackObject(true)]

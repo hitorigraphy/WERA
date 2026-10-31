@@ -89,7 +89,7 @@ public sealed partial class GamePack
         builder.Append((characters ?? []).Select(c => new CharacterInventoryRow
         {
             Code = c.Code, Name = c.Name, CarryLimit = c.CarryLimit,
-            AdvantageAttributeCode = c.AdvantageAttributeCode, DisadvantageAttributeCode = c.DisadvantageAttributeCode,
+            AdvantageAttributeCode = c.AdvantageAttributeCode, DisadvantageAttributeCode = c.DisadvantageAttributeCode, Description = c.Description,
         }).ToList());
 
         builder.Append((trades ?? []).Select(t => new ShopTradeRow
@@ -241,7 +241,7 @@ public sealed partial class GamePack
 
     public CharacterEntry? FindCharacter(long code) =>
         Masters.CharacterInventoryRowTable.TryFindByCode(code, out var r)
-            ? new CharacterEntry(r.Code, r.Name, r.CarryLimit, r.AdvantageAttributeCode, r.DisadvantageAttributeCode)
+            ? new CharacterEntry(r.Code, r.Name, r.CarryLimit, r.AdvantageAttributeCode, r.DisadvantageAttributeCode, r.Description)
             : null;
 
     public AttributeEntry? FindAttribute(long code) =>

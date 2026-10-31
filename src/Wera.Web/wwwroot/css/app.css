@@ -269,3 +269,11 @@ input.command { width: min(100%, 26rem); }
 .dwarp { text-decoration: underline; }
 .devent { color: #c58cf0; }
 .dplayer { background: #fff; color: #000; font-weight: bold; }
+.screen.char-detail-page { display: flex; flex-direction: column; }
+.char-detail { display: flex; gap: 1rem; margin-top: auto; }   /* 좌측 하단 이미지 칸, 오른쪽에 정보 */
+.char-image { flex: none; box-sizing: border-box; width: 250px; height: 750px; border: 1px solid #666; display: flex; align-items: center; justify-content: center; color: #999; }
+.char-info { flex: 1; min-width: 0; padding-right: 30px; }
+.char-head { display: flex; justify-content: space-between; }
+.char-info hr { border: 0; border-top: 1px solid #666; margin: .6rem 0; }
+.char-columns { display: grid; grid-template-columns: 1fr 1fr; gap: .2rem 1ch; }
+.char-description { margin: 0; white-space: pre-wrap; }

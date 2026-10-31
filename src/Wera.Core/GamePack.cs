@@ -530,13 +530,17 @@ public sealed partial class GamePack
             (code, r, limit) => new ItemEntry(code, r[1], limit, withSkill ? OptionalSkillCode(CommonItemInventoryMasterPath, $"아이템 '{code}'", r[3]) : null));
     }
 
-    /// <summary>캐릭터마다 유리속성과 불리속성이 있어야 하고, 둘 다 속성 마스터에 있어야 하며 서로 달라야 한다.</summary>
+    /// <summary>
+    /// 캐릭터마다 유리속성과 불리속성이 있어야 하고, 둘 다 속성 마스터에 있어야 하며 서로 달라야 한다.
+    /// 선택 열 description(캐릭터 상세 화면의 설명문)은 불리속성 열 뒤에 둔다.
+    /// </summary>
     static List<CharacterEntry>? LoadCharacterInventory(ZipArchive zip, List<AttributeEntry>? attributes)
     {
         const string file = CharacterInventoryMasterPath;
         var attributeCodes = attributes?.Select(a => a.Code).ToHashSet() ?? [];
+        var withDescription = TryReadEntry(zip, file) is { } text && Tsv.WithoutMemo(Tsv.Parse(text)) is { Count: > 0 } rows && rows[0].Length > 5 && rows[0][5] == "description";
         return LoadLimitedInventory(zip, file, "캐릭터",
-            ["inventory_code", "character_name", "carry_limit", "advantage_attribute_code", "disadvantage_attribute_code"],
+            ["inventory_code", "character_name", "carry_limit", "advantage_attribute_code", "disadvantage_attribute_code", .. withDescription ? new[] { "description" } : []],
             (code, r, limit) =>
             {
                 var advantage = ParseLong(file, $"캐릭터 '{code}'의 유리속성 코드", r[3]);
@@ -546,7 +550,7 @@ public sealed partial class GamePack
                         throw new PackFormatException($"{file}: 캐릭터 '{code}'의 {what} '{attribute}'가 속성 마스터에 없습니다.");
                 if (advantage == disadvantage)
                     throw new PackFormatException($"{file}: 캐릭터 '{code}'의 유리속성과 불리속성이 같습니다 ({advantage}).");
-                return new CharacterEntry(code, r[1], limit, advantage, disadvantage);
+                return new CharacterEntry(code, r[1], limit, advantage, disadvantage, withDescription ? r[5] : "");
             });
     }
 

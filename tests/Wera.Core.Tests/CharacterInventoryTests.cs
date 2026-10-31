@@ -35,6 +35,15 @@ public class CharacterInventoryTests
             pack.CharacterInventory);
     }
 
+    [Fact]
+    public void The_optional_description_column_is_the_character_detail_text()
+    {
+        var pack = Pack("inventory_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\tdescription\n7001\t용사\t1\t1\t2\t검을 든다.\n7002\t마법사\t1\t3\t1\t\n");
+        Assert.Equal("검을 든다.", pack.FindCharacter(7001)!.Description);
+        Assert.Equal("", pack.FindCharacter(7002)!.Description);                          // 비우면 빈 글
+        Assert.Equal("", Pack(Header + "7001\ta\t1\t1\t2\n").FindCharacter(7001)!.Description);      // 열이 없어도 된다
+    }
+
     [Theory]
     [InlineData("7001\ta\t1\t1\t2\n7001\tb\t1\t1\t2\n")]     // 중복 코드
     [InlineData("\ta\t1\t1\t2\n")]                           // 빈 코드

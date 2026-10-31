@@ -29,6 +29,35 @@ public sealed partial class GameSession
         _ => null,
     };
 
+    /// <summary>캐릭터 상세 화면의 Exp 바 칸 수("Exp : " 뒤, 오른쪽 여백을 30px 남기고 끝까지 가는 길이).</summary>
+    public const int CharacterDetailExpWidth = 61;
+
+    /// <summary>캐릭터 상세 화면의 내용: 이름, 레벨, Exp 바, HP, XP, (상태값은 아직 정해지지 않음), 장비 슬롯, 스킬 슬롯, 설명문.</summary>
+    public sealed record CharacterDetailView(
+        string Name, string LevelText, GaugeView Exp, GaugeView Hp, GaugeView Xp,
+        IReadOnlyList<UnitStatusLine> Equipment, IReadOnlyList<UnitStatusLine> Skills, string Description);
+
+    /// <summary>지금 보는 캐릭터 상세 화면의 내용. 캐릭터 상세 화면이 아니거나 보유하지 않은 캐릭터면 null.</summary>
+    public CharacterDetailView? CharacterDetail
+    {
+        get
+        {
+            if (Screen != Screen.CharacterDetail || DetailCharacterCode is not { } code || !Characters.TryGetValue(code, out var state)) return null;
+            var character = state with { CharacterCode = code };
+            var equipment = Pack.EquipmentSlotsOf(code)
+                .Select(slot => new UnitStatusLine(slot.Name, EquippedItemOf(code, slot.Code) is { } target ? NameOf(target) : "비어 있음")).ToList();
+            var skills = Pack.SkillSlotTagsOf(code).Select(r => r.SkillSlotCode).Distinct().Order()
+                .Select(Pack.FindSkillSlot).OfType<SkillSlotEntry>()
+                .Select(slot => new UnitStatusLine(slot.Name, EquippedSkillName(character, slot.Code) ?? "비어 있음")).ToList();
+            return new CharacterDetailView(
+                CharacterName(code), $"Lv.{state.Level}",
+                Gauge.Render(state.Xp, state.XpMax, gray: state.IsDead, CharacterDetailExpWidth),
+                Gauge.Render(state.Hp, state.MaxHp, gray: state.IsDead),
+                Gauge.Render(state.Xp, state.XpMax, gray: state.IsDead),
+                equipment, skills, Pack.FindCharacter(code)?.Description ?? "");
+        }
+    }
+
     /// <summary>스테이터스 확인 등 확인 화면의 돌아가기: 던전에서 열었으면 던전으로, 아니면 홈으로.</summary>
     Screen CheckBackScreen => CurrentDungeonCode is not null ? Screen.DungeonMove : Screen.Home;
 
