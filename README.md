@@ -90,6 +90,8 @@ TSV 파일 묶음(zip 형식)이고 확장자는 **`.wra`**입니다(zip 압축 
 
 **전투 패배 후 이펙트 마스터**(선택): `after_battle_lose_effect_master`는 전투 승리 후 이펙트 마스터와 같은 모양과 규칙입니다(`AfterBattleLoseEffectType`, `AfterBattleLoseCircuit`). 전투에서 지면(아군이 모두 쓰러지면) 전투에 참가한 아군 유닛(캐릭터)마다 실행됩니다. 아직 전투 실행에 연결되지 않았습니다.
 
+**전투 도망 후 이펙트 마스터**(선택): `after_battle_run_effect_master`는 전투 승리 후 이펙트 마스터와 같은 모양과 규칙입니다(`AfterBattleRunEffectType`, `AfterBattleRunCircuit`). 전투에서 도망치면 전투에 참가한 아군 유닛(캐릭터)마다 실행됩니다. 패배와 도망 뒤에도 전투 중 바뀐 값(상태이상 등)은 남깁니다. 아직 전투 실행에 연결되지 않았습니다.
+
 **필수 마스터 방침:** 엔진이 검증하는 마스터(예약 코드나 필수 항목이 있는 마스터)는 로드할 때 존재부터 확인합니다. 없으면 "`...`가 반드시 필요합니다" 오류로 로드되지 않습니다. 필수 마스터는 `attribute_master`, `tag_master`(예약 태그 1 플레이어, 2 리더), `status_master`(예약 스테이터스 1 level, 2 hp), `character_inventory_master`(캐릭터 1 = 플레이어), `character_tag_master`(캐릭터 1의 플레이어 태그), `character_status_master`(모든 캐릭터의 level/hp 레벨 0 행), `time_slot_master`와 `turn_master`(시간대 FK, 시작 턴 한 행 이상), `common_item_inventory_master`와 `common_item_tag_master`(메인 통화)입니다. 나머지는 선택이고, 선택 마스터가 있으면 가리키는 상위 마스터도 있어야 합니다.
 
 ### 아이템과 상점 교환
