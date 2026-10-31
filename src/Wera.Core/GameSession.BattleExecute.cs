@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace Wera.Core;
 
 // 전투 [106] 실행: 생존한 전원의 스킬 순서 서킷을 계산해 OrderPoint가 가장 큰 1명이 스킬을 쓰고, 남은 인원으로 다시 계산해 전원이 1회씩 행동하면 1턴이 끝난다.
@@ -89,6 +91,8 @@ public sealed partial class GameSession
             new SkillExecuteCircuit(Pack, store, skillOf[actor], caster, main).Execute();
             new AfterHitCircuit(Pack, store, caster, main).Execute();
             new AfterAttackCircuit(Pack, store, caster, main).Execute();
+            if (!actor.IsEnemy && battleItems.TryGetValue(actor.Slot, out var usedItem) && usedItem[0] == 'C')     // 쓴 커먼 아이템은 하나 줄어든다(유니크는 남는다)
+                ChangeCommonItem(long.Parse(usedItem.AsSpan(1), CultureInfo.InvariantCulture), -1);
             battleLog.Add(new BattleActed(actor.IsEnemy, actor.Slot, skillOf[actor], victim.IsEnemy, victim.Slot, best, hpBefore - store.CharacterOf(main)!.Hp));
 
             if (LivingOf(true).Count == 0) BattleOutcome = BattleOutcomeKind.Win;

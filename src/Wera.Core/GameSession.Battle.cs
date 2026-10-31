@@ -30,6 +30,8 @@ public sealed partial class GameSession
         Basic,
         /// <summary>행동 후보: 지금 보고 있는 캐릭터가 장착한 스킬들([101]부터)과 [106] 취소.</summary>
         ActionCandidates,
+        /// <summary>아이템 후보: 지금 보고 있는 캐릭터가 쓸 수 있는 아이템들([101]부터, skill_code가 있는 보유 아이템)과 [106] 취소.</summary>
+        ItemCandidates,
         /// <summary>대상 후보: 고른 스킬의 타겟 대상(skill_master의 target_type)에 맞는 살아 있는 유닛만 슬롯이 흰색(리더는 연두색)이 되어 슬롯 번호로 고르고, 커맨드는 [101] 취소뿐이다.</summary>
         TargetCandidates,
     }
@@ -48,6 +50,46 @@ public sealed partial class GameSession
             .Where(s => s.Value >= 0 && s.Value < character.SkillPool.Count)
             .Select(s => new BattleSkillOption(s.Key, character.SkillPool[(int)s.Value].SkillCode, SkillName(character.SkillPool[(int)s.Value].SkillCode))).ToList();
     }
+
+    /// <summary>
+    /// 아이템 후보의 아이템 하나: 커먼(Key = 아이템 코드)이나 유니크(Key = 인스턴스 ID), 이름, 쓰면 실행하는 스킬 코드, 남은 수량(유니크는 1).
+    /// </summary>
+    public sealed record BattleItemOption(bool IsUnique, string Key, string Name, long SkillCode, long Count)
+    {
+        /// <summary>항목의 인자와 같은 참조 문자열: 커먼 "C코드", 유니크 "U인스턴스ID".</summary>
+        public string Ref => (IsUnique ? "U" : "C") + Key;
+    }
+
+    /// <summary>이번 턴에 아군 유닛(파티 슬롯 번호)마다 쓰기로 한 아이템의 참조("C코드"/"U인스턴스ID"). 스킬 대신 아이템으로 행동을 정한 유닛만 있다.</summary>
+    readonly Dictionary<int, string> battleItems = [];
+
+    /// <summary>대상 후보에서 고르는 중인 아이템의 참조(아이템 후보에서 고른 뒤). 없으면 null.</summary>
+    string? battlePendingItem;
+
+    /// <summary>
+    /// 보는 캐릭터가 지금 고를 수 있는 아이템들: skill_code가 있는 커먼 아이템(보유량에서 장비에 낀 것과 다른 유닛이 쓰기로 한 수량을 뺀 것이 1 이상)과
+    /// 같은 조건의 유니크 아이템(다른 유닛이 쓰기로 한 것 제외; 스킬 인스턴스를 가진 것). 커먼은 코드순, 유니크는 보유 순서.
+    /// </summary>
+    public IReadOnlyList<BattleItemOption> BattleItems()
+    {
+        var reserved = battleItems.Where(kv => kv.Key != BattleCurrentSlot).Select(kv => kv.Value).ToList();
+        var result = new List<BattleItemOption>();
+        foreach (var (code, held) in InventoryItems.OrderBy(kv => kv.Key))
+        {
+            if (Pack.FindItem(code) is not { SkillCode: { } skill } entry) continue;
+            var free = held.Amount - EquippedCount(EquipRef.Common(code)) - reserved.Count(r => r == "C" + code.ToString(CultureInfo.InvariantCulture));
+            if (free > 0) result.Add(new BattleItemOption(false, code.ToString(CultureInfo.InvariantCulture), entry.Name, skill, free));
+        }
+        foreach (var item in OwnedUniqueItems)
+        {
+            if (item.Skill is not { } skill || reserved.Contains("U" + item.InstanceId)) continue;
+            result.Add(new BattleItemOption(true, item.InstanceId, Pack.FindUniqueItem(item.ItemCode)?.ItemName ?? Text(item.ItemCode), skill.SkillCode, 1));
+        }
+        return result;
+    }
+
+    /// <summary>슬롯의 아군 유닛이 이번 턴에 쓰기로 한 아이템의 참조. 아이템으로 정하지 않았으면 null.</summary>
+    public string? BattleItemOf(int slot) => battleItems.GetValueOrDefault(slot);
 
     /// <summary>지금 보고 있는(행동을 설정하는) 아군 캐릭터의 파티 슬롯 번호. 파티에 유닛이 없으면 null.</summary>
     public int? BattleCurrentSlot { get; private set; }
@@ -196,7 +238,9 @@ public sealed partial class GameSession
     {
         battleActions.Clear();
         battleTargets.Clear();
+        battleItems.Clear();
         battlePendingSkill = null;
+        battlePendingItem = null;
         BattleCurrentSlot = BattleUnitSlots() is { Count: > 0 } slots ? slots[0] : null;
         BattleCommands = BattleCommandMode.Basic;
         BattleTop = BattleTopAllyHeavy;
@@ -213,6 +257,7 @@ public sealed partial class GameSession
         var at = BattleCurrentSlot is { } current ? slots.IndexOf(current) : -1;
         BattleCurrentSlot = slots[((at + delta) % slots.Count + slots.Count) % slots.Count];
         battlePendingSkill = null;
+        battlePendingItem = null;
         BattleCommands = BattleCommandMode.Basic;
         BattleTop = BattleTopAllyHeavy;
     }
@@ -225,11 +270,29 @@ public sealed partial class GameSession
         BattleTop = BattleTopEnemyHeavy;
     }
 
+    /// <summary>[103] 아이템: 커맨드가 보는 캐릭터의 아이템 후보로 바뀌고 화면은 적 3 / 아군 1로 바뀐다.</summary>
+    void OpenBattleItemCandidates()
+    {
+        if (BattleCurrentSlot is null) return;
+        BattleCommands = BattleCommandMode.ItemCandidates;
+        BattleTop = BattleTopEnemyHeavy;
+    }
+
+    /// <summary>아이템 후보에서 아이템을 고르면 그 아이템의 스킬로 메인 타겟을 고르는 대상 후보로 바뀐다(아직 행동은 정해지지 않는다). 지금 고를 수 있는 아이템만 된다.</summary>
+    void ChooseBattleItem(string reference)
+    {
+        if (BattleItems().FirstOrDefault(o => o.Ref == reference) is not { } option) return;
+        battlePendingSkill = option.SkillCode;
+        battlePendingItem = option.Ref;
+        BattleCommands = BattleCommandMode.TargetCandidates;
+    }
+
     /// <summary>행동 후보에서 스킬을 고르면 메인 타겟을 고르는 대상 후보로 바뀐다(아직 행동은 정해지지 않는다). 보는 캐릭터가 장착한 스킬만 고를 수 있다.</summary>
     void ChooseBattleSkill(long skill)
     {
         if (BattleCurrentSlot is not { } current || !BattleSkillsOf(new Combatant(false, current)).Any(o => o.SkillCode == skill)) return;
         battlePendingSkill = skill;
+        battlePendingItem = null;
         BattleCommands = BattleCommandMode.TargetCandidates;
     }
 
@@ -241,6 +304,8 @@ public sealed partial class GameSession
         {
             battleActions[slot] = skill;
             battleTargets[slot] = target;
+            if (battlePendingItem is { } item) battleItems[slot] = item;
+            else battleItems.Remove(slot);
         }
         SelectBattleCharacter(1);
     }
@@ -285,7 +350,7 @@ public sealed partial class GameSession
         var targets = BattleCommands == BattleCommandMode.TargetCandidates ? BattleTargets() : [];
         bool Gray(bool isEnemy, int slot) => BattleCommands switch
         {
-            BattleCommandMode.ActionCandidates => true,
+            BattleCommandMode.ActionCandidates or BattleCommandMode.ItemCandidates => true,
             BattleCommandMode.TargetCandidates => !targets.Contains(new Combatant(isEnemy, slot)),
             _ => false,
         };
@@ -323,6 +388,16 @@ public sealed partial class GameSession
     IEnumerable<ScreenEntry> BattleCommandEntries()
     {
         if (BattleOutcome != BattleOutcomeKind.None) yield break;       // 결판이 났으면 커맨드는 없다
+        if (BattleCommands == BattleCommandMode.ItemCandidates)
+        {
+            // 쓸 수 있는 아이템들이 [101]부터 차례로 나온다([106]은 취소라 건너뛴다). 커먼 아이템은 "이름 ×수량"
+            var items = BattleItems();
+            for (var i = 0; i < items.Count; i++)
+                yield return new ScreenEntry((101 + i + (i >= 5 ? 1 : 0)).ToString(CultureInfo.InvariantCulture),
+                    items[i].IsUnique ? items[i].Name : $"{items[i].Name} ×{items[i].Count}", Screen.Battle, EntryAction.BattleChooseItem, items[i].Ref);
+            yield return new ScreenEntry("106", "취소", Screen.Battle, EntryAction.BattleCancelActions);
+            yield break;
+        }
         if (BattleCommands == BattleCommandMode.ActionCandidates)
         {
             // 장착한 스킬들이 [101]부터 차례로 나온다([106]은 취소라 건너뛴다)
@@ -340,7 +415,7 @@ public sealed partial class GameSession
         }
         yield return new ScreenEntry("101", "다음 캐릭터", Screen.Battle, EntryAction.BattleSelectCharacter, "1");
         yield return new ScreenEntry("102", "행동 설정", Screen.Battle, EntryAction.BattleOpenActions);
-        yield return new ScreenEntry("103", "아이템", Screen.Battle, EntryAction.BattleCommand);
+        yield return new ScreenEntry("103", "아이템", Screen.Battle, EntryAction.BattleOpenItems);
         yield return new ScreenEntry("104", "이전 캐릭터", Screen.Battle, EntryAction.BattleSelectCharacter, "-1");
         yield return new ScreenEntry("105", "교체", Screen.Battle, EntryAction.BattleCommand);
         yield return new ScreenEntry("106", "실행", Screen.Battle, EntryAction.BattleExecute, Enabled: BattleAllActionsSet);

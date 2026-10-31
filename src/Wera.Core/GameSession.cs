@@ -89,6 +89,10 @@ public enum EntryAction
     BattleOpenActions,
     /// <summary>행동 후보에서 스킬(Arg)을 고른다.</summary>
     BattleChooseSkill,
+    /// <summary>[103] 아이템: 커맨드를 보는 캐릭터가 쓸 수 있는 아이템 후보로 바꾸고 화면을 적 3 / 아군 1로 바꾼다.</summary>
+    BattleOpenItems,
+    /// <summary>아이템 후보에서 아이템(Arg = "C코드"(커먼) 또는 "U인스턴스ID"(유니크))을 고른다.</summary>
+    BattleChooseItem,
     /// <summary>행동 후보에서 나와 기본 커맨드로 돌아간다.</summary>
     BattleCancelActions,
     /// <summary>대상 후보에서 유닛을 고른다(Arg = "E슬롯"(적) 또는 "A슬롯"(아군)).</summary>
@@ -821,7 +825,13 @@ public sealed partial class GameSession
                 Screen = entry.Target;
                 break;
             case EntryAction.BattleCommand:
-                break;                                 // 아직 동작이 없다
+                break;                                 // 아직 동작이 없다(교체)
+            case EntryAction.BattleOpenItems:
+                OpenBattleItemCandidates();
+                break;
+            case EntryAction.BattleChooseItem:
+                ChooseBattleItem(entry.Arg!);
+                break;
             case EntryAction.BattleSelectCharacter:
                 SelectBattleCharacter(int.Parse(entry.Arg!, CultureInfo.InvariantCulture));
                 break;
@@ -846,6 +856,7 @@ public sealed partial class GameSession
                 break;
             case EntryAction.BattleCancelActions:
                 battlePendingSkill = null;
+                battlePendingItem = null;
                 BattleCommands = BattleCommandMode.Basic;
                 break;
             case EntryAction.BattleScroll:

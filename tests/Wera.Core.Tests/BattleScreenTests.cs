@@ -496,4 +496,81 @@ public class BattleScreenTests
         s.Activate("106");
         Assert.DoesNotContain(s.BattleLog, a => a.IsEnemy);
     }
+
+    static IEnumerable<(string Code, string Label)> ItemCandidates(GameSession s) =>
+        s.Entries.Where(e => e.Action is EntryAction.BattleChooseItem or EntryAction.BattleCancelActions).Select(e => (e.Code, e.Label));
+
+    [Fact]
+    public void The_item_command_lists_owned_items_with_a_skill_and_gray_out_the_slots()
+    {
+        var s = Started();
+        s.Activate("103");
+        Assert.Equal([("106", "취소")], ItemCandidates(s));                          // 쓸 수 있는 아이템이 없다
+        Assert.Equal(GameSession.BattleCommandMode.ItemCandidates, s.BattleCommands);
+        Assert.All(AllyFront(s), v => Assert.True(v.IsGray));
+
+        s.Activate("106");
+        s.AddInventory(3, 2);                                                       // 약초 2개(skill_code 있음)
+        s.AddInventory(4, 5);                                                       // 철광석(skill_code 없음)
+        s.AddUniqueItem(8001);                                                      // 철검(skill_code 있음)
+        s.AddUniqueItem(8002);                                                      // 샘플 마스터에 있으면 skill_code가 없는 유니크는 후보가 아님
+        s.Activate("103");
+        Assert.Equal([("101", "약초 ×2"), ("102", "철검"), ("106", "취소")], ItemCandidates(s));
+    }
+
+    [Fact]
+    public void Choosing_an_item_goes_to_target_selection_by_its_skill_and_uses_it_on_execute()
+    {
+        var s = Started();
+        FirstOnly(s);
+        s.AddInventory(3, 2);
+        s.Activate("103"); s.Activate("101");                                       // 약초(치유 1003, 대상은 아군)
+        Assert.Equal(GameSession.BattleCommandMode.TargetCandidates, s.BattleCommands);
+        Assert.Equal(["11"], s.Entries.Where(e => e.Action == EntryAction.BattleChooseTarget).Select(e => e.Code));
+        s.Activate("11");
+        Assert.Equal(1003, s.BattleActionOf(0));
+        Assert.Equal("C3", s.BattleItemOf(0));
+
+        s.Activate("106");
+        Assert.Equal(1, s.InventoryItems[3].Amount);                                // 약초는 하나 줄었다
+        Assert.Contains(s.BattleLog, a => !a.IsEnemy && a.SkillCode == 1003);
+    }
+
+    [Fact]
+    public void A_unique_item_is_not_used_up_and_a_chosen_skill_replaces_the_item_action()
+    {
+        var s = Started();
+        FirstOnly(s);
+        var id = s.AddUniqueItem(8001)!;
+        s.Activate("103"); s.Activate("101");                                       // 철검(베기 1001, 대상은 적)
+        s.Activate("1");
+        Assert.Equal((1001L, "U" + id), (s.BattleActionOf(0)!.Value, s.BattleItemOf(0)));
+        s.Activate("106");
+        Assert.True(s.UniqueItemInstances.ContainsKey(id));
+
+        s.AddInventory(3, 1);
+        s = Started();
+        s.AddInventory(3, 1);
+        s.Activate("103"); s.Activate("101");                                       // 약초를 고른 뒤
+        s.Activate("11");
+        Assert.Equal("C3", s.BattleItemOf(0));
+        s.Activate("102"); s.Activate("101"); s.Activate("1");                      // 다시 스킬로 행동을 바꾸면 아이템 행동은 사라진다
+        Assert.Null(s.BattleItemOf(0));
+    }
+
+    [Fact]
+    public void An_item_already_reserved_by_another_unit_is_not_offered_again_and_cancel_leaves_no_action()
+    {
+        var s = Started(twoUnits: true);
+        s.AddInventory(3, 1);
+        s.Activate("103"); s.Activate("101"); s.Activate("11");                     // 첫째 유닛이 약초 하나를 쓰기로 했다
+        Assert.Equal(1, s.BattleCurrentSlot);
+        s.Activate("103");
+        Assert.Equal([("106", "취소")], ItemCandidates(s));                          // 둘째 유닛에게는 남은 약초가 없다
+
+        s.Activate("106");
+        Assert.Equal(GameSession.BattleCommandMode.Basic, s.BattleCommands);
+        Assert.Null(s.BattleActionOf(1));
+        Assert.Null(s.BattleItemOf(1));
+    }
 }
