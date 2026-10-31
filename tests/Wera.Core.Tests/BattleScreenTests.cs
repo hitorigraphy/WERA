@@ -128,6 +128,26 @@ public class BattleScreenTests
     }
 
     [Fact]
+    public void Enemy_units_are_party_units_with_temporary_equipment_and_the_unit_store_finds_them()
+    {
+        var s = Started(roll: 0);                                  // 적 파티 1: 전사(7003) 둘, 마법사(7002) 둘
+        Assert.Equal(4, s.EnemyUnits.Count(u => u is not null));
+        var store = s.CreateUnitStore();
+        var warriors = s.EnemyUnits.Select((u, slot) => (Unit: u, Slot: slot)).Where(x => x.Unit?.CharacterCode == 7003).ToList();
+        Assert.Equal(2, warriors.Count);
+        foreach (var (unit, slot) in warriors)
+        {
+            Assert.Equal(s.EnemyInstances[slot], store.CharacterOf(unit!));       // 같은 캐릭터여도 슬롯의 인스턴스를 찾는다
+            Assert.Equal([1L, 2L], unit!.Equipment.Keys.Order());                 // 철검(무기), 판금갑옷(방어구)
+            Assert.Equal(8001, store.ItemOf(unit, 1)!.ItemCode);
+            Assert.Equal($"enemy-{slot}-1", store.ItemOf(unit, 1)!.InstanceId);
+        }
+        Assert.NotSame(store.ItemOf(warriors[0].Unit!, 1), store.ItemOf(warriors[1].Unit!, 1));
+        Assert.Empty(s.ToSaveJson().Split("enemy-").Skip(1));                    // 적 장비도 세이브에 들어가지 않는다
+        Assert.Empty(Started(roll: 0).UniqueItemInstances.Keys.Where(k => k.StartsWith("enemy-")));
+    }
+
+    [Fact]
     public void A_pack_without_the_battle_starts_nothing_but_the_screen_still_opens()
     {
         var s = GameSession.NewGame(GamePack.Load(CoreTests.PackZip(("pack.tsv", "id\tdemo\ntitle\t데모\n"))));

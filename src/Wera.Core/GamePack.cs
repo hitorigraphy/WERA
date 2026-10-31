@@ -179,17 +179,19 @@ public sealed partial class GamePack
         var characterSkillSlotTags = LoadCharacterSkillSlotTags(zip, characterInventory, skillSlots, tags);
         var skills = LoadSkills(zip);
         var skillTags = LoadSkillTags(zip, skills, tags);
-        var skillExecuteEffects = LoadSkillExecuteEffects(zip, skills, statuses);
-        var skillOrderEffects = LoadSkillOrderEffects(zip, skills, statuses);
-        var afterLoadCharacterFlows = LoadAfterLoadCharacterFlows(zip, statuses);
-        var afterLoadUniqueItemFlows = LoadAfterLoadUniqueItemFlows(zip, statuses);
-        var afterHitEffects = LoadAfterHitEffects(zip, statuses);
-        var afterAttackEffects = LoadAfterAttackEffects(zip, statuses);
-        var afterBattleWinEffects = LoadAfterBattleWinEffects(zip, statuses);
-        var afterBattleLoseEffects = LoadAfterBattleLoseEffects(zip, statuses);
-        var afterBattleRunEffects = LoadAfterBattleRunEffects(zip, statuses);
-        var characterAfterCreateEffects = LoadCharacterAfterCreateEffects(zip, characterInventory?.Select(c => c.Code), statuses);
-        var uniqueItemAfterCreateEffects = LoadUniqueItemAfterCreateEffects(zip, uniqueItems?.Select(u => u.ItemCode), statuses);
+        var effectCheck = new EffectCheck(
+            statuses?.Select(s => s.Code).ToHashSet(), equipmentSlots?.Select(e => e.Code).ToHashSet(), skillSlots?.Select(s => s.Code).ToHashSet());
+        var skillExecuteEffects = LoadSkillExecuteEffects(zip, skills, effectCheck);
+        var skillOrderEffects = LoadSkillOrderEffects(zip, skills, effectCheck);
+        var afterLoadCharacterFlows = LoadAfterLoadCharacterFlows(zip, effectCheck);
+        var afterLoadUniqueItemFlows = LoadAfterLoadUniqueItemFlows(zip, effectCheck);
+        var afterHitEffects = LoadAfterHitEffects(zip, effectCheck);
+        var afterAttackEffects = LoadAfterAttackEffects(zip, effectCheck);
+        var afterBattleWinEffects = LoadAfterBattleWinEffects(zip, effectCheck);
+        var afterBattleLoseEffects = LoadAfterBattleLoseEffects(zip, effectCheck);
+        var afterBattleRunEffects = LoadAfterBattleRunEffects(zip, effectCheck);
+        var characterAfterCreateEffects = LoadCharacterAfterCreateEffects(zip, characterInventory?.Select(c => c.Code), effectCheck);
+        var uniqueItemAfterCreateEffects = LoadUniqueItemAfterCreateEffects(zip, uniqueItems?.Select(u => u.ItemCode), effectCheck);
         var skillStatuses = LoadOwnerStatuses(zip, SkillStatusMasterPath, "skill_code", "스킬", SkillMasterPath, skills?.Select(s => s.Code), statuses);
         var uniqueItemStatuses = LoadOwnerStatuses(zip, UniqueItemStatusMasterPath, "item_code", "유니크 아이템", UniqueItemInventoryMasterPath, uniqueItems?.Select(u => u.ItemCode), statuses);
 

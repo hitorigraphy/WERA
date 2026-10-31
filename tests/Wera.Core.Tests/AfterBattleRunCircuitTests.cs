@@ -41,7 +41,7 @@ public class AfterBattleRunCircuitTests
     public void Effects_move_values_between_the_character_and_the_cache_and_clamp()
     {
         // mana(10)를 캐시 0에 읽고, 캐시 1에 5를 쓰고, 둘을 더해 캐시 2(15)에, 그 값을 mana에 더한다(25 → 최댓값 20).
-        var pack = Pack(Rows("1 CasterValueToCache 6 0", "2 SetCacheValue 1 5", "3 CacheAdd 2 0 1", "4 CacheToTargetModValue 6 2", "5 CacheToCasterSetValue 2 1"));
+        var pack = Pack(Rows("1 FocusedCharacterValueToCache 6 0", "2 SetCacheValue 1 5", "3 CacheAdd 2 0 1", "4 CacheToFocusedCharacterModValue 6 2", "5 CacheToFocusedCharacterSetValue 2 1"));
         var c = Run(pack);
         Assert.Equal(20, c.Statuses[Mana]);
         Assert.Equal(5, c.Hp);
@@ -50,7 +50,7 @@ public class AfterBattleRunCircuitTests
     [Fact]
     public void Decimals_are_truncated_and_missing_statuses_do_nothing()
     {
-        var pack = Pack(Rows("1 SetCacheValue 0 25 1", "2 CacheToCasterSetValue 6 0", "3 CacheToCasterSetValue 6 5"));
+        var pack = Pack(Rows("1 SetCacheValue 0 25 1", "2 CacheToFocusedCharacterSetValue 6 0", "3 CacheToFocusedCharacterSetValue 6 5"));
         var c = Run(pack);
         Assert.Equal(2, c.Statuses[Mana]);                       // 2.5 → 2, 3번은 캐시 5가 없어서 건너뜀
         Assert.False(Run(pack, 1).Statuses.ContainsKey(Mana));   // 당신에게는 mana가 없다
@@ -60,13 +60,13 @@ public class AfterBattleRunCircuitTests
     public void Jump_and_finish_follow_the_skill_effect_rules_and_are_checked_at_load()
     {
         var pack = Pack(Rows("1 SetCacheValue 0 3", "2 SetCacheValue 1 3", "3 JumpCacheEqual 0 1 5",
-            "4 CacheToCasterSetValue 6 0", "5 Jump 7", "6 CacheToCasterSetValue 2 0", "7 Finish", "8 CacheToCasterSetValue 2 0"));
+            "4 CacheToFocusedCharacterSetValue 6 0", "5 Jump 7", "6 CacheToFocusedCharacterSetValue 2 0", "7 Finish", "8 CacheToFocusedCharacterSetValue 2 0"));
         var c = Run(pack);
         Assert.Equal((10, 40), (c.Statuses[Mana], c.Hp));
 
         string Err(string rows) => Assert.Throws<PackFormatException>(() => Pack(rows)).Message;
-        Assert.Contains("스테이터스 마스터에 없습니다", Err(Rows("1 CasterValueToCache 99 0")));
-        Assert.Contains("cache_index", Err(Rows("1 CacheToTargetModValue 2 256")));
+        Assert.Contains("스테이터스 마스터에 없습니다", Err(Rows("1 FocusedCharacterValueToCache 99 0")));
+        Assert.Contains("cache_index", Err(Rows("1 CacheToFocusedCharacterModValue 2 256")));
         Assert.Contains("자신의 실행 번호보다 커야", Err(Rows("5 Jump 5")));
         Assert.Contains("두 번", Err(Rows("1 None", "1 None")));
         Assert.Contains("'Explode'", Err(Rows("1 Explode")));

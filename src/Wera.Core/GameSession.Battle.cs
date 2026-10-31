@@ -84,6 +84,17 @@ public sealed partial class GameSession
     readonly Dictionary<int, CharacterInstance> enemyInstances = [];
 
     /// <summary>
+    /// 이 전투의 적 파티 유닛(적 슬롯 번호 0~8, 빈 칸은 null). 아군처럼 캐릭터와 장비를 가진 <see cref="PartyUnit"/>이고, 캐릭터는 같은 슬롯의 <see cref="EnemyInstances"/>,
+    /// 장비는 프리셋 유닛 장비 마스터대로 만든 임시 유니크 아이템 인스턴스(InstanceId "enemy-슬롯-장비 슬롯 코드")를 가리킨다.
+    /// </summary>
+    public IReadOnlyList<PartyUnit?> EnemyUnits => enemyUnits;
+    readonly PartyUnit?[] enemyUnits = new PartyUnit?[PartySlotCount];
+    readonly Dictionary<string, UniqueItemInstance> enemyItems = [];
+
+    /// <summary>서킷에 넘길 유닛 저장소: 아군 유닛은 보유 캐릭터와 보유 유니크 아이템을, 적 유닛은 이 전투의 임시 인스턴스를 가리킨다. 서킷이 바꾼 값은 곧바로 세션에 반영된다.</summary>
+    public UnitStore CreateUnitStore() => new(Characters, UniqueItemInstances, enemyUnits, enemyInstances, enemyItems);
+
+    /// <summary>
     /// 작전 화면에서 맨 위에 보이는 줄의 번호: <see cref="BattleTopEnemyHeavy"/>(0; 적 후위, 적 중위, 적 전위, 경계선, 아군 전위)나
     /// <see cref="BattleTopAllyHeavy"/>(2; 적 전위, 경계선, 아군 전위, 아군 중위, 아군 후위). 턴이 시작될 때(전투를 시작할 때 포함)와
     /// 이전/다음 캐릭터로 다른 캐릭터를 설정할 때는 2로 강제로 바뀌고, 행동 설정을 열 때는 0으로 바뀐다. 그 밖에는 ▲▼로 자유롭게 바꾼다.
@@ -95,6 +106,8 @@ public sealed partial class GameSession
     {
         CurrentEnemyPartyCode = null;
         enemyInstances.Clear();
+        enemyItems.Clear();
+        Array.Clear(enemyUnits);
         CurrentBattleCode = Pack.FindBattle(TemporaryBattleCode) is null ? null : TemporaryBattleCode;
         BeginTurn();
         if (CurrentBattleCode is not { } battle) return;
@@ -110,13 +123,42 @@ public sealed partial class GameSession
         }
     }
 
-    /// <summary>만난 적 파티의 유닛마다 임시 캐릭터 인스턴스를 만든다(<see cref="EnemyInstances"/>).</summary>
+    /// <summary>만난 적 파티의 유닛마다 파티 유닛(<see cref="EnemyUnits"/>)과 임시 캐릭터 인스턴스(<see cref="EnemyInstances"/>), 임시 장비를 만든다.</summary>
     void CreateEnemyInstances()
     {
         if (CurrentEnemyPartyCode is not { } code || Pack.FindPresetParty(code) is not { } party) return;
         for (var slot = 0; slot < party.UnitCodes.Count; slot++)
             if (party.UnitCodes[slot] is { } unitCode && Pack.FindPresetUnit(unitCode) is { } unit)
+            {
                 enemyInstances[slot] = new CharacterAfterCreateCircuit(Pack, Pack.NewCharacterInstance(unit.CharacterCode, $"enemy-{slot}", slot)).Execute();
+                enemyUnits[slot] = new PartyUnit(unit.CharacterCode, CreateEnemyEquipment(slot, unit.Code));
+            }
+    }
+
+    /// <summary>프리셋 유닛이 장비 슬롯에 낀 것들: 유니크 아이템은 임시 인스턴스를 만들고(생성 후 서킷을 돌린다), 커먼 아이템과 캐릭터는 코드로 가리킨다.</summary>
+    Dictionary<long, EquipRef> CreateEnemyEquipment(int slot, long presetUnitCode)
+    {
+        var equipment = new Dictionary<long, EquipRef>();
+        foreach (var equip in Pack.PresetUnitEquipsOf(presetUnitCode))
+        {
+            if (!Pack.Inventory.TryGetValue(equip.ItemCode, out var entry)) continue;
+            switch (entry.Kind)
+            {
+                case InventoryKind.UniqueItem:
+                    var id = $"enemy-{slot}-{equip.EquipmentSlotCode.ToString(CultureInfo.InvariantCulture)}";
+                    enemyItems[id] = new UniqueItemAfterCreateCircuit(Pack, new UniqueItemInstance(id, equip.ItemCode, 0,
+                        Pack.MasterTagsOfUniqueItem(equip.ItemCode).ToList(), Pack.MasterStatusesOfUniqueItem(equip.ItemCode))).Execute();
+                    equipment[equip.EquipmentSlotCode] = EquipRef.Unique(id);
+                    break;
+                case InventoryKind.CommonItem:
+                    equipment[equip.EquipmentSlotCode] = EquipRef.Common(equip.ItemCode);
+                    break;
+                case InventoryKind.Character:
+                    equipment[equip.EquipmentSlotCode] = EquipRef.Char(equip.ItemCode);
+                    break;
+            }
+        }
+        return equipment;
     }
 
     /// <summary>

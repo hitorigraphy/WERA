@@ -39,8 +39,8 @@ public class AfterLoadUniqueItemFlowTests
     public void Flows_change_item_statuses_within_the_item_status_master_range()
     {
         // durability(100)를 캐시 0에 읽고, power를 캐시 0의 두 배(200 → 최댓값 50)로, durability를 -30만큼 바꾼다(70).
-        var pack = Pack(Rows("1 CasterValueToCache 7 0", "2 SetCacheValue 1 2", "3 CacheMultiply 2 0 1", "4 CacheToTargetSetValue 8 2",
-            "5 SetCacheValue 3 -30", "6 CacheToCasterModValue 7 3"));
+        var pack = Pack(Rows("1 FocusedItemValueToCache 7 0", "2 SetCacheValue 1 2", "3 CacheMultiply 2 0 1", "4 CacheToFocusedItemSetValue 8 2",
+            "5 SetCacheValue 3 -30", "6 CacheToFocusedItemModValue 7 3"));
         var item = Run(pack);
         Assert.Equal(50, item.Statuses![Power]);
         Assert.Equal(70, item.Statuses[Durability]);
@@ -49,7 +49,7 @@ public class AfterLoadUniqueItemFlowTests
     [Fact]
     public void Decimals_are_truncated_and_statuses_the_item_lacks_do_nothing()
     {
-        var pack = Pack(Rows("1 SetCacheValue 0 255 1", "2 CacheToCasterSetValue 7 0", "3 CacheToCasterSetValue 9 0"));
+        var pack = Pack(Rows("1 SetCacheValue 0 255 1", "2 CacheToFocusedItemSetValue 7 0", "3 CacheToFocusedItemSetValue 9 0"));
         var item = Run(pack);                             // 25.5 → 25
         Assert.Equal(25, item.Statuses![Durability]);
         Assert.False(item.Statuses.ContainsKey(9));
@@ -60,12 +60,12 @@ public class AfterLoadUniqueItemFlowTests
     public void Jump_and_finish_follow_the_skill_effect_rules_and_are_checked_at_load()
     {
         var pack = Pack(Rows("1 SetCacheValue 0 1", "2 SetCacheValue 1 2", "3 JumpCacheLessThan 0 1 5",
-            "4 CacheToCasterSetValue 7 0", "5 Finish", "6 CacheToCasterSetValue 8 0"));
+            "4 CacheToFocusedItemSetValue 7 0", "5 Finish", "6 CacheToFocusedItemSetValue 8 0"));
         var item = Run(pack);
         Assert.Equal((100, 5), (item.Statuses![Durability], item.Statuses[Power]));
 
         string Err(string rows) => Assert.Throws<PackFormatException>(() => Pack(rows)).Message;
-        Assert.Contains("스테이터스 마스터에 없습니다", Err(Rows("1 CasterValueToCache 99 0")));
+        Assert.Contains("스테이터스 마스터에 없습니다", Err(Rows("1 FocusedItemValueToCache 99 0")));
         Assert.Contains("자신의 실행 번호보다 커야", Err(Rows("5 Jump 5")));
         Assert.Contains("두 번", Err(Rows("1 None", "1 None")));
         Assert.Contains("'Explode'", Err(Rows("1 Explode")));
@@ -74,7 +74,7 @@ public class AfterLoadUniqueItemFlowTests
     [Fact]
     public void A_save_load_runs_the_flows_on_every_unique_item_instance()
     {
-        var pack = Pack(Rows("1 SetCacheValue 0 30", "2 CacheToCasterSetValue 7 0"));
+        var pack = Pack(Rows("1 SetCacheValue 0 30", "2 CacheToFocusedItemSetValue 7 0"));
         var s = GameSession.NewGame(pack);
         var id = s.AddUniqueItem(8001)!;
         var other = s.AddUniqueItem(8002)!;

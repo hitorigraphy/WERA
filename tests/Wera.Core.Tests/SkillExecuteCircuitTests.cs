@@ -2,136 +2,158 @@ using Wera.Core;
 
 namespace Wera.Core.Tests;
 
-// 스킬 서킷: 이펙트를 실행 번호 순서로 실행하고, CacheToTargetModValue/SetValue가 캐시 값을 타겟의 스테이터스에 쓴다.
+// 스킬 서킷: 이펙트를 실행 번호 순서로 실행하고, Focus*로 포커스한 캐릭터의 스테이터스와 캐시가 값을 주고받는다.
 public class SkillExecuteCircuitTests
 {
     const long Hp = GamePack.HpStatusCode;
-    const long Mana = 4;
+    const long Mana = 6;
 
     static GamePack Pack(string effects) => GamePack.Load(CoreTests.PackZip(
         ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
         ("master/character_inventory_master_v1.tsv",
             "inventory_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n1\t당신\t1\t1\t2\n7001\t용사\t1\t1\t2\n"),
-        (GamePack.StatusMasterPath, "status_code\tstatus_name\n1\tlevel\n2\thp\n4\tmana\n"),
+        (GamePack.StatusMasterPath, "status_code\tstatus_name\n1\tlevel\n2\thp\n6\tmana\n"),
         (GamePack.CharacterStatusMasterPath,
             "character_code\tstatus_code\tlevel\tinitial_value\tmin_value\tmax_value\n" +
             "1\t1\t0\t1\t1\t99\n1\t2\t0\t40\t0\t40\n" +
-            "7001\t1\t0\t1\t1\t99\n7001\t2\t0\t40\t0\t40\n7001\t4\t0\t10\t0\t20\n"),
+            "7001\t1\t0\t1\t1\t99\n7001\t2\t0\t40\t0\t40\n7001\t6\t0\t10\t0\t20\n"),
         (GamePack.SkillMasterPath, "code\tname\n1\t테스트\n"),
         (GamePack.SkillExecuteEffectMasterPath, "skill_code\texecute_number\teffect_type\tvalue_1\tvalue_2\tvalue_3\n" + effects)));
 
-    static SkillExecuteCircuit Circuit(GamePack pack) =>
-        new(pack, 1, BattleUnit.Create(pack, 1), BattleUnit.Create(pack, 7001));
+    // 공백으로 구분해 쓴 이펙트 행들을 TSV 본문으로 바꾼다
+    static string Rows(params string[] rows) => string.Concat(rows.Select(r => r.Replace(' ', '\t') + "\n"));
+
+    // 시전자 당신(1), 메인 타겟 용사(7001)
+    static SkillExecuteCircuit Circuit(GamePack pack, CircuitField field, long caster = 1, long target = 7001) =>
+        new(pack, field.Store, 1, field.Unit(caster), field.Unit(target));
+
+    static (SkillExecuteCircuit Circuit, CircuitField Field) Start(GamePack pack)
+    {
+        var field = new CircuitField(pack, 1, 7001);
+        return (Circuit(pack, field), field);
+    }
 
     [Fact]
-    public void A_unit_gets_every_status_the_master_lists_for_its_character()
+    public void A_new_character_instance_gets_every_status_the_master_lists_for_its_character()
     {
         var pack = Pack("");
-        var unit = BattleUnit.Create(pack, 7001);
-        Assert.Equal((1m, 40m, 10m), (unit.ValueOf(1)!.Value, unit.ValueOf(Hp)!.Value, unit.ValueOf(Mana)!.Value));
-        Assert.Null(BattleUnit.Create(pack, 1).ValueOf(Mana));         // 당신에게는 mana 행이 없다
+        var hero = pack.NewCharacterInstance(7001);
+        Assert.Equal((1, 40, 10), (hero.Level, hero.Hp, hero.Statuses[Mana]));
+        Assert.False(pack.NewCharacterInstance(1).Statuses.ContainsKey(Mana));         // 당신에게는 mana 행이 없다
     }
 
     [Fact]
     public void Mod_adds_the_cached_value_and_set_replaces_with_it()
     {
-        var pack = Pack("1\t1\tCacheToTargetModValue\t2\t0\t\n1\t2\tCacheToTargetSetValue\t4\t1\t\n");
-        var c = Circuit(pack);
+        var pack = Pack(Rows("1 1 FocusMainTargetCharacter", "1 2 CacheToFocusedCharacterModValue 2 0", "1 3 CacheToFocusedCharacterSetValue 6 1",
+            "1 4 FocusedCharacterValueToCache 2 2"));
+        var (c, field) = Start(pack);
         c.CacheValues.AddRange([-15.5m, 7m]);
         c.Execute();
-        Assert.Equal(24.5m, c.Target.ValueOf(Hp));
-        Assert.Equal(7m, c.Target.ValueOf(Mana));
-        Assert.Equal(40m, c.Caster.ValueOf(Hp));                        // 시전자는 건드리지 않는다
+        Assert.Equal(24.5m, c.CacheValues[2]);                          // 서킷 안에서는 소수 그대로
+        Assert.Equal((24, 7), (field.Characters[7001].Hp, field.Characters[7001].Statuses[Mana]));   // 서킷을 나오면 버림
+        Assert.Equal(40, field.Characters[1].Hp);                       // 시전자는 건드리지 않는다
+    }
+
+    [Fact]
+    public void Decimals_accumulate_inside_the_circuit_and_are_truncated_once_on_exit()
+    {
+        // mana 10에 2.5, 2.5, 0.5를 차례로 더하면 15.5라 15가 된다(더할 때마다 버렸다면 14).
+        var pack = Pack(Rows("1 1 FocusMainTargetCharacter", "1 2 SetCacheValue 0 25 1", "1 3 CacheToFocusedCharacterModValue 6 0",
+            "1 4 CacheToFocusedCharacterModValue 6 0", "1 5 SetCacheValue 1 5 1", "1 6 CacheToFocusedCharacterModValue 6 1"));
+        var (c, field) = Start(pack);
+        c.Execute();
+        Assert.Equal(15, field.Characters[7001].Statuses[Mana]);        // 10 + 2.5 + 2.5 + 0.5 = 15.5 → 15
     }
 
     [Fact]
     public void Effects_run_in_execute_number_order()
     {
-        var pack = Pack("2\tCacheToTargetSetValue\t2\t0\t\n".Insert(0, "1\t") + "1\t1\tCacheToTargetModValue\t2\t1\t\n");
-        var c = Circuit(pack);
+        var pack = Pack(Rows("1 3 CacheToFocusedCharacterSetValue 2 0", "1 1 FocusMainTargetCharacter", "1 2 CacheToFocusedCharacterModValue 2 1"));
+        var (c, field) = Start(pack);
         c.CacheValues.AddRange([30m, -5m]);
-        c.Execute();                                                    // 1번: -5 → 35, 2번: 30으로 덮어씀
-        Assert.Equal(30m, c.Target.ValueOf(Hp));
+        c.Execute();                                                    // 포커스 → -5 → 35, 3번: 30으로 덮어씀
+        Assert.Equal(30, field.Characters[7001].Hp);
     }
 
     [Fact]
     public void The_result_is_clamped_to_the_status_range()
     {
-        var pack = Pack("1\t1\tCacheToTargetModValue\t2\t0\t\n1\t2\tCacheToTargetSetValue\t4\t1\t\n");
-        var c = Circuit(pack);
+        var pack = Pack(Rows("1 1 FocusMainTargetCharacter", "1 2 CacheToFocusedCharacterModValue 2 0", "1 3 CacheToFocusedCharacterSetValue 6 1"));
+        var (c, field) = Start(pack);
         c.CacheValues.AddRange([-100m, 99m]);
         c.Execute();
-        Assert.Equal(0m, c.Target.ValueOf(Hp));
-        Assert.Equal(20m, c.Target.ValueOf(Mana));
+        Assert.Equal((0, 20), (field.Characters[7001].Hp, field.Characters[7001].Statuses[Mana]));
     }
 
     [Fact]
-    public void A_missing_cache_value_or_a_status_the_target_lacks_does_nothing()
+    public void A_missing_cache_value_a_status_the_character_lacks_or_an_empty_focus_does_nothing()
     {
-        var pack = Pack("1\t1\tCacheToTargetModValue\t2\t5\t\n1\t2\tCacheToTargetSetValue\t4\t0\t\n");
-        var c = new SkillExecuteCircuit(pack, 1, BattleUnit.Create(pack, 7001), BattleUnit.Create(pack, 1));    // 타겟은 mana가 없는 캐릭터
+        var pack = Pack(Rows("1 1 CacheToFocusedCharacterModValue 2 0", "1 2 FocusMainTargetCharacter", "1 3 CacheToFocusedCharacterModValue 2 5",
+            "1 4 CacheToFocusedCharacterSetValue 6 0"));
+        var field = new CircuitField(pack, 1, 7001);
+        var c = Circuit(pack, field, caster: 7001, target: 1);          // 메인 타겟은 mana가 없는 캐릭터
         c.CacheValues.Add(9m);
-        c.Execute();                                                    // 번호 5의 캐시는 없고, 타겟에게 mana는 없다
-        Assert.Equal(40m, c.Target.ValueOf(Hp));
-        Assert.Null(c.Target.ValueOf(Mana));
+        c.Execute();                                                    // 1번은 포커스가 없고, 3번은 캐시 5가 없고, 4번은 mana가 없다
+        Assert.Equal(40, field.Characters[1].Hp);
+        Assert.False(field.Characters[1].Statuses.ContainsKey(Mana));
+        Assert.Equal(40, field.Characters[7001].Hp);
     }
 
     [Fact]
     public void The_loader_checks_the_status_code_and_the_cache_index()
     {
-        Assert.Contains("value_1(status_code) '9'", Assert.Throws<PackFormatException>(() => Pack("1\t1\tCacheToTargetSetValue\t9\t0\t\n")).Message);
-        Assert.Contains("value_2(cache_index) '-1'", Assert.Throws<PackFormatException>(() => Pack("1\t1\tCacheToTargetModValue\t2\t-1\t\n")).Message);
-        Assert.NotNull(Pack("1\t1\tcachetotargetsetvalue\t2\t0\t\n"));  // 이름은 대소문자를 가리지 않는다
+        Assert.Contains("value_1(status_code) '9'", Assert.Throws<PackFormatException>(() => Pack("1\t1\tCacheToFocusedCharacterSetValue\t9\t0\t\n")).Message);
+        Assert.Contains("value_2(cache_index) '-1'", Assert.Throws<PackFormatException>(() => Pack("1\t1\tCacheToFocusedCharacterModValue\t2\t-1\t\n")).Message);
+        Assert.NotNull(Pack("1\t1\tcachetofocusedcharactersetvalue\t2\t0\t\n"));  // 이름은 대소문자를 가리지 않는다
     }
 
-    // 공백으로 구분해 쓴 이펙트 행들을 TSV 본문으로 바꾼다
-    static string Rows(params string[] rows) => string.Concat(rows.Select(r => r.Replace(' ', '\t') + "\n"));
-
     [Fact]
-    public void Cache_to_caster_changes_the_caster_and_leaves_the_target()
+    public void Focusing_the_caster_changes_the_caster_and_leaves_the_target()
     {
-        var pack = Pack(Rows("1 1 CacheToCasterModValue 4 0 ", "1 2 CacheToCasterSetValue 2 1 "));
-        var c = new SkillExecuteCircuit(pack, 1, BattleUnit.Create(pack, 7001), BattleUnit.Create(pack, 7001));
+        var pack = Pack(Rows("1 1 FocusCasterCharacter", "1 2 CacheToFocusedCharacterModValue 6 0", "1 3 CacheToFocusedCharacterSetValue 2 1"));
+        var field = new CircuitField(pack, 7001);
+        var c = Circuit(pack, field, caster: 7001, target: 7001);
         c.CacheValues.AddRange([-3m, 12m]);
         c.Execute();
-        Assert.Equal((7m, 12m), (c.Caster.ValueOf(Mana)!.Value, c.Caster.ValueOf(Hp)!.Value));
-        Assert.Equal((10m, 40m), (c.Target.ValueOf(Mana)!.Value, c.Target.ValueOf(Hp)!.Value));
+        Assert.Equal((7, 12), (field.Characters[7001].Statuses[Mana], field.Characters[7001].Hp));
     }
 
     [Fact]
     public void Value_to_cache_copies_the_status_into_the_cache_and_pads_with_zeros()
     {
-        var pack = Pack(Rows("1 1 TargetValueToCache 4 2 ", "1 2 CasterValueToCache 2 0 "));
-        var c = new SkillExecuteCircuit(pack, 1, BattleUnit.Create(pack, 1), BattleUnit.Create(pack, 7001));
+        var pack = Pack(Rows("1 1 FocusMainTargetCharacter", "1 2 FocusedCharacterValueToCache 6 2", "1 3 FocusCasterCharacter", "1 4 FocusedCharacterValueToCache 2 0"));
+        var (c, _) = Start(pack);
         c.Execute();
         Assert.Equal([40m, 0m, 10m], c.CacheValues);                  // 시전자 hp는 0번, 타겟 mana는 2번(1번은 0으로 채움)
     }
 
     [Fact]
-    public void Value_to_cache_overwrites_and_skips_a_status_the_unit_lacks()
+    public void Value_to_cache_overwrites_and_skips_a_status_the_character_lacks()
     {
-        var pack = Pack(Rows("1 1 CasterValueToCache 4 0 ", "1 2 TargetValueToCache 2 0 "));
-        var c = new SkillExecuteCircuit(pack, 1, BattleUnit.Create(pack, 1), BattleUnit.Create(pack, 7001));
+        var pack = Pack(Rows("1 1 FocusCasterCharacter", "1 2 FocusedCharacterValueToCache 6 0", "1 3 FocusMainTargetCharacter", "1 4 FocusedCharacterValueToCache 2 0"));
+        var (c, _) = Start(pack);
         c.CacheValues.Add(99m);
         c.Execute();                                                   // 당신에게 mana는 없어 99가 남고, 그다음 타겟 hp 40으로 덮어쓴다
         Assert.Equal([40m], c.CacheValues);
     }
 
     [Fact]
-    public void A_value_can_travel_from_one_unit_to_the_other_through_the_cache()
+    public void A_value_can_travel_from_one_character_to_the_other_through_the_cache()
     {
-        var pack = Pack(Rows("1 1 CasterValueToCache 2 0 ", "1 2 CacheToTargetSetValue 2 0 "));
-        var caster = BattleUnit.Create(pack, 7001);
-        caster.SetValue(Hp, 5);
-        var c = new SkillExecuteCircuit(pack, 1, caster, BattleUnit.Create(pack, 1));
-        c.Execute();
-        Assert.Equal(5m, c.Target.ValueOf(Hp));
+        var pack = Pack(Rows("1 1 FocusCasterCharacter", "1 2 FocusedCharacterValueToCache 2 0", "1 3 FocusMainTargetCharacter", "1 4 CacheToFocusedCharacterSetValue 2 0"));
+        var field = new CircuitField(pack, 1, 7001);
+        field.Characters[7001] = field.Characters[7001].WithStatus(Hp, 5);
+        Circuit(pack, field, caster: 7001, target: 1).Execute();
+        Assert.Equal(5, field.Characters[1].Hp);
     }
 
     [Fact]
     public void The_loader_checks_every_cache_effect_and_bounds_the_cache_index()
     {
-        foreach (var type in new[] { "CacheToCasterModValue", "CacheToCasterSetValue", "CasterValueToCache", "TargetValueToCache" })
+        foreach (var type in new[] { "CacheToFocusedCharacterModValue", "CacheToFocusedCharacterSetValue", "FocusedCharacterValueToCache",
+                                     "CacheToFocusedItemModValue", "CacheToFocusedItemSetValue", "FocusedItemValueToCache",
+                                     "CacheToFocusedSkillModValue", "CacheToFocusedSkillSetValue", "FocusedSkillValueToCache" })
         {
             Assert.Contains("value_1(status_code) '9'", Assert.Throws<PackFormatException>(() => Pack(Rows($"1 1 {type} 9 0 "))).Message);
             Assert.Contains("value_2(cache_index) '256'", Assert.Throws<PackFormatException>(() => Pack(Rows($"1 1 {type} 2 256 "))).Message);
@@ -142,7 +164,7 @@ public class SkillExecuteCircuitTests
     static List<decimal> Calc(string type, decimal left, decimal right, int into = 2)
     {
         var pack = Pack(Rows($"1 1 {type} {into} 0 1"));
-        var c = Circuit(pack);
+        var (c, _) = Start(pack);
         c.CacheValues.AddRange([left, right]);
         c.Execute();
         return c.CacheValues;
@@ -179,22 +201,23 @@ public class SkillExecuteCircuitTests
         Assert.Equal([decimal.MinValue, 1m], Calc("CacheSubtract", decimal.MinValue, 1m));
 
         var pack = Pack(Rows("1 1 CacheAdd 2 0 5"));                        // 5번 칸이 없다
-        var c = Circuit(pack);
+        var (c, _) = Start(pack);
         c.CacheValues.AddRange([1m, 2m]);
         c.Execute();
         Assert.Equal([1m, 2m], c.CacheValues);
     }
 
     [Fact]
-    public void Operations_chain_through_the_cache_with_unit_values()
+    public void Operations_chain_through_the_cache_with_character_values()
     {
         // 타겟 hp를 (시전자 hp / 2)만큼 깎는다: [0]=시전자 hp, [1]=2, [2]=[0]/[1], [3]=0-[2]
-        var pack = Pack(Rows("1 1 CasterValueToCache 2 0", "1 2 CacheDivide 2 0 1", "1 3 CacheSubtract 3 4 2", "1 4 CacheToTargetModValue 2 3"));
-        var c = Circuit(pack);
+        var pack = Pack(Rows("1 1 FocusCasterCharacter", "1 2 FocusedCharacterValueToCache 2 0", "1 3 CacheDivide 2 0 1", "1 4 CacheSubtract 3 4 2",
+            "1 5 FocusMainTargetCharacter", "1 6 CacheToFocusedCharacterModValue 2 3"));
+        var (c, field) = Start(pack);
         c.CacheValues.AddRange([0m, 2m, 0m, 0m, 0m]);
         c.Execute();
         Assert.Equal([40m, 2m, 20m, -20m, 0m], c.CacheValues);
-        Assert.Equal(20m, c.Target.ValueOf(Hp));
+        Assert.Equal(20, field.Characters[7001].Hp);
     }
 
     [Fact]
@@ -211,7 +234,7 @@ public class SkillExecuteCircuitTests
 
     static SkillExecuteCircuit Run(params string[] rows)
     {
-        var c = Circuit(Pack(Rows(rows)));
+        var (c, _) = Start(Pack(Rows(rows)));
         c.Execute();
         return c;
     }
@@ -228,9 +251,11 @@ public class SkillExecuteCircuitTests
     public void Constants_make_a_percentage_skill_possible_with_masters_only()
     {
         // 타겟 hp를 시전자 hp의 15%만큼 깎는다
-        var c = Run("1 1 CasterValueToCache 2 0", "1 2 SetCacheValue 1 15 2", "1 3 CacheMultiply 2 0 1",
-                    "1 4 SetCacheValue 3 -1 0", "1 5 CacheMultiply 2 2 3", "1 6 CacheToTargetModValue 2 2");
-        Assert.Equal(34m, c.Target.ValueOf(Hp));                       // 40 - 6
+        var pack = Pack(Rows("1 1 FocusCasterCharacter", "1 2 FocusedCharacterValueToCache 2 0", "1 3 SetCacheValue 1 15 2", "1 4 CacheMultiply 2 0 1",
+                             "1 5 SetCacheValue 3 -1 0", "1 6 CacheMultiply 2 2 3", "1 7 FocusMainTargetCharacter", "1 8 CacheToFocusedCharacterModValue 2 2"));
+        var (c, field) = Start(pack);
+        c.Execute();
+        Assert.Equal(34, field.Characters[7001].Hp);                   // 40 - 6
     }
 
     [Fact]
@@ -268,18 +293,19 @@ public class SkillExecuteCircuitTests
     }
 
     [Fact]
-    public void A_branch_picks_a_different_effect_depending_on_a_unit_value()
+    public void A_branch_picks_a_different_effect_depending_on_a_character_value()
     {
-        // 타겟 hp가 시전자 hp보다 적으면 타겟을 1로 만든다, 아니면 그대로(2번에서 3번 건너뜀)
-        var rows = new[] { "1 1 CasterValueToCache 2 0", "1 2 TargetValueToCache 2 1", "1 3 JumpCacheGreaterOrEqual 1 0 6",
-                           "1 4 SetCacheValue 2 1 0", "1 5 CacheToTargetSetValue 2 2", "1 6 Finish" };
-        var weak = Circuit(Pack(Rows(rows)));
-        weak.Target.SetValue(Hp, 10);
-        weak.Execute();
-        Assert.Equal(1m, weak.Target.ValueOf(Hp));
-        var strong = Circuit(Pack(Rows(rows)));
-        strong.Execute();                                              // 40 >= 40 이라 점프한다
-        Assert.Equal(40m, strong.Target.ValueOf(Hp));
+        // 타겟 hp가 시전자 hp보다 적으면 타겟을 1로 만든다, 아니면 그대로(3번에서 6번으로 건너뜀)
+        var rows = new[] { "1 1 FocusCasterCharacter", "1 2 FocusedCharacterValueToCache 2 0", "1 3 FocusMainTargetCharacter", "1 4 FocusedCharacterValueToCache 2 1",
+                           "1 5 JumpCacheGreaterOrEqual 1 0 9", "1 6 SetCacheValue 2 1 0", "1 7 CacheToFocusedCharacterSetValue 2 2", "1 8 Finish", "1 9 Finish" };
+        var pack = Pack(Rows(rows));
+        var weakField = new CircuitField(pack, 1, 7001);
+        weakField.Characters[7001] = weakField.Characters[7001].WithStatus(Hp, 10);
+        Circuit(pack, weakField).Execute();
+        Assert.Equal(1, weakField.Characters[7001].Hp);
+        var strongField = new CircuitField(pack, 1, 7001);
+        Circuit(pack, strongField).Execute();                          // 40 >= 40 이라 점프한다
+        Assert.Equal(40, strongField.Characters[7001].Hp);
     }
 
     [Fact]

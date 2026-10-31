@@ -1,103 +1,26 @@
 namespace Wera.Core;
 
 /// <summary>
-/// 전투 패배 후 서킷: 전투에서 지면(아군이 모두 쓰러지면) 전투에 참가한 아군 유닛(캐릭터) 하나에 대해 전투 패배 후 이펙트(마스터의 execute_number 순서)를 실행해
-/// 게임팩의 정의에 따라 그 캐릭터 데이터를 조작한다. 캐릭터(<see cref="Unit"/>)와 캐시(<see cref="CacheValues"/>)를 갖는다.
-/// 이펙트의 종류와 동작은 <see cref="SkillExecuteCircuit"/>과 같고, 유닛이 하나뿐이라 Caster와 Target이 같은 유닛이다.
-/// 실행이 끝나면 유닛의 스테이터스를 정수(소수는 버림)로 인스턴스에 되돌리고 <see cref="CharacterInstance.Clamped"/>로 범위를 맞춘다.
+/// 전투 패배 후 서킷: 전투에서 지면 전투에 참가한 아군 유닛(<see cref="PartyUnit"/>) 하나에 대해 전투 패배 후 이펙트(마스터의 execute_number 순서)를 실행해
+/// 게임팩의 정의에 따라 그 유닛의 캐릭터, 장비, 스킬을 조작한다. 그 유닛이 시전자이자 메인 타겟이고 서브 타겟은 없으며, 캐릭터는 처음부터 포커스되어 있다
+/// (장비와 스킬은 Focus* 이펙트로 포커스한다). 이펙트의 종류와 동작은 <see cref="CircuitBase"/>와 <see cref="EffectType"/>을 따른다.
+/// 실행이 끝나면 바뀐 스테이터스를 정수(소수는 버림)로 각 스테이터스의 범위에 맞춰 저장소에 되돌린다.
 /// </summary>
-public sealed class AfterBattleLoseCircuit
+public sealed class AfterBattleLoseCircuit : CircuitBase
 {
-    readonly GamePack pack;
-    readonly CharacterInstance character;
+    public AfterBattleLoseCircuit(GamePack pack, UnitStore store, PartyUnit unit) : base(pack, store, unit, unit) =>
+        PresetFocus(character: store.CharacterOf(unit));
 
+    /// <summary>캐릭터 인스턴스 하나만으로(장비 없이) 실행한다.</summary>
     public AfterBattleLoseCircuit(GamePack pack, CharacterInstance character)
+        : this(pack, UnitStore.Of(character), new PartyUnit(character.CharacterCode))
     {
-        this.pack = pack;
-        this.character = character;
-        Unit = BattleUnit.FromInstance(pack, character);
     }
 
-    /// <summary>이펙트이 읽고 쓰는 캐릭터(Caster이자 Target).</summary>
-    public BattleUnit Unit { get; }
-
-    /// <summary>이펙트들이 공유하는 값 목록(cache_index가 이 목록의 번호).</summary>
-    public List<decimal> CacheValues { get; } = [];
-
-    /// <summary>
-    /// 이펙트을 실행 번호 순서로 실행하고 조작이 끝난 캐릭터를 돌려준다. Jump와 JumpCache*는 뒤의 실행 번호로 건너뛰고 Finish는 거기서 끝낸다.
-    /// 이펙트이 없으면 원래 인스턴스를 그대로 돌려준다.
-    /// </summary>
+    /// <summary>이펙트를 실행 번호 순서로 실행하고 조작이 끝난 캐릭터를 돌려준다. 이펙트가 없으면 원래 인스턴스를 그대로 돌려준다.</summary>
     public CharacterInstance Execute()
     {
-        var effects = pack.AfterBattleLoseEffectsInOrder();
-        if (effects.Count == 0) return character;
-        for (var at = 0; at < effects.Count; at++)
-        {
-            var effect = effects[at];
-            if (effect.EffectType == AfterBattleLoseEffectType.Finish) break;
-            if (JumpTarget(effect) is { } target)
-            {
-                var to = effects.ToList().FindIndex(f => f.ExecuteNumber == target);
-                if (to > at) at = to - 1;
-            }
-            else Apply(effect);
-        }
-        return (character with { Statuses = Unit.ToStatuses() }).Clamped();
+        Run(Pack.AfterBattleLoseEffectsInOrder().Select(e => new CircuitEffect(e.ExecuteNumber, (int)e.EffectType, e.Value1, e.Value2, e.Value3)).ToList());
+        return Store.CharacterOf(Caster!)!;
     }
-
-    long? JumpTarget(AfterBattleLoseEffect effect)
-    {
-        if (effect.EffectType == AfterBattleLoseEffectType.Jump) return effect.Value1;
-        if (AfterBattleLoseJump.Of(effect.EffectType) is not { } comparison) return null;
-        return CacheAt(effect.Value1) is { } left && CacheAt(effect.Value2) is { } right && SkillJump.Test(comparison, left, right)
-            ? effect.Value3
-            : null;
-    }
-
-    void Apply(AfterBattleLoseEffect effect)
-    {
-        switch (effect.EffectType)
-        {
-            case AfterBattleLoseEffectType.None:
-                break;
-            case AfterBattleLoseEffectType.CacheToTargetModValue:
-            case AfterBattleLoseEffectType.CacheToCasterModValue:
-                if (CacheAt(effect.Value2) is { } mod) Unit.ModValue(effect.Value1, mod);
-                break;
-            case AfterBattleLoseEffectType.CacheToTargetSetValue:
-            case AfterBattleLoseEffectType.CacheToCasterSetValue:
-                if (CacheAt(effect.Value2) is { } set) Unit.SetValue(effect.Value1, set);
-                break;
-            case AfterBattleLoseEffectType.CasterValueToCache:
-            case AfterBattleLoseEffectType.TargetValueToCache:
-                if (Unit.ValueOf(effect.Value1) is { } value) SkillCache.Write(CacheValues, effect.Value2, value);
-                break;
-            case AfterBattleLoseEffectType.SetCacheValue:
-                SkillCache.Write(CacheValues, effect.Value1, effect.Value2 / SkillCache.Pow10(effect.Value3));
-                break;
-            case AfterBattleLoseEffectType.CacheAdd:
-            case AfterBattleLoseEffectType.CacheSubtract:
-            case AfterBattleLoseEffectType.CacheMultiply:
-            case AfterBattleLoseEffectType.CacheDivide:
-                Calculate(effect);
-                break;
-        }
-    }
-
-    /// <summary>캐시 계산: cache[value_1] = cache[value_2] (연산) cache[value_3]. 칸이 없거나 0으로 나누거나 decimal 범위를 넘으면 아무 일도 하지 않는다.</summary>
-    void Calculate(AfterBattleLoseEffect effect)
-    {
-        if (CacheAt(effect.Value2) is not { } left || CacheAt(effect.Value3) is not { } right) return;
-        var op = effect.EffectType switch
-        {
-            AfterBattleLoseEffectType.CacheAdd => SkillCache.Op.Add,
-            AfterBattleLoseEffectType.CacheSubtract => SkillCache.Op.Subtract,
-            AfterBattleLoseEffectType.CacheMultiply => SkillCache.Op.Multiply,
-            _ => SkillCache.Op.Divide,
-        };
-        if (SkillCache.Calculate(op, left, right) is { } result) SkillCache.Write(CacheValues, effect.Value1, result);
-    }
-
-    decimal? CacheAt(long index) => SkillCache.At(CacheValues, index);
 }
