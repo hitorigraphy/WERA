@@ -122,8 +122,10 @@ public sealed partial class GameSession
         var (dx, dy) = Direction(dir);
         (DungeonX, DungeonY) = (DungeonX + dx, DungeonY + dy);
         pendingTileEffects.Clear();
-        foreach (var effect in DungeonCellEffects(DungeonCellText(DungeonLayer, DungeonX, DungeonY)!).OrderBy(e => (int)e.EffectType))
-            pendingTileEffects.Enqueue(effect);
+        var effects = DungeonCellEffects(DungeonCellText(DungeonLayer, DungeonX, DungeonY)!);
+        if (!effects.Any(e => e.EffectType == TileEffectType.Interact))      // Interact 칸은 닿아도 발동하지 않고 Enter를 눌러야 한다
+            foreach (var effect in effects.OrderBy(e => (int)e.EffectType))
+                pendingTileEffects.Enqueue(effect);
         encounterPending = true;
         ContinueTileEffects();
     }
@@ -147,17 +149,37 @@ public sealed partial class GameSession
         }
     }
 
-    /// <summary>지금 서 있는 칸에서 Enter로 할 수 있는 상호작용이 있는가(출구 칸).</summary>
+    /// <summary>
+    /// 지금 서 있는 칸에서 Enter로 할 수 있는 상호작용이 있는가: 출구(Exit) 칸이거나, 상호작용(Interact) 칸에 전투, ADV, 워프 효과가 있을 때.
+    /// </summary>
     public bool CanInteractDungeon =>
-        Screen == Screen.DungeonMove && DungeonCellText(DungeonLayer, DungeonX, DungeonY) is { } text
-        && DungeonCellEffects(text).Any(e => e.EffectType == TileEffectType.Exit);
+        Screen == Screen.DungeonMove && DungeonCellText(DungeonLayer, DungeonX, DungeonY) is { } text && InteractEffects(DungeonCellEffects(text)).Any();
 
-    /// <summary>지금 서 있는 칸의 상호작용(Enter): 출구 칸이면 던전에서 나간다. 던전에서 나가는 곳은 출구뿐이다. 할 일이 없으면 아무 일도 없다.</summary>
+    /// <summary>Enter로 발동하는 효과들(효과 번호 순): 출구, 그리고 Interact 칸의 전투, ADV, 워프.</summary>
+    static IEnumerable<TileEffect> InteractEffects(IReadOnlyList<TileEffect> effects) =>
+        effects.Where(e => e.EffectType == TileEffectType.Exit
+                || effects.Any(i => i.EffectType == TileEffectType.Interact)
+                && e.EffectType is TileEffectType.FixedBattle or TileEffectType.Adv or TileEffectType.Warp)
+            .OrderBy(e => (int)e.EffectType);
+
+    /// <summary>
+    /// 지금 서 있는 칸의 상호작용(Enter): 출구 칸이면 던전에서 나간다(던전에서 나가는 곳은 출구뿐이다). Interact 칸이면 겹친 전투, ADV, 워프 효과를 실행한다.
+    /// 할 일이 없으면 아무 일도 없다. 인카운트 판정은 하지 않는다(걸음이 아니므로).
+    /// </summary>
     public void InteractDungeon()
     {
         if (!CanInteractDungeon) return;
         Message = null;
-        LeaveDungeon();
+        var effects = InteractEffects(DungeonCellEffects(DungeonCellText(DungeonLayer, DungeonX, DungeonY)!)).ToList();
+        if (effects.Any(e => e.EffectType == TileEffectType.Exit))
+        {
+            LeaveDungeon();
+            return;
+        }
+        pendingTileEffects.Clear();
+        foreach (var effect in effects) pendingTileEffects.Enqueue(effect);
+        encounterPending = false;
+        ContinueTileEffects();
     }
 
 

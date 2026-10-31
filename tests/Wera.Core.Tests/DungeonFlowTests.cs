@@ -324,6 +324,50 @@ public class DungeonFlowTests
         Assert.Equal((0L, 2L, 1L), At(s));
     }
 
+    static GamePack WithInteract(int tile) =>
+        SamplePackWith(("master/battle_master_v1.tsv", RunnableBattle),
+            ("master/tile_master_v1.tsv", File.ReadAllText(TileMaster()).TrimEnd() + $"\n{tile}\tInteract\t0\t0\t0\t\n"));
+
+    [Fact]
+    public void An_interact_tile_does_not_fire_on_touch_and_fires_with_enter()
+    {
+        var s = Entered(WithInteract(8));                                                     // 계단 '>'에 Interact
+        Walk(s, "DDDD");
+        Assert.Equal((0L, 1L, 5L), At(s));                                                    // 닿아도 옮겨 가지 않는다
+        Assert.True(s.CanInteractDungeon);
+        s.InteractDungeon();                                                                  // Enter
+        Assert.Equal((1L, 2L, 1L), At(s));                                                    // 워프가 발동했다(도착 칸의 효과는 실행하지 않는다)
+        Assert.Equal(Screen.DungeonMove, s.Screen);
+        Assert.False(s.CanInteractDungeon);                                                   // 도착한 '<'(Interact 없음)는 Enter로 할 일이 없다
+    }
+
+    [Fact]
+    public void An_interact_battle_tile_starts_the_battle_only_with_enter()
+    {
+        var s = Entered(WithInteract(5));                                                     // 고정 전투 'B'에 Interact
+        Walk(s, "RRDDRRUURRDDR");
+        Assert.Equal(Screen.DungeonMove, s.Screen);
+        Assert.Equal((0L, 8L, 3L), At(s));
+        s.NextRandom = _ => 0;
+        s.InteractDungeon();
+        Assert.Equal(Screen.Battle, s.Screen);
+        Assert.Equal(5001, s.CurrentBattleCode);
+        s.Activate("106");
+        s.Activate("999");
+        Assert.Equal(Screen.DungeonMove, s.Screen);                                           // 이동 화면으로 돌아와 계속한다(Enter의 전투 뒤에 인카운트 판정은 없다)
+        Assert.Equal((0L, 8L, 3L), At(s));
+    }
+
+    [Fact]
+    public void Enter_does_nothing_on_a_tile_that_fires_on_touch()
+    {
+        var s = Entered(WithInteract(8));
+        Walk(s, "R");
+        Assert.False(s.CanInteractDungeon);
+        s.InteractDungeon();
+        Assert.Equal((0L, 2L, 1L), At(s));
+    }
+
     [Fact]
     public void An_adv_tile_plays_the_adv_and_returns_to_the_dungeon()
     {

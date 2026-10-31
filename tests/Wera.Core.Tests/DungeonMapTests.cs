@@ -186,6 +186,7 @@ public class DungeonMapTests
         Assert.Equal(5, (int)TileEffectType.Warp);
         Assert.Equal(6, (int)TileEffectType.Stairs);
         Assert.Equal(7, (int)TileEffectType.Impassable);
+        Assert.Equal(8, (int)TileEffectType.Interact);
         Assert.DoesNotContain("Start", Enum.GetNames<TileEffectType>());
         Assert.DoesNotContain("RandomBattle", Enum.GetNames<TileEffectType>());      // 전투는 던전 인카운트 마스터로 정한다
     }
