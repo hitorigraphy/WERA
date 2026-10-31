@@ -131,7 +131,7 @@ public class PartyTests
             Assert.Equal("빈 슬롯", v.Name);
             Assert.Equal("", v.LevelText);
             Assert.Equal(new GaugeView("-----0/0-----", GaugeColor.Gray), v.Hp);
-            Assert.Equal(new GaugeView("-----0/0-----", GaugeColor.Gray), v.Xpp);
+            Assert.Equal(new GaugeView("-----0/0-----", GaugeColor.Gray), v.Xp);
         });
         Assert.Equal(Enumerable.Range(0, 9), views.Select(v => v.Slot));
     }
@@ -166,7 +166,7 @@ public class PartyTests
         Assert.Equal("Lv.5", v.LevelText);
         Assert.Equal("용사", v.Name);
         Assert.Equal(new GaugeView("****36/40***-", GaugeColor.White), v.Hp);   // 90%
-        Assert.Equal(new GaugeView("*----3/30----", GaugeColor.Red), v.Xpp);     // 10%
+        Assert.Equal(new GaugeView("-----0/0-----", GaugeColor.Gray), v.Xp);     // XP 종류가 없으면 XP 줄은 비어 있다
         Assert.True(s.PartySlotViews[1].IsEmpty);
     }
 
@@ -207,7 +207,7 @@ public class PartyTests
         s.Party[8] = 7003;
         var v = s.PartySlotViews[8];
         Assert.Equal(GaugeColor.Gray, v.Hp.Color);
-        Assert.Equal(GaugeColor.Gray, v.Xpp.Color);
+        Assert.Equal(GaugeColor.Gray, v.Xp.Color);
         Assert.Equal("전사", v.Name);
     }
 

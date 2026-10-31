@@ -428,7 +428,6 @@ public sealed partial class GameSession
         Characters[characterCode] = new CharacterAfterCreateCircuit(Pack,
             Pack.NewCharacterInstance(characterCode, NewInstanceId(), NextOrderNumber(Characters.Values))).Execute();
         CharacterTagInstances[characterCode] = Pack.MasterTagsOfCharacter(characterCode).ToList();
-        RunXppChanged(characterCode);      // 처음 XPP를 바탕으로 각 XP를 계산한다
         return true;
     }
 
@@ -484,10 +483,11 @@ public sealed partial class GameSession
         {
             return PartySlotView.Empty(slot);
         }
+        var xp = XpLine(state with { CharacterCode = code });
         return new PartySlotView(
             slot, code, $"Lv.{state.Level}", CharacterName(code),
             Gauge.Render(state.Hp, state.MaxHp, gray: state.IsDead),
-            Gauge.Render(state.Xpp, state.XppMax, gray: state.IsDead),
+            xp.Gauge, xp.Name,
             AttributeBadges(code),
             StatusBadges(code));
     }
@@ -741,9 +741,7 @@ public sealed partial class GameSession
         var target = new Character(entry, state);
         var effect = Pack.EmbeddedEffects.Create(effectCode, target, value1, value2, value3)!;
         effect.Execute();
-        var xppBefore = state.Xpp;
         Characters[targetCharacterCode] = target.State.Clamped();
-        if (Characters[targetCharacterCode].Xpp != xppBefore) RunXppChanged(targetCharacterCode);      // XPP가 바뀌면 각 XP를 다시 계산한다
         return true;
     }
 

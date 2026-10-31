@@ -7,11 +7,11 @@ namespace Wera.Core;
 public sealed record XpType(long Code, string Name);
 
 /// <summary>
-/// XPP가 바뀌었을 때 서킷이 하는 일의 종류. TSV에는 이름(대소문자 무시)으로 적는다. <see cref="XppChangedCircuit"/>이 실행한다(XPP가 바뀐 캐릭터가 시전자이자 메인 타겟이고 처음부터 포커스되어 있다).
+/// XPP가 바뀌었을 때 서킷이 하는 일의 종류. TSV에는 이름(대소문자 무시)으로 적는다. <see cref="XpCalculateCircuit"/>이 실행한다(XPP가 바뀐 캐릭터가 시전자이자 메인 타겟이고 처음부터 포커스되어 있다).
 /// 구성은 스킬 실행 이펙트(<see cref="EffectType"/>)와 같다: 번호와 이름, 인자가 같다. 각 XP(MP 등)는 XPP(XP로 바꾸기 전 단계의 값)를 바탕으로 이 이펙트들이 계산한다.
 /// </summary>
-[JsonConverter(typeof(JsonStringEnumConverter<XppEffectType>))]
-public enum XppEffectType
+[JsonConverter(typeof(JsonStringEnumConverter<XpCalculateEffectType>))]
+public enum XpCalculateEffectType
 {
     /// <summary>아무 일도 하지 않는다. 값은 보지 않는다.</summary>
     None = 0,
@@ -80,19 +80,19 @@ public enum XppEffectType
 }
 
 /// <summary>XPP 변경 이펙트 마스터의 한 행: XPP가 바뀌면 서킷이 그 캐릭터의 XP 종류(xp_type_code)가 같은 행을 execute_number 순서대로 실행하는 이펙트 하나(종류와 값 셋).</summary>
-public sealed record XppChangedEffect(long XpTypeCode, long ExecuteNumber, XppEffectType EffectType, long Value1, long Value2, long Value3);
+public sealed record XpCalculateEffect(long XpTypeCode, long ExecuteNumber, XpCalculateEffectType EffectType, long Value1, long Value2, long Value3);
 
-// xp_type_master(xp_type_code, xp_type_name; 첫 열이 키)와 xpp_changed_effect_master(xp_type_code, execute_number, effect_type, value_1, value_2, value_3; 앞의 두 열이 키). 둘 다 선택이다.
+// xp_type_master(xp_type_code, xp_type_name; 첫 열이 키)와 xp_calculate_effect_master(xp_type_code, execute_number, effect_type, value_1, value_2, value_3; 앞의 두 열이 키). 둘 다 선택이다.
 public sealed partial class GamePack
 {
     public const string XpTypeMasterPath = "master/xp_type_master_v1.tsv";
-    public const string XppChangedEffectMasterPath = "master/xpp_changed_effect_master_v1.tsv";
+    public const string XpCalculateEffectMasterPath = "master/xp_calculate_effect_master_v1.tsv";
 
     /// <summary>XP 종류 마스터(게임팩 파일 순서). 마스터가 없으면 null.</summary>
     public IReadOnlyList<XpType>? XpTypes { get; init; }
 
     /// <summary>XPP 변경 이펙트 마스터(게임팩 파일 순서). 마스터가 없으면 null.</summary>
-    public IReadOnlyList<XppChangedEffect>? XppChangedEffects { get; init; }
+    public IReadOnlyList<XpCalculateEffect>? XpCalculateEffects { get; init; }
 
     public XpType? FindXpType(long code) => XpTypes?.FirstOrDefault(x => x.Code == code);
 
@@ -120,15 +120,15 @@ public sealed partial class GamePack
     /// XPP 변경 이펙트 마스터: xp_type_code는 XP 종류 마스터에 있어야 하고 키 (XP 종류, 실행 번호)를 두 번 쓸 수 없다. 종류는 이름으로 적고 값 셋은 비우면 0이다.
     /// 종류별 인자 검증은 <see cref="EffectArgs.Check"/>를 따른다. 점프 대상은 같은 XP 종류의, 자신보다 큰 execute_number여야 한다.
     /// </summary>
-    static List<XppChangedEffect>? LoadXppChangedEffects(ZipArchive zip, List<XpType>? xpTypes, EffectCheck check)
+    static List<XpCalculateEffect>? LoadXpCalculateEffects(ZipArchive zip, List<XpType>? xpTypes, EffectCheck check)
     {
-        const string file = XppChangedEffectMasterPath;
+        const string file = XpCalculateEffectMasterPath;
         var text = TryReadEntry(zip, file);
         if (text is null) return null;
         if (xpTypes is null) throw new PackFormatException($"{file}가 있으려면 {XpTypeMasterPath}도 필요합니다.");
 
         var codes = xpTypes.Select(x => x.Code).ToHashSet();
-        var rows = new List<XppChangedEffect>();
+        var rows = new List<XpCalculateEffect>();
         var seen = new HashSet<(long, long)>();
         foreach (var r in Body(file, text, "xp_type_code", "execute_number", "effect_type", "value_1", "value_2", "value_3"))
         {
@@ -137,10 +137,10 @@ public sealed partial class GamePack
             var number = ParseLong(file, $"{who} 실행 번호", r[1]);
             var where = $"{who} 실행 {number}의";
             // 숫자("0")도 Enum.TryParse를 통과하므로 이름 목록으로 먼저 거른다.
-            if (!Enum.GetNames<XppEffectType>().Contains(r[2], StringComparer.OrdinalIgnoreCase)
-                || !Enum.TryParse<XppEffectType>(r[2], ignoreCase: true, out var type))
+            if (!Enum.GetNames<XpCalculateEffectType>().Contains(r[2], StringComparer.OrdinalIgnoreCase)
+                || !Enum.TryParse<XpCalculateEffectType>(r[2], ignoreCase: true, out var type))
                 throw new PackFormatException(
-                    $"{file}: {where} 이펙트 종류 '{r[2]}'을(를) 알 수 없습니다. ({string.Join(", ", Enum.GetNames<XppEffectType>())})");
+                    $"{file}: {where} 이펙트 종류 '{r[2]}'을(를) 알 수 없습니다. ({string.Join(", ", Enum.GetNames<XpCalculateEffectType>())})");
             var value1 = r[3].Trim().Length == 0 ? 0 : ParseLong(file, $"{where} value_1", r[3]);
             var value2 = r[4].Trim().Length == 0 ? 0 : ParseLong(file, $"{where} value_2", r[4]);
             var value3 = r[5].Trim().Length == 0 ? 0 : ParseLong(file, $"{where} value_3", r[5]);
@@ -150,7 +150,7 @@ public sealed partial class GamePack
             if (!seen.Add((owner, number)))
                 throw new PackFormatException($"{file}: XP 종류 '{owner}'의 실행 번호 '{number}'가 두 번 적혀 있습니다.");
             EffectArgs.Check(file, where, (EffectType)(int)type, value1, value2, value3, check);
-            rows.Add(new XppChangedEffect(owner, number, type, value1, value2, value3));
+            rows.Add(new XpCalculateEffect(owner, number, type, value1, value2, value3));
         }
 
         // 점프는 같은 XP 종류에 있는, 자신보다 큰 execute_number로만 갈 수 있다.
@@ -167,6 +167,6 @@ public sealed partial class GamePack
     }
 
     /// <summary>XP 종류의 XPP 변경 이펙트(실행 번호 순). 없으면 빈 목록.</summary>
-    public IReadOnlyList<XppChangedEffect> XppChangedEffectsOf(long xpTypeCode) =>
-        (XppChangedEffects ?? []).Where(e => e.XpTypeCode == xpTypeCode).OrderBy(e => e.ExecuteNumber).ToList();
+    public IReadOnlyList<XpCalculateEffect> XpCalculateEffectsOf(long xpTypeCode) =>
+        (XpCalculateEffects ?? []).Where(e => e.XpTypeCode == xpTypeCode).OrderBy(e => e.ExecuteNumber).ToList();
 }

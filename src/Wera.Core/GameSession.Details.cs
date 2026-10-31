@@ -34,7 +34,7 @@ public sealed partial class GameSession
 
     /// <summary>캐릭터 상세 화면의 내용: 이름, 레벨, Exp 바, HP, XPP, (상태값은 아직 정해지지 않음), 장비 슬롯, 스킬 슬롯, 설명문.</summary>
     public sealed record CharacterDetailView(
-        string Name, string LevelText, GaugeView Exp, GaugeView Hp, GaugeView Xpp,
+        string Name, string LevelText, GaugeView Exp, GaugeView Hp, GaugeView Xp, string XpName,
         IReadOnlyList<UnitStatusLine> Equipment, IReadOnlyList<UnitStatusLine> Skills, string Description);
 
     /// <summary>지금 보는 캐릭터 상세 화면의 내용. 캐릭터 상세 화면이 아니거나 보유하지 않은 캐릭터면 null.</summary>
@@ -49,11 +49,12 @@ public sealed partial class GameSession
             var skills = Pack.SkillSlotTagsOf(code).Select(r => r.SkillSlotCode).Distinct().Order()
                 .Select(Pack.FindSkillSlot).OfType<SkillSlotEntry>()
                 .Select(slot => new UnitStatusLine(slot.Name, EquippedSkillName(character, slot.Code) ?? "비어 있음")).ToList();
+            var xp = XpLine(character);
             return new CharacterDetailView(
                 CharacterName(code), $"Lv.{state.Level}",
                 Gauge.Render(state.Xpp, state.XppMax, gray: state.IsDead, CharacterDetailExpWidth),
                 Gauge.Render(state.Hp, state.MaxHp, gray: state.IsDead),
-                Gauge.Render(state.Xpp, state.XppMax, gray: state.IsDead),
+                xp.Gauge, xp.Name,
                 equipment, skills, Pack.FindCharacter(code)?.Description ?? "");
         }
     }

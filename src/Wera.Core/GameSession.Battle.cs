@@ -500,10 +500,11 @@ public sealed partial class GameSession
     PartySlotView EnemySlotView(int slot)
     {
         if (!enemyInstances.TryGetValue(slot, out var state)) return PartySlotView.Empty(slot);
+        var xp = XpLine(state);
         return new PartySlotView(
             slot, state.CharacterCode, $"Lv.{state.Level}", CharacterName(state.CharacterCode),
             Gauge.Render(state.Hp, state.MaxHp, gray: state.IsDead),
-            Gauge.Render(state.Xpp, state.XppMax, gray: state.IsDead),
+            xp.Gauge, xp.Name,
             AttributeBadges(state.CharacterCode), [], IsLeader: enemyUnits[slot]?.IsLeader == true);
     }
 

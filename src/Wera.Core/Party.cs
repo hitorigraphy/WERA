@@ -154,10 +154,11 @@ public sealed record StatusBadge(long StatusEffectCode, string Name);
 
 /// <summary>
 /// 파티 설정 화면의 슬롯 하나. 슬롯 0~2가 전위, 3~5가 중위, 6~8이 후위.
+/// Xp는 XP 계산 서킷의 결과를 보여 주는 게이지이고 XpName이 그 이름("{XP 이름} : 게이지")이다(XP 종류가 없는 캐릭터는 이름이 빈 글).
 /// Badges(속성)와 StatusBadges(상태이상)가 4번째(아이콘) 줄을 이룬다.
 /// </summary>
 public sealed record PartySlotView(
-    int Slot, long? CharacterCode, string LevelText, string Name, GaugeView Hp, GaugeView Xpp,
+    int Slot, long? CharacterCode, string LevelText, string Name, GaugeView Hp, GaugeView Xp, string XpName,
     IReadOnlyList<AttributeBadge> Badges, IReadOnlyList<StatusBadge> StatusBadges, bool IsLeader = false, bool IsSelected = false, bool IsGray = false)
 {
     public const string EmptyName = "빈 슬롯";
@@ -166,7 +167,7 @@ public sealed record PartySlotView(
     public static PartySlotView Empty(int slot = -1)
     {
         var empty = Gauge.Render(0, 0, gray: true);
-        return new PartySlotView(slot, null, "", EmptyName, empty, empty, [], []);
+        return new PartySlotView(slot, null, "", EmptyName, empty, empty, "", [], []);
     }
 
     /// <summary>줄 이름: 위 줄(슬롯 0~2) 전위, 가운데 줄(3~5) 중위, 아래 줄(6~8) 후위.</summary>

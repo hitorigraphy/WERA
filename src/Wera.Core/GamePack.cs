@@ -213,7 +213,7 @@ public sealed partial class GamePack
         var afterBattleWinEffects = LoadAfterBattleWinEffects(zip, effectCheck);
         var afterBattleLoseEffects = LoadAfterBattleLoseEffects(zip, effectCheck);
         var afterBattleRunEffects = LoadAfterBattleRunEffects(zip, effectCheck);
-        var xppChangedEffects = LoadXppChangedEffects(zip, xpTypes, effectCheck);
+        var xppChangedEffects = LoadXpCalculateEffects(zip, xpTypes, effectCheck);
         var characterAfterCreateEffects = LoadCharacterAfterCreateEffects(zip, characterInventory?.Select(c => c.Code), effectCheck);
         var uniqueItemAfterCreateEffects = LoadUniqueItemAfterCreateEffects(zip, uniqueItems?.Select(u => u.ItemCode), effectCheck);
         var skillStatuses = LoadOwnerStatuses(zip, SkillStatusMasterPath, "skill_code", "스킬", SkillMasterPath, skills?.Select(s => s.Code), statuses);
@@ -283,7 +283,7 @@ public sealed partial class GamePack
             AfterBattleRunEffects = afterBattleRunEffects,
             CharacterAfterCreateEffects = characterAfterCreateEffects,
             XpTypes = xpTypes,
-            XppChangedEffects = xppChangedEffects,
+            XpCalculateEffects = xppChangedEffects,
             UniqueItemAfterCreateEffects = uniqueItemAfterCreateEffects,
             SkillStatuses = skillStatuses,
             UniqueItemStatuses = uniqueItemStatuses,

@@ -81,7 +81,7 @@
                 <div class="@SlotNameClass(item.View)"><span class="slot-level">@item.View.LevelText</span><span class="slot-char">@item.View.Name</span></div>
             }
             <div class="gauge-line">HP  : <span class="gauge gauge-@item.View.Hp.Color.ToString().ToLowerInvariant()">@item.View.Hp.Text</span></div>
-            <div class="gauge-line">XPP : <span class="gauge gauge-@item.View.Xpp.Color.ToString().ToLowerInvariant()">@item.View.Xpp.Text</span></div>
+            <div class="gauge-line">@GameSession.XpLabel(item.View.XpName) <span class="gauge gauge-@item.View.Xp.Color.ToString().ToLowerInvariant()">@item.View.Xp.Text</span></div>
             <div class="icon-line">
                 <span class="icons-left">
                     @foreach (var badge in item.View.Badges)
@@ -135,7 +135,7 @@
                         <span class="slot-level">@slot.LevelText</span><span class="slot-char">[@slotCode] @slot.Name</span>
                     </button>
                     <div class="gauge-line">HP  : <span class="gauge gauge-@slot.Hp.Color.ToString().ToLowerInvariant()">@slot.Hp.Text</span></div>
-                    <div class="gauge-line">XPP : <span class="gauge gauge-@slot.Xpp.Color.ToString().ToLowerInvariant()">@slot.Xpp.Text</span></div>
+                    <div class="gauge-line">@GameSession.XpLabel(slot.XpName) <span class="gauge gauge-@slot.Xp.Color.ToString().ToLowerInvariant()">@slot.Xp.Text</span></div>
                     <div class="icon-line">
                         <span class="icons-left">
                             @foreach (var badge in slot.Badges)
@@ -527,7 +527,7 @@
                             <div class="gauge-line">Exp : <span class="gauge gauge-@detail.Exp.Color.ToString().ToLowerInvariant()">@detail.Exp.Text</span></div>
                             <hr />
                             <div class="gauge-line">HP  : <span class="gauge gauge-@detail.Hp.Color.ToString().ToLowerInvariant()">@detail.Hp.Text</span></div>
-                            <div class="gauge-line">XPP : <span class="gauge gauge-@detail.Xpp.Color.ToString().ToLowerInvariant()">@detail.Xpp.Text</span></div>
+                            <div class="gauge-line">@GameSession.XpLabel(detail.XpName) <span class="gauge gauge-@detail.Xp.Color.ToString().ToLowerInvariant()">@detail.Xp.Text</span></div>
                             <hr />
                             <div class="char-statuses"></div>
                             <hr />
@@ -669,7 +669,7 @@
                 {
                     <h2>@unitStatus.Name <span class="slot-level">@unitStatus.LevelText</span></h2>
                     <div class="gauge-line">HP  : <span class="gauge gauge-@unitStatus.Hp.Color.ToString().ToLowerInvariant()">@unitStatus.Hp.Text</span></div>
-                    <div class="gauge-line">XPP : <span class="gauge gauge-@unitStatus.Xpp.Color.ToString().ToLowerInvariant()">@unitStatus.Xpp.Text</span></div>
+                    <div class="gauge-line">@GameSession.XpLabel(unitStatus.XpName) <span class="gauge gauge-@unitStatus.Xp.Color.ToString().ToLowerInvariant()">@unitStatus.Xp.Text</span></div>
                     <h3>스테이터스</h3>
                     <ul class="companions">
                         @foreach (var line in unitStatus.Statuses)
