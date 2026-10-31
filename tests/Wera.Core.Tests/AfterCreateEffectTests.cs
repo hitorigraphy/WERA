@@ -7,8 +7,8 @@ public class AfterCreateEffectTests
 {
     const string CharacterHead = "character_code\texecute_number\teffect_type\tvalue_1\tvalue_2\tvalue_3\n";
     const string ItemHead = "item_code\texecute_number\teffect_type\tvalue_1\tvalue_2\tvalue_3\n";
-    const long Mana = 6;
-    const long Durability = 7;
+    const long Mana = 20;
+    const long Durability = 21;
 
     // 공백으로 구분해 쓴 행들을 TSV 본문으로 바꾼다
     static string Rows(params string[] rows) => string.Concat(rows.Select(r => r.Replace(' ', '\t') + "\n"));
@@ -17,11 +17,11 @@ public class AfterCreateEffectTests
         ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
         (GamePack.CharacterInventoryMasterPath,
             "inventory_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n1\t당신\t1\t1\t2\n7001\t용사\t1\t1\t2\n7002\t마법사\t1\t1\t2\n"),
-        (GamePack.StatusMasterPath, "status_code\tstatus_name\n1\tlevel\n2\thp\n6\tmana\n7\tdurability\n"),
+        (GamePack.StatusMasterPath, "status_code\tstatus_name\n1\tlevel\n2\thp\n20\tmana\n21\tdurability\n"),
         (GamePack.CharacterStatusMasterPath, "character_code\tstatus_code\tlevel\tinitial_value\tmin_value\tmax_value\n" +
-            Rows("1 1 0 1 1 99", "1 2 0 40 0 40", "7001 1 0 1 1 99", "7001 2 0 40 0 40", "7001 6 0 10 0 20", "7002 1 0 1 1 99", "7002 2 0 40 0 40", "7002 6 0 10 0 20")),
+            Rows("1 1 0 1 1 99", "1 2 0 40 0 40", "7001 1 0 1 1 99", "7001 2 0 40 0 40", "7001 20 0 10 0 20", "7002 1 0 1 1 99", "7002 2 0 40 0 40", "7002 20 0 10 0 20")),
         (GamePack.UniqueItemInventoryMasterPath, "inventory_code\titem_name\n8001\t철검\n8002\t대검\n"),
-        (GamePack.UniqueItemStatusMasterPath, "item_code\tstatus_code\tinitial_value\tmin_value\tmax_value\n" + Rows("8001 7 100 0 100", "8002 7 100 0 100")),
+        (GamePack.UniqueItemStatusMasterPath, "item_code\tstatus_code\tinitial_value\tmin_value\tmax_value\n" + Rows("8001 21 100 0 100", "8002 21 100 0 100")),
         (GamePack.CharacterAfterCreateEffectMasterPath, CharacterHead + characterEffects),
         (GamePack.UniqueItemAfterCreateEffectMasterPath, ItemHead + itemEffects)));
 
@@ -62,7 +62,7 @@ public class AfterCreateEffectTests
     {
         string Err(string rows) => Assert.Throws<PackFormatException>(() => Pack(rows, "")).Message;
         Assert.Contains("스테이터스 마스터에 없습니다", Err(Rows("7001 1 FocusedCharacterValueToCache 99 0")));
-        Assert.Contains("cache_index", Err(Rows("7001 1 FocusedCharacterValueToCache 6 256")));
+        Assert.Contains("cache_index", Err(Rows("7001 1 FocusedCharacterValueToCache 20 256")));
         Assert.Contains("value_3(소수 자릿수)", Err(Rows("7001 1 SetCacheValue 0 1 29")));
         Assert.Contains("자신의 실행 번호보다 커야", Err(Rows("7001 5 Jump 5")));
         Assert.Contains("같은 캐릭터에 없습니다", Err(Rows("7001 1 Jump 2", "7002 2 None")));     // 다른 캐릭터의 번호로는 갈 수 없다
@@ -73,7 +73,7 @@ public class AfterCreateEffectTests
     public void A_new_character_is_initialised_by_its_own_effects_only()
     {
         // 용사: mana(10)에 5를 더하고 hp를 캐시의 25.5로 바꾼다(25로 버림). 마법사는 아무 일도 없다.
-        var pack = Pack(Rows("7001 1 SetCacheValue 0 5", "7001 2 CacheToFocusedCharacterModValue 6 0", "7001 3 SetCacheValue 1 255 1", "7001 4 CacheToFocusedCharacterSetValue 2 1"), "");
+        var pack = Pack(Rows("7001 1 SetCacheValue 0 5", "7001 2 CacheToFocusedCharacterModValue 20 0", "7001 3 SetCacheValue 1 255 1", "7001 4 CacheToFocusedCharacterSetValue 2 1"), "");
         var s = GameSession.NewGame(pack);
         Assert.Equal(40, s.Characters[GamePack.PlayerCharacterCode].Hp);       // 당신에게는 행이 없다
         Assert.True(s.AddCharacter(7001));
@@ -85,7 +85,7 @@ public class AfterCreateEffectTests
     [Fact]
     public void The_character_circuit_clamps_to_the_master_range_and_finish_stops_it()
     {
-        var pack = Pack(Rows("7001 1 SetCacheValue 0 50", "7001 2 CacheToFocusedCharacterModValue 6 0", "7001 3 Finish", "7001 4 CacheToFocusedCharacterSetValue 2 0"), "");
+        var pack = Pack(Rows("7001 1 SetCacheValue 0 50", "7001 2 CacheToFocusedCharacterModValue 20 0", "7001 3 Finish", "7001 4 CacheToFocusedCharacterSetValue 2 0"), "");
         var c = new CharacterAfterCreateCircuit(pack, pack.NewCharacterInstance(7001)).Execute();
         Assert.Equal(20, c.Statuses[Mana]);                                     // 10+50이 최댓값 20으로 맞춰졌다
         Assert.Equal(40, c.Hp);                                                 // Finish 뒤는 실행하지 않았다
@@ -94,7 +94,7 @@ public class AfterCreateEffectTests
     [Fact]
     public void A_new_unique_item_is_initialised_by_its_own_effects_and_each_copy_starts_from_the_master()
     {
-        var pack = Pack("", Rows("8001 1 FocusedItemValueToCache 7 0", "8001 2 SetCacheValue 1 30", "8001 3 CacheSubtract 2 0 1", "8001 4 CacheToFocusedItemSetValue 7 2"));
+        var pack = Pack("", Rows("8001 1 FocusedItemValueToCache 21 0", "8001 2 SetCacheValue 1 30", "8001 3 CacheSubtract 2 0 1", "8001 4 CacheToFocusedItemSetValue 21 2"));
         var s = GameSession.NewGame(pack);
         var a = s.AddUniqueItem(8001)!;
         var b = s.AddUniqueItem(8001)!;
@@ -107,7 +107,7 @@ public class AfterCreateEffectTests
     [Fact]
     public void A_load_does_not_run_the_create_effects_again()
     {
-        var pack = Pack(Rows("7001 1 SetCacheValue 0 5", "7001 2 CacheToFocusedCharacterModValue 6 0"), Rows("8001 1 SetCacheValue 0 30", "8001 2 CacheToFocusedItemSetValue 7 0"));
+        var pack = Pack(Rows("7001 1 SetCacheValue 0 5", "7001 2 CacheToFocusedCharacterModValue 20 0"), Rows("8001 1 SetCacheValue 0 30", "8001 2 CacheToFocusedItemSetValue 21 0"));
         var s = GameSession.NewGame(pack);
         s.AddCharacter(7001);
         var id = s.AddUniqueItem(8001)!;

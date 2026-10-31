@@ -17,7 +17,7 @@ public class CharacterStatusesTests
         (GamePack.SkillSlotMasterPath, "code\tname\n1\t슬롯1\n2\t슬롯2\n"),
         (GamePack.SkillMasterPath, "code\tname\n1\t베기\n2\t불꽃\n")));
 
-    const string Statuses = "status_code\tstatus_name\n1\tlevel\n2\thp\n3\txp\n4\tmax_hp\n5\txp_max\n6\tmana\n";
+    const string Statuses = "status_code\tstatus_name\n1\tlevel\n2\thp\n3\txp\n4\tmax_hp\n5\txp_max\n20\tmana\n";
     const string Head = "character_code\tstatus_code\tlevel\tinitial_value\tmin_value\tmax_value\n";
 
     // 공백으로 구분해 쓴 행들을 TSV 본문으로 바꾼다
@@ -25,7 +25,7 @@ public class CharacterStatusesTests
 
     static GamePack FullPack() => Pack(Statuses, Head + Rows(
         "1 1 0 1 1 99", "1 2 0 40 0 40", "1 3 0 0 0 30", "1 4 0 40 0 9999", "1 5 0 30 0 999999",
-        "7001 1 0 1 1 99", "7001 2 0 25 0 40", "7001 3 0 4 0 30", "7001 4 0 60 0 9999", "7001 5 0 80 0 999999", "7001 6 0 12 0 50",
+        "7001 1 0 1 1 99", "7001 2 0 25 0 40", "7001 3 0 4 0 30", "7001 4 0 60 0 9999", "7001 5 0 80 0 999999", "7001 20 0 12 0 50",
         "7002 1 0 1 1 99", "7002 2 0 20 0 20"));
 
     [Fact]
@@ -33,7 +33,7 @@ public class CharacterStatusesTests
     {
         var c = FullPack().NewCharacterInstance(7001);
         Assert.Equal(
-            new Dictionary<long, long> { [1] = 1, [2] = 25, [3] = 4, [4] = 60, [5] = 80, [6] = 12, [8] = 0, [9] = 0 }.OrderBy(kv => kv.Key),
+            new Dictionary<long, long> { [1] = 1, [2] = 25, [3] = 4, [4] = 60, [5] = 80, [6] = 0, [7] = 0, [20] = 12 }.OrderBy(kv => kv.Key),
             c.Statuses.OrderBy(kv => kv.Key));
         Assert.Equal((1L, 25L, 60L, 4L, 80L), (c.Level, c.Hp, c.MaxHp, c.Xpp, c.XppMax));
         Assert.Empty(c.SkillPool);
@@ -46,7 +46,7 @@ public class CharacterStatusesTests
         var pack = FullPack();
         var c = pack.NewCharacterInstance(7002);                                 // max_hp, xpp, xpp_max 행이 없다
         Assert.Equal((1L, 20L, 20L, 0L, 0L), (c.Level, c.Hp, c.MaxHp, c.Xpp, c.XppMax));
-        Assert.Equal([1L, 2L, 3L, 4L, 5L, 8L, 9L], c.Statuses.Keys.Order());      // 예약 코드는 늘 들어간다(exp 8, exp_max 9 포함)
+        Assert.Equal([1L, 2L, 3L, 4L, 5L, 6L, 7L], c.Statuses.Keys.Order());      // 예약 코드는 늘 들어간다(exp 6, exp_max 7 포함)
 
         var bare = GamePack.Load(CoreTests.PackZip(("pack.tsv", "id\tdemo\ntitle\t데모\n"))).NewCharacterInstance(7001);
         Assert.Equal((1L, 1L, 1L, 0L, 0L), (bare.Level, bare.Hp, bare.MaxHp, bare.Xpp, bare.XppMax));
@@ -67,9 +67,9 @@ public class CharacterStatusesTests
     public void WithStatus_makes_a_new_instance_and_leaves_the_old_one()
     {
         var old = CharacterInstance.Stats(1, 5, 10, 0, 0);
-        var changed = old.WithStatus(6, 3);
-        Assert.False(old.Statuses.ContainsKey(6));
-        Assert.Equal(3, changed.Statuses[6]);
+        var changed = old.WithStatus(20, 3);
+        Assert.False(old.Statuses.ContainsKey(20));
+        Assert.Equal(3, changed.Statuses[20]);
         Assert.NotEqual(old, changed);
         Assert.Equal(old, CharacterInstance.Stats(1, 5, 10, 0, 0));          // 내용이 같으면 같다
     }
@@ -80,7 +80,7 @@ public class CharacterStatusesTests
         var pack = FullPack();
         var s = GameSession.NewGame(pack);
         s.AddCharacter(7001);
-        s.Characters[7001] = s.Characters[7001].WithStatus(6, 33) with
+        s.Characters[7001] = s.Characters[7001].WithStatus(20, 33) with
         {
             SkillPool = [pack.NewSkillInstance(1), pack.NewSkillInstance(2)],
             SkillSlots = new Dictionary<long, long> { [1] = 1, [2] = 0 },
@@ -89,7 +89,7 @@ public class CharacterStatusesTests
         Assert.DoesNotContain("\"Hp\"", json);                                       // 고정 필드는 더 이상 쓰지 않는다
         var loaded = GameSession.FromSaveJson(pack, json);
         Assert.Equal(s.Characters[7001], loaded.Characters[7001]);
-        Assert.Equal(33, loaded.Characters[7001].Statuses[6]);
+        Assert.Equal(33, loaded.Characters[7001].Statuses[20]);
         Assert.Equal([1L, 2L], loaded.Characters[7001].SkillPool.Select(k => k.SkillCode));
         Assert.Equal(1, loaded.Characters[7001].SkillSlots[1]);
     }

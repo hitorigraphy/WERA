@@ -96,7 +96,7 @@ public class DetailScreenTests
         s.Activate("201");
         s.Activate(s.Entries.First(e => e.Code != "999").Code);
         Assert.Equal(Gauge.Render(30, 60, gray: false, GameSession.CharacterDetailExpWidth), s.CharacterDetail!.Exp);
-        Assert.Equal((8L, 9L), (GamePack.ExpStatusCode, GamePack.ExpMaxStatusCode));
+        Assert.Equal((6L, 7L), (GamePack.ExpStatusCode, GamePack.ExpMaxStatusCode));
         Assert.Equal(100, SampleSession().Characters[player].ExpMax);               // 샘플 팩: 새 캐릭터의 필요 경험치 100
     }
 }

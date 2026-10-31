@@ -14,7 +14,7 @@ public class CreateCircuitEffectsTests
         ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
         (GamePack.CharacterInventoryMasterPath,
             "inventory_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n1\t당신\t1\t1\t2\n7001\t용사\t1\t1\t2\n"),
-        (GamePack.StatusMasterPath, "status_code\tstatus_name\n1\tlevel\n2\thp\n7\tdurability\n"),
+        (GamePack.StatusMasterPath, "status_code\tstatus_name\n1\tlevel\n2\thp\n21\tdurability\n"),
         (GamePack.CharacterStatusMasterPath, "character_code\tstatus_code\tlevel\tinitial_value\tmin_value\tmax_value\n" +
             Rows("1 1 0 1 1 99", "1 2 0 40 0 40", "7001 1 0 1 1 99", "7001 2 0 40 0 40")),
         (GamePack.SkillSlotMasterPath, "code\tname\n1\t스킬 슬롯 1\n2\t스킬 슬롯 2\n"),

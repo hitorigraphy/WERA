@@ -7,7 +7,7 @@ public class AfterAttackCircuitTests
 {
     const string Head = "execute_number\teffect_type\tvalue_1\tvalue_2\tvalue_3\n";
     const long Hp = GamePack.HpStatusCode;
-    const long Mana = 6;
+    const long Mana = 20;
 
     // 공백으로 구분해 쓴 행들을 TSV 본문으로 바꾼다
     static string Rows(params string[] rows) => string.Concat(rows.Select(r => r.Replace(' ', '\t') + "\n"));
@@ -16,9 +16,9 @@ public class AfterAttackCircuitTests
         ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
         ("master/character_inventory_master_v1.tsv",
             "inventory_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n1\t당신\t1\t1\t2\n7001\t용사\t1\t1\t2\n"),
-        (GamePack.StatusMasterPath, "status_code\tstatus_name\n1\tlevel\n2\thp\n6\tmana\n"),
+        (GamePack.StatusMasterPath, "status_code\tstatus_name\n1\tlevel\n2\thp\n20\tmana\n"),
         (GamePack.CharacterStatusMasterPath, "character_code\tstatus_code\tlevel\tinitial_value\tmin_value\tmax_value\n" +
-            Rows("1 1 0 1 1 99", "1 2 0 40 0 40", "7001 1 0 1 1 99", "7001 2 0 40 0 40", "7001 6 0 10 0 20")),
+            Rows("1 1 0 1 1 99", "1 2 0 40 0 40", "7001 1 0 1 1 99", "7001 2 0 40 0 40", "7001 20 0 10 0 20")),
         (GamePack.AfterAttackEffectMasterPath, Head + effects)));
 
     // 시전자 당신(1), 메인 타겟 용사(7001)
@@ -44,7 +44,7 @@ public class AfterAttackCircuitTests
     {
         // 시전자 hp(40)를 캐시 0에, -15를 캐시 1에 쓰고 타겟 hp에 더하고(25), 시전자 mana는 없어서 건너뛰며, 타겟 mana에는 캐시 0(40)을 더한다(최댓값 20).
         var pack = Pack(Rows("1 FocusCasterCharacter", "2 FocusedCharacterValueToCache 2 0", "3 SetCacheValue 1 -15", "4 FocusMainTargetCharacter",
-            "5 CacheToFocusedCharacterModValue 2 1", "6 CacheToFocusedCharacterModValue 6 0", "7 FocusCasterCharacter", "8 CacheToFocusedCharacterModValue 6 1"));
+            "5 CacheToFocusedCharacterModValue 2 1", "6 CacheToFocusedCharacterModValue 20 0", "7 FocusCasterCharacter", "8 CacheToFocusedCharacterModValue 20 1"));
         var (c, field) = Start(pack);
         c.Execute();
         Assert.Equal((25, 20), (field.Characters[7001].Hp, field.Characters[7001].Statuses[Mana]));
@@ -55,7 +55,7 @@ public class AfterAttackCircuitTests
     [Fact]
     public void Value_to_cache_and_arithmetic_work_and_the_value_is_clamped_on_the_way_back()
     {
-        var pack = Pack(Rows("1 FocusMainTargetCharacter", "2 FocusedCharacterValueToCache 6 0", "3 SetCacheValue 1 5", "4 CacheMultiply 2 0 1",
+        var pack = Pack(Rows("1 FocusMainTargetCharacter", "2 FocusedCharacterValueToCache 20 0", "3 SetCacheValue 1 5", "4 CacheMultiply 2 0 1",
             "5 FocusCasterCharacter", "6 CacheToFocusedCharacterSetValue 2 2"));
         var (c, field) = Start(pack);
         c.Execute();
@@ -67,7 +67,7 @@ public class AfterAttackCircuitTests
     public void Jump_and_finish_follow_the_skill_effect_rules()
     {
         var pack = Pack(Rows("1 FocusMainTargetCharacter", "2 SetCacheValue 0 3", "3 SetCacheValue 1 3", "4 JumpCacheEqual 0 1 6",
-            "5 CacheToFocusedCharacterSetValue 6 0", "6 Jump 8", "7 CacheToFocusedCharacterSetValue 2 0", "8 Finish", "9 CacheToFocusedCharacterSetValue 2 0"));
+            "5 CacheToFocusedCharacterSetValue 20 0", "6 Jump 8", "7 CacheToFocusedCharacterSetValue 2 0", "8 Finish", "9 CacheToFocusedCharacterSetValue 2 0"));
         var (c, field) = Start(pack);
         c.Execute();
         Assert.Equal((10, 40), (field.Characters[7001].Statuses[Mana], field.Characters[7001].Hp));

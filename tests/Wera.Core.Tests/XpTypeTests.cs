@@ -17,10 +17,10 @@ public class XpTypeTests
         "inventory_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\txp_type_code\n" +
         $"1\t당신\t1\t1\t2\t\n7001\t용사\t1\t1\t2\t{xpType7001}\n7002\t마법사\t1\t2\t1\t\n";
 
-    const string Statuses = "status_code\tstatus_name\n1\tlevel\n2\thp\n3\txpp\n4\tmax_hp\n5\txpp_max\n6\tmana\n";
+    const string Statuses = "status_code\tstatus_name\n1\tlevel\n2\thp\n3\txpp\n4\tmax_hp\n5\txpp_max\n20\tmana\n";
     static readonly string CharacterStatuses = "character_code\tstatus_code\tlevel\tinitial_value\tmin_value\tmax_value\n" + Rows(
-        "1 1 0 1 1 99", "1 2 0 40 0 40", "7001 1 0 1 1 99", "7001 2 0 25 0 40", "7001 3 0 10 0 999", "7001 6 0 0 0 9999",
-        "7002 1 0 1 1 99", "7002 2 0 20 0 20", "7002 3 0 10 0 999", "7002 6 0 0 0 9999");
+        "1 1 0 1 1 99", "1 2 0 40 0 40", "7001 1 0 1 1 99", "7001 2 0 25 0 40", "7001 3 0 10 0 999", "7001 20 0 0 0 9999",
+        "7002 1 0 1 1 99", "7002 2 0 20 0 20", "7002 3 0 10 0 999", "7002 20 0 0 0 9999");
 
     // 결과(XP 값 = 캐시 0번, 최댓값 = 캐시 1번): XPP × 2가 XP 값, 최댓값은 100
     static readonly string DoubleXpp = EffectHead + Rows(

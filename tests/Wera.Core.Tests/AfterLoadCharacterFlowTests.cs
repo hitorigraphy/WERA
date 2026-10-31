@@ -57,15 +57,15 @@ public class AfterLoadCharacterFlowTests
     // ---- 동작: 스킬 실행 이펙트와 같은 구성 ----
 
     const long Hp = GamePack.HpStatusCode;
-    const long Mana = 6;
+    const long Mana = 20;
 
     static GamePack FlowPack(string flows) => GamePack.Load(CoreTests.PackZip(
         ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
         ("master/character_inventory_master_v1.tsv",
             "inventory_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n1\t당신\t1\t1\t2\n7001\t용사\t1\t1\t2\n"),
-        (GamePack.StatusMasterPath, "status_code\tstatus_name\n1\tlevel\n2\thp\n6\tmana\n7\tghost\n"),
+        (GamePack.StatusMasterPath, "status_code\tstatus_name\n1\tlevel\n2\thp\n20\tmana\n21\tghost\n"),
         (GamePack.CharacterStatusMasterPath, "character_code\tstatus_code\tlevel\tinitial_value\tmin_value\tmax_value\n" +
-            Rows("1 1 0 1 1 99", "1 2 0 40 0 40", "7001 1 0 1 1 99", "7001 2 0 40 0 40", "7001 6 0 10 0 20")),
+            Rows("1 1 0 1 1 99", "1 2 0 40 0 40", "7001 1 0 1 1 99", "7001 2 0 40 0 40", "7001 20 0 10 0 20")),
         (GamePack.AfterLoadCharacterFlowMasterPath, Head + flows)));
 
     static CharacterInstance Run(GamePack pack, long character = 7001) =>
@@ -75,8 +75,8 @@ public class AfterLoadCharacterFlowTests
     public void Flows_move_values_between_the_character_and_the_cache_and_clamp_to_the_master_range()
     {
         // mana를 캐시 0에 읽고, 캐시 1에 5를 쓰고, 둘을 더해 캐시 2에, 그 값을 mana에 더한다(10+15=25 → 최댓값 20으로 맞춤).
-        var pack = FlowPack(Rows("1 FocusedCharacterValueToCache 6 0", "2 SetCacheValue 1 5", "3 CacheAdd 2 0 1", "4 SetCacheValue 3 10", "5 CacheAdd 2 2 3",
-            "6 CacheToFocusedCharacterModValue 6 2", "7 CacheToFocusedCharacterSetValue 2 1"));
+        var pack = FlowPack(Rows("1 FocusedCharacterValueToCache 20 0", "2 SetCacheValue 1 5", "3 CacheAdd 2 0 1", "4 SetCacheValue 3 10", "5 CacheAdd 2 2 3",
+            "6 CacheToFocusedCharacterModValue 20 2", "7 CacheToFocusedCharacterSetValue 2 1"));
         var c = Run(pack);
         Assert.Equal(20, c.Statuses[Mana]);
         Assert.Equal(5, c.Hp);                            // hp를 캐시 1(5)로 바꿨다
@@ -85,10 +85,10 @@ public class AfterLoadCharacterFlowTests
     [Fact]
     public void Decimals_are_truncated_when_written_back_and_missing_statuses_do_nothing()
     {
-        var pack = FlowPack(Rows("1 SetCacheValue 0 25 1", "2 CacheToFocusedCharacterSetValue 6 0", "3 CacheToFocusedCharacterSetValue 7 0", "4 FocusedCharacterValueToCache 7 1"));
+        var pack = FlowPack(Rows("1 SetCacheValue 0 25 1", "2 CacheToFocusedCharacterSetValue 20 0", "3 CacheToFocusedCharacterSetValue 21 0", "4 FocusedCharacterValueToCache 21 1"));
         var c = Run(pack);                                // 2.5 → 2
         Assert.Equal(2, c.Statuses[Mana]);
-        Assert.False(c.Statuses.ContainsKey(7));
+        Assert.False(c.Statuses.ContainsKey(21));
         var circuit = new AfterLoadCharacterCircuit(pack, pack.NewCharacterInstance(7001));
         circuit.Execute();
         Assert.Equal([2.5m], circuit.CacheValues);        // 없는 스테이터스는 캐시를 건드리지 않는다
@@ -98,7 +98,7 @@ public class AfterLoadCharacterFlowTests
     public void Jump_and_finish_follow_the_skill_effect_rules()
     {
         var pack = FlowPack(Rows("1 SetCacheValue 0 3", "2 SetCacheValue 1 3", "3 JumpCacheEqual 0 1 5",
-            "4 CacheToFocusedCharacterSetValue 6 0", "5 Jump 7", "6 CacheToFocusedCharacterSetValue 2 0", "7 Finish", "8 CacheToFocusedCharacterSetValue 2 0"));
+            "4 CacheToFocusedCharacterSetValue 20 0", "5 Jump 7", "6 CacheToFocusedCharacterSetValue 2 0", "7 Finish", "8 CacheToFocusedCharacterSetValue 2 0"));
         var c = Run(pack);
         Assert.Equal(10, c.Statuses[Mana]);               // 4번과 6번은 건너뛰었다
         Assert.Equal(40, c.Hp);                           // Finish 뒤의 8번은 실행하지 않는다
@@ -109,7 +109,7 @@ public class AfterLoadCharacterFlowTests
     {
         string Err(string rows) => Assert.Throws<PackFormatException>(() => FlowPack(rows)).Message;
         Assert.Contains("스테이터스 마스터에 없습니다", Err(Rows("1 FocusedCharacterValueToCache 99 0")));
-        Assert.Contains("cache_index", Err(Rows("1 FocusedCharacterValueToCache 6 256")));
+        Assert.Contains("cache_index", Err(Rows("1 FocusedCharacterValueToCache 20 256")));
         Assert.Contains("value_3(소수 자릿수)", Err(Rows("1 SetCacheValue 0 1 29")));
         Assert.Contains("cache_index", Err(Rows("1 CacheAdd 0 1 300")));
         Assert.Contains("cache_index", Err(Rows("1 JumpCacheEqual 0 300 2", "2 None")));
@@ -120,7 +120,7 @@ public class AfterLoadCharacterFlowTests
     [Fact]
     public void A_save_load_runs_the_flows_on_every_character()
     {
-        var pack = FlowPack(Rows("1 SetCacheValue 0 7", "2 CacheToFocusedCharacterSetValue 6 0"));
+        var pack = FlowPack(Rows("1 SetCacheValue 0 7", "2 CacheToFocusedCharacterSetValue 20 0"));
         var s = GameSession.NewGame(pack);
         s.AddCharacter(7001);
         Assert.Equal(10, s.Characters[7001].Statuses[Mana]);

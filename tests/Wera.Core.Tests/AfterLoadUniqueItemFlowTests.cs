@@ -6,18 +6,18 @@ namespace Wera.Core.Tests;
 public class AfterLoadUniqueItemFlowTests
 {
     const string Head = "execute_number\tflow_type\tvalue_1\tvalue_2\tvalue_3\n";
-    const long Durability = 7;
-    const long Power = 8;
+    const long Durability = 21;
+    const long Power = 22;
 
     // 공백으로 구분해 쓴 행들을 TSV 본문으로 바꾼다
     static string Rows(params string[] rows) => string.Concat(rows.Select(r => r.Replace(' ', '\t') + "\n"));
 
     static GamePack Pack(string flows) => GamePack.Load(CoreTests.PackZip(
         ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
-        (GamePack.StatusMasterPath, "status_code\tstatus_name\n1\tlevel\n2\thp\n7\tdurability\n8\tpower\n9\tghost\n"),
+        (GamePack.StatusMasterPath, "status_code\tstatus_name\n1\tlevel\n2\thp\n21\tdurability\n22\tpower\n9\tghost\n"),
         (GamePack.UniqueItemInventoryMasterPath, "inventory_code\titem_name\n8001\t철검\n8002\t대검\n"),
         (GamePack.UniqueItemStatusMasterPath, "item_code\tstatus_code\tinitial_value\tmin_value\tmax_value\n" +
-            Rows("8001 7 100 0 100", "8001 8 5 0 50")),
+            Rows("8001 21 100 0 100", "8001 22 5 0 50")),
         (GamePack.AfterLoadUniqueItemFlowMasterPath, Head + flows)));
 
     static GamePack PackWithout() => GamePack.Load(CoreTests.PackZip(("pack.tsv", "id\tdemo\ntitle\t데모\n")));
@@ -39,8 +39,8 @@ public class AfterLoadUniqueItemFlowTests
     public void Flows_change_item_statuses_within_the_item_status_master_range()
     {
         // durability(100)를 캐시 0에 읽고, power를 캐시 0의 두 배(200 → 최댓값 50)로, durability를 -30만큼 바꾼다(70).
-        var pack = Pack(Rows("1 FocusedItemValueToCache 7 0", "2 SetCacheValue 1 2", "3 CacheMultiply 2 0 1", "4 CacheToFocusedItemSetValue 8 2",
-            "5 SetCacheValue 3 -30", "6 CacheToFocusedItemModValue 7 3"));
+        var pack = Pack(Rows("1 FocusedItemValueToCache 21 0", "2 SetCacheValue 1 2", "3 CacheMultiply 2 0 1", "4 CacheToFocusedItemSetValue 22 2",
+            "5 SetCacheValue 3 -30", "6 CacheToFocusedItemModValue 21 3"));
         var item = Run(pack);
         Assert.Equal(50, item.Statuses![Power]);
         Assert.Equal(70, item.Statuses[Durability]);
@@ -49,7 +49,7 @@ public class AfterLoadUniqueItemFlowTests
     [Fact]
     public void Decimals_are_truncated_and_statuses_the_item_lacks_do_nothing()
     {
-        var pack = Pack(Rows("1 SetCacheValue 0 255 1", "2 CacheToFocusedItemSetValue 7 0", "3 CacheToFocusedItemSetValue 9 0"));
+        var pack = Pack(Rows("1 SetCacheValue 0 255 1", "2 CacheToFocusedItemSetValue 21 0", "3 CacheToFocusedItemSetValue 9 0"));
         var item = Run(pack);                             // 25.5 → 25
         Assert.Equal(25, item.Statuses![Durability]);
         Assert.False(item.Statuses.ContainsKey(9));
@@ -60,7 +60,7 @@ public class AfterLoadUniqueItemFlowTests
     public void Jump_and_finish_follow_the_skill_effect_rules_and_are_checked_at_load()
     {
         var pack = Pack(Rows("1 SetCacheValue 0 1", "2 SetCacheValue 1 2", "3 JumpCacheLessThan 0 1 5",
-            "4 CacheToFocusedItemSetValue 7 0", "5 Finish", "6 CacheToFocusedItemSetValue 8 0"));
+            "4 CacheToFocusedItemSetValue 21 0", "5 Finish", "6 CacheToFocusedItemSetValue 22 0"));
         var item = Run(pack);
         Assert.Equal((100, 5), (item.Statuses![Durability], item.Statuses[Power]));
 
@@ -74,7 +74,7 @@ public class AfterLoadUniqueItemFlowTests
     [Fact]
     public void A_save_load_runs_the_flows_on_every_unique_item_instance()
     {
-        var pack = Pack(Rows("1 SetCacheValue 0 30", "2 CacheToFocusedItemSetValue 7 0"));
+        var pack = Pack(Rows("1 SetCacheValue 0 30", "2 CacheToFocusedItemSetValue 21 0"));
         var s = GameSession.NewGame(pack);
         var id = s.AddUniqueItem(8001)!;
         var other = s.AddUniqueItem(8002)!;

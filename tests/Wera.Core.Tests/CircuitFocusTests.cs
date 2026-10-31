@@ -6,9 +6,9 @@ namespace Wera.Core.Tests;
 public class CircuitFocusTests
 {
     const long Hp = GamePack.HpStatusCode;
-    const long Mana = 6;
-    const long Durability = 7;
-    const long Power = 8;
+    const long Mana = 20;
+    const long Durability = 21;
+    const long Power = 22;
     const long Weapon = 1;
     const long Armor = 2;
     const long SwordSlot = 1;
@@ -23,14 +23,14 @@ public class CircuitFocusTests
             ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
             (GamePack.CharacterInventoryMasterPath,
                 "inventory_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n1\t당신\t1\t1\t2\n7001\t용사\t1\t1\t2\n7002\t마법사\t1\t1\t2\n"),
-            (GamePack.StatusMasterPath, "status_code\tstatus_name\n1\tlevel\n2\thp\n6\tmana\n7\tdurability\n8\tpower\n"),
+            (GamePack.StatusMasterPath, "status_code\tstatus_name\n1\tlevel\n2\thp\n20\tmana\n21\tdurability\n22\tpower\n"),
             (GamePack.CharacterStatusMasterPath, "character_code\tstatus_code\tlevel\tinitial_value\tmin_value\tmax_value\n" +
-                Rows("1 1 0 1 1 99", "1 2 0 40 0 40", "7001 1 0 1 1 99", "7001 2 0 40 0 40", "7001 6 0 10 0 20", "7002 1 0 1 1 99", "7002 2 0 30 0 30", "7002 6 0 8 0 20")),
+                Rows("1 1 0 1 1 99", "1 2 0 40 0 40", "7001 1 0 1 1 99", "7001 2 0 40 0 40", "7001 20 0 10 0 20", "7002 1 0 1 1 99", "7002 2 0 30 0 30", "7002 20 0 8 0 20")),
             (GamePack.UniqueItemInventoryMasterPath, "inventory_code\titem_name\n8001\t철검\n8002\t대검\n"),
             (GamePack.UniqueItemStatusMasterPath, "item_code\tstatus_code\tinitial_value\tmin_value\tmax_value\n" +
-                Rows("8001 7 100 0 100", "8001 8 5 0 50", "8002 7 80 0 100")),
+                Rows("8001 21 100 0 100", "8001 22 5 0 50", "8002 21 80 0 100")),
             (GamePack.SkillMasterPath, "code\tname\n1\t베기\n"),
-            (GamePack.SkillStatusMasterPath, "skill_code\tstatus_code\tinitial_value\tmin_value\tmax_value\n" + Rows("1 8 5 1 10")),
+            (GamePack.SkillStatusMasterPath, "skill_code\tstatus_code\tinitial_value\tmin_value\tmax_value\n" + Rows("1 22 5 1 10")),
             (GamePack.SkillExecuteEffectMasterPath, "skill_code\texecute_number\teffect_type\tvalue_1\tvalue_2\tvalue_3\n" + Rows(effects.Split('\n').Select(r => "1 " + r.Trim()).ToArray())),
         };
         if (slots)
@@ -54,8 +54,8 @@ public class CircuitFocusTests
     [Fact]
     public void Equipment_focus_reads_and_writes_the_unique_item_within_its_status_range()
     {
-        var pack = Pack("1 FocusMainTargetEquipment 1\n2 FocusedItemValueToCache 7 0\n3 SetCacheValue 1 -30\n4 CacheToFocusedItemModValue 7 1\n" +
-                        "5 SetCacheValue 2 99\n6 CacheToFocusedItemModValue 8 2");
+        var pack = Pack("1 FocusMainTargetEquipment 1\n2 FocusedItemValueToCache 21 0\n3 SetCacheValue 1 -30\n4 CacheToFocusedItemModValue 21 1\n" +
+                        "5 SetCacheValue 2 99\n6 CacheToFocusedItemModValue 22 2");
         var (c, field, sword) = Start(pack);
         c.Execute();
         Assert.Equal(100m, c.CacheValues[0]);
@@ -67,7 +67,7 @@ public class CircuitFocusTests
     public void An_empty_or_foreign_slot_clears_the_focus_so_later_writes_do_nothing()
     {
         // 방어구 슬롯은 비었다: 포커스가 비워져 mod가 철검에 닿지 않는다(포커스가 이전 것으로 남지 않는다).
-        var pack = Pack("1 FocusMainTargetEquipment 1\n2 FocusMainTargetEquipment 2\n3 SetCacheValue 0 -50\n4 CacheToFocusedItemModValue 7 0");
+        var pack = Pack("1 FocusMainTargetEquipment 1\n2 FocusMainTargetEquipment 2\n3 SetCacheValue 0 -50\n4 CacheToFocusedItemModValue 21 0");
         var (c, field, sword) = Start(pack);
         c.Execute();
         Assert.Null(c.FocusedUniqueItemInstance);
@@ -88,8 +88,8 @@ public class CircuitFocusTests
     public void Skill_focus_reads_and_writes_the_skill_status_and_the_character_keeps_its_other_changes()
     {
         // 용사의 mana(10)에 3을 더하고, 스킬 슬롯 1의 스킬 power(5)에 7을 더한다(최댓값 10). 둘 다 같은 용사 인스턴스에 반영된다.
-        var pack = Pack("1 SetCacheValue 0 3\n2 SetCacheValue 1 7\n3 FocusMainTargetCharacter\n4 CacheToFocusedCharacterModValue 6 0\n" +
-                        "5 FocusMainTargetSkill 1\n6 FocusedSkillValueToCache 8 2\n7 CacheToFocusedSkillModValue 8 1");
+        var pack = Pack("1 SetCacheValue 0 3\n2 SetCacheValue 1 7\n3 FocusMainTargetCharacter\n4 CacheToFocusedCharacterModValue 20 0\n" +
+                        "5 FocusMainTargetSkill 1\n6 FocusedSkillValueToCache 22 2\n7 CacheToFocusedSkillModValue 22 1");
         var (c, field, _) = Start(pack);
         c.Execute();
         Assert.Equal(5m, c.CacheValues[2]);
@@ -103,7 +103,7 @@ public class CircuitFocusTests
     [Fact]
     public void A_skill_slot_without_a_skill_clears_the_focus()
     {
-        var pack = Pack("1 FocusMainTargetSkill 1\n2 FocusCasterSkill 1\n3 SetCacheValue 0 1\n4 CacheToFocusedSkillModValue 8 0");
+        var pack = Pack("1 FocusMainTargetSkill 1\n2 FocusCasterSkill 1\n3 SetCacheValue 0 1\n4 CacheToFocusedSkillModValue 22 0");
         var (c, field, _) = Start(pack);
         c.Execute();                                                       // 시전자(당신)는 스킬이 없다
         Assert.Null(c.FocusedSkill);
@@ -113,8 +113,8 @@ public class CircuitFocusTests
     [Fact]
     public void Sub_targets_are_chosen_by_number_and_a_missing_number_clears_the_focus()
     {
-        var pack = Pack("1 FocusSubTargetCharacter 0\n2 SetCacheValue 0 2\n3 CacheToFocusedCharacterModValue 6 0\n" +
-                        "4 FocusSubTargetCharacter 1\n5 CacheToFocusedCharacterModValue 6 0");
+        var pack = Pack("1 FocusSubTargetCharacter 0\n2 SetCacheValue 0 2\n3 CacheToFocusedCharacterModValue 20 0\n" +
+                        "4 FocusSubTargetCharacter 1\n5 CacheToFocusedCharacterModValue 20 0");
         var (c, field, _) = Start(pack);
         c.Execute();
         Assert.Null(c.FocusedCharacterInstance);                           // 서브 타겟 1번은 없다
@@ -139,8 +139,8 @@ public class CircuitFocusTests
     public void Focusing_the_same_character_twice_edits_one_copy_and_other_units_stay_as_they_were()
     {
         // 시전자와 메인 타겟이 같은 용사: 두 번 포커스해 더해도 하나의 사본에 쌓인다(10+2+3=15).
-        var pack = Pack("1 FocusCasterCharacter\n2 SetCacheValue 0 2\n3 CacheToFocusedCharacterModValue 6 0\n4 FocusMainTargetCharacter\n" +
-                        "5 SetCacheValue 0 3\n6 CacheToFocusedCharacterModValue 6 0");
+        var pack = Pack("1 FocusCasterCharacter\n2 SetCacheValue 0 2\n3 CacheToFocusedCharacterModValue 20 0\n4 FocusMainTargetCharacter\n" +
+                        "5 SetCacheValue 0 3\n6 CacheToFocusedCharacterModValue 20 0");
         var field = new CircuitField(pack, 1, 7001, 7002);
         var c = new SkillExecuteCircuit(pack, field.Store, 1, field.Unit(7001), field.Unit(7001));
         c.Execute();
@@ -151,7 +151,7 @@ public class CircuitFocusTests
     [Fact]
     public void Nothing_is_written_back_when_no_value_changed()
     {
-        var pack = Pack("1 FocusMainTargetCharacter\n2 FocusedCharacterValueToCache 6 0\n3 FocusMainTargetEquipment 1\n4 FocusedItemValueToCache 7 1");
+        var pack = Pack("1 FocusMainTargetCharacter\n2 FocusedCharacterValueToCache 20 0\n3 FocusMainTargetEquipment 1\n4 FocusedItemValueToCache 21 1");
         var (c, field, sword) = Start(pack);
         var hero = field.Characters[7001];
         var item = field.Items[sword];

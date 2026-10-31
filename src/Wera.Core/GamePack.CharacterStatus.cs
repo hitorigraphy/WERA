@@ -22,9 +22,9 @@ public sealed partial class GamePack
     /// <summary>다음 레벨까지 필요한 경험치: 초깃값이 새 캐릭터의 필요 경험치. 마스터에 이 스테이터스의 행이 없으면 xpp 행의 최댓값을 쓴다(그것도 없으면 0).</summary>
     public const long XppMaxStatusCode = 5;
     /// <summary>경험치(Exp): 초깃값이 현재 경험치, 최댓값이 다음 레벨까지 필요한 경험치. XPP(XP로 바꾸기 전 단계의 값)와는 별개이고, 캐릭터 상세 화면의 Exp 바가 이 값을 보여 준다.</summary>
-    public const long ExpStatusCode = 8;
+    public const long ExpStatusCode = 6;
     /// <summary>다음 레벨까지 필요한 경험치: 초깃값이 새 캐릭터의 필요 경험치. 마스터에 이 스테이터스의 행이 없으면 exp 행의 최댓값을 쓴다(그것도 없으면 0).</summary>
-    public const long ExpMaxStatusCode = 9;
+    public const long ExpMaxStatusCode = 7;
 
     /// <summary>스테이터스 마스터가 없으면 null.</summary>
     public IReadOnlyList<StatusEntry>? Statuses { get; init; }
@@ -128,7 +128,7 @@ public sealed partial class GamePack
 
     /// <summary>
     /// 새로 얻는 캐릭터의 상태. 레벨이 정해지기 전이므로 레벨 0의 행으로 채운다: 마스터에 그 캐릭터의 행이 있는 모든 스테이터스를 초깃값으로
-    /// <see cref="CharacterInstance.Statuses"/>에 넣는다. 예약된 일곱 코드(level 1, hp 2, xpp 3, max_hp 4, xpp_max 5, exp 8, exp_max 9)는 늘 들어간다:
+    /// <see cref="CharacterInstance.Statuses"/>에 넣는다. 예약된 일곱 코드(level 1, hp 2, xpp 3, max_hp 4, xpp_max 5, exp 6, exp_max 7)는 늘 들어간다:
     /// 행이 없으면 level 1, hp 1, xpp 0, exp 0이고, max_hp는 hp 행의 최댓값(없으면 1), xpp_max는 xpp 행의 최댓값(없으면 0), exp_max는 exp 행의 최댓값(없으면 0)이다.
     /// 캐릭터 스테이터스 마스터가 있으면 level과 hp의 레벨 0 행이 반드시 있다(로드 때 검증). 스킬은 아직 하나도 익히지 않았다.
     /// </summary>

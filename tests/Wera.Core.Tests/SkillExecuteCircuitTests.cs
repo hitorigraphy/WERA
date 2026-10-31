@@ -6,17 +6,17 @@ namespace Wera.Core.Tests;
 public class SkillExecuteCircuitTests
 {
     const long Hp = GamePack.HpStatusCode;
-    const long Mana = 6;
+    const long Mana = 20;
 
     static GamePack Pack(string effects) => GamePack.Load(CoreTests.PackZip(
         ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
         ("master/character_inventory_master_v1.tsv",
             "inventory_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n1\t당신\t1\t1\t2\n7001\t용사\t1\t1\t2\n"),
-        (GamePack.StatusMasterPath, "status_code\tstatus_name\n1\tlevel\n2\thp\n6\tmana\n"),
+        (GamePack.StatusMasterPath, "status_code\tstatus_name\n1\tlevel\n2\thp\n20\tmana\n"),
         (GamePack.CharacterStatusMasterPath,
             "character_code\tstatus_code\tlevel\tinitial_value\tmin_value\tmax_value\n" +
             "1\t1\t0\t1\t1\t99\n1\t2\t0\t40\t0\t40\n" +
-            "7001\t1\t0\t1\t1\t99\n7001\t2\t0\t40\t0\t40\n7001\t6\t0\t10\t0\t20\n"),
+            "7001\t1\t0\t1\t1\t99\n7001\t2\t0\t40\t0\t40\n7001\t20\t0\t10\t0\t20\n"),
         (GamePack.SkillMasterPath, "code\tname\n1\t테스트\n"),
         (GamePack.SkillExecuteEffectMasterPath, "skill_code\texecute_number\teffect_type\tvalue_1\tvalue_2\tvalue_3\n" + effects)));
 
@@ -45,7 +45,7 @@ public class SkillExecuteCircuitTests
     [Fact]
     public void Mod_adds_the_cached_value_and_set_replaces_with_it()
     {
-        var pack = Pack(Rows("1 1 FocusMainTargetCharacter", "1 2 CacheToFocusedCharacterModValue 2 0", "1 3 CacheToFocusedCharacterSetValue 6 1",
+        var pack = Pack(Rows("1 1 FocusMainTargetCharacter", "1 2 CacheToFocusedCharacterModValue 2 0", "1 3 CacheToFocusedCharacterSetValue 20 1",
             "1 4 FocusedCharacterValueToCache 2 2"));
         var (c, field) = Start(pack);
         c.CacheValues.AddRange([-15.5m, 7m]);
@@ -59,8 +59,8 @@ public class SkillExecuteCircuitTests
     public void Decimals_accumulate_inside_the_circuit_and_are_truncated_once_on_exit()
     {
         // mana 10에 2.5, 2.5, 0.5를 차례로 더하면 15.5라 15가 된다(더할 때마다 버렸다면 14).
-        var pack = Pack(Rows("1 1 FocusMainTargetCharacter", "1 2 SetCacheValue 0 25 1", "1 3 CacheToFocusedCharacterModValue 6 0",
-            "1 4 CacheToFocusedCharacterModValue 6 0", "1 5 SetCacheValue 1 5 1", "1 6 CacheToFocusedCharacterModValue 6 1"));
+        var pack = Pack(Rows("1 1 FocusMainTargetCharacter", "1 2 SetCacheValue 0 25 1", "1 3 CacheToFocusedCharacterModValue 20 0",
+            "1 4 CacheToFocusedCharacterModValue 20 0", "1 5 SetCacheValue 1 5 1", "1 6 CacheToFocusedCharacterModValue 20 1"));
         var (c, field) = Start(pack);
         c.Execute();
         Assert.Equal(15, field.Characters[7001].Statuses[Mana]);        // 10 + 2.5 + 2.5 + 0.5 = 15.5 → 15
@@ -79,7 +79,7 @@ public class SkillExecuteCircuitTests
     [Fact]
     public void The_result_is_clamped_to_the_status_range()
     {
-        var pack = Pack(Rows("1 1 FocusMainTargetCharacter", "1 2 CacheToFocusedCharacterModValue 2 0", "1 3 CacheToFocusedCharacterSetValue 6 1"));
+        var pack = Pack(Rows("1 1 FocusMainTargetCharacter", "1 2 CacheToFocusedCharacterModValue 2 0", "1 3 CacheToFocusedCharacterSetValue 20 1"));
         var (c, field) = Start(pack);
         c.CacheValues.AddRange([-100m, 99m]);
         c.Execute();
@@ -90,7 +90,7 @@ public class SkillExecuteCircuitTests
     public void A_missing_cache_value_a_status_the_character_lacks_or_an_empty_focus_does_nothing()
     {
         var pack = Pack(Rows("1 1 CacheToFocusedCharacterModValue 2 0", "1 2 FocusMainTargetCharacter", "1 3 CacheToFocusedCharacterModValue 2 5",
-            "1 4 CacheToFocusedCharacterSetValue 6 0"));
+            "1 4 CacheToFocusedCharacterSetValue 20 0"));
         var field = new CircuitField(pack, 1, 7001);
         var c = Circuit(pack, field, caster: 7001, target: 1);          // 메인 타겟은 mana가 없는 캐릭터
         c.CacheValues.Add(9m);
@@ -111,7 +111,7 @@ public class SkillExecuteCircuitTests
     [Fact]
     public void Focusing_the_caster_changes_the_caster_and_leaves_the_target()
     {
-        var pack = Pack(Rows("1 1 FocusCasterCharacter", "1 2 CacheToFocusedCharacterModValue 6 0", "1 3 CacheToFocusedCharacterSetValue 2 1"));
+        var pack = Pack(Rows("1 1 FocusCasterCharacter", "1 2 CacheToFocusedCharacterModValue 20 0", "1 3 CacheToFocusedCharacterSetValue 2 1"));
         var field = new CircuitField(pack, 7001);
         var c = Circuit(pack, field, caster: 7001, target: 7001);
         c.CacheValues.AddRange([-3m, 12m]);
@@ -122,7 +122,7 @@ public class SkillExecuteCircuitTests
     [Fact]
     public void Value_to_cache_copies_the_status_into_the_cache_and_pads_with_zeros()
     {
-        var pack = Pack(Rows("1 1 FocusMainTargetCharacter", "1 2 FocusedCharacterValueToCache 6 2", "1 3 FocusCasterCharacter", "1 4 FocusedCharacterValueToCache 2 0"));
+        var pack = Pack(Rows("1 1 FocusMainTargetCharacter", "1 2 FocusedCharacterValueToCache 20 2", "1 3 FocusCasterCharacter", "1 4 FocusedCharacterValueToCache 2 0"));
         var (c, _) = Start(pack);
         c.Execute();
         Assert.Equal([40m, 0m, 10m], c.CacheValues);                  // 시전자 hp는 0번, 타겟 mana는 2번(1번은 0으로 채움)
@@ -131,7 +131,7 @@ public class SkillExecuteCircuitTests
     [Fact]
     public void Value_to_cache_overwrites_and_skips_a_status_the_character_lacks()
     {
-        var pack = Pack(Rows("1 1 FocusCasterCharacter", "1 2 FocusedCharacterValueToCache 6 0", "1 3 FocusMainTargetCharacter", "1 4 FocusedCharacterValueToCache 2 0"));
+        var pack = Pack(Rows("1 1 FocusCasterCharacter", "1 2 FocusedCharacterValueToCache 20 0", "1 3 FocusMainTargetCharacter", "1 4 FocusedCharacterValueToCache 2 0"));
         var (c, _) = Start(pack);
         c.CacheValues.Add(99m);
         c.Execute();                                                   // 당신에게 mana는 없어 99가 남고, 그다음 타겟 hp 40으로 덮어쓴다

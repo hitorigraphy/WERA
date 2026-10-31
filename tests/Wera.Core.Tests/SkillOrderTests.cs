@@ -6,7 +6,7 @@ namespace Wera.Core.Tests;
 public class SkillOrderTests
 {
     const long Hp = GamePack.HpStatusCode;
-    const long Mana = 6;
+    const long Mana = 20;
 
     // 공백으로 구분해 쓴 이펙트 행들을 TSV 본문으로 바꾼다
     static string Rows(params string[] rows) => string.Concat(rows.Select(r => r.Replace(' ', '\t') + "\n"));
@@ -20,11 +20,11 @@ public class SkillOrderTests
             ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
             ("master/character_inventory_master_v1.tsv",
                 "inventory_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n1\t당신\t1\t1\t2\n7001\t용사\t1\t1\t2\n"),
-            (GamePack.StatusMasterPath, "status_code\tstatus_name\n1\tlevel\n2\thp\n6\tmana\n"),
+            (GamePack.StatusMasterPath, "status_code\tstatus_name\n1\tlevel\n2\thp\n20\tmana\n"),
             (GamePack.CharacterStatusMasterPath,
                 "character_code\tstatus_code\tlevel\tinitial_value\tmin_value\tmax_value\n" +
-                "1\t1\t0\t1\t1\t99\n1\t2\t0\t40\t0\t40\n1\t6\t0\t6\t0\t20\n" +
-                "7001\t1\t0\t1\t1\t99\n7001\t2\t0\t30\t0\t40\n7001\t6\t0\t10\t0\t20\n"),
+                "1\t1\t0\t1\t1\t99\n1\t2\t0\t40\t0\t40\n1\t20\t0\t6\t0\t20\n" +
+                "7001\t1\t0\t1\t1\t99\n7001\t2\t0\t30\t0\t40\n7001\t20\t0\t10\t0\t20\n"),
             (GamePack.SkillMasterPath, "code\tname\n1\t테스트\n"),
             (GamePack.SkillOrderEffectMasterPath, Head + orderEffects),
         };
@@ -66,7 +66,7 @@ public class SkillOrderTests
     public void The_order_point_is_computed_from_the_casters_and_the_targets_values()
     {
         // OrderPoint = 시전자 mana(10) + 타겟 mana(6) * 0.5
-        var c = Run("1 1 FocusCasterCharacter", "1 2 FocusedCharacterValueToCache 6 0", "1 3 FocusMainTargetCharacter", "1 4 FocusedCharacterValueToCache 6 1",
+        var c = Run("1 1 FocusCasterCharacter", "1 2 FocusedCharacterValueToCache 20 0", "1 3 FocusMainTargetCharacter", "1 4 FocusedCharacterValueToCache 20 1",
                     "1 5 SetCacheValue 2 5 1", "1 6 CacheMultiply 1 1 2", "1 7 CacheAdd 0 0 1", "1 8 CacheToResult 0");
         Assert.Equal(13m, c.Result);
         Assert.Equal(13m, c.CacheValues[0]);
