@@ -34,7 +34,7 @@ public sealed partial class GamePack
 
     /// <summary>
     /// 스테이터스 마스터: level(1)과 hp(2)는 엔진이 예약한 코드라 반드시 있어야 한다.
-    /// 세 번째 열에 선택 열 spec_display_order(0 이상의 정수)를 둘 수 있다: 0(또는 열이 없음)이면 캐릭터 상세에 표시하지 않고, 1 이상이면 작은 수부터 표시한다.
+    /// 세 번째 열에 선택 열 character_display_order(0 이상의 정수)를 둘 수 있다: 0(또는 열이 없음)이면 캐릭터 상세에 표시하지 않고, 1 이상이면 작은 수부터 표시한다.
     /// </summary>
     static List<StatusEntry>? LoadStatuses(ZipArchive zip)
     {
@@ -42,17 +42,17 @@ public sealed partial class GamePack
         var text = TryReadEntry(zip, file);
         if (text is null) return null;
         var table = Tsv.WithoutMemo(Tsv.Parse(text));
-        var hasOrder = table.Count > 0 && table[0].Length > 2 && table[0][2] == "spec_display_order";
+        var hasOrder = table.Count > 0 && table[0].Length > 2 && table[0][2] == "character_display_order";
         var statuses = new List<StatusEntry>();
         var seen = new HashSet<long>();
-        foreach (var r in hasOrder ? Body(file, text, "status_code", "status_name", "spec_display_order") : Body(file, text, "status_code", "status_name"))
+        foreach (var r in hasOrder ? Body(file, text, "status_code", "status_name", "character_display_order") : Body(file, text, "status_code", "status_name"))
         {
             var code = ParseLong(file, "스테이터스 코드", r[0]);
             if (!seen.Add(code))
                 throw new PackFormatException($"{file}: 스테이터스 코드 '{code}'가 중복됩니다.");
-            var order = hasOrder && r[2].Trim() != "" ? ParseLong(file, $"스테이터스 '{code}'의 spec_display_order", r[2]) : 0;
+            var order = hasOrder && r[2].Trim() != "" ? ParseLong(file, $"스테이터스 '{code}'의 character_display_order", r[2]) : 0;
             if (order < 0)
-                throw new PackFormatException($"{file}: 스테이터스 '{code}'의 spec_display_order '{order}'는 0 이상이어야 합니다.");
+                throw new PackFormatException($"{file}: 스테이터스 '{code}'의 character_display_order '{order}'는 0 이상이어야 합니다.");
             statuses.Add(new StatusEntry(code, r[1], order));
         }
         foreach (var (code, what) in new[] { (LevelStatusCode, "level"), (HpStatusCode, "hp") })
@@ -118,7 +118,7 @@ public sealed partial class GamePack
     // ---- 키로 찾기 ----
 
     public StatusEntry? FindStatus(long code) =>
-        Masters.StatusRowTable.TryFindByCode(code, out var r) ? new StatusEntry(r.Code, r.Name, r.SpecDisplayOrder) : null;
+        Masters.StatusRowTable.TryFindByCode(code, out var r) ? new StatusEntry(r.Code, r.Name, r.CharacterDisplayOrder) : null;
 
     /// <summary>
     /// 캐릭터의 스테이터스 값(초깃값, 최솟값, 최댓값)을 레벨로 찾는다. 그 레벨의 행이 있으면 그것을,

@@ -490,7 +490,7 @@ public record StatusRow
 {
     [PrimaryKey] public required long Code { get; init; }
     public required string Name { get; init; }
-    public long SpecDisplayOrder { get; init; }
+    public long CharacterDisplayOrder { get; init; }
 }
 
 /// <summary>캐릭터 스테이터스 마스터: 복합키 (캐릭터, 스테이터스, 레벨), 보조키 캐릭터로 그 캐릭터의 행 전부를 찾는다.</summary>

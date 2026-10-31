@@ -1,4 +1,4 @@
-status_code	status_name	spec_display_order	memo
+status_code	status_name	character_display_order	memo
 1	level	0	필수: 예약 코드 1(level)
 2	hp	0	필수: 예약 코드 2(hp)
 3	xpp	0	

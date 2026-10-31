@@ -119,7 +119,7 @@ public sealed partial class GamePack
             GroupNumber = t.GroupNumber, IsPositive = t.IsPositive,
         }).ToList());
 
-        builder.Append((statuses ?? []).Select(s => new StatusRow { Code = s.Code, Name = s.Name, SpecDisplayOrder = s.SpecDisplayOrder }).ToList());
+        builder.Append((statuses ?? []).Select(s => new StatusRow { Code = s.Code, Name = s.Name, CharacterDisplayOrder = s.CharacterDisplayOrder }).ToList());
         builder.Append((characterStatuses ?? []).Select(s => new CharacterStatusRow
         {
             CharacterCode = s.CharacterCode, StatusCode = s.StatusCode, Level = s.Level,

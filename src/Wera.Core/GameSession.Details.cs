@@ -32,7 +32,7 @@ public sealed partial class GameSession
     /// <summary>캐릭터 상세 화면의 Exp 바 칸 수("Exp : " 뒤, 오른쪽 여백을 30px 남기고 끝까지 가는 길이).</summary>
     public const int CharacterDetailExpWidth = 61;
 
-    /// <summary>캐릭터 상세 화면의 내용: 이름, 레벨, Exp 바, HP, XP, 상태값(spec_display_order가 1 이상인 스테이터스, 작은 수부터), 장비 슬롯, 스킬 슬롯, 설명문.</summary>
+    /// <summary>캐릭터 상세 화면의 내용: 이름, 레벨, Exp 바, HP, XP, 상태값(character_display_order가 1 이상인 스테이터스, 작은 수부터), 장비 슬롯, 스킬 슬롯, 설명문.</summary>
     public sealed record CharacterDetailView(
         string Name, string LevelText, GaugeView Exp, GaugeView Hp, GaugeView Xp, XpTag XpTag,
         IReadOnlyList<UnitStatusLine> Specs, IReadOnlyList<UnitStatusLine> Equipment, IReadOnlyList<UnitStatusLine> Skills, string Description);
@@ -48,8 +48,8 @@ public sealed partial class GameSession
                 .Select(slot => new UnitStatusLine(slot.Name, EquippedItemOf(code, slot.Code) is { } target ? NameOf(target) : "비어 있음")).ToList();
             var skills = Pack.SkillSlotsOf(code)
                 .Select(slot => new UnitStatusLine(slot.Name, EquippedSkillName(character, slot.Code) ?? "비어 있음")).ToList();
-            var specs = (Pack.Statuses ?? []).Where(s => s.SpecDisplayOrder > 0 && state.Statuses.ContainsKey(s.Code))
-                .OrderBy(s => s.SpecDisplayOrder).ThenBy(s => s.Code)
+            var specs = (Pack.Statuses ?? []).Where(s => s.CharacterDisplayOrder > 0 && state.Statuses.ContainsKey(s.Code))
+                .OrderBy(s => s.CharacterDisplayOrder).ThenBy(s => s.Code)
                 .Select(s => new UnitStatusLine(s.Name, Text(state.Statuses[s.Code]))).ToList();
             var xp = XpLine(character, CharacterDetailExpWidth);
             return new CharacterDetailView(
