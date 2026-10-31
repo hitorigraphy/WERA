@@ -423,10 +423,6 @@
                    같은 ADV의 대사 상자는 지우지 않고 아래로 이어 붙인다(위로 스크롤하면 지난 대사를 볼 수 있다) *@
                 <div class="advance-area" @ref="advanceArea" tabindex="@(session.AdvanceOnAnyKey ? 0 : -1)" @onkeydown="OnAdvanceKey" @onclick="OnAdvanceClick">
                     <h2>@session.CurrentStepText</h2>
-                    @if (session.CurrentStep is { Kind: EventStepKind.Battle })
-                    {
-                        <p class="end">전투는 아직 준비되지 않아 바로 다음으로 넘어갑니다.</p>
-                    }
                     @* 기본 글자색: 최신 항목은 흰색, 이전 항목은 회색(선택지 목록이 떠 있으면 목록이 최신이다). [color=…]로 정한 색은 그대로다 *@
                     @for (var i = 0; i < session.AdvLog.Count; i++)
                     {

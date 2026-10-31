@@ -2,7 +2,7 @@ using Wera.Core;
 
 namespace Wera.Core.Tests;
 
-// 전투: 이벤트 3002의 ADV 4002가 Battle 칸으로 전투(5001)를 시작하고 작전 화면(슬롯 네 줄과 가운데 영역)을 그린다.
+// 전투: 이벤트 3002의 Battle 칸이 전투(5001)를 시작하고 작전 화면(슬롯 네 줄과 가운데 영역)을 그린다.
 public class BattleScreenTests
 {
     static GamePack SamplePack()
@@ -57,7 +57,7 @@ public class BattleScreenTests
         return s;
     }
 
-    /// <summary>이벤트 3002(ADV 4002의 첫 칸이 Battle 5001)를 시작해 전투 화면으로 간다.</summary>
+    /// <summary>이벤트 3002(첫 칸이 Battle 5001)를 시작해 전투 화면으로 간다.</summary>
     static ScreenEntry? EnterBattle(GameSession s)
     {
         s.Activate("103");
@@ -916,19 +916,15 @@ public class BattleScreenTests
     }
 
     [Fact]
-    public void After_the_battle_ends_the_back_entry_returns_to_the_adv_and_continues_after_the_battle_step()
+    public void After_the_battle_ends_the_back_entry_returns_to_the_event_and_continues_after_the_battle_step()
     {
         var s = Started(canRun: true);
         Assert.DoesNotContain(s.Entries, e => e.Code == "999");                     // 전투 중에는 돌아가기가 없다
-        s.Activate("106");                                                          // 도망
+        s.Activate("106");                                                          // 도망(결과 2)
         Assert.Equal(Screen.Battle, s.Screen);
         s.Activate("999");
-        Assert.Equal(Screen.EventPlay, s.Screen);                                   // 전투를 시작한 화면(ADV)
-        Assert.Equal(AdvStepKind.TextLog, s.CurrentAdvStep!.Value.Kind);
-        Assert.Equal("전투에서 패배했습니다.", s.CurrentAdvStep!.Value.Text);          // Battle 칸 다음부터 이어 간다(도망은 결과 2라 승리 분기로 가지 않는다)
         Assert.Equal(2, s.PlayerFlags[2001]);
-        s.Activate("1");
-        Assert.Equal(Screen.Event, s.Screen);                                       // ADV와 이벤트가 끝난다
+        Assert.Equal(Screen.Event, s.Screen);                                       // 이벤트의 다음 칸들: 승리가 아니라서 끝
     }
 
     [Fact]
@@ -970,13 +966,12 @@ public class BattleScreenTests
     }
 
     [Fact]
-    public void An_adv_battle_step_needs_an_existing_battle_and_is_a_battle_step_for_the_screen()
+    public void Battle_is_an_event_flow_type_that_carries_the_result_flag_and_is_no_longer_an_adv_flow_type()
     {
-        var ex = Assert.Throws<PackFormatException>(() => SamplePackWith((GamePack.AdvFlowMasterPath, "adv_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\ttext\tforce_name\n4001\t1\tBattle\t9999\t0\t0\t\t\n")));
-        Assert.Contains("9999", ex.Message);
-        var pack = SamplePack();
-        Assert.Equal(26, (int)AdvFlowType.Battle);
-        Assert.Equal(new AdvStep(AdvStepKind.Battle, 1, "", [], BattleCode: 5001, BattleResultFlag: 2001), new AdvFlowCircuit(pack, 4002, new Dictionary<long, long>()).Advance());
+        var ex = Assert.Throws<PackFormatException>(() => SamplePackWith((GamePack.AdvFlowMasterPath, "adv_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\ttext\tforce_name\n4001\t1\tBattle\t5001\t0\t0\t\t\n")));
+        Assert.Contains("Battle", ex.Message);
+        var run = SamplePack().EventFlows!.Where(f => f.EventCode == 3002).ToList();
+        Assert.Equal((EventFlowType.Battle, 5001L, 2001L), (run[0].FlowType, run[0].Param1, run[0].Param2));
     }
 
     [Fact]
@@ -997,7 +992,8 @@ public class BattleScreenTests
         Assert.False(s.PlayerFlags.ContainsKey(2001));                              // 돌아가기 전에는 아직
         s.Activate("999");
         Assert.Equal(1, s.PlayerFlags[2001]);                                       // 승리 1
-        Assert.Equal("전투에서 승리했습니다.", s.CurrentAdvStep!.Value.Text);          // JumpFlagEqual로 승리 분기
+        Assert.Equal(Screen.EventPlay, s.Screen);
+        Assert.Equal("전투에서 승리했습니다.", s.CurrentAdvStep!.Value.Text);          // JumpFlagEqual로 승리 분기 → ADV 4002
     }
 
     [Fact]

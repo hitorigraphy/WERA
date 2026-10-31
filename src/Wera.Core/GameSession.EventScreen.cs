@@ -81,6 +81,22 @@ public sealed partial class GameSession
             CurrentAdv = new AdvFlowCircuit(Pack, step.Code, PlayerFlags, AddInventory, CountInventory, CharacterHasTag, UniqueItemHasTag, NextRandom);
             ShowNextAdvStep();                          // 보여 줄 장면이 없는 ADV는 바로 이벤트의 다음 장면으로 넘어간다
         }
+        else if (step.Kind == EventStepKind.Battle) StartEventBattle(step);
+    }
+
+    /// <summary>
+    /// 이벤트의 Battle 칸: 전투 화면으로 간다. 전투가 끝나면 [999]가 이벤트 진행 화면으로 돌아와 다음 칸부터 이어 간다.
+    /// 전투에 나가는 파티는 플레이어(캐릭터 1, 당신)가 있는 파티로 고정이다(파티 A, B, C 어느 쪽이든). 지금 보던 파티는 전투가 끝나면 되돌린다.
+    /// </summary>
+    void StartEventBattle(EventStep step)
+    {
+        battleReturnScreen = Screen.EventPlay;
+        battlePartyBefore = CurrentPartyIndex;
+        var playerParty = Array.FindIndex(Parties, p => p.IndexOf(GamePack.PlayerCharacterCode) >= 0);
+        if (playerParty >= 0) CurrentPartyIndex = playerParty;
+        battleResultFlag = step.ResultFlag;
+        BeginBattle(step.Code);
+        Screen = Screen.Battle;
     }
 
     /// <summary>재생 중인 ADV의 다음 장면으로 간다. ADV가 끝나면 이벤트의 다음 장면으로 간다.</summary>
@@ -91,18 +107,6 @@ public sealed partial class GameSession
         {
             if (Screen == Screen.CommunicationPlay) EndCommunication();
             else ShowNextEventStep();
-        }
-        else if (step.Kind == AdvStepKind.Battle)
-        {
-            CurrentAdvStep = null;
-            battleReturnScreen = Screen;                // 전투가 끝나면 [999]가 이 화면으로 돌아와 ADV를 이어 간다
-            // 전투에 나가는 파티는 플레이어(캐릭터 1, 당신)가 있는 파티로 고정이다(파티 A, B, C 어느 쪽이든). 지금 보던 파티는 전투가 끝나면 되돌린다.
-            battlePartyBefore = CurrentPartyIndex;
-            var playerParty = Array.FindIndex(Parties, p => p.IndexOf(GamePack.PlayerCharacterCode) >= 0);
-            if (playerParty >= 0) CurrentPartyIndex = playerParty;
-            battleResultFlag = step.BattleResultFlag;
-            BeginBattle(step.BattleCode);
-            Screen = Screen.Battle;
         }
         else
         {

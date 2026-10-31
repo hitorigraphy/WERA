@@ -17,7 +17,7 @@ public sealed record BattleRowView(
     BattleRowKind Kind, bool IsEnemy, string Title, IReadOnlyList<PartySlotView> Slots,
     string LeftText = "", string CenterText = "", string RightText = "");
 
-// 전투: ADV의 Battle 칸이 시작하고, 작전 화면(슬롯 네 줄과 가운데 영역)을 그린다. 끝나면 [999]로 전투를 시작한 화면에 돌아간다.
+// 전투: 이벤트의 Battle 칸이 시작하고, 작전 화면(슬롯 네 줄과 가운데 영역)을 그린다. 끝나면 [999]로 전투를 시작한 화면에 돌아간다.
 public sealed partial class GameSession
 {
     /// <summary>작전 화면 아래의 커맨드가 지금 어떤 모습인가.</summary>

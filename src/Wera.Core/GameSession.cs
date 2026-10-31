@@ -26,7 +26,7 @@ public enum Screen
     SkillSlotSelect,
     /// <summary>선택한 캐릭터가 지금까지 익힌 스킬 목록(스킬 풀). 돌아가기는 캐릭터의 스킬 설정.</summary>
     SkillPoolList,
-    /// <summary>전투 화면: ADV의 Battle 칸이 연 전투의 작전 화면(슬롯 네 줄과 가운데 영역). 전투가 끝나면 돌아가기([999])로 전투를 시작한 화면에 돌아간다.</summary>
+    /// <summary>전투 화면: 이벤트의 Battle 칸이 연 전투의 작전 화면(슬롯 네 줄과 가운데 영역). 전투가 끝나면 돌아가기([999])로 전투를 시작한 화면에 돌아간다.</summary>
     Battle,
     /// <summary>전투 화면에서 슬롯 번호나 이미지를 눌러 간 캐릭터 상태 확인(상세) 페이지. 돌아가기는 전투.</summary>
     UnitStatus,
@@ -79,7 +79,7 @@ public enum EntryAction
     Trade,
     /// <summary>리더 지정 화면의 슬롯: Arg의 칸에 있는 유닛을 리더로 지정하거나(이미 리더면) 해제한다.</summary>
     ToggleLeader,
-    /// <summary>전투를 마치고 전투를 시작한 화면으로 돌아간다. 그 화면이 ADV를 재생 중이면 Battle 칸 다음 장면으로 이어 간다.</summary>
+    /// <summary>전투를 마치고 전투를 시작한 화면으로 돌아간다. 이벤트의 Battle 칸이 연 전투였다면 그 칸 다음부터 이어 간다.</summary>
     EndBattle,
     /// <summary>이전(-1)/다음(1) 캐릭터(Arg)로 보는 캐릭터를 옮긴다.</summary>
     BattleSelectCharacter,
@@ -826,7 +826,7 @@ public sealed partial class GameSession
                     PlayerFlagOps.Set(PlayerFlags, battleResultFlag, BattleOutcome switch { BattleOutcomeKind.Win => 1, BattleOutcomeKind.Run => 2, _ => 3 });
                 battleResultFlag = 0;
                 Screen = entry.Target;
-                if (CurrentAdv is not null && Screen == Screen.EventPlay) ShowNextAdvStep();      // ADV의 Battle 칸 다음부터 이어 간다
+                if (CurrentEvent is not null && Screen == Screen.EventPlay) ShowNextEventStep();      // 이벤트의 Battle 칸 다음부터 이어 간다
                 break;
             case EntryAction.BattleOpenMove:
                 OpenBattleMove();

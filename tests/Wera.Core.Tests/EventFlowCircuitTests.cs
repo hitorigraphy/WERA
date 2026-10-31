@@ -245,14 +245,9 @@ public class EventScreenTests
         Assert.Equal(["1"], s.Entries.Select(e => e.Code));
 
         s.Activate("1");
-        Assert.Equal(Screen.EventPlay, s.Screen);
+        Assert.Equal(Screen.Battle, s.Screen);                       // Battle 칸은 전투 화면으로 간다(끝나면 이벤트의 다음 칸부터)
+        Assert.Equal(5001, s.CurrentBattleCode);
         Assert.Equal("전투: 슬라임", s.CurrentStepText);
-
-        s.Activate("1");
-        Assert.Equal(Screen.Event, s.Screen);
-        Assert.Null(s.CurrentEvent);
-        Assert.Null(s.CurrentStep);
-        Assert.Null(s.Message);
     }
 
     [Fact]

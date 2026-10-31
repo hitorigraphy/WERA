@@ -20,7 +20,11 @@ public enum EventFlowType
     Jump = 2,
     /// <summary>ADV를 재생한다. param_1이 재생할 adv_code(ADV 마스터)다.</summary>
     Adv = 3,
-    /// <summary>전투를 개시한다. param_1이 개시할 battle_code(전투 마스터)다.</summary>
+    /// <summary>
+    /// 전투를 개시한다. param_1이 개시할 battle_code(전투 마스터)다. 전투에 나가는 파티는 플레이어(캐릭터 1, 당신)가 있는 파티로 고정이고,
+    /// 승리, 패배, 도망 어느 쪽이든 끝나면 이 이벤트의 다음 칸부터 이어 간다. param_2가 0이 아니면 그 플래그(플레이어 플래그 코드)에 전투 결과를 넣는다:
+    /// 승리 1, 도망 2, 패배 3(JumpFlag*로 분기한다. 0이면 결과를 남기지 않는다). 도망은 그 전투가 도망 가능(전투 마스터의 can_run)일 때만 나온다. 인자 3은 아직 쓰이지 않는다.
+    /// </summary>
     Battle = 4,
     /// <summary>플레이어 플래그를 정한 값으로 바꾼다. param_1이 flag_code, param_2가 value다. 화면에는 아무것도 나오지 않고 바로 다음 칸으로 간다.</summary>
     SetFlag = 5,

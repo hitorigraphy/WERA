@@ -82,12 +82,6 @@ public enum AdvFlowType
     /// 화자가 없는, 상자 없이 글만 나오는 텍스트(로그). 보여 줄 문장은 text 열이고 비워 둘 수 없으며 꾸밈 문법은 맞아야 하지만 줄 수 제한은 없다. 인자는 아직 쓰이지 않는다.
     /// </summary>
     TextLog = 25,
-    /// <summary>
-    /// 전투를 개시한다. param_1이 battle_code(전투 마스터에 있어야 함, 로드 검증)다. 전투 화면으로 가서 승리, 패배, 도망 어느 쪽이든 끝나면
-    /// 이 ADV로 돌아와 이 칸 다음부터 이어 간다. param_2가 0이 아니면 그 플래그(플레이어 플래그 코드)에 전투 결과를 넣는다: 승리 1, 도망 2, 패배 3
-    /// (JumpFlag*로 분기한다. 0이면 결과를 남기지 않는다). 도망은 그 전투가 도망 가능(전투 마스터의 can_run)일 때만 나온다. 인자 3은 아직 쓰이지 않는다.
-    /// </summary>
-    Battle = 26,
 }
 
 /// <summary>
@@ -113,12 +107,11 @@ public sealed partial class GamePack
     /// 흐름: ADV는 ADV 마스터에 있어야 하고, 키 (ADV, 흐름 번호)를 두 번 쓸 수 없다. 흐름 번호와 인자는 정수(long, 인자는 비우면 0), 종류는 이름으로 적는다.
     /// 종류별 인자 검증: Jump의 param_1과 JumpFlag*, JumpInventory*, 태그 점프(JumpCharacterHaveTag, JumpUniqueItemHaveTag), JumpRandom의 param_3(점프할 흐름 번호), Choice의 param_2는 자신의 흐름 번호보다 큰 같은 ADV의 흐름 번호(뒤로만 점프해 무한 반복이 없다).
     /// 같은 ADV에서 Choice의 param_1(선택지 그룹 아이디)이 같은 행들은 흐름 번호 순으로 연속해야 한다(다른 칸이 끼어들 수 없다).
-    /// Battle의 param_1은 전투 마스터에 있는 전투 코드여야 한다. Finish, None, 대사 종류(TextMe, TextYou, TextPlain, TextLog)는 인자를 검증하지 않는다(TextMe와 TextYou의 param_1이 캐릭터가 아니어도 오류가 아니라 이름 ???). SetFlag와 ModFlag의 param_1(플래그 코드)과 param_2(값)는 어떤 정수든 되고, AddInventory는 param_1이 인벤토리 마스터에 있는 코드여야 하며 유니크 아이템과 캐릭터는 param_2가 1 또는 -1이어야 한다. 대사 종류는 text 열이 비어 있으면 안 된다.
+    /// Finish, None, 대사 종류(TextMe, TextYou, TextPlain, TextLog)는 인자를 검증하지 않는다(TextMe와 TextYou의 param_1이 캐릭터가 아니어도 오류가 아니라 이름 ???). SetFlag와 ModFlag의 param_1(플래그 코드)과 param_2(값)는 어떤 정수든 되고, AddInventory는 param_1이 인벤토리 마스터에 있는 코드여야 하며 유니크 아이템과 캐릭터는 param_2가 1 또는 -1이어야 한다. 대사 종류는 text 열이 비어 있으면 안 된다.
     /// 흐름 조건 마스터(adv_flow_condition_master)는 없어졌다. 그 파일이 게임팩에 있으면 로드 오류다.
     /// </summary>
     static List<AdvFlow>? LoadAdvFlows(
-        ZipArchive zip, List<AdvEntry>? advs, IReadOnlyDictionary<long, InventoryEntry> inventory, IReadOnlyList<TagEntry>? tags,
-        IReadOnlyList<BattleEntry>? battles = null)
+        ZipArchive zip, List<AdvEntry>? advs, IReadOnlyDictionary<long, InventoryEntry> inventory, IReadOnlyList<TagEntry>? tags)
     {
         const string file = AdvFlowMasterPath;
         const string conditionFile = AdvFlowConditionMasterPath;
@@ -130,7 +123,6 @@ public sealed partial class GamePack
         if (advs is null) throw new PackFormatException($"{file}가 있으려면 {AdvMasterPath}도 필요합니다.");
 
         var advCodes = advs.Select(a => a.Code).ToHashSet();
-        var battleCodes = battles?.Select(b => b.Code).ToHashSet();
         var rows = new List<(long Adv, long Flow, AdvFlowType Type, long P1, long P2, long P3, string Text, string ForceName)>();
         var seen = new HashSet<(long, long)>();
         foreach (var r in Body(file, text, "adv_code", "flow_number", "flow_type", "param_1", "param_2", "param_3", "text", "force_name"))
@@ -183,10 +175,6 @@ public sealed partial class GamePack
                         $"{where} 점프할 흐름 번호 '{p3}'는 자신의 흐름 번호 {flow}보다 커야 합니다(뒤로만 점프할 수 있어 무한 반복이 생기지 않습니다).");
                 case var jump when HaveTagJump.IsConditionalJump(jump.ToString()) && !seen.Contains((advCode, p3)):
                     throw new PackFormatException($"{where} 점프할 흐름 번호 '{p3}'가 같은 ADV의 흐름에 없습니다.");
-                case AdvFlowType.Battle when battleCodes is null:
-                    throw new PackFormatException($"{where} Battle이 있으려면 {BattleMasterPath}도 필요합니다.");
-                case AdvFlowType.Battle when !battleCodes!.Contains(p1):
-                    throw new PackFormatException($"{where} 개시할 전투 '{p1}'가 전투 마스터에 없습니다.");
                 case AdvFlowType.Choice when p2 <= flow:
                     throw new PackFormatException(
                         $"{where} 선택지가 점프할 흐름 번호 '{p2}'는 자신의 흐름 번호 {flow}보다 커야 합니다(뒤로만 점프할 수 있어 무한 반복이 생기지 않습니다).");

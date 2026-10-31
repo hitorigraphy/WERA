@@ -164,7 +164,7 @@ public sealed partial class GamePack
         var advs = LoadAdvs(zip);
         var battles = LoadBattles(zip);
         var eventFlows = LoadEventFlows(zip, events, advs, battles, tags, inventory);
-        var advFlows = LoadAdvFlows(zip, advs, inventory, tags, battles);
+        var advFlows = LoadAdvFlows(zip, advs, inventory, tags);
         var communicationGroups = LoadCommunicationGroups(zip);
         var communications = LoadCommunications(zip, communicationGroups);
         var communicationSoloFlows = LoadCommunicationSoloFlows(zip, communications, inventory, tags);

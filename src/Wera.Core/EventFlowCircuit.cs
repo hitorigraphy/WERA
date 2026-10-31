@@ -13,7 +13,8 @@ public enum EventStepKind
 
 /// <summary>이벤트를 실행하다 만난 일 하나. Finished면 FlowNumber와 Code는 0이다.</summary>
 /// <param name="FlowNumber">이 일을 하라고 한 흐름 칸의 번호.</param>
-public readonly record struct EventStep(EventStepKind Kind, long FlowNumber, long Code);
+/// <param name="ResultFlag">Battle일 때 전투 결과(승리 1, 도망 2, 패배 3)를 담을 플래그 코드(0이면 담지 않는다).</param>
+public readonly record struct EventStep(EventStepKind Kind, long FlowNumber, long Code, long ResultFlag = 0);
 
 /// <summary>
 /// 이벤트 하나를 흐름 번호 순서대로 실행한다.
@@ -119,7 +120,7 @@ public sealed class EventFlowCircuit
                 case EventFlowType.Adv:
                     return new EventStep(EventStepKind.Adv, flow.FlowNumber, flow.Param1);
                 case EventFlowType.Battle:
-                    return new EventStep(EventStepKind.Battle, flow.FlowNumber, flow.Param1);
+                    return new EventStep(EventStepKind.Battle, flow.FlowNumber, flow.Param1, flow.Param2);
                 // None: 아무 일도 하지 않고 다음 칸으로
             }
         }

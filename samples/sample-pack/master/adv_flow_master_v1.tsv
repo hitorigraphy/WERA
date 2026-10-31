@@ -15,9 +15,5 @@ adv_code	flow_number	flow_type	param_1	param_2	param_3	text	force_name	memo
 4001	23	Finish	0	0	0			테스트용
 4001	24	TextMe	1	0	0	튜토리얼을 마쳤습니다.		테스트용
 4001	25	Finish	0	0	0			테스트용
-4002	1	Battle	5001	2001	0			테스트용(결과를 플래그 2001에: 승리 1, 도망 2, 패배 3; 도망 불가 전투)
-4002	2	JumpFlagEqual	2001	1	5			테스트용(승리면 5로)
-4002	3	TextLog	0	0	0	전투에서 패배했습니다.		테스트용
-4002	4	Finish	0	0	0			테스트용
-4002	5	TextLog	0	0	0	전투에서 승리했습니다.		테스트용
-4002	6	Finish	0	0	0			테스트용
+4002	1	TextLog	0	0	0	전투에서 승리했습니다.		테스트용(이벤트 3002가 승리했을 때 재생)
+4002	2	Finish	0	0	0			테스트용
