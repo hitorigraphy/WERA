@@ -112,15 +112,37 @@ public class DungeonMapTests
     {
         var pack = GamePack.Load(File.OpenRead(Path.Combine(FindRoot(), "src", "Wera.Web", "wwwroot", "sample-pack.wra")));
         var map = pack.DungeonMapOf(1999);
-        Assert.Equal(7, map.Count);
-        Assert.Equal([0L], pack.DungeonLayersOf(1999));
+        Assert.Equal(10, map.Count);
+        Assert.Equal([0L, 1L], pack.DungeonLayersOf(1999));
+        Assert.Equal(7, pack.DungeonMapOf(1999, 0).Count);
+        Assert.Equal(3, pack.DungeonMapOf(1999, 1).Count);
         var kinds = map.SelectMany(m => m.Cells).Where(c => c != "").Select(c => pack.DungeonTileCodeOf(1999, c)!.Value).Distinct()
             .SelectMany(t => pack.TileEffectsOf(t)).Select(e => e.EffectType).ToHashSet();
         Assert.Superset(new HashSet<TileEffectType>
         {
             TileEffectType.None, TileEffectType.Wall, TileEffectType.Start, TileEffectType.Exit,
-            TileEffectType.FixedBattle, TileEffectType.RandomBattle, TileEffectType.Adv,
+            TileEffectType.FixedBattle, TileEffectType.RandomBattle, TileEffectType.Adv, TileEffectType.Warp,
         }, kinds);
+    }
+
+    [Fact]
+    public void Warp_moves_within_the_same_dungeon_and_its_destination_must_be_a_map_cell()
+    {
+        var tiles = TileHeader + "1\tNone\t0\t0\t0\n2\tWarp\t1\t2\t3\n";
+        var dt = DungeonTileHeader + "1001\t.\t1\n1001\t>\t2\n";
+        // 레이어 0의 > 는 레이어 1의 (x 2, y 3)으로
+        var ok = Load((GamePack.TileMasterPath, tiles), (GamePack.DungeonTileMasterPath, dt),
+            (GamePack.DungeonMapMasterPath, MapHeader + Row(1001, 0, 0, ">") + Row(1001, 1, 3, "...")));
+        Assert.Equal(new TileEffect(2, TileEffectType.Warp, 1, 2, 3), ok.TileEffectsOf(2).Single());
+        Rejects("같은 던전의 맵에 있는 칸이 아닙니다", (GamePack.TileMasterPath, tiles), (GamePack.DungeonTileMasterPath, dt),
+            (GamePack.DungeonMapMasterPath, MapHeader + Row(1001, 0, 0, ">") + Row(1001, 1, 3, ".. ")));                          // 도착 칸이 빈 칸
+        Rejects("같은 던전의 맵에 있는 칸이 아닙니다", (GamePack.TileMasterPath, tiles), (GamePack.DungeonTileMasterPath, dt),
+            (GamePack.DungeonMapMasterPath, MapHeader + Row(1001, 0, 0, ">") + Row(1001, 1, 2, "...")));                          // 그 줄이 없다
+        Rejects("같은 던전의 맵에 있는 칸이 아닙니다", (GamePack.TileMasterPath, tiles), (GamePack.DungeonTileMasterPath, dt),
+            (GamePack.DungeonMapMasterPath, MapHeader + Row(1001, 0, 0, ">")));                                                  // 그 맵이 없다
+        Rejects("pos_x 30", (GamePack.TileMasterPath, TileHeader + "2\tWarp\t0\t30\t0\n"));
+        Rejects("Warp의 도착", (GamePack.TileMasterPath, TileHeader + "2\tWarp\t-1\t0\t0\n"));
+        Assert.Equal(7, (int)TileEffectType.Warp);
     }
 
     static string FindRoot()

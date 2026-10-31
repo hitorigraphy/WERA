@@ -6,7 +6,7 @@ namespace Wera.Core;
 
 /// <summary>
 /// 타일의 효과 종류. TSV에는 이름(대소문자 무시)으로 적는다. 타일 하나에 효과를 여러 개 겹칠 수 있다(타일 마스터에서 같은 타일 코드에 다른 효과의 행을 더한다).
-/// 숫자 값은 정해진 번호다: None 0, Wall 1, Start 2, Exit 3, FixedBattle 4, RandomBattle 5, Adv 6.
+/// 숫자 값은 정해진 번호다: None 0, Wall 1, Start 2, Exit 3, FixedBattle 4, RandomBattle 5, Adv 6, Warp 7.
 /// </summary>
 [JsonConverter(typeof(JsonStringEnumConverter<TileEffectType>))]
 public enum TileEffectType
@@ -28,6 +28,11 @@ public enum TileEffectType
     RandomBattle = 5,
     /// <summary>닿으면 ADV로 넘어간다. value_1이 adv_code(ADV 마스터)다.</summary>
     Adv = 6,
+    /// <summary>
+    /// 닿으면 같은 던전 안의 다른 칸으로 옮겨 간다(계단, 워프). value_1이 도착할 layer_number, value_2가 pos_x, value_3이 pos_y다.
+    /// 다른 던전으로는 갈 수 없다(던전은 홈 화면에서 던전과 파티를 골라 들어가므로). 도착 칸은 그 던전의 맵에 있는 글자 칸이어야 한다(던전 맵 마스터 로드 검증).
+    /// </summary>
+    Warp = 7,
 }
 
 /// <summary>타일 마스터의 한 행: 타일(TileCode)이 가진 효과(EffectType)와 그 인자. 키는 (TileCode, EffectType)이라 한 타일에 효과 종류별로 한 행씩 겹칠 수 있다.</summary>
@@ -62,7 +67,7 @@ public sealed partial class GamePack
 
     /// <summary>
     /// 타일 마스터를 읽는다. 키 (타일 코드, 효과)를 두 번 쓸 수 없다. 효과는 이름으로 적고, 인자(value_1~3)는 정수(long, 비우면 0)다.
-    /// 효과별 인자 검증: FixedBattle의 value_1과 RandomBattle의 value_3은 전투 마스터의 코드, RandomBattle의 value_2(모수)는 1 이상, Adv의 value_1은 ADV 마스터의 코드여야 한다
+    /// 효과별 인자 검증: Warp는 도착 layer_number와 pos_y가 0 이상, pos_x가 0~29(도착 칸이 맵에 있는지는 던전 맵 마스터를 읽을 때 본다), FixedBattle의 value_1과 RandomBattle의 value_3은 전투 마스터의 코드, RandomBattle의 value_2(모수)는 1 이상, Adv의 value_1은 ADV 마스터의 코드여야 한다
     /// (전투나 ADV 효과가 있으려면 그 마스터가 있어야 한다). None, Wall, Start, Exit는 인자를 보지 않는다.
     /// </summary>
     static List<TileEffect>? LoadTileEffects(ZipArchive zip, List<AdvEntry>? advs, List<BattleEntry>? battles)
@@ -105,6 +110,8 @@ public sealed partial class GamePack
                     if (v2 < 1) throw new PackFormatException($"{file}: {where} RandomBattle의 모수 '{v2}'는 1 이상이어야 합니다.");
                     CheckBattle(v3);
                     break;
+                case TileEffectType.Warp when v1 < 0 || v2 < 0 || v2 >= DungeonMapWidth || v3 < 0:
+                    throw new PackFormatException($"{file}: {where} Warp의 도착(layer_number {v1}, pos_x {v2}, pos_y {v3})은 layer_number와 pos_y가 0 이상, pos_x가 0 이상 {DungeonMapWidth} 미만이어야 합니다.");
                 case TileEffectType.Adv:
                     if (advCodes is null) throw new PackFormatException($"{file}: {where} Adv가 있으려면 {AdvMasterPath}도 필요합니다.");
                     if (!advCodes.Contains(v1)) throw new PackFormatException($"{file}: {where} Adv의 ADV '{v1}'가 ADV 마스터에 없습니다.");
@@ -153,7 +160,7 @@ public sealed partial class GamePack
     /// 던전 맵 마스터를 읽는다. 던전은 던전 마스터에 있어야 하고, 키 (던전, layer_number, pos_y)를 두 번 쓸 수 없으며 layer_number와 pos_y는 0 이상이다.
     /// pos_x_0 ~ pos_x_29의 칸은 비어 있거나(맵 밖) 그 던전의 던전 타일 마스터에 있는 글자여야 한다.
     /// </summary>
-    static List<DungeonMapLine>? LoadDungeonMaps(ZipArchive zip, List<Dungeon>? dungeons, List<DungeonTile>? dungeonTiles)
+    static List<DungeonMapLine>? LoadDungeonMaps(ZipArchive zip, List<Dungeon>? dungeons, List<DungeonTile>? dungeonTiles, List<TileEffect>? tiles)
     {
         const string file = DungeonMapMasterPath;
         var text = TryReadEntry(zip, file);
@@ -185,6 +192,22 @@ public sealed partial class GamePack
                         $"{file}: 던전 '{dungeon}'의 레이어 {layer}, pos_y {posY}, pos_x_{x}의 글자 '{cells[x]}'가 {DungeonTileMasterPath}에 없습니다.");
             rows.Add(new DungeonMapLine(dungeon, layer, posY, cells));
         }
+
+        // Warp 타일이 그 던전의 맵 안(글자가 있는 칸)으로 옮겨 가는지 본다.
+        var tileOf = (dungeonTiles ?? []).ToDictionary(t => (t.DungeonCode, t.LocalTileText), t => t.TileCode);
+        var warps = (tiles ?? []).Where(t => t.EffectType == TileEffectType.Warp).ToDictionary(t => t.TileCode);
+        var lineAt = rows.ToDictionary(l => (l.DungeonCode, l.LayerNumber, l.PosY));
+        foreach (var line in rows)
+            for (var x = 0; x < line.Cells.Count; x++)
+                if (line.Cells[x] != "" && tileOf.TryGetValue((line.DungeonCode, line.Cells[x]), out var tile) && warps.TryGetValue(tile, out var warp))
+                {
+                    var from = $"던전 '{line.DungeonCode}'의 레이어 {line.LayerNumber}, pos_y {line.PosY}, pos_x_{x}의 글자 '{line.Cells[x]}'(타일 {tile}) Warp의";
+                    if (warp.Value2 < 0 || warp.Value2 >= DungeonMapWidth)
+                        throw new PackFormatException($"{file}: {from} 도착 pos_x '{warp.Value2}'는 0 이상 {DungeonMapWidth} 미만이어야 합니다.");
+                    if (!lineAt.TryGetValue((line.DungeonCode, warp.Value1, warp.Value3), out var target) || target.Cells[(int)warp.Value2] == "")
+                        throw new PackFormatException(
+                            $"{file}: {from} 도착(레이어 {warp.Value1}, pos_x {warp.Value2}, pos_y {warp.Value3})이 같은 던전의 맵에 있는 칸이 아닙니다.");
+                }
         return rows;
     }
 

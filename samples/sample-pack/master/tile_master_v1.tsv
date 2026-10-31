@@ -6,3 +6,5 @@ code	tile_effect	value_1	value_2	value_3	memo
 5	FixedBattle	5001	0	0	고정 전투
 6	RandomBattle	30	100	5001	30% 확률로 전투 5001
 7	Adv	4001	0	0	ADV 4001
+8	Warp	1	2	1	다른 맵(레이어 1)의 (x 2, y 1)로 이동(내려가는 계단)
+9	Warp	0	4	5	원래 맵(레이어 0)의 (x 4, y 5)로 이동(올라가는 계단)

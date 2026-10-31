@@ -177,7 +177,7 @@ public sealed partial class GamePack
         var battleEnemies = LoadBattleEnemies(zip, battles, presetParties);
         var tileEffects = LoadTileEffects(zip, advs, battles);
         var dungeonTiles = LoadDungeonTiles(zip, dungeons, tileEffects);
-        var dungeonMaps = LoadDungeonMaps(zip, dungeons, dungeonTiles);
+        var dungeonMaps = LoadDungeonMaps(zip, dungeons, dungeonTiles, tileEffects);
         var skillSlots = LoadSkillSlots(zip);
         var characterSkillSlotTags = LoadCharacterSkillSlotTags(zip, characterInventory, skillSlots, tags);
         var skills = LoadSkills(zip);
