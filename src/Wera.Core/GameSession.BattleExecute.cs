@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace Wera.Core;
 
-// 전투 [106] 실행: 생존한 전원의 스킬 순서 서킷을 계산해 OrderPoint가 가장 큰 1명이 스킬을 쓰고, 남은 인원으로 다시 계산해 전원이 1회씩 행동하면 1턴이 끝난다.
+// 전투 [107] 실행: 생존한 전원의 스킬 순서 서킷을 계산해 OrderPoint가 가장 큰 1명이 스킬을 쓰고, 남은 인원으로 다시 계산해 전원이 1회씩 행동하면 1턴이 끝난다.
 public sealed partial class GameSession
 {
     /// <summary>전투의 결과: 아직 진행 중이면 None.</summary>
@@ -15,12 +15,17 @@ public sealed partial class GameSession
     public IReadOnlyList<BattleActed> BattleLog => battleLog;
     readonly List<BattleActed> battleLog = [];
 
-    /// <summary>실행한 행동 한 건: 시전자 쪽(적 여부)과 슬롯, 스킬 코드, 대상 쪽(적 여부)과 슬롯, 그때의 OrderPoint, 대상이 입은 피해(행동 전후 대상의 hp 차이; 음수면 회복).</summary>
-    public readonly record struct BattleActed(bool IsEnemy, int Slot, long SkillCode, bool TargetIsEnemy, int TargetSlot, decimal OrderPoint, long Damage);
+    /// <summary>
+    /// 실행한 행동 한 건: 시전자 쪽(적 여부)과 슬롯, 스킬 코드, 대상 쪽(적 여부)과 슬롯, 그때의 OrderPoint, 대상이 입은 피해(행동 전후 대상의 hp 차이; 음수면 회복).
+    /// 이동(<paramref name="IsMove"/>)이면 아군 유닛이 Slot에서 TargetSlot으로 옮겨 간 것이고 나머지 값은 쓰지 않는다.
+    /// </summary>
+    public readonly record struct BattleActed(bool IsEnemy, int Slot, long SkillCode, bool TargetIsEnemy, int TargetSlot, decimal OrderPoint, long Damage, bool IsMove = false);
 
     /// <summary>이번 턴 행동 기록을 화면에 보여 줄 한 줄씩("시전자 → 대상 : 스킬N (피해 N)", 행동한 순서). 적의 이름 앞에는 "적 "이 붙는다.</summary>
     public IReadOnlyList<string> BattleLogLines => battleLog.Select(a =>
     {
+        if (a.IsMove)                                                              // 옮겨 간 유닛은 이제 도착한 슬롯에 있다
+            return $"{(UnitOf(new Combatant(false, a.TargetSlot)) is { } mover ? CharacterName(mover.CharacterCode) : "?")} : 이동 → [{BattleSlotNumber(false, a.TargetSlot)}]";
         string Name(bool enemy, int slot) => (enemy ? "적 " : "") +
             (UnitOf(new Combatant(enemy, slot)) is { } unit ? CharacterName(unit.CharacterCode) : "?");
         var result = a.Damage > 0 ? $"피해 {a.Damage}" : a.Damage < 0 ? $"회복 {-a.Damage}" : "피해 없음";
@@ -37,7 +42,7 @@ public sealed partial class GameSession
         Enumerable.Range(0, PartySlotCount).Select(i => new Combatant(enemy, i)).Where(IsAlive).ToList();
 
     /// <summary>
-    /// [106] 실행: 전원이 1회씩 행동할 때까지(또는 한쪽이 모두 쓰러질 때까지) 순서를 다시 계산하며 스킬을 쓴다. 아군은 설정한 스킬과 메인 타겟을 쓰고,
+    /// [107] 실행: 전원이 1회씩 행동할 때까지(또는 한쪽이 모두 쓰러질 때까지) 순서를 다시 계산하며 스킬을 쓴다. 아군은 설정한 스킬과 메인 타겟을 쓰고,
     /// 적은 스킬과 메인 타겟(스킬의 타겟 대상에 맞는 유닛)을 랜덤으로 정한다(자동 지정 서킷은 나중에). 메인 타겟이 쓰러졌으면 그 스킬의 타겟 대상에 맞는 살아 있는 유닛 중 랜덤으로 바꾼다.
     /// 끝나면 승패를 판정하고 이긴 쪽이 없으면 다음 턴(행동 설정)을 시작한다.
     /// </summary>
@@ -123,12 +128,15 @@ public sealed partial class GameSession
                 (units[from], units[to]) = (units[to], units[from]);
                 result[from] = to;
                 result[to] = from;
+                battleLog.Add(new BattleActed(false, from, 0, false, to, 0, 0, IsMove: true));
+                battleLog.Add(new BattleActed(false, to, 0, false, from, 0, 0, IsMove: true));
             }
             else if (units[to] is null)
             {
                 units[to] = units[from];
                 units[from] = null;
                 result[from] = to;
+                battleLog.Add(new BattleActed(false, from, 0, false, to, 0, 0, IsMove: true));
             }
         }
         battleMoves.Clear();

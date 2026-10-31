@@ -99,11 +99,11 @@ public enum EntryAction
     BattleCancelActions,
     /// <summary>대상 후보에서 유닛을 고른다(Arg = "E슬롯"(적) 또는 "A슬롯"(아군)).</summary>
     BattleChooseTarget,
-    /// <summary>[106] 실행: 이번 턴의 행동을 순서대로 실행한다.</summary>
+    /// <summary>[107] 실행: 이번 턴의 행동을 순서대로 실행한다.</summary>
     BattleExecute,
     /// <summary>전투 화면의 슬롯 번호: 그 캐릭터의 상태 확인 페이지로 간다(Arg = "E슬롯"(적) 또는 "A슬롯"(아군)).</summary>
     BattleViewUnit,
-    /// <summary>[107] 도망: 전투를 끝낸다.</summary>
+    /// <summary>[106] 도망: 전투를 끝낸다.</summary>
     BattleRun,
     /// <summary>작전 화면을 위(-1)나 아래(1) 구성으로 바로 넘긴다(Arg): 적 3 / 아군 1 ↔ 적 1 / 아군 3.</summary>
     BattleScroll,

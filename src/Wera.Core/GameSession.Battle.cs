@@ -26,7 +26,7 @@ public sealed partial class GameSession
     /// <summary>작전 화면 아래의 커맨드가 지금 어떤 모습인가.</summary>
     public enum BattleCommandMode
     {
-        /// <summary>기본 커맨드: 윗줄 [101] 다음 캐릭터, [102] 행동 설정, [103] 아이템 / 아랫줄 [104] 이전 캐릭터, [105] 이동, [106] 실행, [107] 도망.</summary>
+        /// <summary>기본 커맨드: 윗줄 [101] 다음 캐릭터, [102] 행동 설정, [103] 아이템 / 아랫줄 [104] 이전 캐릭터, [105] 이동, [106] 도망, [107] 실행.</summary>
         Basic,
         /// <summary>행동 후보: 지금 보고 있는 캐릭터가 장착한 스킬들([101]부터)과 [106] 취소.</summary>
         ActionCandidates,
@@ -120,7 +120,7 @@ public sealed partial class GameSession
     /// <summary>슬롯의 아군 유닛이 이번 턴에 설정한 행동(스킬 코드). 설정하지 않았으면 null.</summary>
     public long? BattleActionOf(int slot) => battleActions.TryGetValue(slot, out var skill) ? skill : null;
 
-    /// <summary>파티의 모든 유닛이 이번 턴의 행동을 설정했는가([106] 실행은 이때만 누를 수 있다). 장착한 스킬이 없는 유닛은 설정하지 않아도 된다.</summary>
+    /// <summary>파티의 모든 유닛이 이번 턴의 행동을 설정했는가([107] 실행은 이때만 누를 수 있다). 장착한 스킬이 없는 유닛은 설정하지 않아도 된다.</summary>
     public bool BattleAllActionsSet => BattleUnitSlots().All(s => !BattleActionNeeded(s));
 
     /// <summary>아군 파티에 유닛이 있는 슬롯 번호들(칸 순서).</summary>
@@ -311,7 +311,7 @@ public sealed partial class GameSession
     /// <summary>
     /// 이동 후보에서 슬롯을 고르면 보는 캐릭터의 이번 턴 행동이 그 슬롯으로의 이동이 된다(스킬은 쓰지 않음). 이미 유닛이 있는 슬롯이면 그 유닛의 행동도
     /// 보는 캐릭터의 슬롯으로의 이동(자리 바꿈)으로 함께 바뀌고, 그 유닛이 정해 둔 행동은 사라진다. 그 뒤 다음 캐릭터로 넘어간다.
-    /// 이동은 [106] 실행에서 스킬보다 먼저 일어난다.
+    /// 이동은 [107] 실행에서 스킬보다 먼저 일어난다.
     /// </summary>
     void ChooseBattleMove(int to)
     {
@@ -454,7 +454,7 @@ public sealed partial class GameSession
 
     /// <summary>
     /// 작전 화면의 항목: 기본 커맨드나 행동 후보(돌아가기는 없다), [1000] ▲(적 3 / 아군 1 구성으로, 그 구성일 때는 회색), [1001] ▼(적 1 / 아군 3 구성으로, 그 구성일 때는 회색).
-    /// [106] 실행은 모든 유닛의 행동이 설정되어야 누를 수 있다(아직 동작은 없다).
+    /// [107] 실행은 모든 유닛의 행동이 설정되어야 누를 수 있다(아직 동작은 없다).
     /// </summary>
     IReadOnlyList<ScreenEntry> BattleEntries() =>
     [
@@ -497,8 +497,8 @@ public sealed partial class GameSession
         yield return new ScreenEntry("103", "아이템", Screen.Battle, EntryAction.BattleOpenItems);
         yield return new ScreenEntry("104", "이전 캐릭터", Screen.Battle, EntryAction.BattleSelectCharacter, "-1");
         yield return new ScreenEntry("105", "이동", Screen.Battle, EntryAction.BattleOpenMove);
-        yield return new ScreenEntry("106", "실행", Screen.Battle, EntryAction.BattleExecute, Enabled: BattleAllActionsSet);
-        yield return new ScreenEntry("107", "도망", Screen.Battle, EntryAction.BattleRun);
+        yield return new ScreenEntry("106", "도망", Screen.Battle, EntryAction.BattleRun);
+        yield return new ScreenEntry("107", "실행", Screen.Battle, EntryAction.BattleExecute, Enabled: BattleAllActionsSet);
     }
 
     /// <summary>▲(음수)는 적 3 / 아군 1 구성으로, ▼(양수)는 적 1 / 아군 3 구성으로 바로 넘어간다(그 사이 구성은 보여 주지 않는다).</summary>

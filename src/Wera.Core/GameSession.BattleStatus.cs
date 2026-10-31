@@ -87,7 +87,7 @@ public sealed partial class GameSession
         statusSlot = int.Parse(arg.AsSpan(1), CultureInfo.InvariantCulture);
     }
 
-    /// <summary>[107] 도망: 전투를 끝내고(도망은 늘 성공한다) 전투에 참가한 아군 유닛마다 도망 후 서킷을 돌린다. 바뀐 값은 남는다.</summary>
+    /// <summary>[106] 도망: 전투를 끝내고(도망은 늘 성공한다) 전투에 참가한 아군 유닛마다 도망 후 서킷을 돌린다. 바뀐 값은 남는다.</summary>
     void RunFromBattle()
     {
         if (BattleOutcome != BattleOutcomeKind.None) return;

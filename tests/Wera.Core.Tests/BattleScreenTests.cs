@@ -247,17 +247,17 @@ public class BattleScreenTests
     public void Execute_is_gray_until_every_unit_has_an_action()
     {
         var s = Started(twoUnits: true);
-        Assert.Equal(("실행", false), (Entry(s, "106").Label, Entry(s, "106").Enabled));
+        Assert.Equal(("실행", false), (Entry(s, "107").Label, Entry(s, "107").Enabled));
         Assert.False(s.BattleAllActionsSet);
 
         s.Activate("102"); s.Activate("101"); s.Activate("1");     // 첫 유닛: 스킬1 → 다음 캐릭터로
-        Assert.False(Entry(s, "106").Enabled);                     // 둘째 유닛이 아직
+        Assert.False(Entry(s, "107").Enabled);                     // 둘째 유닛이 아직
         s.Activate("102"); s.Activate("104"); s.Activate("12");     // 둘째 유닛: 스킬4(자신)
         Assert.True(s.BattleAllActionsSet);
-        Assert.True(Entry(s, "106").Enabled);
+        Assert.True(Entry(s, "107").Enabled);
         Assert.Equal((1001, 1004), (s.BattleActionOf(0)!.Value, s.BattleActionOf(1)!.Value));
 
-        s.Activate("106");                                         // 아직 동작은 없다
+        s.Activate("107");                                         // 아직 동작은 없다
         Assert.Equal(Screen.Battle, s.Screen);
     }
 
@@ -293,7 +293,7 @@ public class BattleScreenTests
         var enemyCount = s.EnemyInstances.Count;
         s.Activate("102"); s.Activate("101"); s.Activate("1");       // 첫 유닛: 스킬1 → 적 슬롯 0
         s.Activate("102"); s.Activate("102"); s.Activate("1");       // 둘째 유닛: 스킬2 → 적 슬롯 0
-        s.Activate("106");
+        s.Activate("107");
 
         Assert.Equal(s.BattleLog.Count, s.BattleLogLines.Count);
         Assert.All(s.BattleLogLines, l => Assert.Contains(" → ", l));
@@ -306,7 +306,7 @@ public class BattleScreenTests
         Assert.True(s.EnemyInstances[0].Hp < s.EnemyInstances[0].MaxHp);   // 스킬 피해가 들어갔다
         Assert.Null(s.BattleActionOf(0));                            // 다음 턴: 행동은 지워지고 첫 유닛부터
         Assert.Equal(0, s.BattleCurrentSlot);
-        Assert.False(Entry(s, "106").Enabled);
+        Assert.False(Entry(s, "107").Enabled);
     }
 
     [Fact]
@@ -317,7 +317,7 @@ public class BattleScreenTests
         var slot = win.EnemyInstances.Keys.Single();
         win.EnemyInstances[slot].Statuses[GamePack.HpStatusCode] = 5;
         win.Activate("102"); win.Activate("102"); win.Activate((slot + 1).ToString());
-        win.Activate("106");
+        win.Activate("107");
         Assert.Equal(GameSession.BattleOutcomeKind.Win, win.BattleOutcome);
         Assert.DoesNotContain(win.Entries, e => e.Action != EntryAction.BattleScroll && e.Action != EntryAction.BattleViewUnit && e.Code != "999");   // 커맨드는 없다
 
@@ -328,7 +328,7 @@ public class BattleScreenTests
         lose.EnemyInstances[slot].Statuses[GamePack.MaxHpStatusCode] = 100;
         lose.Characters[1].Statuses[GamePack.HpStatusCode] = 1;
         lose.Activate("102"); lose.Activate("101"); lose.Activate((slot + 1).ToString());
-        lose.Activate("106");
+        lose.Activate("107");
         Assert.Equal(GameSession.BattleOutcomeKind.Lose, lose.BattleOutcome);
     }
 
@@ -336,10 +336,10 @@ public class BattleScreenTests
     public void Basic_commands_are_next_action_item_previous_move_execute_and_run()
     {
         var s = Started();
-        Assert.Equal(["다음 캐릭터", "행동 설정", "아이템", "이전 캐릭터", "이동", "실행", "도망"],
+        Assert.Equal(["다음 캐릭터", "행동 설정", "아이템", "이전 캐릭터", "이동", "도망", "실행"],
             s.Entries.Where(e => e.Action != EntryAction.BattleViewUnit && e.Action != EntryAction.BattleScroll && e.Code != "999").Select(e => e.Label));
         Assert.DoesNotContain(s.Entries, e => e.Label == "상태 확인");
-        Assert.True(Entry(s, "107").Enabled);                       // 도망은 행동을 정하지 않아도 누를 수 있다
+        Assert.True(Entry(s, "106").Enabled);                       // 도망은 행동을 정하지 않아도 누를 수 있다
     }
 
     [Fact]
@@ -378,7 +378,7 @@ public class BattleScreenTests
     public void Run_ends_the_battle_and_removes_the_commands()
     {
         var s = Started();
-        s.Activate("107");
+        s.Activate("106");
         Assert.Equal(GameSession.BattleOutcomeKind.Run, s.BattleOutcome);
         Assert.DoesNotContain(s.Entries, e => e.Action != EntryAction.BattleScroll && e.Action != EntryAction.BattleViewUnit && e.Code != "999");
     }
@@ -445,7 +445,7 @@ public class BattleScreenTests
         s.Activate("102"); s.Activate("103"); s.Activate("12");   // 첫 유닛: 스킬3 → 용사(슬롯 1)
         Assert.Equal((1003, false, 1), (s.BattleActionOf(0)!.Value, s.BattleTargetIsEnemyOf(0)!.Value, s.BattleTargetOf(0)!.Value));
         s.Activate("102"); s.Activate("104"); s.Activate("12");   // 둘째 유닛: 스킬4 → 자신
-        s.Activate("106");
+        s.Activate("107");
         Assert.Contains(s.BattleLog, a => !a.IsEnemy && a.Slot == 0 && !a.TargetIsEnemy && a.TargetSlot == 1 && a.Damage == -10);
         Assert.Contains(s.BattleLogLines, l => l.StartsWith("당신 → 용사 : 치유") && l.EndsWith("(회복 10)"));
     }
@@ -474,7 +474,7 @@ public class BattleScreenTests
         s.Characters[7001] = s.Characters[7001] with { SkillSlots = [] };           // 용사는 장착한 스킬이 없다
         s.Activate("102"); s.Activate("101"); s.Activate("1");                      // 당신만 행동을 정한다
         Assert.True(s.BattleAllActionsSet);
-        s.Activate("106");
+        s.Activate("107");
         Assert.DoesNotContain(s.BattleLog, a => !a.IsEnemy && a.Slot == 1);         // 용사는 행동하지 않았다
         Assert.Contains(s.BattleLog, a => !a.IsEnemy && a.Slot == 0);
     }
@@ -488,12 +488,12 @@ public class BattleScreenTests
         s.EnemyInstances[slot].SkillSlots.Clear();
         s.EnemyInstances[slot].SkillSlots[2] = 1;                                     // 전사는 불꽃(풀 번호 1)만 장착
         s.Activate("102"); s.Activate("101"); s.Activate((slot + 1).ToString());
-        s.Activate("106");
+        s.Activate("107");
         Assert.Equal([1002L], s.BattleLog.Where(a => a.IsEnemy).Select(a => a.SkillCode));
 
         s.EnemyInstances[slot].SkillSlots.Clear();                                    // 이제 장착한 스킬이 없다
         s.Activate("102"); s.Activate("101"); s.Activate((slot + 1).ToString());
-        s.Activate("106");
+        s.Activate("107");
         Assert.DoesNotContain(s.BattleLog, a => a.IsEnemy);
     }
 
@@ -531,7 +531,7 @@ public class BattleScreenTests
         Assert.Equal(1003, s.BattleActionOf(0));
         Assert.Equal("C3", s.BattleItemOf(0));
 
-        s.Activate("106");
+        s.Activate("107");
         Assert.Equal(1, s.InventoryItems[3].Amount);                                // 약초는 하나 줄었다
         Assert.Contains(s.BattleLog, a => !a.IsEnemy && a.SkillCode == 1003);
     }
@@ -545,7 +545,7 @@ public class BattleScreenTests
         s.Activate("103"); s.Activate("101");                                       // 철검(베기 1001, 대상은 적)
         s.Activate("1");
         Assert.Equal((1001L, "U" + id), (s.BattleActionOf(0)!.Value, s.BattleItemOf(0)));
-        s.Activate("106");
+        s.Activate("107");
         Assert.True(s.UniqueItemInstances.ContainsKey(id));
 
         s.AddInventory(3, 1);
@@ -601,9 +601,10 @@ public class BattleScreenTests
         Assert.True(s.BattleAllActionsSet);                                         // 둘 다 행동이 정해졌다
         Assert.Equal(["이동", "이동"], AllyFront(s).Take(2).Select(v => v.Name));
 
-        s.Activate("106");
+        s.Activate("107");
         Assert.Equal((second, first), (s.PartyInstance.Units[0]!.CharacterCode, s.PartyInstance.Units[1]!.CharacterCode));
-        Assert.DoesNotContain(s.BattleLog, a => !a.IsEnemy);                        // 이동한 유닛은 스킬을 쓰지 않았다
+        Assert.DoesNotContain(s.BattleLog, a => !a.IsEnemy && !a.IsMove);          // 이동한 유닛은 스킬을 쓰지 않았다
+        Assert.Equal(["당신 : 이동 → [12]", "용사 : 이동 → [11]"], s.BattleLogLines.Take(2));  // 이동이 먼저 로그에 남는다
     }
 
     [Fact]
@@ -618,7 +619,7 @@ public class BattleScreenTests
         Assert.Null(s.BattleMoveOf(1));
         Assert.NotNull(s.BattleActionOf(1));
         Assert.False(s.BattleAllActionsSet);
-        Assert.False(Entry(s, "106").Enabled);
+        Assert.False(Entry(s, "107").Enabled);
         Assert.Equal(0, s.BattleCurrentSlot);                                       // 다음 캐릭터는 행동이 지워진 쪽으로 돌아온다
     }
 
@@ -635,8 +636,9 @@ public class BattleScreenTests
         s.Activate("102"); s.Activate("101"); s.Activate("1");                      // 슬롯 1은 스킬을 쓴다
         Assert.True(s.BattleAllActionsSet);
 
-        s.Activate("106");
+        s.Activate("107");
         Assert.Null(s.PartyInstance.Units[0]);
         Assert.NotNull(s.PartyInstance.Units[8]);
+        Assert.Equal("당신 : 이동 → [19]", s.BattleLogLines[0]);
     }
 }

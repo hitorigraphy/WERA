@@ -244,5 +244,5 @@ input.command { width: min(100%, 26rem); }
 .textlink:disabled, .shop-trades .textlink:disabled, .menu-grid .textlink:disabled, .dungeon-select .textlink:disabled { color: #888; cursor: default; text-decoration: none; }   /* 지금 할 수 없는 항목: 회색, 눌러도 반응 없음 */
 .adv-normal { margin: 1.2rem 0 .6rem; white-space: pre-wrap; line-height: var(--lh); }
 .battle-log { margin: .6rem 0 0; padding-left: 1.2rem; font-size: .9rem; }   /* 이번 턴 행동 기록 */
-.battle-command-basic .entries > div:nth-child(4) { grid-column: 1; }   /* 기본 커맨드: 윗줄 세 개, 아랫줄 네 개([107] 도망은 [106]의 오른쪽) */
+.battle-command-basic .entries > div:nth-child(4) { grid-column: 1; }   /* 기본 커맨드: 윗줄 세 개, 아랫줄 네 개([107] 실행은 [106] 도망의 오른쪽) */
 .slot-name.gray, .slot-name.gray .slot-level, .slot-name.gray .slot-char { color: #888; }   /* 전투에서 고를 수 없는 슬롯: 회색(리더와 선택보다 우선) */
