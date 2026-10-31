@@ -560,6 +560,47 @@
                 break;
 
             case Screen.EquipmentDetail:
+                @* 장비 상세: 왼쪽에 이미지 칸, 오른쪽에 장비명/+강화 횟수, HP/XP(낀 캐릭터와 공유), 상태값, 부품 슬롯, 스킬, 설명문을 구분선으로 나눠 놓는다 *@
+                @if (session.EquipmentDetail is { } equip)
+                {
+                    <h2>장비 상세</h2>
+                    <div class="char-detail">
+                        <div class="char-image" role="img" aria-label="No Image">No Image</div>
+                        <div class="char-info">
+                            <div class="char-head"><span class="char-name">@equip.Name</span><span class="char-level">@equip.EnhanceText</span></div>
+                            <hr />
+                            <div class="gauge-line">HP  : <span class="gauge gauge-@equip.Hp.Color.ToString().ToLowerInvariant()">@equip.Hp.Text</span></div>
+                            <div class="gauge-line"><XpLabelView Tag="@equip.XpTag" /><span class="gauge gauge-@equip.Xp.Color.ToString().ToLowerInvariant()">@equip.Xp.Text</span></div>
+                            <hr />
+                            <div class="char-columns">
+                                @foreach (var line in equip.Specs)
+                                {
+                                    <div>@line.Label : @line.Value</div>
+                                }
+                            </div>
+                            <hr />
+                            <div class="char-columns">
+                                @foreach (var (line, entry) in equip.Parts.Zip(session.Entries))
+                                {
+                                    var code = entry.Code;
+                                    <div><button class="textlink row-link" disabled="@(!entry.Enabled)" @onclick="() => Activate(code)">@line.Label : @line.Value</button></div>
+                                }
+                            </div>
+                            <hr />
+                            <div class="char-columns">
+                                @foreach (var (line, entry) in equip.Skills.Zip(session.Entries.Skip(equip.Parts.Count)))
+                                {
+                                    var code = entry.Code;
+                                    <div><button class="textlink row-link" disabled="@(!entry.Enabled)" @onclick="() => Activate(code)">@line.Label : @line.Value</button></div>
+                                }
+                            </div>
+                            <hr />
+                            <p class="char-description">@equip.Description</p>
+                        </div>
+                    </div>
+                }
+                break;
+
             case Screen.ItemDetail:
             case Screen.SkillDetail:
                 @* 상세 화면의 내용은 아직 정의되지 않았다: 무엇을 보고 있는지 이름만 보여 준다 *@

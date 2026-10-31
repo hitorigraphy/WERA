@@ -43,6 +43,52 @@ public sealed partial class GameSession
         string Name, string LevelText, GaugeView Exp, GaugeView Hp, GaugeView Xp, XpTag XpTag,
         IReadOnlyList<UnitStatusLine> Specs, IReadOnlyList<UnitStatusLine> Equipment, IReadOnlyList<UnitStatusLine> Skills, string Description);
 
+    /// <summary>
+    /// 장비 상세 화면의 내용: 장비 이름, +강화 횟수, HP, XP(그 장비를 낀 캐릭터의 것을 공유한다; 낀 캐릭터가 없으면 빈 회색 게이지), 상태값(장비의 스테이터스 중
+    /// character_display_order가 1 이상인 것, 작은 수부터), 부품 슬롯(끼운 커먼 아이템), 스킬(장비가 가진 스킬), 설명문.
+    /// </summary>
+    public sealed record EquipmentDetailView(
+        string Name, string EnhanceText, GaugeView Hp, GaugeView Xp, XpTag XpTag,
+        IReadOnlyList<UnitStatusLine> Specs, IReadOnlyList<UnitStatusLine> Parts, IReadOnlyList<UnitStatusLine> Skills, string Description);
+
+    /// <summary>지금 보는 장비 상세 화면의 내용. 장비 상세 화면이 아니거나 그 장비가 없으면 null.</summary>
+    public EquipmentDetailView? EquipmentDetail
+    {
+        get
+        {
+            if (Screen != Screen.EquipmentDetail || DetailEquipmentId is not { } id || !UniqueItemInstances.TryGetValue(id, out var item)) return null;
+            var master = Pack.FindUniqueItem(item.ItemCode);
+            var statuses = item.Statuses ?? Pack.MasterStatusesOfUniqueItem(item.ItemCode);
+            var enhance = statuses.GetValueOrDefault(GamePack.EnhanceCountStatusCode);
+
+            var wearer = PartyUnits.FirstOrDefault(u => u.Equipment.Values.Any(e => e.Kind == EquipKind.UniqueItem && e.Instance == id));
+            GaugeView hp, xp;
+            XpTag tag;
+            if (wearer is not null && Characters.TryGetValue(wearer.CharacterCode, out var state))
+            {
+                hp = Gauge.Render(state.Hp, state.MaxHp, gray: state.IsDead, CharacterDetailExpWidth);
+                (tag, xp) = XpLine(state with { CharacterCode = wearer.CharacterCode }, CharacterDetailExpWidth);
+            }
+            else
+            {
+                hp = Gauge.Render(0, 0, gray: true, CharacterDetailExpWidth);
+                (tag, xp) = (XpTag.None, Gauge.Render(0, 0, gray: true, CharacterDetailExpWidth));
+            }
+
+            var specs = (Pack.Statuses ?? []).Where(s => s.CharacterDisplayOrder > 0 && statuses.ContainsKey(s.Code))
+                .OrderBy(s => s.CharacterDisplayOrder).ThenBy(s => s.Code)
+                .Select(s => new UnitStatusLine(s.Name, Text(statuses[s.Code]))).ToList();
+            return new EquipmentDetailView(
+                master?.ItemName ?? Text(item.ItemCode), $"+{Text(enhance)}", hp, xp, tag, specs, PartLines(item),
+                [new UnitStatusLine("스킬", item.Skill is { } skill ? SkillName(skill.SkillCode) : "비어 있음")], master?.Description ?? "");
+        }
+    }
+
+    /// <summary>장비의 부품 슬롯 줄들(부품 슬롯 마스터 순서): 끼운 커먼 아이템의 이름, 비었으면 "비어 있음".</summary>
+    IReadOnlyList<UnitStatusLine> PartLines(UniqueItemInstance item) =>
+        Pack.PartSlotsOf(item.ItemCode).Select(slot => new UnitStatusLine(slot.Name,
+            item.Parts is { } parts && parts.TryGetValue(slot.Code, out var part) ? Pack.FindItem(part)?.Name ?? Text(part) : "비어 있음")).ToList();
+
     /// <summary>지금 보는 캐릭터 상세 화면의 내용. 캐릭터 상세 화면이 아니거나 보유하지 않은 캐릭터면 null.</summary>
     public CharacterDetailView? CharacterDetail
     {
@@ -109,6 +155,21 @@ public sealed partial class GameSession
     IReadOnlyList<ScreenEntry> DetailEntries()
     {
         var back = new ScreenEntry(BackEntryCode, "돌아가기", detailBack.Count > 0 ? detailBack.Peek().Screen : Screen.Home, EntryAction.CloseDetail);
+        if (Screen == Screen.EquipmentDetail && DetailEquipmentId is { } equipmentId && UniqueItemInstances.TryGetValue(equipmentId, out var equipment))
+        {
+            // 부품 슬롯 줄(1번부터)은 끼운 부품의 아이템 상세로, 스킬 줄(101번)은 장비의 스킬 상세로 간다(빈 줄은 고를 수 없다).
+            var parts = new List<ScreenEntry>();
+            var n = 1;
+            foreach (var slot in Pack.PartSlotsOf(equipment.ItemCode))
+            {
+                long? part = equipment.Parts is { } installed && installed.TryGetValue(slot.Code, out var p) ? p : null;
+                parts.Add(new ScreenEntry((n++).ToString(CultureInfo.InvariantCulture), slot.Name, Screen.ItemDetail, EntryAction.OpenDetail,
+                    part is { } c ? $"I:{c.ToString(CultureInfo.InvariantCulture)}" : null, Enabled: part is not null));
+            }
+            parts.Add(new ScreenEntry("101", "스킬", Screen.SkillDetail, EntryAction.OpenDetail,
+                equipment.Skill is { } sk ? $"K:{sk.SkillCode.ToString(CultureInfo.InvariantCulture)}" : null, Enabled: equipment.Skill is not null));
+            return [.. parts, back];
+        }
         if (Screen != Screen.CharacterDetail || DetailCharacterCode is not { } code || !Characters.TryGetValue(code, out var state)) return [back];
 
         var rows = new List<ScreenEntry>();

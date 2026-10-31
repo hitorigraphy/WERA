@@ -19,6 +19,8 @@ public sealed partial class GamePack
     public const long XppStatusCode = 3;
     /// <summary>최대 HP: 초깃값이 새 캐릭터의 최대 HP. 마스터에 이 스테이터스의 행이 없으면 hp 행의 최댓값을 쓴다.</summary>
     public const long MaxHpStatusCode = 4;
+    /// <summary>유니크 아이템(장비)의 강화 횟수: 유니크 아이템 스테이터스 마스터에 이 코드로 적은 값이 초깃값이다. 장비 상세 화면의 "+{강화 횟수}"가 이 값을 보여 주고, 아이템에 이 스테이터스가 없으면 0이다.</summary>
+    public const long EnhanceCountStatusCode = 8;
     /// <summary>다음 레벨까지 필요한 경험치: 초깃값이 새 캐릭터의 필요 경험치. 마스터에 이 스테이터스의 행이 없으면 xpp 행의 최댓값을 쓴다(그것도 없으면 0).</summary>
     public const long XppMaxStatusCode = 5;
     /// <summary>경험치(Exp): 초깃값이 현재 경험치, 최댓값이 다음 레벨까지 필요한 경험치. XPP(XP로 바꾸기 전 단계의 값)와는 별개이고, 캐릭터 상세 화면의 Exp 바가 이 값을 보여 준다.</summary>

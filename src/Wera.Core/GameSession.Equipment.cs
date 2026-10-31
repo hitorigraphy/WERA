@@ -364,7 +364,8 @@ public sealed partial class GameSession
     Dictionary<string, UniqueItemInstance> CopyUniqueItems() =>
         UniqueItemInstances.ToDictionary(kv => kv.Key,
             kv => new UniqueItemInstance(kv.Key, kv.Value.ItemCode, kv.Value.OrderNumber, (kv.Value.Tags ?? Pack.MasterTagsOfUniqueItem(kv.Value.ItemCode)).ToList(),
-                new Dictionary<long, long>(kv.Value.Statuses ?? Pack.MasterStatusesOfUniqueItem(kv.Value.ItemCode))));
+                new Dictionary<long, long>(kv.Value.Statuses ?? Pack.MasterStatusesOfUniqueItem(kv.Value.ItemCode)),
+                kv.Value.Skill, kv.Value.Parts is { Count: > 0 } parts ? new Dictionary<long, long>(parts) : null));
 
     /// <summary>보유 캐릭터 전원의 현재 태그(아직 마스터 그대로인 캐릭터는 마스터에서 복사해 적는다).</summary>
     Dictionary<long, List<long>> CopyCharacterTags() =>
@@ -429,8 +430,17 @@ public sealed partial class GameSession
             if (!string.IsNullOrEmpty(item.InstanceId) && !(Ulid.TryParse(item.InstanceId, out var inner) && inner.ToString() == id))
                 throw new SaveFormatException($"세이브의 유니크 아이템 인스턴스 '{id}'에 적힌 인스턴스 ID '{item.InstanceId}'가 키와 다릅니다.");
             var statuses = CheckOwnerStatuses(pack, $"유니크 아이템 인스턴스 '{id}'", item.Statuses, pack.MasterStatusesOfUniqueItem(item.ItemCode));
+            if (item.Skill is { } savedSkill && pack.FindSkill(savedSkill.SkillCode) is null)
+                throw new SaveFormatException($"세이브의 유니크 아이템 인스턴스 '{id}'의 스킬 '{savedSkill.SkillCode}'이(가) 스킬 마스터에 없습니다.");
+            foreach (var (partSlot, partItem) in item.Parts ?? [])
+            {
+                if (pack.FindPartSlot(partSlot) is null)
+                    throw new SaveFormatException($"세이브의 유니크 아이템 인스턴스 '{id}'의 부품 슬롯 '{partSlot}'이(가) 부품 슬롯 마스터에 없습니다.");
+                if (pack.FindItem(partItem) is null)
+                    throw new SaveFormatException($"세이브의 유니크 아이템 인스턴스 '{id}'의 부품 '{partItem}'이(가) 커먼 아이템 마스터에 없습니다.");
+            }
             // 불러온 뒤 유니크 아이템 인스턴스마다 로드 후 유니크 아이템 서킷을 돌려 게임팩의 정의대로 조작한다.
-            instances[id] = new AfterLoadUniqueItemCircuit(pack, new UniqueItemInstance(id, item.ItemCode, item.OrderNumber, tags, statuses)).Execute();
+            instances[id] = new AfterLoadUniqueItemCircuit(pack, new UniqueItemInstance(id, item.ItemCode, item.OrderNumber, tags, statuses, item.Skill, item.Parts is { Count: > 0 } ? new Dictionary<long, long>(item.Parts) : null)).Execute();
         }
 
         var characterTags = new Dictionary<long, List<long>>();

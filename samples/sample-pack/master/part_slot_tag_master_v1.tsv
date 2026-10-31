@@ -1,0 +1,5 @@
+item_code	part_slot_code	group_number	tag_code	is_positive	memo
+8001	1	1	9	true	철검의 부품 슬롯 1에는 부품 태그
+8002	1	1	9	true	
+8002	2	1	9	true	
+8004	1	1	9	true	

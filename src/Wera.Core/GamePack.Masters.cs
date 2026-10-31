@@ -106,7 +106,7 @@ public sealed partial class GamePack
         builder.Append((equipmentSlots ?? []).Select(s => new EquipmentSlotRow { Code = s.Code, Name = s.Name }).ToList());
         builder.Append((tags ?? []).Select(t => new TagRow { Code = t.Code, Name = t.Name }).ToList());
         builder.Append((uniqueItems ?? []).Select(e => new UniqueItemRow
-            { ItemCode = e.ItemCode, ItemName = e.ItemName, SkillCode = e.SkillCode }).ToList());
+            { ItemCode = e.ItemCode, ItemName = e.ItemName, SkillCode = e.SkillCode, Description = e.Description }).ToList());
         builder.Append((uniqueItemTags ?? []).Select(t => new UniqueItemTagRow
             { ItemCode = t.ItemCode, TagCode = t.TagCode }).ToList());
         builder.Append((commonItemTags ?? []).Select(t => new CommonItemTagRow
@@ -269,7 +269,7 @@ public sealed partial class GamePack
         Masters.EquipmentSlotRowTable.TryFindByCode(code, out var r) ? new EquipmentSlotEntry(r.Code, r.Name) : null;
 
     public UniqueItem? FindUniqueItem(long itemCode) =>
-        Masters.UniqueItemRowTable.TryFindByItemCode(itemCode, out var r) ? new UniqueItem(r.ItemCode, r.ItemName, r.SkillCode) : null;
+        Masters.UniqueItemRowTable.TryFindByItemCode(itemCode, out var r) ? new UniqueItem(r.ItemCode, r.ItemName, r.SkillCode, r.Description) : null;
 
     /// <summary>상태이상이 가진 이펙트 행들(키 순서: 트리거, 이펙트 코드).</summary>
     public IReadOnlyList<StatusEffectEffect> StatusEffectEffectsOf(long statusEffectCode) =>

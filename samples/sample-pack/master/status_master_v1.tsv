@@ -6,6 +6,7 @@ status_code	status_name	character_display_order	memo
 5	xpp_max	0	예약 코드 5(필요 경험치; 행이 없으면 xpp 행의 최댓값)
 6	exp	0	예약 코드 6(경험치; 캐릭터 상세 화면의 Exp 바)
 7	exp_max	0	예약 코드 7(필요 경험치; 행이 없으면 exp 행의 최댓값)
+8	enhance_count	0	예약 코드 8(유니크 아이템의 강화 횟수; 장비 상세의 +N)
 20	skill_level	0	스킬/아이템 스테이터스 예시
 21	durability	0	유니크 아이템 스테이터스 예시
 30	STR	1	캐릭터 상세 표시 순서 1

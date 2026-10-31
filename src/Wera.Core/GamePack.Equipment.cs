@@ -143,8 +143,12 @@ public sealed partial class GamePack
         const string file = UniqueItemInventoryMasterPath;
         var text = TryReadEntry(zip, file);
         if (text is null) return null;
-        var withSkill = HasSkillColumn(text, 2);
-        string[] header = withSkill ? ["inventory_code", "item_name", "skill_code"] : ["inventory_code", "item_name"];
+        // 이름 열 뒤에 선택 열 skill_code와 description(캐릭터 상세와 같은 방식의 설명문)을 이 이름으로, 어떤 순서로든 둘 수 있다.
+        var rows0 = Tsv.WithoutMemo(Tsv.Parse(text));
+        string[] optional = rows0.Count > 0 ? [.. rows0[0].Skip(2).TakeWhile(h => h is "skill_code" or "description")] : [];
+        var skillAt = Array.IndexOf(optional, "skill_code") is var k and >= 0 ? k + 2 : -1;
+        var descriptionAt = Array.IndexOf(optional, "description") is var d and >= 0 ? d + 2 : -1;
+        string[] header = ["inventory_code", "item_name", .. optional];
 
         var items = new List<UniqueItem>();
         var seen = new HashSet<long>();
@@ -153,7 +157,8 @@ public sealed partial class GamePack
             var code = ParseLong(file, "유니크 아이템 코드", r[0]);
             if (!seen.Add(code))
                 throw new PackFormatException($"{file}: 유니크 아이템 코드 '{code}'가 중복됩니다.");
-            items.Add(new UniqueItem(code, r[1], withSkill ? OptionalSkillCode(file, $"유니크 아이템 '{code}'", r[2]) : null));
+            items.Add(new UniqueItem(code, r[1], skillAt >= 0 ? OptionalSkillCode(file, $"유니크 아이템 '{code}'", r[skillAt]) : null,
+                descriptionAt >= 0 ? r[descriptionAt] : ""));
         }
         return items;
     }

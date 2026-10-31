@@ -195,6 +195,8 @@ public sealed partial class GamePack
         var dungeonLayers = LoadDungeonLayers(zip, dungeons, dungeonMaps);
         var skillSlots = LoadSkillSlots(zip);
         var characterSkillSlotTags = LoadCharacterSkillSlotTags(zip, characterInventory, skillSlots, tags);
+        var partSlots = LoadPartSlots(zip);
+        var partSlotTags = LoadPartSlotTags(zip, uniqueItems, partSlots, tags);
         var skills = LoadSkills(zip);
         var skillTags = LoadSkillTags(zip, skills, tags);
         CheckItemSkills(
@@ -283,6 +285,8 @@ public sealed partial class GamePack
             AfterBattleRunEffects = afterBattleRunEffects,
             CharacterAfterCreateEffects = characterAfterCreateEffects,
             XpTypes = xpTypes,
+            PartSlots = partSlots,
+            PartSlotTags = partSlotTags,
             XpCalculateEffects = xppChangedEffects,
             UniqueItemAfterCreateEffects = uniqueItemAfterCreateEffects,
             SkillStatuses = skillStatuses,

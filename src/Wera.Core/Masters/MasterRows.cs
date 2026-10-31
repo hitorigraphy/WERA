@@ -170,6 +170,7 @@ public record UniqueItemRow
     [PrimaryKey] public required long ItemCode { get; init; }
     public required string ItemName { get; init; }
     public required long? SkillCode { get; init; }
+    public string Description { get; init; } = "";
 }
 
 /// <summary>유니크 아이템 태그 마스터: 같은 (아이템, 태그)는 한 번만 쓸 수 있다. 보조키로 아이템의 태그 전부를 찾는다.</summary>
