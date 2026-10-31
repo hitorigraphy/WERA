@@ -6,7 +6,7 @@ namespace Wera.Core.Tests;
 // 한 걸음마다 던전 마스터의 인카운트률(%)로 던전 인카운트 마스터의 전투를 만날 수 있다.
 // 예시 팩의 던전 1999 맵 0(도입 지점 x 1, y 1, 인카운트률 10%, 인카운트 전투 5001):
 //   y0 ############
-//   y1 #S..#...#.E#
+//   y1 #S..#...#..#
 //   y2 #.#.#.#.#.##
 //   y3 #.#...#.B..#
 //   y4 #.#####.##.#
@@ -161,7 +161,7 @@ public class DungeonFlowTests
         Assert.Equal("S", rows[1][1].Text);
         Assert.True(rows[5][1].Look.HasFlag(DungeonCellLook.Stairs) && rows[5][1].Look.HasFlag(DungeonCellLook.Warp));
         Assert.True(rows[3][8].Look.HasFlag(DungeonCellLook.Battle));
-        Assert.True(rows[1][10].Look.HasFlag(DungeonCellLook.Exit));
+        Assert.True(rows[1][1].Look.HasFlag(DungeonCellLook.Exit));                           // 입구 S는 곧 출구
         Assert.Equal(DungeonCellLook.None, rows[1][2].Look);
     }
 

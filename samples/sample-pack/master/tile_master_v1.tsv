@@ -3,7 +3,6 @@ code	tile_effect	value_1	value_2	value_3	memo
 2	Wall	0	0	0	벽(보이기만 한다)
 2	Impassable	0	0	0	벽은 들어갈 수 없다
 3	Exit	0	0	0	입구는 곧 출구(도입 지점은 던전 마스터가 정한다; 나가려면 이 칸에서 Enter)
-4	Exit	0	0	0	출구
 5	FixedBattle	5001	0	0	고정 전투
 7	Adv	4001	0	0	ADV 4001
 8	Warp	1	2	1	다른 맵(레이어 1)의 (x 2, y 1)로 이동(내려가는 계단)
