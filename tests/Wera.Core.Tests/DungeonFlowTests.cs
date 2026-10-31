@@ -236,6 +236,18 @@ public class DungeonFlowTests
     }
 
     [Fact]
+    public void The_sample_event_3002_ends_in_a_game_over_when_the_battle_is_lost()
+    {
+        var s = GameSession.NewGame(SamplePackWith());
+        s.NextRandom = _ => 1;
+        s.Activate("105"); s.Activate("1"); s.Activate("1"); s.Activate("999");
+        s.Activate("103"); s.Activate("3002");
+        FinishLosing(s, 1);
+        s.Activate("999");
+        Assert.Equal(Screen.GameOver, s.Screen);
+    }
+
+    [Fact]
     public void A_random_battle_tile_fights_only_when_the_roll_is_below_the_chance()
     {
         var s = Entered();

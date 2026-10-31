@@ -4,6 +4,9 @@ event_code	flow_number	flow_type	param_1	param_2	param_3	memo
 3001	3	Battle	5001	0	0	테스트용
 3001	4	Finish	0	0	0	테스트용
 3002	1	Battle	5001	2001	0	테스트용(결과를 플래그 2001에: 승리 1, 도망 2, 패배 3; 도망 불가 전투)
-3002	2	JumpFlagEqual	2001	1	4	테스트용(승리면 4로)
-3002	3	Finish	0	0	0	테스트용(패배·도망이면 끝)
-3002	4	Adv	4002	0	0	테스트용(승리 ADV)
+3002	2	JumpFlagEqual	2001	1	5	테스트용(승리면 5로)
+3002	3	JumpFlagEqual	2001	3	7	테스트용(패배면 7로)
+3002	4	Finish	0	0	0	테스트용(도망이면 끝)
+3002	5	Adv	4002	0	0	테스트용(승리 ADV)
+3002	6	Finish	0	0	0	테스트용
+3002	7	GameOver	0	0	0	테스트용(패배하면 게임 오버)
