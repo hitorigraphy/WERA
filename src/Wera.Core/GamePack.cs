@@ -148,7 +148,8 @@ public sealed partial class GamePack
         var itemInventory = LoadItemInventory(zip);
         var bunchInventory = LoadBunchInventory(zip, itemInventory);
         var attributes = LoadAttributes(zip);
-        var characterInventory = LoadCharacterInventory(zip, attributes);
+        var xpTypes = LoadXpTypes(zip);
+        var characterInventory = LoadCharacterInventory(zip, attributes, xpTypes);
         var uniqueItems = LoadUniqueItems(zip);
         var debugStartUniqueItems = LoadDebugStartUniqueItems(meta, uniqueItems);
         var inventory = BuildInventory(itemInventory, uniqueItems, bunchInventory, characterInventory);
@@ -212,6 +213,7 @@ public sealed partial class GamePack
         var afterBattleWinEffects = LoadAfterBattleWinEffects(zip, effectCheck);
         var afterBattleLoseEffects = LoadAfterBattleLoseEffects(zip, effectCheck);
         var afterBattleRunEffects = LoadAfterBattleRunEffects(zip, effectCheck);
+        var xppChangedEffects = LoadXppChangedEffects(zip, xpTypes, effectCheck);
         var characterAfterCreateEffects = LoadCharacterAfterCreateEffects(zip, characterInventory?.Select(c => c.Code), effectCheck);
         var uniqueItemAfterCreateEffects = LoadUniqueItemAfterCreateEffects(zip, uniqueItems?.Select(u => u.ItemCode), effectCheck);
         var skillStatuses = LoadOwnerStatuses(zip, SkillStatusMasterPath, "skill_code", "스킬", SkillMasterPath, skills?.Select(s => s.Code), statuses);
@@ -280,6 +282,8 @@ public sealed partial class GamePack
             AfterBattleLoseEffects = afterBattleLoseEffects,
             AfterBattleRunEffects = afterBattleRunEffects,
             CharacterAfterCreateEffects = characterAfterCreateEffects,
+            XpTypes = xpTypes,
+            XppChangedEffects = xppChangedEffects,
             UniqueItemAfterCreateEffects = uniqueItemAfterCreateEffects,
             SkillStatuses = skillStatuses,
             UniqueItemStatuses = uniqueItemStatuses,
@@ -532,15 +536,20 @@ public sealed partial class GamePack
 
     /// <summary>
     /// 캐릭터마다 유리속성과 불리속성이 있어야 하고, 둘 다 속성 마스터에 있어야 하며 서로 달라야 한다.
-    /// 선택 열 description(캐릭터 상세 화면의 설명문)은 불리속성 열 뒤에 둔다.
+    /// 불리속성 열 뒤에 선택 열 description(캐릭터 상세 화면의 설명문)과 xp_type_code(XP 종류 마스터의 코드; 비우면 XP 없음)를 이 이름으로, 어떤 순서로든 둘 수 있다.
     /// </summary>
-    static List<CharacterEntry>? LoadCharacterInventory(ZipArchive zip, List<AttributeEntry>? attributes)
+    static List<CharacterEntry>? LoadCharacterInventory(ZipArchive zip, List<AttributeEntry>? attributes, List<XpType>? xpTypes)
     {
         const string file = CharacterInventoryMasterPath;
         var attributeCodes = attributes?.Select(a => a.Code).ToHashSet() ?? [];
-        var withDescription = TryReadEntry(zip, file) is { } text && Tsv.WithoutMemo(Tsv.Parse(text)) is { Count: > 0 } rows && rows[0].Length > 5 && rows[0][5] == "description";
+        var xpTypeCodes = xpTypes?.Select(x => x.Code).ToHashSet() ?? [];
+        string[] optional = TryReadEntry(zip, file) is { } text && Tsv.WithoutMemo(Tsv.Parse(text)) is { Count: > 0 } rows
+            ? [.. rows[0].Skip(5).TakeWhile(h => h is "description" or "xp_type_code")]
+            : [];
+        var descriptionAt = Array.IndexOf(optional, "description") is var d and >= 0 ? d + 5 : -1;
+        var xpTypeAt = Array.IndexOf(optional, "xp_type_code") is var x and >= 0 ? x + 5 : -1;
         return LoadLimitedInventory(zip, file, "캐릭터",
-            ["inventory_code", "character_name", "carry_limit", "advantage_attribute_code", "disadvantage_attribute_code", .. withDescription ? new[] { "description" } : []],
+            ["inventory_code", "character_name", "carry_limit", "advantage_attribute_code", "disadvantage_attribute_code", .. optional],
             (code, r, limit) =>
             {
                 var advantage = ParseLong(file, $"캐릭터 '{code}'의 유리속성 코드", r[3]);
@@ -550,7 +559,10 @@ public sealed partial class GamePack
                         throw new PackFormatException($"{file}: 캐릭터 '{code}'의 {what} '{attribute}'가 속성 마스터에 없습니다.");
                 if (advantage == disadvantage)
                     throw new PackFormatException($"{file}: 캐릭터 '{code}'의 유리속성과 불리속성이 같습니다 ({advantage}).");
-                return new CharacterEntry(code, r[1], limit, advantage, disadvantage, withDescription ? r[5] : "");
+                var xpType = xpTypeAt >= 0 ? OptionalLong(file, $"캐릭터 '{code}'의 xp_type_code", r[xpTypeAt]) : 0;
+                if (xpType != 0 && !xpTypeCodes.Contains(xpType))
+                    throw new PackFormatException($"{file}: 캐릭터 '{code}'의 xp_type_code '{xpType}'가 {XpTypeMasterPath}에 없습니다.");
+                return new CharacterEntry(code, r[1], limit, advantage, disadvantage, descriptionAt >= 0 ? r[descriptionAt] : "", xpType);
             });
     }
 

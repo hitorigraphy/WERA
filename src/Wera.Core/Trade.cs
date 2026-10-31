@@ -5,10 +5,10 @@ public sealed record ItemEntry(long Code, string Name, long CarryLimit, long? Sk
 
 /// <summary>
 /// 캐릭터 인벤토리 마스터의 한 행. CarryLimit은 한 번에 소지할 수 있는 최대 수량.
-/// 모든 캐릭터는 유리속성과 불리속성(속성 마스터의 코드)을 하나씩 가진다. Description은 캐릭터 상세 화면에 나오는 설명문(선택 열 description; 없으면 빈 글).
+/// 모든 캐릭터는 유리속성과 불리속성(속성 마스터의 코드)을 하나씩 가진다. Description은 캐릭터 상세 화면에 나오는 설명문(선택 열 description; 없으면 빈 글). XpTypeCode는 캐릭터의 XP 종류(선택 열 xp_type_code, XP 종류 마스터의 코드; 없거나 비우면 0 = XP 없음).
 /// </summary>
 public sealed record CharacterEntry(
-    long Code, string Name, long CarryLimit, long AdvantageAttributeCode, long DisadvantageAttributeCode, string Description = "");
+    long Code, string Name, long CarryLimit, long AdvantageAttributeCode, long DisadvantageAttributeCode, string Description = "", long XpTypeCode = 0);
 
 /// <summary>번치 인벤토리의 부품. ItemCode는 아이템 인벤토리 마스터의 아이템 코드.</summary>
 public sealed record BunchPart(long ItemCode, long Amount);

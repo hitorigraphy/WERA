@@ -120,6 +120,7 @@ public record CharacterInventoryRow
     public required long AdvantageAttributeCode { get; init; }
     public required long DisadvantageAttributeCode { get; init; }
     public string Description { get; init; } = "";
+    public long XpTypeCode { get; init; }
 }
 
 [MemoryTable("shop_trade"), MessagePackObject(true)]
