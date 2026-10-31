@@ -595,12 +595,23 @@ public record AfterAttackEffectRow
     public required long Value3 { get; init; }
 }
 
-/// <summary>전투 후 이펙트: 키는 execute_number 하나.</summary>
-[MemoryTable("after_battle_effect"), MessagePackObject(true)]
-public record AfterBattleEffectRow
+/// <summary>전투 승리 후 이펙트: 키는 execute_number 하나.</summary>
+[MemoryTable("after_battle_win_effect"), MessagePackObject(true)]
+public record AfterBattleWinEffectRow
 {
     [PrimaryKey] public required long ExecuteNumber { get; init; }
-    public required AfterBattleEffectType EffectType { get; init; }
+    public required AfterBattleWinEffectType EffectType { get; init; }
+    public required long Value1 { get; init; }
+    public required long Value2 { get; init; }
+    public required long Value3 { get; init; }
+}
+
+/// <summary>전투 패배 후 이펙트: 키는 execute_number 하나.</summary>
+[MemoryTable("after_battle_lose_effect"), MessagePackObject(true)]
+public record AfterBattleLoseEffectRow
+{
+    [PrimaryKey] public required long ExecuteNumber { get; init; }
+    public required AfterBattleLoseEffectType EffectType { get; init; }
     public required long Value1 { get; init; }
     public required long Value2 { get; init; }
     public required long Value3 { get; init; }

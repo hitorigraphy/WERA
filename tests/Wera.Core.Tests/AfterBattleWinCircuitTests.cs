@@ -2,8 +2,8 @@ using Wera.Core;
 
 namespace Wera.Core.Tests;
 
-// after_battle_effect_master와 전투 후 서킷: 스킬 실행 이펙트와 같은 구성으로 아군 캐릭터 하나를 조작한다.
-public class AfterBattleCircuitTests
+// after_battle_win_effect_master와 전투 승리 후 서킷: 스킬 실행 이펙트와 같은 구성으로 아군 캐릭터 하나를 조작한다.
+public class AfterBattleWinCircuitTests
 {
     const string Head = "execute_number\teffect_type\tvalue_1\tvalue_2\tvalue_3\n";
     const long Hp = GamePack.HpStatusCode;
@@ -19,22 +19,22 @@ public class AfterBattleCircuitTests
         (GamePack.StatusMasterPath, "status_code\tstatus_name\n1\tlevel\n2\thp\n6\tmana\n"),
         (GamePack.CharacterStatusMasterPath, "character_code\tstatus_code\tlevel\tinitial_value\tmin_value\tmax_value\n" +
             Rows("1 1 0 1 1 99", "1 2 0 40 0 40", "7001 1 0 1 1 99", "7001 2 0 40 0 40", "7001 6 0 10 0 20")),
-        (GamePack.AfterBattleEffectMasterPath, Head + effects)));
+        (GamePack.AfterBattleWinEffectMasterPath, Head + effects)));
 
     static CharacterInstance Run(GamePack pack, long character = 7001) =>
-        new AfterBattleCircuit(pack, pack.NewCharacterInstance(character)).Execute();
+        new AfterBattleWinCircuit(pack, pack.NewCharacterInstance(character)).Execute();
 
     [Fact]
     public void Rows_are_read_in_order_and_the_master_is_optional()
     {
         var pack = Pack(Rows("20 None 1 2 3", "10 none"));
-        Assert.Equal([10L, 20L], pack.AfterBattleEffectsInOrder().Select(e => e.ExecuteNumber));
-        Assert.Equal(new AfterBattleEffect(20, AfterBattleEffectType.None, 1, 2, 3), pack.AfterBattleEffectsInOrder()[1]);
+        Assert.Equal([10L, 20L], pack.AfterBattleWinEffectsInOrder().Select(e => e.ExecuteNumber));
+        Assert.Equal(new AfterBattleWinEffect(20, AfterBattleWinEffectType.None, 1, 2, 3), pack.AfterBattleWinEffectsInOrder()[1]);
         var none = GamePack.Load(CoreTests.PackZip(("pack.tsv", "id\tdemo\ntitle\t데모\n")));
-        Assert.Null(none.AfterBattleEffects);
-        Assert.Empty(none.AfterBattleEffectsInOrder());
+        Assert.Null(none.AfterBattleWinEffects);
+        Assert.Empty(none.AfterBattleWinEffectsInOrder());
         var c = none.NewCharacterInstance(1);
-        Assert.Equal(c, new AfterBattleCircuit(none, c).Execute());     // 이펙트가 없으면 그대로
+        Assert.Equal(c, new AfterBattleWinCircuit(none, c).Execute());     // 이펙트가 없으면 그대로
     }
 
     [Fact]

@@ -4,12 +4,12 @@ using System.Text.Json.Serialization;
 namespace Wera.Core;
 
 /// <summary>
-/// 전투 후 이펙트가 하는 일의 종류. TSV에는 이름(대소문자 무시)으로 적는다. <see cref="AfterBattleCircuit"/>이 실행한다.
+/// 전투 승리 후 이펙트가 하는 일의 종류. TSV에는 이름(대소문자 무시)으로 적는다. <see cref="AfterBattleWinCircuit"/>이 실행한다.
 /// 구성은 스킬 실행 이펙트(<see cref="EffectType"/>)와 같다: 번호와 이름, 인자가 같다다만 서킷에 유닛이 하나뿐이라 이름에 Caster나 Target이 들어간 종류는 모두 그 유닛을 가리킨다(CacheToTargetModValue와 CacheToCasterModValue는 같은 일을 한다).
 /// 숫자 값은 정해진 번호다: None 0, CacheToTargetModValue 1, CacheToTargetSetValue 2, CacheToCasterModValue 3, CacheToCasterSetValue 4, CasterValueToCache 5, TargetValueToCache 6, CacheAdd 7, CacheSubtract 8, CacheMultiply 9, CacheDivide 10, SetCacheValue 11, Jump 12, Finish 13, JumpCacheEqual 14, JumpCacheNotEqual 15, JumpCacheGreaterThan 16, JumpCacheGreaterOrEqual 17, JumpCacheLessThan 18, JumpCacheLessOrEqual 19.
 /// </summary>
-[JsonConverter(typeof(JsonStringEnumConverter<AfterBattleEffectType>))]
-public enum AfterBattleEffectType
+[JsonConverter(typeof(JsonStringEnumConverter<AfterBattleWinEffectType>))]
+public enum AfterBattleWinEffectType
 {
     /// <summary>아무 일도 하지 않는다. 값은 보지 않는다.</summary>
     None = 0,
@@ -71,54 +71,54 @@ public enum AfterBattleEffectType
     JumpCacheLessOrEqual = 19,
 }
 
-/// <summary>전투 후 이펙트의 JumpCache* 종류가 쓰는 규칙(<see cref="SkillJump"/>와 같다).</summary>
-public static class AfterBattleJump
+/// <summary>전투 승리 후 이펙트의 JumpCache* 종류가 쓰는 규칙(<see cref="SkillJump"/>와 같다).</summary>
+public static class AfterBattleWinJump
 {
     const string Prefix = "JumpCache";
 
-    public static FlagComparison? Of(AfterBattleEffectType type) =>
+    public static FlagComparison? Of(AfterBattleWinEffectType type) =>
         type.ToString().StartsWith(Prefix, StringComparison.Ordinal) && Enum.TryParse<FlagComparison>(type.ToString()[Prefix.Length..], out var c) ? c : null;
 
     /// <summary>점프할 execute_number가 어느 값(value_1, value_3)에 있는가. 점프하는 종류가 아니면 null.</summary>
-    public static long? TargetOf(AfterBattleEffect effect) =>
-        effect.EffectType == AfterBattleEffectType.Jump ? effect.Value1 : Of(effect.EffectType) is not null ? effect.Value3 : null;
+    public static long? TargetOf(AfterBattleWinEffect effect) =>
+        effect.EffectType == AfterBattleWinEffectType.Jump ? effect.Value1 : Of(effect.EffectType) is not null ? effect.Value3 : null;
 }
 
-/// <summary>전투 후 이펙트 마스터의 한 행: 전투가 끝나면 서킷이 execute_number 순서대로 실행하는 이펙트 하나(종류와 값 셋).</summary>
-public sealed record AfterBattleEffect(long ExecuteNumber, AfterBattleEffectType EffectType, long Value1, long Value2, long Value3);
+/// <summary>전투 승리 후 이펙트 마스터의 한 행: 전투에서 이기면(적이 모두 쓰러지면) 서킷이 execute_number 순서대로 실행하는 이펙트 하나(종류와 값 셋).</summary>
+public sealed record AfterBattleWinEffect(long ExecuteNumber, AfterBattleWinEffectType EffectType, long Value1, long Value2, long Value3);
 
-// after_battle_effect_master(execute_number, effect_type, value_1, value_2, value_3; 첫 열이 키). 선택이다.
-// 전투가 끝나면 전투에 참가한 아군 유닛마다 실행되어, 게임팩의 정의에 따라 그 유닛의 데이터를 조작한다.
+// after_battle_win_effect_master(execute_number, effect_type, value_1, value_2, value_3; 첫 열이 키). 선택이다.
+// 전투에서 이기면(적이 모두 쓰러지면) 전투에 참가한 아군 유닛마다 실행되어, 게임팩의 정의에 따라 그 유닛의 데이터를 조작한다.
 public sealed partial class GamePack
 {
-    public const string AfterBattleEffectMasterPath = "master/after_battle_effect_master_v1.tsv";
+    public const string AfterBattleWinEffectMasterPath = "master/after_battle_win_effect_master_v1.tsv";
 
-    /// <summary>전투 후 이펙트 마스터(게임팩 파일 순서). 마스터가 없으면 null.</summary>
-    public IReadOnlyList<AfterBattleEffect>? AfterBattleEffects { get; init; }
+    /// <summary>전투 승리 후 이펙트 마스터(게임팩 파일 순서). 마스터가 없으면 null.</summary>
+    public IReadOnlyList<AfterBattleWinEffect>? AfterBattleWinEffects { get; init; }
 
     /// <summary>
-    /// 전투 후 이펙트 마스터: 키 execute_number를 두 번 쓸 수 없다. 종류는 이름으로 적고 값 셋은 비우면 0이다.
+    /// 전투 승리 후 이펙트 마스터: 키 execute_number를 두 번 쓸 수 없다. 종류는 이름으로 적고 값 셋은 비우면 0이다.
     /// 종류별 인자 검증은 스킬 이펙트와 같다: 스테이터스 값을 캐시와 주고받는 종류(1~6)는 value_1이 스테이터스 마스터의 코드, value_2가 cache_index(0~<see cref="MaxCacheIndex"/>),
     /// SetCacheValue는 value_1이 cache_index, value_3이 0~28, 캐시 계산은 세 값 모두 cache_index, JumpCache*는 value_1과 value_2가 cache_index다.
     /// 점프 대상(Jump의 value_1, JumpCache*의 value_3)은 마스터에 있는, 자신보다 큰 execute_number여야 한다.
     /// </summary>
-    static List<AfterBattleEffect>? LoadAfterBattleEffects(ZipArchive zip, List<StatusEntry>? statuses)
+    static List<AfterBattleWinEffect>? LoadAfterBattleWinEffects(ZipArchive zip, List<StatusEntry>? statuses)
     {
-        const string file = AfterBattleEffectMasterPath;
+        const string file = AfterBattleWinEffectMasterPath;
         var text = TryReadEntry(zip, file);
         if (text is null) return null;
 
-        var rows = new List<AfterBattleEffect>();
+        var rows = new List<AfterBattleWinEffect>();
         var seen = new HashSet<long>();
         foreach (var r in Body(file, text, "execute_number", "effect_type", "value_1", "value_2", "value_3"))
         {
             var number = ParseLong(file, "실행 번호", r[0]);
             var where = $"실행 {number}의";
             // 숫자("0")도 Enum.TryParse를 통과하므로 이름 목록으로 먼저 거른다.
-            if (!Enum.GetNames<AfterBattleEffectType>().Contains(r[1], StringComparer.OrdinalIgnoreCase)
-                || !Enum.TryParse<AfterBattleEffectType>(r[1], ignoreCase: true, out var type))
+            if (!Enum.GetNames<AfterBattleWinEffectType>().Contains(r[1], StringComparer.OrdinalIgnoreCase)
+                || !Enum.TryParse<AfterBattleWinEffectType>(r[1], ignoreCase: true, out var type))
                 throw new PackFormatException(
-                    $"{file}: {where} 이펙트 종류 '{r[1]}'을(를) 알 수 없습니다. ({string.Join(", ", Enum.GetNames<AfterBattleEffectType>())})");
+                    $"{file}: {where} 이펙트 종류 '{r[1]}'을(를) 알 수 없습니다. ({string.Join(", ", Enum.GetNames<AfterBattleWinEffectType>())})");
             var value1 = r[2].Trim().Length == 0 ? 0 : ParseLong(file, $"{where} value_1", r[2]);
             var value2 = r[3].Trim().Length == 0 ? 0 : ParseLong(file, $"{where} value_2", r[3]);
             var value3 = r[4].Trim().Length == 0 ? 0 : ParseLong(file, $"{where} value_3", r[4]);
@@ -131,40 +131,40 @@ public sealed partial class GamePack
                     throw new PackFormatException($"{file}: {where} {column}(cache_index) '{index}'는 0~{MaxCacheIndex}이어야 합니다.");
             }
 
-            if (type == AfterBattleEffectType.SetCacheValue)
+            if (type == AfterBattleWinEffectType.SetCacheValue)
             {
                 CheckCacheIndex(value1, "value_1");
                 if (value3 < 0 || value3 > 28)
                     throw new PackFormatException($"{file}: {where} value_3(소수 자릿수) '{value3}'는 0~28이어야 합니다.");
             }
-            else if (type is AfterBattleEffectType.Jump or AfterBattleEffectType.Finish)
+            else if (type is AfterBattleWinEffectType.Jump or AfterBattleWinEffectType.Finish)
             {
                 // 점프 대상은 모든 행을 읽은 뒤에 확인한다.
             }
-            else if (AfterBattleJump.Of(type) is not null)
+            else if (AfterBattleWinJump.Of(type) is not null)
             {
                 CheckCacheIndex(value1, "value_1");
                 CheckCacheIndex(value2, "value_2");
             }
-            else if (type is >= AfterBattleEffectType.CacheAdd and <= AfterBattleEffectType.CacheDivide)
+            else if (type is >= AfterBattleWinEffectType.CacheAdd and <= AfterBattleWinEffectType.CacheDivide)
             {
                 CheckCacheIndex(value1, "value_1");
                 CheckCacheIndex(value2, "value_2");
                 CheckCacheIndex(value3, "value_3");
             }
-            else if (type != AfterBattleEffectType.None)
+            else if (type != AfterBattleWinEffectType.None)
             {
                 if (statuses is null) throw new PackFormatException($"{file}: {where} {type}에는 {StatusMasterPath}가 필요합니다.");
                 if (statuses.All(st => st.Code != value1))
                     throw new PackFormatException($"{file}: {where} value_1(status_code) '{value1}'가 스테이터스 마스터에 없습니다.");
                 CheckCacheIndex(value2, "value_2");
             }
-            rows.Add(new AfterBattleEffect(number, type, value1, value2, value3));
+            rows.Add(new AfterBattleWinEffect(number, type, value1, value2, value3));
         }
 
         // 점프는 마스터에 있는, 자신보다 큰 execute_number로만 갈 수 있다.
         foreach (var e in rows)
-            if (AfterBattleJump.TargetOf(e) is { } target)
+            if (AfterBattleWinJump.TargetOf(e) is { } target)
             {
                 var where = $"실행 {e.ExecuteNumber}의";
                 if (target <= e.ExecuteNumber)
@@ -175,9 +175,9 @@ public sealed partial class GamePack
         return rows;
     }
 
-    /// <summary>전투 후 이펙트(실행 번호 순). 마스터가 없으면 빈 목록.</summary>
-    public IReadOnlyList<AfterBattleEffect> AfterBattleEffectsInOrder() =>
-        Masters.AfterBattleEffectRowTable.All
+    /// <summary>전투 승리 후 이펙트(실행 번호 순). 마스터가 없으면 빈 목록.</summary>
+    public IReadOnlyList<AfterBattleWinEffect> AfterBattleWinEffectsInOrder() =>
+        Masters.AfterBattleWinEffectRowTable.All
             .OrderBy(r => r.ExecuteNumber)
-            .Select(r => new AfterBattleEffect(r.ExecuteNumber, r.EffectType, r.Value1, r.Value2, r.Value3)).ToList();
+            .Select(r => new AfterBattleWinEffect(r.ExecuteNumber, r.EffectType, r.Value1, r.Value2, r.Value3)).ToList();
 }
