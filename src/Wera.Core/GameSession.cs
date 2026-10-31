@@ -823,6 +823,7 @@ public sealed partial class GameSession
                 Screen = entry.Target;
                 break;
             case EntryAction.StartBattle:
+                battleReturnScreen = Screen;            // 전투가 끝나면 시작한 화면으로 돌아간다
                 BeginBattle();
                 Screen = entry.Target;
                 break;

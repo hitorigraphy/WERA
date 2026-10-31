@@ -547,8 +547,12 @@ public sealed partial class GameSession
     /// 작전 화면의 항목: 기본 커맨드나 행동 후보(돌아가기는 없다), [1000] ▲(적 3 / 아군 1 구성으로, 그 구성일 때는 회색), [1001] ▼(적 1 / 아군 3 구성으로, 그 구성일 때는 회색).
     /// [107] 실행은 모든 유닛의 행동이 설정되어야 누를 수 있다(아직 동작은 없다).
     /// </summary>
+    /// <summary>전투를 시작한 화면: 승리·패배·도망으로 전투가 끝난 뒤 [999]가 돌아가는 곳.</summary>
+    Screen battleReturnScreen = Screen.Home;
+
     IReadOnlyList<ScreenEntry> BattleEntries() =>
     [
+        .. BattleOutcome != BattleOutcomeKind.None ? [new ScreenEntry(BackEntryCode, "돌아가기", battleReturnScreen)] : Array.Empty<ScreenEntry>(),
         .. BattleCommandEntries(),
         .. BattleSlotEntries(),
         new ScreenEntry(BattleScrollUpEntryCode, "▲", Screen.Battle, EntryAction.BattleScroll, "-1", Enabled: BattleTop > 0),

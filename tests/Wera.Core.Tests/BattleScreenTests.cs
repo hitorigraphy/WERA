@@ -917,4 +917,15 @@ public class BattleScreenTests
         Assert.NotNull(s.EnemyUnits[7]);
         Assert.Null(s.EnemyUnits[1]);
     }
+
+    [Fact]
+    public void After_the_battle_ends_the_back_entry_returns_to_the_screen_the_battle_started_from()
+    {
+        var s = Started();
+        Assert.DoesNotContain(s.Entries, e => e.Code == "999");                     // 전투 중에는 돌아가기가 없다
+        s.Activate("106");                                                          // 도망
+        Assert.Equal(Screen.Battle, s.Screen);
+        s.Activate("999");
+        Assert.Equal(Screen.Home, s.Screen);                                        // 전투를 시작한 화면
+    }
 }
