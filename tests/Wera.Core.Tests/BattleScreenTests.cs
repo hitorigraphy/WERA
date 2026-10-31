@@ -693,4 +693,35 @@ public class BattleScreenTests
         Assert.Equal(11, hp[2] - s.EnemyInstances[2].Hp);                           // 서브 0번: 불꽃 10 + 피격 후 1
         Assert.Equal(0, hp[4] - s.EnemyInstances[4].Hp);
     }
+
+    [Fact]
+    public void Sub_targets_that_fall_end_the_battle_when_they_were_the_last_and_do_not_act_afterwards()
+    {
+        var s = Started();                                                          // 적 파티 1: 슬롯 0, 2, 4, 7
+        FirstOnly(s);
+        foreach (var slot in new[] { 4, 7 }) s.EnemyInstances[slot].Statuses[GamePack.HpStatusCode] = 0;      // 이미 쓰러짐
+        foreach (var slot in new[] { 0, 2 }) s.EnemyInstances[slot].Statuses[GamePack.HpStatusCode] = 1;      // 같은 줄의 둘은 한 방에 쓰러진다
+        s.Activate("102"); s.Activate("102"); s.Activate("1");                      // 불꽃: 메인 슬롯 0, 서브 슬롯 2
+        s.Activate("107");
+
+        Assert.Equal(GameSession.BattleOutcomeKind.Win, s.BattleOutcome);           // 메인과 서브가 모두 쓰러져 승리
+        Assert.True(s.EnemyInstances[0].IsDead && s.EnemyInstances[2].IsDead);
+        Assert.DoesNotContain(s.BattleLog, a => a.IsEnemy && !a.IsSub);             // 쓰러진 적은 행동하지 못했다
+        Assert.Contains(s.BattleLog, a => a.IsSub && a.TargetSlot == 2 && a.Damage == 1);   // 서브 타겟의 피해는 남은 hp만큼
+    }
+
+    [Fact]
+    public void A_sub_target_that_falls_does_not_get_its_own_action_and_the_battle_goes_on_while_enemies_remain()
+    {
+        var s = Started();
+        FirstOnly(s);
+        s.EnemyInstances[2].Statuses[GamePack.HpStatusCode] = 1;                    // 서브 타겟이 될 슬롯 2만 쓰러진다
+        s.Activate("102"); s.Activate("102"); s.Activate("1");
+        s.Activate("107");
+
+        Assert.True(s.EnemyInstances[2].IsDead);
+        Assert.Equal(GameSession.BattleOutcomeKind.None, s.BattleOutcome);          // 슬롯 4와 7이 남아 있다
+        var firstHit = s.BattleLog.ToList().FindIndex(a => a.IsSub && a.TargetSlot == 2);
+        Assert.DoesNotContain(s.BattleLog.Skip(firstHit), a => a.IsEnemy && !a.IsSub && a.Slot == 2);   // 쓰러진 뒤에는 그 슬롯의 적이 행동하지 않는다
+    }
 }
