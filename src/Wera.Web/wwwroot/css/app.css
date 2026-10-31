@@ -243,3 +243,4 @@ input.command { width: min(100%, 26rem); }
 .adv-choices .textlink, .shop-trades .textlink, .menu-grid .textlink, .dungeon-select .textlink { color: #fff; }   /* ADV 선택지, 상점(상점 목록, 교환 목록), 홈 메뉴의 기본 글자색은 흰색 */
 .textlink:disabled, .shop-trades .textlink:disabled, .menu-grid .textlink:disabled, .dungeon-select .textlink:disabled { color: #888; cursor: default; text-decoration: none; }   /* 지금 할 수 없는 항목: 회색, 눌러도 반응 없음 */
 .adv-normal { margin: 1.2rem 0 .6rem; white-space: pre-wrap; line-height: var(--lh); }
+.battle-log { margin: .6rem 0 0; padding-left: 1.2rem; font-size: .9rem; }   /* 이번 턴 행동 기록 */

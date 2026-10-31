@@ -539,6 +539,15 @@
                             }
                         }
                     </div>
+                    @if (session.BattleLogLines.Count > 0)
+                    {
+                        <ul class="battle-log">
+                            @foreach (var line in session.BattleLogLines)
+                            {
+                                <li>@line</li>
+                            }
+                        </ul>
+                    }
                     @if (session.BattleOutcome != GameSession.BattleOutcomeKind.None)
                     {
                         <p class="end">@(session.BattleOutcome == GameSession.BattleOutcomeKind.Win ? "전투에서 승리했습니다!" : "전투에서 패배했습니다...")</p>

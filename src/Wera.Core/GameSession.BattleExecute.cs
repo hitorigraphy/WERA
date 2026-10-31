@@ -22,6 +22,14 @@ public sealed partial class GameSession
     /// <summary>실행한 행동 한 건: 시전자 쪽(적 여부)과 슬롯, 스킬 번호, 대상 쪽의 슬롯, 그때의 OrderPoint.</summary>
     public readonly record struct BattleActed(bool IsEnemy, int Slot, int SkillNumber, int TargetSlot, decimal OrderPoint);
 
+    /// <summary>이번 턴 행동 기록을 화면에 보여 줄 한 줄씩("시전자 → 대상 : 스킬N", 행동한 순서). 적의 이름 앞에는 "적 "이 붙는다.</summary>
+    public IReadOnlyList<string> BattleLogLines => battleLog.Select(a =>
+    {
+        string Name(bool enemy, int slot) => (enemy ? "적 " : "") +
+            (UnitOf(new Combatant(enemy, slot)) is { } unit ? CharacterName(unit.CharacterCode) : "?");
+        return $"{Name(a.IsEnemy, a.Slot)} → {Name(!a.IsEnemy, a.TargetSlot)} : {BattleSkillNames[a.SkillNumber - 1]}";
+    }).ToList();
+
     readonly record struct Combatant(bool IsEnemy, int Slot);
 
     PartyUnit? UnitOf(Combatant c) => c.IsEnemy ? enemyUnits[c.Slot] : PartyInstance.Units[c.Slot];

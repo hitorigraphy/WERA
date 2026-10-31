@@ -294,6 +294,8 @@ public class BattleScreenTests
         s.Activate("102"); s.Activate("102"); s.Activate("1");       // 둘째 유닛: 스킬2 → 적 슬롯 0
         s.Activate("106");
 
+        Assert.Equal(s.BattleLog.Count, s.BattleLogLines.Count);
+        Assert.All(s.BattleLogLines, l => Assert.Contains(" → ", l));
         Assert.Equal(GameSession.BattleOutcomeKind.None, s.BattleOutcome);
         Assert.Equal(2 + enemyCount, s.BattleLog.Count);             // 전원이 1회씩
         Assert.Equal(s.BattleLog.OrderByDescending(a => a.OrderPoint).Select(a => (a.IsEnemy, a.Slot)), s.BattleLog.Select(a => (a.IsEnemy, a.Slot)));
