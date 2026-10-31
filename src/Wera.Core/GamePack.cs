@@ -192,6 +192,8 @@ public sealed partial class GamePack
         var afterLoadUniqueItemFlows = LoadAfterLoadUniqueItemFlows(zip, effectCheck);
         var afterHitEffects = LoadAfterHitEffects(zip, effectCheck);
         var afterAttackEffects = LoadAfterAttackEffects(zip, effectCheck);
+        var battleAfterFallenEffects = LoadBattleAfterFallenEffects(zip, effectCheck);
+        var battleBeforeTurnEffects = LoadBattleBeforeTurnEffects(zip, effectCheck);
         var afterBattleWinEffects = LoadAfterBattleWinEffects(zip, effectCheck);
         var afterBattleLoseEffects = LoadAfterBattleLoseEffects(zip, effectCheck);
         var afterBattleRunEffects = LoadAfterBattleRunEffects(zip, effectCheck);
@@ -252,6 +254,8 @@ public sealed partial class GamePack
             AfterLoadUniqueItemFlows = afterLoadUniqueItemFlows,
             AfterHitEffects = afterHitEffects,
             AfterAttackEffects = afterAttackEffects,
+            BattleAfterFallenEffects = battleAfterFallenEffects,
+            BattleBeforeTurnEffects = battleBeforeTurnEffects,
             AfterBattleWinEffects = afterBattleWinEffects,
             AfterBattleLoseEffects = afterBattleLoseEffects,
             AfterBattleRunEffects = afterBattleRunEffects,
@@ -269,7 +273,7 @@ public sealed partial class GamePack
                 presetUnits, presetUnitEquips, presetUnitDrops, presetParties, battleEnemies,
                 skillSlots, characterSkillSlotTags, skills, skillTags, skillExecuteEffects, skillOrderEffects, skillAutoTargetEffects,
                 skillStatuses, uniqueItemStatuses, afterLoadCharacterFlows, afterLoadUniqueItemFlows,
-                afterHitEffects, afterAttackEffects, afterBattleWinEffects, afterBattleLoseEffects, afterBattleRunEffects,
+                afterHitEffects, afterAttackEffects, battleAfterFallenEffects, battleBeforeTurnEffects, afterBattleWinEffects, afterBattleLoseEffects, afterBattleRunEffects,
                 characterAfterCreateEffects, uniqueItemAfterCreateEffects),
             EmbeddedEffects = embeddedEffects,
         };

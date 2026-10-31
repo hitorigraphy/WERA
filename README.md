@@ -41,6 +41,8 @@ TSV 파일 묶음(zip 형식)이고 확장자는 **`.wra`**입니다(zip 압축 
 | `master/after_load_unique_item_flow_master_v1.tsv` | (선택) `execute_number`(키), `flow_type`, `value_1`, `value_2`, `value_3` |
 | `master/after_hit_effect_master_v1.tsv` | (선택) `execute_number`(키), `effect_type`, `value_1`, `value_2`, `value_3` |
 | `master/after_attack_effect_master_v1.tsv` | (선택) `execute_number`(키), `effect_type`, `value_1`, `value_2`, `value_3` |
+| `master/battle_before_turn_effect_master_v1.tsv` | (선택) `execute_number`(키), `effect_type`, `value_1`, `value_2`, `value_3` |
+| `master/battle_after_fallen_effect_master_v1.tsv` | (선택) `execute_number`(키), `effect_type`, `value_1`, `value_2`, `value_3` |
 | `master/after_battle_win_effect_master_v1.tsv` | (선택) `execute_number`(키), `effect_type`, `value_1`, `value_2`, `value_3` |
 | `master/after_battle_lose_effect_master_v1.tsv` | (선택) `execute_number`(키), `effect_type`, `value_1`, `value_2`, `value_3` |
 | `master/skill_status_master_v1.tsv` | (선택, 스킬/스테이터스 마스터 필요) `skill_code`, `status_code`, `initial_value`, `min_value`, `max_value` |
@@ -87,6 +89,8 @@ TSV 파일 묶음(zip 형식)이고 확장자는 **`.wra`**입니다(zip 압축 
 **피격 후 이펙트 마스터**(선택): `after_hit_effect_master`의 키는 `execute_number` 하나이고 `effect_type`(`AfterHitEffectType`, 이름으로 적음; 번호와 이름과 인자가 스킬 실행 이펙트(`EffectType` 0~31)와 같음)과 `value_1`~`value_3`(비우면 0)이 값입니다. `AfterHitCircuit`(시전자와 타겟(맞은 쪽)과 캐시를 가짐)이 `SkillExecuteCircuit` 다음에 이 이펙트들을 `execute_number` 순서로 실행해 게임팩의 정의대로 둘을 조작합니다(스킬이나 캐릭터별로 나뉘지 않은 범용 마스터). 로드 검증과 점프 규칙은 로드 후 흐름 마스터와 같습니다. **아직 전투 실행에 연결되지 않았습니다**(스킬 실행 서킷도 전투에서 호출되지 않음).
 
 **공격 후 이펙트 마스터**(선택): `after_attack_effect_master`는 피격 후 이펙트 마스터와 같은 모양과 규칙입니다(키 `execute_number`, `effect_type`(`AfterAttackEffectType`, 번호와 이름과 인자가 스킬 실행 이펙트와 같음), `value_1`~`value_3`). `AfterAttackCircuit`(시전자와 타겟(스킬을 맞은 쪽)과 캐시를 가짐)이 스킬 실행 서킷 → 피격 후 서킷 → **공격 후 서킷** 순서로 마지막에 실행됩니다. 캐시는 서킷마다 새로 시작합니다. 아직 전투 실행에 연결되지 않았습니다.
+
+**턴 시작 전·쓰러진 직후 이펙트 마스터**(선택): `battle_before_turn_effect_master`와 `battle_after_fallen_effect_master`도 같은 모양과 규칙입니다(키 `execute_number`, `effect_type`(`BattleBeforeTurnEffectType`/`BattleAfterFallenEffectType`), `value_1`~`value_3`). `BattleBeforeTurnCircuit`은 **턴이 시작될 때(전투 시작과 매 턴 실행 뒤) 진형 당기기 다음에** 살아 있는 유닛마다 한 번(시전자는 그 유닛), `BattleAfterFallenCircuit`은 **행동으로 유닛이 쓰러진 직후** 쓰러진 유닛마다 한 번(시전자는 쓰러진 유닛, 메인 타겟은 그 행동을 한 유닛) 돕니다. 예시 팩에는 이펙트가 없습니다. **진형 당기기**(턴 시작 전, 양쪽 편 각각): 전열(슬롯 0~2)에 살아 있는 유닛이 하나도 없으면(비었거나 모두 쓰러짐) 전열은 후열로, 중열은 전열로, 후열은 중열로 한 번 돕니다(열 번호 유지). 전열에 한 명이라도 살아 있으면 일어나지 않고, 중열이 비어 있어도 후열은 당겨지지 않습니다. 직전 턴의 로그도 당겨진 자리를 따라갑니다.
 
 **전투 승리 후 이펙트 마스터**(선택): `after_battle_win_effect_master`는 피격/공격 후 이펙트 마스터와 같은 모양과 규칙입니다(키 `execute_number`, `effect_type`(`AfterBattleWinEffectType`, 번호와 이름과 인자가 스킬 실행 이펙트와 같음), `value_1`~`value_3`). 전투에서 이기면(적이 모두 쓰러지면) 전투에 참가한 아군 유닛(캐릭터)마다 `AfterBattleWinCircuit`이 이 이펙트들을 `execute_number` 순서로 실행해 그 캐릭터의 `Statuses`를 조작합니다. 서킷에는 그 캐릭터 하나뿐이라 Caster와 Target은 같은 유닛이고, 값의 범위·정수 변환·hp/xp 조정은 로드 후 캐릭터 흐름과 같습니다. 아직 전투 실행(전투 종료)에 연결되지 않았습니다.
 

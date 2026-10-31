@@ -665,8 +665,8 @@ public class BattleScreenTests
 
         s.Activate("107");
         Assert.Null(s.PartyInstance.Units[0]);
-        Assert.NotNull(s.PartyInstance.Units[8]);
-        Assert.Equal("당신 : 이동 → [19]", s.BattleLogLines[0]);
+        Assert.NotNull(s.PartyInstance.Units[5]);                                   // 이동한 유닛은 8번에 갔다가, 앞줄이 모두 비어 다음 턴 시작 전 진형 당기기로 5번이 되었다
+        Assert.Equal("당신 : 이동 → [16]", s.BattleLogLines[0]);              // 로그도 당겨진 자리를 따라간다
     }
 
     [Fact]
@@ -884,5 +884,37 @@ public class BattleScreenTests
         s.Activate("107");
         Assert.Contains(s.BattleLog, a => !a.IsEnemy && a.Slot == 0 && a.SkillCode == 1005 && a.TargetSlot == 1 && a.Damage == -20);
         Assert.Contains(s.BattleLogLines, l => l.StartsWith("당신 → 용사 : 부활") && l.EndsWith("(회복 20)"));
+    }
+
+    [Fact]
+    public void Before_the_next_turn_an_enemy_side_with_a_dead_front_row_is_pulled_once_with_its_instances()
+    {
+        var s = Started();                                                          // 적 파티 1: 슬롯 0, 2(전열), 4(중열), 7(후열)
+        FirstOnly(s);
+        var middle = s.EnemyInstances[4];
+        var back = s.EnemyInstances[7];
+        s.EnemyInstances[0].Statuses[GamePack.HpStatusCode] = 0;
+        s.EnemyInstances[2].Statuses[GamePack.HpStatusCode] = 0;                    // 전열이 모두 쓰러져 있다
+        s.Activate("102"); s.Activate("101"); s.Activate("5");                      // 중열 슬롯 4를 공격
+        s.Activate("107");
+        Assert.Equal(middle.CharacterCode, s.EnemyInstances[1].CharacterCode); Assert.Equal(middle.OrderNumber, s.EnemyInstances[1].OrderNumber);                                 // 중열이 전열로
+        Assert.Equal(back.OrderNumber, s.EnemyInstances[4].OrderNumber);                                  // 후열이 중열로
+        Assert.NotNull(s.EnemyUnits[6]);                                            // 쓰러진 전열은 후열로(열 번호 유지)
+        Assert.NotNull(s.EnemyUnits[8]);
+        Assert.Null(s.EnemyUnits[0]);
+        Assert.Null(s.EnemyUnits[7]);
+    }
+
+    [Fact]
+    public void A_living_front_unit_keeps_the_formation_even_when_the_middle_row_is_empty()
+    {
+        var s = Started();
+        FirstOnly(s);
+        s.EnemyInstances[4].Statuses[GamePack.HpStatusCode] = 0;                    // 중열이 쓰러져도 전열이 살아 있으면 그대로
+        s.Activate("102"); s.Activate("101"); s.Activate("1");
+        s.Activate("107");
+        Assert.NotNull(s.EnemyUnits[0]);
+        Assert.NotNull(s.EnemyUnits[7]);
+        Assert.Null(s.EnemyUnits[1]);
     }
 }

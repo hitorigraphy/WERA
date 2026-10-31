@@ -242,6 +242,8 @@ public sealed partial class GameSession
     /// </summary>
     void BeginTurn()
     {
+        PullFormations();
+        RunBeforeTurnCircuits();
         battleActions.Clear();
         battleMoves.Clear();
         battleTargets.Clear();
@@ -251,6 +253,54 @@ public sealed partial class GameSession
         BattleCurrentSlot = BattleUnitSlots() is { Count: > 0 } slots ? slots[0] : null;
         BattleCommands = BattleCommandMode.Basic;
         BattleTop = BattleTopAllyHeavy;
+    }
+
+    /// <summary>
+    /// 턴 시작 전 진형 당기기(양쪽 편 각각): 전열(슬롯 0~2)에 살아 있는 유닛이 하나도 없으면(비었거나 모두 쓰러짐) 줄을 한 칸씩 돌린다 —
+    /// 전열은 후열로, 중열은 전열로, 후열은 중열로(열 번호는 그대로). 전열에 살아 있는 유닛이 한 명이라도 있으면 아무 일도 하지 않고,
+    /// 중열이 비어 있어도 후열이 당겨지지 않는다(전열이 비었을 때만 한 번 돈다).
+    /// </summary>
+    void PullFormations()
+    {
+        foreach (var isEnemy in new[] { false, true })
+        {
+            if (Enumerable.Range(0, 3).Any(i => IsAlive(new Combatant(isEnemy, i)))) continue;
+            for (var i = 0; i < battleLog.Count; i++)                                    // 직전 턴 로그도 같은 자리로 따라간다
+            {
+                var a = battleLog[i];
+                static int To(int slot) => (slot + 6) % PartySlotCount;
+                battleLog[i] = a with
+                {
+                    Slot = a.IsEnemy == isEnemy ? To(a.Slot) : a.Slot,
+                    TargetSlot = a.TargetIsEnemy == isEnemy ? To(a.TargetSlot) : a.TargetSlot,
+                };
+            }
+            static int From(int slot) => (slot + 3) % PartySlotCount;                    // 새 슬롯에 오는 유닛의 원래 슬롯
+            if (!isEnemy)
+            {
+                var old = PartyInstance.Units.ToArray();
+                for (var slot = 0; slot < PartySlotCount; slot++) PartyInstance.Units[slot] = old[From(slot)];
+            }
+            else
+            {
+                var oldUnits = enemyUnits.ToArray();
+                var oldInstances = enemyInstances.ToDictionary(kv => kv.Key, kv => kv.Value);
+                enemyInstances.Clear();
+                for (var slot = 0; slot < PartySlotCount; slot++)
+                {
+                    enemyUnits[slot] = oldUnits[From(slot)];
+                    if (oldInstances.TryGetValue(From(slot), out var instance)) enemyInstances[slot] = instance;
+                }
+            }
+        }
+    }
+
+    /// <summary>턴 시작 전 서킷: 진형 당기기 뒤에 살아 있는 유닛마다(아군 슬롯 순, 적 슬롯 순) 한 번씩 돌린다(시전자는 그 유닛).</summary>
+    void RunBeforeTurnCircuits()
+    {
+        var store = CreateUnitStore();
+        foreach (var unit in new[] { false, true }.SelectMany(LivingOf))
+            new BattleBeforeTurnCircuit(Pack, store, UnitOf(unit), null).Execute();
     }
 
     /// <summary>

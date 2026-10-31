@@ -599,6 +599,28 @@ public record AfterAttackEffectRow
     public required long Value3 { get; init; }
 }
 
+/// <summary>쓰러진 직후 이펙트: 키는 execute_number 하나.</summary>
+[MemoryTable("battle_after_fallen_effect"), MessagePackObject(true)]
+public record BattleAfterFallenEffectRow
+{
+    [PrimaryKey] public required long ExecuteNumber { get; init; }
+    public required BattleAfterFallenEffectType EffectType { get; init; }
+    public required long Value1 { get; init; }
+    public required long Value2 { get; init; }
+    public required long Value3 { get; init; }
+}
+
+/// <summary>턴 시작 전 이펙트: 키는 execute_number 하나.</summary>
+[MemoryTable("battle_before_turn_effect"), MessagePackObject(true)]
+public record BattleBeforeTurnEffectRow
+{
+    [PrimaryKey] public required long ExecuteNumber { get; init; }
+    public required BattleBeforeTurnEffectType EffectType { get; init; }
+    public required long Value1 { get; init; }
+    public required long Value2 { get; init; }
+    public required long Value3 { get; init; }
+}
+
 /// <summary>전투 승리 후 이펙트: 키는 execute_number 하나.</summary>
 [MemoryTable("after_battle_win_effect"), MessagePackObject(true)]
 public record AfterBattleWinEffectRow
