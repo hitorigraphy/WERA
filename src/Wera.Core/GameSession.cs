@@ -35,6 +35,14 @@ public enum Screen
     Interaction,
     /// <summary>교류 진행 화면: 위쪽 슬롯은 그대로 두고 아래에서 고른 교류의 흐름을 재생한다.</summary>
     CommunicationPlay,
+    /// <summary>디버그 화면(400): 캐릭터 추가, 장비 추가, 아이템 추가 버튼. 돌아가기는 홈.</summary>
+    Debug,
+    /// <summary>디버그: 마스터의 모든 캐릭터를 페이지당 20개씩 보여 주고 누르면 추가한다. 돌아가기는 디버그 화면.</summary>
+    DebugAddCharacter,
+    /// <summary>디버그: 마스터의 모든 유니크 아이템(장비)을 페이지당 20개씩 보여 주고 누르면 추가한다. 돌아가기는 디버그 화면.</summary>
+    DebugAddEquipment,
+    /// <summary>디버그: 마스터의 모든 커먼 아이템을 페이지당 20개씩 보여 주고 누르면 추가한다. 돌아가기는 디버그 화면.</summary>
+    DebugAddItem,
     /// <summary>동료 확인 화면(201): 가진 캐릭터 목록.</summary>
     CompanionCheck,
     /// <summary>장비 확인 화면(202): 가진 유니크 아이템 목록.</summary>
@@ -98,6 +106,10 @@ public enum EntryAction
     SelectCommunicationGroup,
     /// <summary>교류 화면에서 항목의 코드에 해당하는 교류를 시작해 흐름을 재생한다.</summary>
     StartCommunication,
+    /// <summary>디버그 추가 화면에서 항목(Arg = 마스터 코드)을 하나 추가한다. 화면은 그대로다.</summary>
+    DebugAdd,
+    /// <summary>디버그 추가 화면의 페이지를 넘긴다(Arg = -1 이전, 1 다음).</summary>
+    DebugPage,
 }
 
 /// <summary>화면에 나오는 클릭 가능한 텍스트. 클릭하거나 Code를 입력하면 Action을 수행한다.</summary>
@@ -152,6 +164,7 @@ public sealed partial class GameSession
     public const string EquipmentCheckEntryCode = "202";
     public const string ItemCheckEntryCode = "203";
     public const string LoadEntryCode = "300";
+    public const string DebugEntryCode = "400";
     public const string BackEntryCode = "999";
 
     /// <summary>캐릭터 선택 화면의 "[0] 비우기": 선택한 슬롯에 캐릭터가 있을 때만 나온다.</summary>
@@ -475,7 +488,7 @@ public sealed partial class GameSession
 
     /// <summary>
     /// 홈 화면의 메뉴: 구분선으로 나뉜 세 분류. [RPG] 던전(101, 입장 가능한 것이 없으면 회색), 상점(102, 열린 상점이 없으면 회색),
-    /// 이벤트(103), 교류(104), 파티 설정(105), 전투(임시)(110; 지금 보는 파티를 파견할 수 없으면 회색) / [정보] 동료 확인(201), 장비 확인(202), 아이템 확인(203) / [시스템] 세이브(200), 로드(300).
+    /// 이벤트(103), 교류(104), 파티 설정(105), 전투(임시)(110; 지금 보는 파티를 파견할 수 없으면 회색) / [정보] 동료 확인(201), 장비 확인(202), 아이템 확인(203) / [시스템] 세이브(200), 로드(300), 디버그(400).
     /// 홈의 <see cref="Entries"/>는 이 분류들을 순서대로 이어 붙인 것이다.
     /// </summary>
     public IReadOnlyList<MenuGroup> HomeMenu
@@ -505,6 +518,7 @@ public sealed partial class GameSession
                 [
                     new ScreenEntry(SaveEntryCode, "세이브", Screen.Home, EntryAction.Save),
                     new ScreenEntry(LoadEntryCode, "로드", Screen.Load),
+                    new ScreenEntry(DebugEntryCode, "디버그", Screen.Debug),
                 ]),
             ];
         }
@@ -624,6 +638,11 @@ public sealed partial class GameSession
                     return [new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home)];
                 case Screen.Battle:
                     return BattleEntries();
+                case Screen.Debug:
+                case Screen.DebugAddCharacter:
+                case Screen.DebugAddEquipment:
+                case Screen.DebugAddItem:
+                    return DebugEntries();
                 default:
                     return [];
             }
@@ -682,6 +701,7 @@ public sealed partial class GameSession
                     CurrentCommunicationGroupCode = CommunicationGroups.FirstOrDefault()?.Code;   // 들어가면 가장 작은 그룹이 선택되고
                     communicationHistory.Clear();                                                  // 이력은 비어 있다
                 }
+                if (IsDebugAddScreen(entry.Target)) DebugPage = 0;       // 추가 화면에 들어오면 첫 페이지다
                 Screen = entry.Target;
                 break;
             case EntryAction.SelectCommunicationGroup:
@@ -720,6 +740,12 @@ public sealed partial class GameSession
                 Party[CurrentSlot!.Value] = null;
                 CurrentSlot = null;
                 Screen = entry.Target;
+                break;
+            case EntryAction.DebugAdd:
+                Message = DebugAddOne(long.Parse(entry.Arg!, CultureInfo.InvariantCulture));
+                break;
+            case EntryAction.DebugPage:
+                ChangeDebugPage(int.Parse(entry.Arg!, CultureInfo.InvariantCulture));
                 break;
             case EntryAction.ToggleLeader:
                 ToggleLeader(int.Parse(entry.Arg!, CultureInfo.InvariantCulture));

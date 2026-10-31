@@ -57,7 +57,7 @@ public class SupportSlotTests
     public void The_home_entry_list_is_unchanged_and_the_slot_codes_are_hidden_typed_codes()
     {
         var s = Session();
-        Assert.Equal(["101", "102", "103", "104", "105", "110", "201", "202", "203", "200", "300"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["101", "102", "103", "104", "105", "110", "201", "202", "203", "200", "300", "400"], s.Entries.Select(e => e.Code));
         Assert.NotNull(s.Activate("1"));
         Assert.Equal(Screen.SupportSelect, s.Screen);
     }

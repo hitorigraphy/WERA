@@ -508,6 +508,24 @@
                 }
                 break;
 
+            case Screen.Debug:
+                <h2>디버그</h2>
+                @commands
+                break;
+
+            case Screen.DebugAddCharacter:
+            case Screen.DebugAddEquipment:
+            case Screen.DebugAddItem:
+                @* 마스터의 전부를 페이지당 20개씩: 항목을 누르면(페이지 안의 번호 [1]~[20]) 하나 추가하고, [101]/[102]로 페이지를 넘긴다 *@
+                <h2>@(session.Screen switch { Screen.DebugAddCharacter => "캐릭터 추가", Screen.DebugAddEquipment => "장비 추가", _ => "아이템 추가" })</h2>
+                <p class="end">@(session.DebugPage + 1) / @session.DebugPageCount 페이지 (전체 @(session.DebugList.Count)개)</p>
+                @if (session.Message is not null)
+                {
+                    <p class="message" role="status">@session.Message</p>
+                }
+                @commands
+                break;
+
             case Screen.Load:
                 <h2>로드</h2>
                 <div class="drop" @ondragenter="() => dragging = true" @ondragleave="() => dragging = false" @ondrop="() => dragging = false"

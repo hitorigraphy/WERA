@@ -98,6 +98,6 @@ public class CharacterInventoryTests
     {
         var s = GameSession.NewGame(Pack(Header + "7001\t용사\t1\t1\t2\n"));
         Assert.Empty(s.InventoryItems);
-        Assert.Equal(["101", "102", "103", "104", "105", "110", "201", "202", "203", "200", "300"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["101", "102", "103", "104", "105", "110", "201", "202", "203", "200", "300", "400"], s.Entries.Select(e => e.Code));
     }
 }

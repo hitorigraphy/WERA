@@ -5,7 +5,7 @@ namespace Wera.Core.Tests;
 // 홈 메뉴는 구분선으로 나뉜 세 분류다:
 //  [RPG] 101 던전, 102 상점, 103 이벤트, 104 교류, 105 파티 설정
 //  [정보] 201 동료 확인, 202 장비 확인, 203 아이템 확인
-//  [시스템] 200 세이브, 300 로드
+//  [시스템] 200 세이브, 300 로드, 400 디버그
 public class HomeMenuTests
 {
     static GameSession Session() =>
@@ -22,7 +22,7 @@ public class HomeMenuTests
         Assert.Equal(
             [("201", "동료 확인"), ("202", "장비 확인"), ("203", "아이템 확인")],
             menu[1].Entries.Select(e => (e.Code, e.Label)));
-        Assert.Equal([("200", "세이브"), ("300", "로드")], menu[2].Entries.Select(e => (e.Code, e.Label)));
+        Assert.Equal([("200", "세이브"), ("300", "로드"), ("400", "디버그")], menu[2].Entries.Select(e => (e.Code, e.Label)));
     }
 
     [Fact]
@@ -39,7 +39,7 @@ public class HomeMenuTests
     {
         var s = Session();
         Assert.Equal(s.HomeMenu.SelectMany(g => g.Entries).Select(e => e.Code), s.Entries.Select(e => e.Code));
-        Assert.Equal(["101", "102", "103", "104", "105", "110", "201", "202", "203", "200", "300"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["101", "102", "103", "104", "105", "110", "201", "202", "203", "200", "300", "400"], s.Entries.Select(e => e.Code));
     }
 
     [Fact]
