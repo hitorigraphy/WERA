@@ -39,3 +39,5 @@ character_code	execute_number	effect_type	value_1	value_2	value_3	memo
 7004	6	SetSkillToSlot	3			슬롯에 장착
 7004	7	AddSkillToPool	1004			스킬 풀에 더하고
 7004	8	SetSkillToSlot	4			슬롯에 장착
+1	9	AddSkillToPool	1005			스킬 풀에 더하고
+1	10	SetSkillToSlot	5			슬롯에 장착

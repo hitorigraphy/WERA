@@ -226,8 +226,8 @@ public class BattleScreenTests
         s.Activate("102");
         Assert.Equal(GameSession.BattleCommandMode.ActionCandidates, s.BattleCommands);
         Assert.Equal(GameSession.BattleTopEnemyHeavy, s.BattleTop);
-        Assert.Equal(["101", "102", "103", "104", "106", "1000", "1001"], BattleCodes(s));
-        Assert.Equal(["베기", "불꽃", "치유", "집중", "취소"],
+        Assert.Equal(["101", "102", "103", "104", "105", "106", "1000", "1001"], BattleCodes(s));
+        Assert.Equal(["베기", "불꽃", "치유", "집중", "부활", "취소"],
             s.Entries.Where(e => e.Action is EntryAction.BattleChooseSkill or EntryAction.BattleCancelActions).Select(e => e.Label));
 
         s.Activate("1001");                                        // 이후 ▲▼는 행동 후보에서도 자유롭다
@@ -822,7 +822,7 @@ public class BattleScreenTests
     // 스킬 3(치유)은 메인 타겟 없음(None), 스킬 4(집중)는 아군 기절 유닛(AllyFallen)으로 바꾼 예시 팩
     static GameSession StartedWithFallenTypes()
     {
-        var pack = SamplePackWith((GamePack.SkillMasterPath, "code\tname\tmain_target_type\tsub_target_type\n1001\t베기\tEnemy\t\n1002\t불꽃\tEnemy\tSameRow\n1003\t치유\tNone\t\n1004\t집중\tAllyFallen\t\n"));
+        var pack = SamplePackWith((GamePack.SkillMasterPath, "code\tname\tmain_target_type\tsub_target_type\n1001\t베기\tEnemy\t\n1002\t불꽃\tEnemy\tSameRow\n1003\t치유\tNone\t\n1004\t집중\tAllyFallen\t\n1005\t부활\tAllyFallen\t\n"));
         var s = GameSession.NewGame(pack);
         s.NextRandom = _ => 0;
         s.Activate("105"); s.Activate("1"); s.Activate("1"); s.Activate("999");
@@ -837,7 +837,7 @@ public class BattleScreenTests
     {
         var s = StartedWithFallenTypes();
         s.Activate("102");
-        Assert.Equal(["베기", "불꽃", "집중", "취소"],                                  // 치유(None)는 후보가 아니다
+        Assert.Equal(["베기", "불꽃", "집중", "부활", "취소"],                                  // 치유(None)는 후보가 아니다
             s.Entries.Where(e => e.Action is EntryAction.BattleChooseSkill or EntryAction.BattleCancelActions).Select(e => e.Label));
 
         s.Activate("103");                                                          // 집중: 아군 기절 유닛
@@ -869,5 +869,20 @@ public class BattleScreenTests
         s.Activate("107");
         Assert.All(s.BattleLog.Where(a => a.IsEnemy && !a.IsSub && a.SkillCode is 1001 or 1002), a => Assert.Equal(1, a.TargetSlot));   // 쓰러진 슬롯 0을 고른 Result는 부적절해 랜덤(유효한 후보뿐)
         Assert.Contains(s.BattleLog, a => a.IsEnemy && !a.IsSub && a.SkillCode is 1001 or 1002);
+    }
+
+    [Fact]
+    public void The_sample_revive_skill_raises_a_fallen_ally_and_the_fallen_unit_needs_no_action()
+    {
+        var s = Started(twoUnits: true);
+        FirstOnly(s);
+        s.Characters[7001].Statuses[GamePack.HpStatusCode] = 0;                     // 용사가 쓰러져 있다
+        s.Activate("102"); s.Activate("105");                                       // 스킬 5: 부활(같은 편의 기절 유닛)
+        Assert.Equal(["12"], s.Entries.Where(e => e.Action == EntryAction.BattleChooseTarget).Select(e => e.Code));
+        s.Activate("12");
+        Assert.True(s.BattleAllActionsSet);                                         // 쓰러진 용사는 행동을 정하지 않아도 된다
+        s.Activate("107");
+        Assert.Contains(s.BattleLog, a => !a.IsEnemy && a.Slot == 0 && a.SkillCode == 1005 && a.TargetSlot == 1 && a.Damage == -20);
+        Assert.Contains(s.BattleLogLines, l => l.StartsWith("당신 → 용사 : 부활") && l.EndsWith("(회복 20)"));
     }
 }

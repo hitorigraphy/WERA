@@ -3,3 +3,4 @@ code	name	main_target_type	sub_target_type	memo
 1002	불꽃	Enemy	SameRow	테스트용
 1003	치유	Ally		테스트용: 같은 편(자신 포함) 1체
 1004	집중	Self		테스트용: 자신
+1005	부활	AllyFallen		테스트용: 같은 편의 기절 유닛 1체

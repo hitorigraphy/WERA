@@ -11,3 +11,6 @@ skill_code	execute_number	effect_type	value_1	value_2	value_3	memo
 1003	1	SetCacheValue	0	10		회복 10
 1003	2	FocusMainTargetCharacter				
 1003	3	CacheToFocusedCharacterModValue	2	0		
+1005	1	SetCacheValue	0	20		회복 20(쓰러진 유닛이 일어난다)
+1005	2	FocusMainTargetCharacter				
+1005	3	CacheToFocusedCharacterModValue	2	0		
