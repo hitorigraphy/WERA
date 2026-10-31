@@ -57,7 +57,10 @@ public sealed record DungeonEncounter(long DungeonCode, long LayerNumber, long W
 /// <summary>던전 맵 마스터의 한 줄: 그 던전의 LayerNumber번 맵(던전 안에 맵이 여러 개일 수 있다)의 위쪽에서 PosY번째 줄(0부터). Cells는 pos_x_0 ~ pos_x_29의 글자이고 빈 칸은 ""(맵 밖)이다.</summary>
 public sealed record DungeonMapLine(long DungeonCode, long LayerNumber, long PosY, IReadOnlyList<string> Cells);
 
-// 타일 마스터, 던전 타일 마스터, 던전 맵 마스터. 모두 선택이다.
+/// <summary>던전 층 마스터의 한 행: 그 던전의 LayerNumber번 맵의 이름(던전 이동 화면 오른쪽에 층 이름으로 나온다). 키는 (DungeonCode, LayerNumber).</summary>
+public sealed record DungeonLayer(long DungeonCode, long LayerNumber, string Name);
+
+// 타일 마스터, 던전 타일 마스터, 던전 맵 마스터, 던전 인카운트 마스터, 던전 층 마스터. 모두 선택이다.
 // tile_master(code, tile_effect, value_1, value_2, value_3; 앞의 두 열이 키), dungeon_tile_master(dungeon_code, local_tile_text, tile_code; 앞의 두 열이 키),
 // dungeon_map_master(dungeon_code, layer_number, pos_y, pos_x_0 ~ pos_x_29; 앞의 세 열이 키).
 public sealed partial class GamePack
@@ -66,6 +69,7 @@ public sealed partial class GamePack
     public const string DungeonTileMasterPath = "master/dungeon_tile_master_v1.tsv";
     public const string DungeonMapMasterPath = "master/dungeon_map_master_v1.tsv";
     public const string DungeonEncounterMasterPath = "master/dungeon_encounter_master_v1.tsv";
+    public const string DungeonLayerMasterPath = "master/dungeon_layer_master_v1.tsv";
 
     /// <summary>던전 맵의 가로 칸 수(pos_x_0 ~ pos_x_29).</summary>
     public const int DungeonMapWidth = 30;
@@ -78,6 +82,9 @@ public sealed partial class GamePack
 
     /// <summary>던전 맵 마스터가 없으면 null. 게임팩 파일 순서.</summary>
     public IReadOnlyList<DungeonMapLine>? DungeonMaps { get; init; }
+
+    /// <summary>던전 층 마스터가 없으면 null. 게임팩 파일 순서.</summary>
+    public IReadOnlyList<DungeonLayer>? DungeonLayers { get; init; }
 
     /// <summary>던전 인카운트 마스터가 없으면 null. 게임팩 파일 순서.</summary>
     public IReadOnlyList<DungeonEncounter>? DungeonEncounters { get; init; }
@@ -287,6 +294,43 @@ public sealed partial class GamePack
         }
         return rows;
     }
+
+    /// <summary>
+    /// 던전 층 마스터를 읽는다(dungeon_code, layer_number, name). 던전은 던전 마스터에, 그 던전의 맵(layer_number)은 던전 맵 마스터에 있어야 하고,
+    /// 이름은 비울 수 없으며 키 (던전, layer_number)를 두 번 쓸 수 없다. 이름이 없는 맵은 "맵 N"으로 보인다.
+    /// </summary>
+    static List<DungeonLayer>? LoadDungeonLayers(ZipArchive zip, List<Dungeon>? dungeons, List<DungeonMapLine>? maps)
+    {
+        const string file = DungeonLayerMasterPath;
+        var text = TryReadEntry(zip, file);
+        if (text is null) return null;
+        if (dungeons is null) throw new PackFormatException($"{file}가 있으려면 {DungeonMasterPath}도 필요합니다.");
+        if (maps is null) throw new PackFormatException($"{file}가 있으려면 {DungeonMapMasterPath}도 필요합니다.");
+
+        var dungeonCodes = dungeons.Select(d => d.Code).ToHashSet();
+        var layers = maps.Select(m => (m.DungeonCode, m.LayerNumber)).ToHashSet();
+        var rows = new List<DungeonLayer>();
+        var seen = new HashSet<(long, long)>();
+        foreach (var r in Body(file, text, "dungeon_code", "layer_number", "name"))
+        {
+            var dungeon = ParseLong(file, "던전 코드", r[0]);
+            var layer = ParseLong(file, $"던전 '{dungeon}'의 layer_number", r[1]);
+            if (!dungeonCodes.Contains(dungeon))
+                throw new PackFormatException($"{file}: 던전 코드 '{dungeon}'가 던전 마스터에 없습니다.");
+            if (!layers.Contains((dungeon, layer)))
+                throw new PackFormatException($"{file}: 던전 '{dungeon}'에 layer_number '{layer}'의 맵이 없습니다.");
+            if (r[2].Trim() == "")
+                throw new PackFormatException($"{file}: 던전 '{dungeon}'의 레이어 {layer}의 이름이 비어 있습니다.");
+            if (!seen.Add((dungeon, layer)))
+                throw new PackFormatException($"{file}: 같은 키(던전 {dungeon}, layer_number {layer})가 두 번 있습니다.");
+            rows.Add(new DungeonLayer(dungeon, layer, r[2]));
+        }
+        return rows;
+    }
+
+    /// <summary>던전의 맵(layer_number)의 이름. 층 마스터에 없으면 null.</summary>
+    public string? DungeonLayerNameOf(long dungeonCode, long layerNumber) =>
+        DungeonLayers?.FirstOrDefault(l => l.DungeonCode == dungeonCode && l.LayerNumber == layerNumber)?.Name;
 
     /// <summary>한 던전의 한 맵(layer_number)에서 만날 수 있는 전투들(전투 코드 순). 없으면 빈 목록(그 맵에서는 인카운트하지 않는다).</summary>
     public IReadOnlyList<DungeonEncounter> DungeonEncountersOf(long dungeonCode, long layerNumber) =>

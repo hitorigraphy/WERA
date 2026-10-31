@@ -248,7 +248,12 @@ input.command { width: min(100%, 26rem); }
 .slot-name.gray, .slot-name.gray .slot-level, .slot-name.gray .slot-char { color: #888; }   /* 전투에서 고를 수 없는 슬롯: 회색(리더와 선택보다 우선) */
 
 /* 던전 맵: 칸 폭은 전각 한 글자(2ch), 줄 높이는 한 줄 */
-.dungeon-map { margin: .6rem 0; line-height: 1.5; }
+.dungeon-layout { display: flex; align-items: stretch; margin: .6rem 0; }
+.dungeon-map { flex: 0 0 60ch; margin: 0; line-height: 1.5; }
+.dungeon-side { flex: 1; min-width: 0; border-left: 1px solid #666; margin-left: 1ch; padding-left: 2ch; }
+.dungeon-side .commands { margin: 1rem 0 0; }
+.dungeon-side .entries { display: flex; flex-direction: column; }
+.dungeon-name { font-weight: bold; }
 .dungeon-row { display: flex; white-space: pre; }
 .dcell { display: inline-block; width: 2ch; text-align: center; color: #ccc; }
 .dvoid { color: transparent; }

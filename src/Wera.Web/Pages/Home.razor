@@ -256,17 +256,24 @@
 
             case Screen.DungeonMove:
                 @* 던전 맵: 칸마다 맵 TSV의 글자를 그리고(칸 폭은 전각 한 글자), 현재 위치는 @로 덮는다. 벽, 계단, 출구, 전투, ADV, 이동 칸은 색으로 구분한다 *@
-                <h2>@session.DungeonTitle</h2>
-                <div class="dungeon-map">
-                    @foreach (var row in session.DungeonMapRows)
-                    {
-                        <div class="dungeon-row">
-                            @foreach (var cell in row)
-                            {
-                                <span class="@DungeonCellClass(cell)">@(cell.IsPlayer ? "@" : cell.Text)</span>
-                            }
-                        </div>
-                    }
+                @* 왼쪽은 맵(가로 30칸 × 2 = 반각 60칸), 세로 구분선, 오른쪽에는 맵 이름, 층 이름, 스테이터스 확인, 아이템 확인, 세이브 *@
+                <div class="dungeon-layout">
+                    <div class="dungeon-map">
+                        @foreach (var row in session.DungeonMapRows)
+                        {
+                            <div class="dungeon-row">
+                                @foreach (var cell in row)
+                                {
+                                    <span class="@DungeonCellClass(cell)">@(cell.IsPlayer ? "@" : cell.Text)</span>
+                                }
+                            </div>
+                        }
+                    </div>
+                    <div class="dungeon-side">
+                        <div class="dungeon-name">@session.DungeonName</div>
+                        <div class="dungeon-layer">@session.DungeonLayerName</div>
+                        @commands
+                    </div>
                 </div>
                 break;
 

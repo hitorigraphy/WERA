@@ -682,7 +682,7 @@ public sealed partial class GameSession
                 case Screen.CompanionCheck:
                 case Screen.EquipmentCheck:
                 case Screen.ItemCheck:
-                    return [new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home)];
+                    return [new ScreenEntry(BackEntryCode, "돌아가기", CurrentDungeonCode is not null ? Screen.DungeonMove : Screen.Home)];      // 던전에서 연 확인 화면은 던전으로 돌아간다
                 case Screen.Battle:
                     return BattleEntries();
                 case Screen.UnitStatus:

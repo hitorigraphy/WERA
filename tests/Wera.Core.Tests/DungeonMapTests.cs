@@ -134,6 +134,25 @@ public class DungeonMapTests
     }
 
     [Fact]
+    public void The_dungeon_layer_master_names_the_maps_and_is_validated()
+    {
+        const string header = "dungeon_code\tlayer_number\tname\n";
+        var pack = Load([.. WithMap(), (GamePack.DungeonLayerMasterPath, header + "1001\t0\t1층\n1001\t1\t지하 1층\n")]);
+        Assert.Equal("1층", pack.DungeonLayerNameOf(1001, 0));
+        Assert.Equal("지하 1층", pack.DungeonLayerNameOf(1001, 1));
+        Assert.Null(pack.DungeonLayerNameOf(1001, 2));
+        Assert.Null(pack.DungeonLayerNameOf(1002, 0));
+        Assert.Null(Load().DungeonLayers);
+
+        (string, string)[] With(string rows) => [.. WithMap(), (GamePack.DungeonLayerMasterPath, header + rows)];
+        Rejects("던전 코드 '9'", With("9\t0\t이름\n"));
+        Rejects("layer_number '3'의 맵이 없습니다", With("1001\t3\t이름\n"));
+        Rejects("이름이 비어", With("1001\t0\t\n"));
+        Rejects("두 번", With("1001\t0\t가\n1001\t0\t나\n"));
+        Rejects("dungeon_map_master_v1.tsv도 필요", (GamePack.DungeonLayerMasterPath, header + "1001\t0\t이름\n"));
+    }
+
+    [Fact]
     public void Bad_tile_masters_are_rejected()
     {
         Rejects("알 수 없습니다", (GamePack.TileMasterPath, TileHeader + "1\tLava\t0\t0\t0\n"));

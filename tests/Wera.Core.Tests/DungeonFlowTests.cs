@@ -90,7 +90,7 @@ public class DungeonFlowTests
     public void Steps_are_wasd_keys_one_cell_at_a_time_and_blocked_by_impassable_cells()
     {
         var s = Entered();
-        Assert.Empty(s.Entries);                                                              // 이동 화면에는 목록이 없다: [1]위 같은 표시도, 나가기도 없다
+        Assert.DoesNotContain(s.Entries, e => e.Code is "1" or "2" or "3" or "4" or "999");   // [1]위 같은 이동 표시도, 나가기도 없다
         s.PressDungeonKey('w');
         s.PressDungeonKey('A');
         Assert.Equal((0L, 1L, 1L), At(s));                                                    // 위(벽)와 왼쪽(벽)으로는 갈 수 없다
@@ -105,6 +105,40 @@ public class DungeonFlowTests
         Assert.Equal(Screen.DungeonMove, s.Screen);
         foreach (var jamo in "ㅇㅁㅈㄴ") s.PressDungeonKey(jamo);                             // 한글 입력 상태의 D A W S(ㅇ ㅁ ㅈ ㄴ)도 같다
         Assert.Equal((0L, 1L, 2L), At(s));                                                    // 오른쪽(벽), 왼쪽(벽), 위(1,1), 아래(1,2)
+    }
+
+    [Fact]
+    public void The_side_panel_shows_the_map_and_layer_names_and_the_check_and_save_buttons()
+    {
+        var s = Entered();
+        Assert.Equal("테스트 던전", s.DungeonName);
+        Assert.Equal("1층", s.DungeonLayerName);
+        Assert.Equal(["201", "203", "200"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["스테이터스 확인", "아이템 확인", "세이브"], s.Entries.Select(e => e.Label));
+        Walk(s, "DDDD");
+        Assert.Equal("2층", s.DungeonLayerName);                                              // 층이 바뀌면 층 이름도 바뀐다
+        Assert.Equal("테스트 던전", s.DungeonName);
+
+        Assert.Equal(Screen.CompanionCheck, s.Activate("201")!.Target);
+        Assert.Equal(["999"], s.Entries.Select(e => e.Code));
+        Assert.Equal(Screen.DungeonMove, s.Activate("999")!.Target);                          // 확인 화면의 돌아가기는 던전으로
+        Assert.Equal((1L, 2L, 1L), At(s));                                                    // 서 있던 자리 그대로
+        Assert.Equal(Screen.ItemCheck, s.Activate("203")!.Target);
+        s.PressDungeonKey('d');                                                               // 다른 화면에서 이동 키는 아무 일도 없다
+        Assert.Equal(Screen.DungeonMove, s.Activate("999")!.Target);
+        Assert.Equal((1L, 2L, 1L), At(s));
+        Assert.Equal(EntryAction.Save, s.Activate("200")!.Action);                            // 세이브: 화면은 그대로
+        Assert.Equal(Screen.DungeonMove, s.Screen);
+        Assert.NotNull(s.CurrentDungeonCode);
+    }
+
+    [Fact]
+    public void A_layer_without_a_name_shows_its_number()
+    {
+        var s = Entered(SamplePackWith((GamePack.DungeonLayerMasterPath, "dungeon_code\tlayer_number\tname\n1999\t1\t지하\n")));
+        Assert.Equal("맵 0", s.DungeonLayerName);
+        Walk(s, "DDDD");
+        Assert.Equal("지하", s.DungeonLayerName);
     }
 
     [Fact]

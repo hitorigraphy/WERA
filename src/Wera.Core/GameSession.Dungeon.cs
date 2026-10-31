@@ -57,8 +57,13 @@ public sealed partial class GameSession
         new ScreenEntry(BackEntryCode, "돌아가기", Screen.DungeonSelect),
     ];
 
-    /// <summary>던전 이동 화면에는 목록이 없다: W A S D(또는 방향키)로 움직이고 Enter로 지금 서 있는 칸과 상호작용한다(<see cref="PressDungeonKey"/>, <see cref="InteractDungeon"/>).</summary>
-    IReadOnlyList<ScreenEntry> DungeonMoveEntries() => [];
+    /// <summary>던전 이동 화면의 명령은 오른쪽 패널의 [201] 스테이터스 확인, [203] 아이템 확인, [200] 세이브뿐이다. 이동은 W A S D(또는 방향키), 지금 칸과의 상호작용은 Enter다(<see cref="PressDungeonKey"/>, <see cref="InteractDungeon"/>).</summary>
+    IReadOnlyList<ScreenEntry> DungeonMoveEntries() =>
+    [
+        new ScreenEntry(CompanionCheckEntryCode, "스테이터스 확인", Screen.CompanionCheck),
+        new ScreenEntry(ItemCheckEntryCode, "아이템 확인", Screen.ItemCheck),
+        new ScreenEntry(SaveEntryCode, "세이브", Screen.DungeonMove, EntryAction.Save),
+    ];
 
     /// <summary>고른 파티로 던전에 들어간다: 던전 마스터의 도입 지점에 선다(도입 지점 칸의 효과는 실행하지 않는다).</summary>
     void EnterDungeon(int partyIndex)
@@ -321,6 +326,12 @@ public sealed partial class GameSession
             };
         return look;
     }
+
+    /// <summary>던전 이동 화면 오른쪽 패널의 맵 이름(던전 이름). 던전에 있지 않으면 null.</summary>
+    public string? DungeonName => CurrentDungeonCode is { } code ? Pack.Dungeons?.FirstOrDefault(d => d.Code == code)?.Name ?? Text(code) : null;
+
+    /// <summary>던전 이동 화면 오른쪽 패널의 층 이름(던전 층 마스터의 이름, 없으면 "맵 N"). 던전에 있지 않으면 null.</summary>
+    public string? DungeonLayerName => CurrentDungeonCode is { } code ? Pack.DungeonLayerNameOf(code, DungeonLayer) ?? $"맵 {DungeonLayer}" : null;
 
     /// <summary>던전 이동 화면 위에 보여 줄 던전 이름과 맵 번호. 던전에 있지 않으면 null.</summary>
     public string? DungeonTitle => CurrentDungeonCode is { } code

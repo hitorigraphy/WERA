@@ -191,6 +191,7 @@ public sealed partial class GamePack
         var dungeonTiles = LoadDungeonTiles(zip, dungeons, tileEffects);
         var dungeonMaps = LoadDungeonMaps(zip, dungeons, dungeonTiles, tileEffects);
         var dungeonEncounters = LoadDungeonEncounters(zip, dungeons, dungeonMaps, battles);
+        var dungeonLayers = LoadDungeonLayers(zip, dungeons, dungeonMaps);
         var skillSlots = LoadSkillSlots(zip);
         var characterSkillSlotTags = LoadCharacterSkillSlotTags(zip, characterInventory, skillSlots, tags);
         var skills = LoadSkills(zip);
@@ -263,6 +264,7 @@ public sealed partial class GamePack
             DungeonTiles = dungeonTiles,
             DungeonMaps = dungeonMaps,
             DungeonEncounters = dungeonEncounters,
+            DungeonLayers = dungeonLayers,
             SkillSlots = skillSlots,
             CharacterSkillSlotTags = characterSkillSlotTags,
             Skills = skills,
