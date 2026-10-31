@@ -243,4 +243,16 @@ public class CharacterStatusTests
         Assert.Equal(s.Characters[7001], loaded.Characters[7001]);
         Assert.Equal(s.Characters[7002], loaded.Characters[7002]);
     }
+
+    [Fact]
+    public void The_optional_spec_display_order_column_defaults_to_zero_and_must_not_be_negative()
+    {
+        static GamePack Load(string statuses) => GamePack.Load(CoreTests.PackZip(("pack.tsv", "id\tdemo\ntitle\t데모\n"), (GamePack.StatusMasterPath, statuses)));
+        var pack = Load("status_code\tstatus_name\tspec_display_order\n1\tlevel\t0\n2\thp\t\n7\tSTR\t3\n");
+        Assert.Equal([0L, 0L, 3L], pack.Statuses!.Select(x => x.SpecDisplayOrder));
+        Assert.Equal(3, pack.FindStatus(7)!.SpecDisplayOrder);
+        Assert.Equal(0, Load("status_code\tstatus_name\n1\tlevel\n2\thp\n").FindStatus(1)!.SpecDisplayOrder);   // 열이 없어도 된다
+        Assert.Contains("spec_display_order", Assert.Throws<PackFormatException>(() => Load("status_code\tstatus_name\tspec_display_order\n1\tlevel\t-1\n2\thp\t0\n")).Message);
+        Assert.Throws<PackFormatException>(() => Load("status_code\tstatus_name\tspec_display_order\n1\tlevel\tx\n2\thp\t0\n"));
+    }
 }

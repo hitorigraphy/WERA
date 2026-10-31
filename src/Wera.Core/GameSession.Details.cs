@@ -32,10 +32,10 @@ public sealed partial class GameSession
     /// <summary>캐릭터 상세 화면의 Exp 바 칸 수("Exp : " 뒤, 오른쪽 여백을 30px 남기고 끝까지 가는 길이).</summary>
     public const int CharacterDetailExpWidth = 61;
 
-    /// <summary>캐릭터 상세 화면의 내용: 이름, 레벨, Exp 바, HP, XPP, (상태값은 아직 정해지지 않음), 장비 슬롯, 스킬 슬롯, 설명문.</summary>
+    /// <summary>캐릭터 상세 화면의 내용: 이름, 레벨, Exp 바, HP, XP, 상태값(spec_display_order가 1 이상인 스테이터스, 작은 수부터), 장비 슬롯, 스킬 슬롯, 설명문.</summary>
     public sealed record CharacterDetailView(
         string Name, string LevelText, GaugeView Exp, GaugeView Hp, GaugeView Xp, XpTag XpTag,
-        IReadOnlyList<UnitStatusLine> Equipment, IReadOnlyList<UnitStatusLine> Skills, string Description);
+        IReadOnlyList<UnitStatusLine> Specs, IReadOnlyList<UnitStatusLine> Equipment, IReadOnlyList<UnitStatusLine> Skills, string Description);
 
     /// <summary>지금 보는 캐릭터 상세 화면의 내용. 캐릭터 상세 화면이 아니거나 보유하지 않은 캐릭터면 null.</summary>
     public CharacterDetailView? CharacterDetail
@@ -48,12 +48,15 @@ public sealed partial class GameSession
                 .Select(slot => new UnitStatusLine(slot.Name, EquippedItemOf(code, slot.Code) is { } target ? NameOf(target) : "비어 있음")).ToList();
             var skills = Pack.SkillSlotsOf(code)
                 .Select(slot => new UnitStatusLine(slot.Name, EquippedSkillName(character, slot.Code) ?? "비어 있음")).ToList();
+            var specs = (Pack.Statuses ?? []).Where(s => s.SpecDisplayOrder > 0 && state.Statuses.ContainsKey(s.Code))
+                .OrderBy(s => s.SpecDisplayOrder).ThenBy(s => s.Code)
+                .Select(s => new UnitStatusLine(s.Name, Text(state.Statuses[s.Code]))).ToList();
             var xp = XpLine(character, CharacterDetailExpWidth);
             return new CharacterDetailView(
                 CharacterName(code), $"Lv.{state.Level}",
                 Gauge.Render(state.Exp, state.ExpMax, gray: false, CharacterDetailExpWidth) with { Color = GaugeColor.White },   // Exp 바는 색 규칙을 따르지 않고 늘 흰색
                 Gauge.Render(state.Hp, state.MaxHp, gray: state.IsDead, CharacterDetailExpWidth),
-                xp.Gauge, xp.Tag,
+                xp.Gauge, xp.Tag, specs,
                 equipment, skills, Pack.FindCharacter(code)?.Description ?? "");
         }
     }

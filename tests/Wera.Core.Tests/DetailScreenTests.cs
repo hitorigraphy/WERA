@@ -88,6 +88,16 @@ public class DetailScreenTests
     }
 
     [Fact]
+    public void The_detail_lists_the_specs_with_a_display_order_smallest_first()
+    {
+        var s = SampleSession();
+        s.Activate("201");
+        s.Activate(s.Entries.First(e => e.Code != "999").Code);
+        Assert.Equal(["STR", "CON", "INT", "WIS", "DEX", "AGL", "ATK", "DEF", "SPC", "RSI", "HIT", "SPD"], s.CharacterDetail!.Specs.Select(l => l.Label));
+        Assert.Equal("10", s.CharacterDetail!.Specs[0].Value);
+    }
+
+    [Fact]
     public void The_exp_bar_shows_the_exp_status_not_the_xpp()
     {
         var s = SampleSession();

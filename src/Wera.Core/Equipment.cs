@@ -92,7 +92,7 @@ public static class EquipmentRules
 }
 
 /// <summary>스테이터스 마스터의 한 행(예: 레벨, HP, 경험치).</summary>
-public sealed record StatusEntry(long Code, string Name);
+public sealed record StatusEntry(long Code, string Name, long SpecDisplayOrder = 0);
 
 /// <summary>
 /// 캐릭터 스테이터스 마스터의 한 행: 캐릭터(CharacterCode)의 스테이터스(StatusCode)가 레벨(Level)일 때의 초깃값과 범위.

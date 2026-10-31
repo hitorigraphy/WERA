@@ -529,7 +529,12 @@
                             <div class="gauge-line">HP  : <span class="gauge gauge-@detail.Hp.Color.ToString().ToLowerInvariant()">@detail.Hp.Text</span></div>
                             <div class="gauge-line"><XpLabelView Tag="@detail.XpTag" /><span class="gauge gauge-@detail.Xp.Color.ToString().ToLowerInvariant()">@detail.Xp.Text</span></div>
                             <hr />
-                            <div class="char-statuses"></div>
+                            <div class="char-columns">
+                                @foreach (var line in detail.Specs)
+                                {
+                                    <div>@line.Label : @line.Value</div>
+                                }
+                            </div>
                             <hr />
                             <div class="char-columns">
                                 @foreach (var line in detail.Equipment)
