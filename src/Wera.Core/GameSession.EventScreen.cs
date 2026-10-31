@@ -92,6 +92,17 @@ public sealed partial class GameSession
             if (Screen == Screen.CommunicationPlay) EndCommunication();
             else ShowNextEventStep();
         }
+        else if (step.Kind == AdvStepKind.Battle)
+        {
+            CurrentAdvStep = null;
+            battleReturnScreen = Screen;                // 전투가 끝나면 [999]가 이 화면으로 돌아와 ADV를 이어 간다
+            // 전투에 나가는 파티는 플레이어(캐릭터 1, 당신)가 있는 파티로 고정이다(파티 A, B, C 어느 쪽이든). 지금 보던 파티는 전투가 끝나면 되돌린다.
+            battlePartyBefore = CurrentPartyIndex;
+            var playerParty = Array.FindIndex(Parties, p => p.IndexOf(GamePack.PlayerCharacterCode) >= 0);
+            if (playerParty >= 0) CurrentPartyIndex = playerParty;
+            BeginBattle(step.BattleCode);
+            Screen = Screen.Battle;
+        }
         else
         {
             CurrentAdvStep = step;

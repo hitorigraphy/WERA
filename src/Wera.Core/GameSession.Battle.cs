@@ -17,12 +17,9 @@ public sealed record BattleRowView(
     BattleRowKind Kind, bool IsEnemy, string Title, IReadOnlyList<PartySlotView> Slots,
     string LeftText = "", string CenterText = "", string RightText = "");
 
-// 전투(임시): 지금 보는 파티로 정해진 전투를 시작하고, 작전 화면(슬롯 네 줄과 가운데 영역)을 그린다.
+// 전투: ADV의 Battle 칸이 시작하고, 작전 화면(슬롯 네 줄과 가운데 영역)을 그린다. 끝나면 [999]로 전투를 시작한 화면에 돌아간다.
 public sealed partial class GameSession
 {
-    /// <summary>[110] 전투(임시)가 고정으로 시작하는 전투의 코드(전투 마스터).</summary>
-    public const long TemporaryBattleCode = 5001;
-
     /// <summary>작전 화면 아래의 커맨드가 지금 어떤 모습인가.</summary>
     public enum BattleCommandMode
     {
@@ -175,8 +172,8 @@ public sealed partial class GameSession
     /// </summary>
     public int BattleTop { get; private set; }
 
-    /// <summary>전투를 시작한다: 전투(<see cref="TemporaryBattleCode"/>)에 나올 수 있는 프리셋 파티를 가중치로 하나 뽑고 맨 위 줄로 돌아간다.</summary>
-    void BeginBattle()
+    /// <summary>전투를 시작한다: 전투(battleCode)에 나올 수 있는 프리셋 파티를 가중치로 하나 뽑고 맨 위 줄로 돌아간다.</summary>
+    void BeginBattle(long battleCode)
     {
         CurrentEnemyPartyCode = null;
         BattleOutcome = BattleOutcomeKind.None;
@@ -185,7 +182,7 @@ public sealed partial class GameSession
         enemyInstances.Clear();
         enemyItems.Clear();
         Array.Clear(enemyUnits);
-        CurrentBattleCode = Pack.FindBattle(TemporaryBattleCode) is null ? null : TemporaryBattleCode;
+        CurrentBattleCode = Pack.FindBattle(battleCode) is null ? null : battleCode;
         BeginTurn();
         if (CurrentBattleCode is not { } battle) return;
 
@@ -551,9 +548,12 @@ public sealed partial class GameSession
     /// <summary>전투를 시작한 화면: 승리·패배·도망으로 전투가 끝난 뒤 [999]가 돌아가는 곳.</summary>
     Screen battleReturnScreen = Screen.Home;
 
+    /// <summary>전투를 시작하기 전에 보던 파티(전투는 플레이어가 있는 파티로 하므로 끝나면 되돌린다).</summary>
+    int? battlePartyBefore;
+
     IReadOnlyList<ScreenEntry> BattleEntries() =>
     [
-        .. BattleOutcome != BattleOutcomeKind.None ? [new ScreenEntry(BackEntryCode, "돌아가기", battleReturnScreen)] : Array.Empty<ScreenEntry>(),
+        .. BattleOutcome != BattleOutcomeKind.None ? [new ScreenEntry(BackEntryCode, "돌아가기", battleReturnScreen, EntryAction.EndBattle)] : Array.Empty<ScreenEntry>(),
         .. BattleCommandEntries(),
         .. BattleSlotEntries(),
         new ScreenEntry(BattleScrollUpEntryCode, "▲", Screen.Battle, EntryAction.BattleScroll, "-1", Enabled: BattleTop > 0),

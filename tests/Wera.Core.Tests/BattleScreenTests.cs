@@ -2,7 +2,7 @@ using Wera.Core;
 
 namespace Wera.Core.Tests;
 
-// [110] 전투(임시): 정해진 전투(5001)를 시작하고 작전 화면(슬롯 네 줄과 가운데 영역)을 그린다.
+// 전투: 이벤트 3002의 ADV 4002가 Battle 칸으로 전투(5001)를 시작하고 작전 화면(슬롯 네 줄과 가운데 영역)을 그린다.
 public class BattleScreenTests
 {
     static GamePack SamplePack()
@@ -50,8 +50,15 @@ public class BattleScreenTests
             s.AddCharacter(7001);
             s.Party[1] = 7001;                                                       // 둘째 칸에 용사(리더가 아닌 유닛)
         }
-        Assert.NotNull(s.Activate("110"));
+        Assert.NotNull(EnterBattle(s));
         return s;
+    }
+
+    /// <summary>이벤트 3002(ADV 4002의 첫 칸이 Battle 5001)를 시작해 전투 화면으로 간다.</summary>
+    static ScreenEntry? EnterBattle(GameSession s)
+    {
+        s.Activate("103");
+        return s.Activate("3002");
     }
 
     static string Titles(GameSession s) =>
@@ -72,7 +79,7 @@ public class BattleScreenTests
     {
         var s = Started();
         Assert.Equal(Screen.Battle, s.Screen);
-        Assert.Equal(GameSession.TemporaryBattleCode, s.CurrentBattleCode);
+        Assert.Equal(5001, s.CurrentBattleCode);
         Assert.Equal(GameSession.BattleTopAllyHeavy, s.BattleTop);
         Assert.Equal(AllyHeavy, Titles(s));
     }
@@ -100,7 +107,7 @@ public class BattleScreenTests
         var renamed = GameSession.NewGame(SamplePack());
         renamed.Activate("105"); renamed.Activate("1"); renamed.Activate("1"); renamed.Activate("999");
         renamed.Activate("105"); renamed.Activate("0"); renamed.Activate("정예");
-        renamed.Activate("999"); renamed.Activate("110");
+        renamed.Activate("999"); EnterBattle(renamed);
         Assert.Equal("정예", renamed.BattleRows.Single(r => r.Kind == BattleRowKind.Border).RightText);
     }
 
@@ -171,19 +178,6 @@ public class BattleScreenTests
         Assert.NotSame(store.ItemOf(warriors[0].Unit!, 1), store.ItemOf(warriors[1].Unit!, 1));
         Assert.Empty(s.ToSaveJson().Split("enemy-").Skip(1));                    // 적 장비도 세이브에 들어가지 않는다
         Assert.Empty(Started(roll: 0).UniqueItemInstances.Keys.Where(k => k.StartsWith("enemy-")));
-    }
-
-    [Fact]
-    public void A_pack_without_the_battle_starts_nothing_but_the_screen_still_opens()
-    {
-        var s = GameSession.NewGame(GamePack.Load(CoreTests.PackZip(("pack.tsv", "id\tdemo\ntitle\t데모\n"))));
-        s.Party[0] = 1;
-        s.PartyInstance.Units[0] = new PartyUnit(1, [], IsLeader: true);
-        s.Activate("110");
-        Assert.Equal(Screen.Battle, s.Screen);
-        Assert.Null(s.CurrentBattleCode);
-        Assert.Null(s.CurrentEnemyPartyCode);
-        Assert.Equal(AllyHeavy, Titles(s));
     }
 
     // ---- 보는 캐릭터와 행동 설정 ----
@@ -695,7 +689,7 @@ public class BattleScreenTests
         var s = GameSession.NewGame(pack);
         s.NextRandom = _ => 0;
         s.Activate("105"); s.Activate("1"); s.Activate("1"); s.Activate("999");
-        Assert.NotNull(s.Activate("110"));
+        Assert.NotNull(EnterBattle(s));
         var hp = s.EnemyInstances.ToDictionary(kv => kv.Key, kv => kv.Value.Hp);
         s.Activate("102"); s.Activate("102"); s.Activate("1");
         s.Activate("107");
@@ -745,7 +739,7 @@ public class BattleScreenTests
         s.Activate("105"); s.Activate("1"); s.Activate("1"); s.Activate("999");
         s.AddCharacter(7001);
         s.Party[1] = 7001;
-        Assert.NotNull(s.Activate("110"));
+        Assert.NotNull(EnterBattle(s));
         s.NextRandom = _ => 0;                                                      // 그 뒤의 랜덤은 늘 첫 후보
         return s;
     }
@@ -828,7 +822,7 @@ public class BattleScreenTests
         s.Activate("105"); s.Activate("1"); s.Activate("1"); s.Activate("999");
         s.AddCharacter(7001);
         s.Party[1] = 7001;
-        Assert.NotNull(s.Activate("110"));
+        Assert.NotNull(EnterBattle(s));
         return s;
     }
 
@@ -857,7 +851,7 @@ public class BattleScreenTests
         s.Activate("105"); s.Activate("1"); s.Activate("1"); s.Activate("999");
         s.AddCharacter(7001);
         s.Party[1] = 7001;
-        Assert.NotNull(s.Activate("110"));
+        Assert.NotNull(EnterBattle(s));
         s.NextRandom = _ => 0;
         s.Characters[1].Statuses[GamePack.HpStatusCode] = 0;                        // 후보 0번(슬롯 0)이 이미 쓰러져 있다
         var slot = s.EnemyInstances.Keys.Single();
@@ -919,14 +913,34 @@ public class BattleScreenTests
     }
 
     [Fact]
-    public void After_the_battle_ends_the_back_entry_returns_to_the_screen_the_battle_started_from()
+    public void After_the_battle_ends_the_back_entry_returns_to_the_adv_and_continues_after_the_battle_step()
     {
         var s = Started();
         Assert.DoesNotContain(s.Entries, e => e.Code == "999");                     // 전투 중에는 돌아가기가 없다
         s.Activate("106");                                                          // 도망
         Assert.Equal(Screen.Battle, s.Screen);
         s.Activate("999");
-        Assert.Equal(Screen.Home, s.Screen);                                        // 전투를 시작한 화면
+        Assert.Equal(Screen.EventPlay, s.Screen);                                   // 전투를 시작한 화면(ADV)
+        Assert.Equal(AdvStepKind.TextLog, s.CurrentAdvStep!.Value.Kind);
+        Assert.Equal("전투가 끝났습니다.", s.CurrentAdvStep!.Value.Text);              // Battle 칸 다음부터 이어 간다
+        s.Activate("1");
+        Assert.Equal(Screen.Event, s.Screen);                                       // ADV와 이벤트가 끝난다
+    }
+
+    [Fact]
+    public void The_battle_always_uses_the_party_that_has_the_player_and_the_viewed_party_is_restored()
+    {
+        var s = GameSession.NewGame(SamplePack());
+        s.NextRandom = _ => 0;
+        s.Activate("105"); s.Activate("1"); s.Activate("1"); s.Activate("999");     // 파티-A에 당신
+        s.Activate("105"); s.Activate("12");                                        // 파티-B(1번)를 보고 있다
+        s.Activate("999");
+        Assert.Equal(1, s.CurrentPartyIndex);
+        s.Activate("103"); s.Activate("3002");
+        var border = s.BattleRows.Single(r => r.Kind == BattleRowKind.Border);
+        Assert.Equal("파티-A", border.RightText);                                    // 보던 파티와 상관없이 당신이 있는 파티
+        s.Activate("106"); s.Activate("999");
+        Assert.Equal(1, s.CurrentPartyIndex);                                       // 끝나면 보던 파티로
     }
 
     [Fact]
@@ -949,5 +963,15 @@ public class BattleScreenTests
         run.Activate("106");
         Assert.Equal(runBefore, run.CountInventory(3));
         Assert.Empty(run.BattleDropLines);
+    }
+
+    [Fact]
+    public void An_adv_battle_step_needs_an_existing_battle_and_is_a_battle_step_for_the_screen()
+    {
+        var ex = Assert.Throws<PackFormatException>(() => SamplePackWith((GamePack.AdvFlowMasterPath, "adv_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\ttext\tforce_name\n4001\t1\tBattle\t9999\t0\t0\t\t\n")));
+        Assert.Contains("9999", ex.Message);
+        var pack = SamplePack();
+        Assert.Equal(26, (int)AdvFlowType.Battle);
+        Assert.Equal(new AdvStep(AdvStepKind.Battle, 1, "", [], BattleCode: 5001), new AdvFlowCircuit(pack, 4002, new Dictionary<long, long>()).Advance());
     }
 }

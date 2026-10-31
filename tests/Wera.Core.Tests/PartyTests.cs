@@ -519,6 +519,6 @@ public class PartyTests
             Assert.Equal(-1, slot.Slot);                              // 파티 슬롯 번호(0~8)가 아니다
             Assert.Equal("-----0/0-----", slot.Hp.Text);
         }
-        Assert.Equal(["101", "102", "103", "104", "105", "110", "201", "202", "203", "200", "300", "400"], s.Entries.Select(e => e.Code));   // 홈 항목에는 영향이 없다
+        Assert.Equal(["101", "102", "103", "104", "105", "201", "202", "203", "200", "300", "400"], s.Entries.Select(e => e.Code));   // 홈 항목에는 영향이 없다
     }
 }

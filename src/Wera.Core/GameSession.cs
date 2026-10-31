@@ -26,7 +26,7 @@ public enum Screen
     SkillSlotSelect,
     /// <summary>선택한 캐릭터가 지금까지 익힌 스킬 목록(스킬 풀). 돌아가기는 캐릭터의 스킬 설정.</summary>
     SkillPoolList,
-    /// <summary>전투(임시) 화면(110): 정해진 전투의 작전 화면(슬롯 네 줄과 가운데 영역). 돌아가기는 홈.</summary>
+    /// <summary>전투 화면: ADV의 Battle 칸이 연 전투의 작전 화면(슬롯 네 줄과 가운데 영역). 전투가 끝나면 돌아가기([999])로 전투를 시작한 화면에 돌아간다.</summary>
     Battle,
     /// <summary>전투 화면에서 슬롯 번호나 이미지를 눌러 간 캐릭터 상태 확인(상세) 페이지. 돌아가기는 전투.</summary>
     UnitStatus,
@@ -79,8 +79,8 @@ public enum EntryAction
     Trade,
     /// <summary>리더 지정 화면의 슬롯: Arg의 칸에 있는 유닛을 리더로 지정하거나(이미 리더면) 해제한다.</summary>
     ToggleLeader,
-    /// <summary>전투(임시)를 시작한다: 정해진 전투의 적 파티를 뽑고 작전 화면으로 간다.</summary>
-    StartBattle,
+    /// <summary>전투를 마치고 전투를 시작한 화면으로 돌아간다. 그 화면이 ADV를 재생 중이면 Battle 칸 다음 장면으로 이어 간다.</summary>
+    EndBattle,
     /// <summary>이전(-1)/다음(1) 캐릭터(Arg)로 보는 캐릭터를 옮긴다.</summary>
     BattleSelectCharacter,
     /// <summary>행동 설정: 커맨드를 보는 캐릭터의 행동 후보로 바꾸고 화면을 적 3 / 아군 1로 바꾼다.</summary>
@@ -191,7 +191,6 @@ public sealed partial class GameSession
     public const string EventEntryCode = "103";
     public const string InteractionEntryCode = "104";
     public const string PartyEntryCode = "105";
-    public const string BattleEntryCode = "110";
     public const string SaveEntryCode = "200";
     public const string CompanionCheckEntryCode = "201";
     public const string EquipmentCheckEntryCode = "202";
@@ -522,7 +521,7 @@ public sealed partial class GameSession
 
     /// <summary>
     /// 홈 화면의 메뉴: 구분선으로 나뉜 세 분류. [RPG] 던전(101, 입장 가능한 것이 없으면 회색), 상점(102, 열린 상점이 없으면 회색),
-    /// 이벤트(103), 교류(104), 파티 설정(105), 전투(임시)(110; 지금 보는 파티를 파견할 수 없으면 회색) / [정보] 동료 확인(201), 장비 확인(202), 아이템 확인(203) / [시스템] 세이브(200), 로드(300), 디버그(400).
+    /// 이벤트(103), 교류(104), 파티 설정(105) / [정보] 동료 확인(201), 장비 확인(202), 아이템 확인(203) / [시스템] 세이브(200), 로드(300), 디버그(400).
     /// 홈의 <see cref="Entries"/>는 이 분류들을 순서대로 이어 붙인 것이다.
     /// </summary>
     public IReadOnlyList<MenuGroup> HomeMenu
@@ -536,8 +535,6 @@ public sealed partial class GameSession
             rpg.Add(new ScreenEntry(EventEntryCode, "이벤트", Screen.Event));
             rpg.Add(new ScreenEntry(InteractionEntryCode, "교류", Screen.Interaction));
             rpg.Add(new ScreenEntry(PartyEntryCode, "파티 설정", Screen.PartySetup));
-            // 리더가 없는 파티는 던전(전투)에 파견할 수 없다: 지금 보는 파티가 파견 가능하지 않으면 회색이다.
-            rpg.Add(new ScreenEntry(BattleEntryCode, "전투(임시)", Screen.Battle, EntryAction.StartBattle, Enabled: IsDispatchable(CurrentPartyIndex)));
 
             return
             [
@@ -822,10 +819,11 @@ public sealed partial class GameSession
                 CurrentEquipmentSlotCode = null;
                 Screen = entry.Target;
                 break;
-            case EntryAction.StartBattle:
-                battleReturnScreen = Screen;            // 전투가 끝나면 시작한 화면으로 돌아간다
-                BeginBattle();
+            case EntryAction.EndBattle:
+                if (battlePartyBefore is { } before) CurrentPartyIndex = before;
+                battlePartyBefore = null;
                 Screen = entry.Target;
+                if (CurrentAdv is not null && Screen == Screen.EventPlay) ShowNextAdvStep();      // ADV의 Battle 칸 다음부터 이어 간다
                 break;
             case EntryAction.BattleOpenMove:
                 OpenBattleMove();

@@ -502,10 +502,10 @@
                 break;
 
             case Screen.Battle:
-                <h2>전투(임시)</h2>
+                <h2>전투</h2>
                 @if (session.CurrentEnemyPartyCode is null)
                 {
-                    <p class="end">전투 마스터 @(GameSession.TemporaryBattleCode)의 적 파티가 없어 전투를 시작할 수 없습니다.</p>
+                    <p class="end">이 전투에 나올 적 파티가 없습니다.</p>
                 }
                 else
                 {

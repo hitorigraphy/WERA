@@ -164,33 +164,24 @@ public class LeaderTests
     // ---- 파견: 리더가 없는 파티는 던전(전투)에 파견할 수 없다 ----
 
     [Fact]
-    public void A_party_without_a_leader_cannot_be_dispatched_and_the_battle_entry_is_gray()
+    public void A_party_without_a_leader_cannot_be_dispatched()
     {
         var s = Session();
-        var battle = s.Entries.Single(e => e.Code == "110");
-        Assert.Equal(("전투(임시)", Screen.Battle, false), (battle.Label, battle.Target, battle.Enabled));   // 빈 파티: 리더 없음
-        s.Activate("110");
-        Assert.Equal(Screen.Home, s.Screen);                       // 회색 항목은 눌러도 반응이 없다
-
+        Assert.False(s.IsDispatchable(0));                        // 빈 파티: 리더 없음
         s.Activate("105"); s.Activate("1"); s.Activate("7001");   // 리더가 생겼다
         s.Activate("999");
         Assert.True(s.IsDispatchable(0));
-        Assert.True(s.Entries.Single(e => e.Code == "110").Enabled);
-        Assert.Equal(Screen.Battle, s.Activate("110")!.Target);
-        Assert.Equal(Screen.Battle, s.Screen);
     }
 
     [Fact]
-    public void The_battle_entry_follows_the_party_being_viewed()
+    public void Dispatchability_follows_each_party()
     {
         var s = Session();
         s.Activate("105"); s.Activate("1"); s.Activate("7001");   // 파티-A: 리더 있음
         s.Activate("12");                                          // 파티-B: 비어 있음
         s.Activate("999");
+        Assert.True(s.IsDispatchable(0));
         Assert.False(s.IsDispatchable(1));
-        Assert.False(s.Entries.Single(e => e.Code == "110").Enabled);
-        s.Activate("105"); s.Activate("11"); s.Activate("999");
-        Assert.True(s.Entries.Single(e => e.Code == "110").Enabled);
     }
 
     [Fact]
@@ -199,7 +190,6 @@ public class LeaderTests
         var s = Session();
         s.Party[0] = 7002;                                         // 코드로 리더 없이 편성(리더 지정 화면에서는 리더 태그가 있어야 지정)
         Assert.False(s.IsDispatchable(0));
-        Assert.False(s.Entries.Single(e => e.Code == "110").Enabled);
     }
 
     [Fact]
