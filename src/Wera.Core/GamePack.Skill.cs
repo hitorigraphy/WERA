@@ -27,10 +27,10 @@ public static class SkillSlotRules
 }
 
 /// <summary>스킬 마스터의 한 행.</summary>
-public sealed record SkillEntry(long Code, string Name, SkillTargetType TargetType = SkillTargetType.Enemy);
+public sealed record SkillEntry(long Code, string Name, SkillMainTargetType MainTargetType = SkillMainTargetType.Enemy, SkillSubTargetType SubTargetType = SkillSubTargetType.None);
 
-/// <summary>스킬의 타겟 대상(skill_master의 target_type): 시전자 기준으로 메인 타겟이 될 수 있는 유닛(쓰러진 유닛은 제외).</summary>
-public enum SkillTargetType
+/// <summary>스킬의 메인 타겟 대상(skill_master의 main_target_type): 시전자 기준으로 메인 타겟이 될 수 있는 유닛(쓰러진 유닛은 제외).</summary>
+public enum SkillMainTargetType
 {
     /// <summary>시전자의 상대편 유닛.</summary>
     Enemy,
@@ -171,14 +171,27 @@ public sealed partial class GamePack
     static List<SkillSlotEntry>? LoadSkillSlots(ZipArchive zip) =>
         LoadCodeNames(zip, SkillSlotMasterPath, "code", "name", "스킬 슬롯", (code, name) => new SkillSlotEntry(code, name));
 
-    /// <summary>스킬 마스터: code, name과 선택 열 target_type(Enemy/Ally/Self/Any, 이름만, 비우거나 열이 없으면 Enemy).</summary>
+    /// <summary>
+    /// 스킬 마스터: code, name과 선택 열 main_target_type(<see cref="SkillMainTargetType"/>: Enemy/Ally/Self/Any, 비우거나 열이 없으면 Enemy),
+    /// 그 다음의 선택 열 sub_target_type(<see cref="SkillSubTargetType"/> 이름, 비우거나 열이 없으면 None). 이름만 쓰고 대소문자는 무시한다.
+    /// </summary>
     static List<SkillEntry>? LoadSkills(ZipArchive zip)
     {
         var text = TryReadEntry(zip, SkillMasterPath);
         if (text is null) return null;
         var rows = Tsv.WithoutMemo(Tsv.Parse(text));
-        var withTarget = rows.Count > 0 && rows[0].Length > 2 && rows[0][2] == "target_type";
-        string[] header = withTarget ? ["code", "name", "target_type"] : ["code", "name"];
+        var withMain = rows.Count > 0 && rows[0].Length > 2 && rows[0][2] == "main_target_type";
+        var subAt = withMain ? 3 : 2;
+        var withSub = rows.Count > 0 && rows[0].Length > subAt && rows[0][subAt] == "sub_target_type";
+        string[] header = ["code", "name", .. withMain ? new[] { "main_target_type" } : [], .. withSub ? new[] { "sub_target_type" } : []];
+
+        static T ParseName<T>(string cell, long code, string column) where T : struct, Enum
+        {
+            if (cell == "") return default;
+            if (!Enum.GetNames<T>().Contains(cell, StringComparer.OrdinalIgnoreCase) || !Enum.TryParse(cell, ignoreCase: true, out T value))
+                throw new PackFormatException($"{SkillMasterPath}: 스킬 코드 '{code}'의 {column} '{cell}'을(를) 알 수 없습니다({string.Join(", ", Enum.GetNames<T>())}).");
+            return value;
+        }
 
         var skills = new List<SkillEntry>();
         var seen = new HashSet<long>();
@@ -187,11 +200,9 @@ public sealed partial class GamePack
             var code = ParseLong(SkillMasterPath, "스킬 코드", r[0]);
             if (!seen.Add(code))
                 throw new PackFormatException($"{SkillMasterPath}: 스킬 코드 '{code}'가 중복됩니다.");
-            var type = SkillTargetType.Enemy;
-            if (withTarget && r[2] != "" &&
-                (!Enum.GetNames<SkillTargetType>().Contains(r[2], StringComparer.OrdinalIgnoreCase) || !Enum.TryParse(r[2], ignoreCase: true, out type)))
-                throw new PackFormatException($"{SkillMasterPath}: 스킬 코드 '{code}'의 target_type '{r[2]}'을(를) 알 수 없습니다({string.Join(", ", Enum.GetNames<SkillTargetType>())}).");
-            skills.Add(new SkillEntry(code, r[1], type));
+            var main = withMain ? ParseName<SkillMainTargetType>(r[2], code, "main_target_type") : SkillMainTargetType.Enemy;
+            var subType = withSub ? ParseName<SkillSubTargetType>(r[subAt], code, "sub_target_type") : SkillSubTargetType.None;
+            skills.Add(new SkillEntry(code, r[1], main, subType));
         }
         return skills;
     }
@@ -319,7 +330,7 @@ public sealed partial class GamePack
         Masters.SkillSlotRowTable.TryFindByCode(code, out var r) ? new SkillSlotEntry(r.Code, r.Name) : null;
 
     public SkillEntry? FindSkill(long code) =>
-        Masters.SkillRowTable.TryFindByCode(code, out var r) ? new SkillEntry(r.Code, r.Name, (SkillTargetType)r.TargetType) : null;
+        Masters.SkillRowTable.TryFindByCode(code, out var r) ? new SkillEntry(r.Code, r.Name, (SkillMainTargetType)r.MainTargetType, (SkillSubTargetType)r.SubTargetType) : null;
 
     /// <summary>캐릭터의 스킬 슬롯 태그 전부(스킬 슬롯, 그룹, 태그 코드 순).</summary>
     public IReadOnlyList<CharacterSkillSlotTag> SkillSlotTagsOf(long characterCode) =>

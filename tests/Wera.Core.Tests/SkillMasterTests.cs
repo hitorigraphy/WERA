@@ -136,11 +136,11 @@ public class SkillMasterTests
     [Fact]
     public void Target_type_is_optional_defaults_to_enemy_and_is_read_by_name()
     {
-        Assert.Equal(SkillTargetType.Enemy, Load().FindSkill(1)!.TargetType);                    // 열이 없는 예전 마스터
-        var pack = Load((GamePack.SkillMasterPath, "code\tname\ttarget_type\n1\t베기\tenemy\n2\t치유\tAlly\n3\t집중\tSELF\n4\t폭풍\tAny\n5\t기본\t\n"));
-        Assert.Equal([SkillTargetType.Enemy, SkillTargetType.Ally, SkillTargetType.Self, SkillTargetType.Any, SkillTargetType.Enemy],
-            new long[] { 1, 2, 3, 4, 5 }.Select(c => pack.FindSkill(c)!.TargetType));
-        Rejects("target_type 'Everyone'", (GamePack.SkillMasterPath, "code\tname\ttarget_type\n1\t베기\tEveryone\n"));
-        Rejects("target_type '1'", (GamePack.SkillMasterPath, "code\tname\ttarget_type\n1\t베기\t1\n"));    // 숫자는 안 된다
+        Assert.Equal(SkillMainTargetType.Enemy, Load().FindSkill(1)!.MainTargetType);                    // 열이 없는 예전 마스터
+        var pack = Load((GamePack.SkillMasterPath, "code\tname\tmain_target_type\n1\t베기\tenemy\n2\t치유\tAlly\n3\t집중\tSELF\n4\t폭풍\tAny\n5\t기본\t\n"));
+        Assert.Equal([SkillMainTargetType.Enemy, SkillMainTargetType.Ally, SkillMainTargetType.Self, SkillMainTargetType.Any, SkillMainTargetType.Enemy],
+            new long[] { 1, 2, 3, 4, 5 }.Select(c => pack.FindSkill(c)!.MainTargetType));
+        Rejects("main_target_type 'Everyone'", (GamePack.SkillMasterPath, "code\tname\tmain_target_type\n1\t베기\tEveryone\n"));
+        Rejects("main_target_type '1'", (GamePack.SkillMasterPath, "code\tname\tmain_target_type\n1\t베기\t1\n"));    // 숫자는 안 된다
     }
 }

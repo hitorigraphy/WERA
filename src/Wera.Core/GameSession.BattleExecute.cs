@@ -94,7 +94,8 @@ public sealed partial class GameSession
             var caster = UnitOf(actor)!;
             var main = UnitOf(victim)!;
             var hpBefore = store.CharacterOf(main)!.Hp;
-            new SkillExecuteCircuit(Pack, store, skillOf[actor], caster, main).Execute();
+            var subs = SubTargetsOf(victim, skillOf[actor]).Select(c => UnitOf(c)!).ToList();
+            new SkillExecuteCircuit(Pack, store, skillOf[actor], caster, main, subs).Execute();
             new AfterHitCircuit(Pack, store, caster, main).Execute();
             new AfterAttackCircuit(Pack, store, caster, main).Execute();
             if (!actor.IsEnemy && battleItems.TryGetValue(actor.Slot, out var usedItem) && usedItem[0] == 'C')     // 쓴 커먼 아이템은 하나 줄어든다(유니크는 남는다)

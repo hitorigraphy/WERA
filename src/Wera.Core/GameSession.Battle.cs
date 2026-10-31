@@ -34,7 +34,7 @@ public sealed partial class GameSession
         MoveCandidates,
         /// <summary>아이템 후보: 지금 보고 있는 캐릭터가 쓸 수 있는 아이템들([101]부터, skill_code가 있는 보유 아이템)과 [106] 취소.</summary>
         ItemCandidates,
-        /// <summary>대상 후보: 고른 스킬의 타겟 대상(skill_master의 target_type)에 맞는 살아 있는 유닛만 슬롯이 흰색(리더는 연두색)이 되어 슬롯 번호로 고르고, 커맨드는 [101] 취소뿐이다.</summary>
+        /// <summary>대상 후보: 고른 스킬의 타겟 대상(skill_master의 main_target_type)에 맞는 살아 있는 유닛만 슬롯이 흰색(리더는 연두색)이 되어 슬롯 번호로 고르고, 커맨드는 [101] 취소뿐이다.</summary>
         TargetCandidates,
     }
 
@@ -389,15 +389,26 @@ public sealed partial class GameSession
     }
 
     /// <summary>스킬의 타겟 대상. 스킬 마스터에 없으면 상대편(Enemy).</summary>
-    SkillTargetType SkillTargetTypeOf(long skillCode) =>
-        Pack.FindSkill(skillCode)?.TargetType ?? SkillTargetType.Enemy;
+    SkillMainTargetType SkillTargetTypeOf(long skillCode) =>
+        Pack.FindSkill(skillCode)?.MainTargetType ?? SkillMainTargetType.Enemy;
+
+    /// <summary>
+    /// 스킬의 서브 타겟들: 메인 타겟이 있는 편에서 스킬의 sub_target_type이 가리키는 살아 있는 유닛들(메인 타겟 제외, 슬롯 번호 순;
+    /// 랜덤 n명은 <see cref="NextRandom"/>으로 뽑음).
+    /// </summary>
+    List<Combatant> SubTargetsOf(Combatant main, long skillCode)
+    {
+        var type = Pack.FindSkill(skillCode)?.SubTargetType ?? SkillSubTargetType.None;
+        return SubTargetPicker.Pick(type, main.Slot, slot => IsAlive(new Combatant(main.IsEnemy, slot)), n => (int)NextRandom(n))
+            .Select(slot => new Combatant(main.IsEnemy, slot)).ToList();
+    }
 
     /// <summary>시전자가 그 타겟 대상의 스킬로 메인 타겟으로 삼을 수 있는 살아 있는 유닛들(적 편 슬롯 순, 아군 편 슬롯 순).</summary>
-    List<Combatant> TargetCandidatesOf(Combatant caster, SkillTargetType type) => type switch
+    List<Combatant> TargetCandidatesOf(Combatant caster, SkillMainTargetType type) => type switch
     {
-        SkillTargetType.Enemy => LivingOf(!caster.IsEnemy),
-        SkillTargetType.Ally => LivingOf(caster.IsEnemy),
-        SkillTargetType.Self => IsAlive(caster) ? [caster] : [],
+        SkillMainTargetType.Enemy => LivingOf(!caster.IsEnemy),
+        SkillMainTargetType.Ally => LivingOf(caster.IsEnemy),
+        SkillMainTargetType.Self => IsAlive(caster) ? [caster] : [],
         _ => [.. LivingOf(true), .. LivingOf(false)],
     };
 

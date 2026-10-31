@@ -204,7 +204,7 @@ public sealed partial class GamePack
         { SkillCode = s.OwnerCode, StatusCode = s.StatusCode, InitialValue = s.InitialValue, MinValue = s.MinValue, MaxValue = s.MaxValue }).ToList());
         builder.Append((uniqueItemStatuses ?? []).Select(s => new UniqueItemStatusRow
         { ItemCode = s.OwnerCode, StatusCode = s.StatusCode, InitialValue = s.InitialValue, MinValue = s.MinValue, MaxValue = s.MaxValue }).ToList());
-        builder.Append((skills ?? []).Select(s => new SkillRow { Code = s.Code, Name = s.Name, TargetType = (int)s.TargetType }).ToList());
+        builder.Append((skills ?? []).Select(s => new SkillRow { Code = s.Code, Name = s.Name, MainTargetType = (int)s.MainTargetType, SubTargetType = (int)s.SubTargetType }).ToList());
         builder.Append((skillTags ?? []).Select(t => new SkillTagRow { SkillCode = t.SkillCode, TagCode = t.TagCode }).ToList());
         builder.Append((skillExecuteEffects ?? []).Select(e => new SkillExecuteEffectRow
         { SkillCode = e.SkillCode, ExecuteNumber = e.ExecuteNumber, EffectType = e.EffectType,

@@ -641,4 +641,18 @@ public class BattleScreenTests
         Assert.NotNull(s.PartyInstance.Units[8]);
         Assert.Equal("당신 : 이동 → [19]", s.BattleLogLines[0]);
     }
+
+    [Fact]
+    public void The_skills_sub_targets_are_filled_into_the_circuit_around_the_main_target()
+    {
+        var s = Started();                                                          // 적 파티 1: 슬롯 0, 2, 4, 7
+        FirstOnly(s);
+        var hp = s.EnemyInstances.ToDictionary(kv => kv.Key, kv => kv.Value.Hp);
+        s.Activate("102"); s.Activate("102"); s.Activate("1");                      // 스킬 2(불꽃: 같은 줄에 번지고 서브 0번에게 피해 10)를 적 슬롯 0에
+        s.Activate("107");
+        Assert.Equal(20, hp[0] - s.EnemyInstances[0].Hp);                           // 메인 타겟
+        Assert.Equal(10, hp[2] - s.EnemyInstances[2].Hp);                           // 같은 줄(전위)의 슬롯 2가 서브 타겟 0번
+        Assert.Equal(0, hp[4] - s.EnemyInstances[4].Hp);                            // 다른 줄은 영향 없음
+        Assert.Equal(0, hp[7] - s.EnemyInstances[7].Hp);
+    }
 }
