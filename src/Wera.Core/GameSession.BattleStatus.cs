@@ -69,6 +69,10 @@ public sealed partial class GameSession
                 foreach (var slot in BattleUnitSlots())
                     yield return new ScreenEntry(BattleSlotNumber(false, slot), "", Screen.UnitStatus, EntryAction.BattleViewUnit, $"A{slot}");
                 break;
+            case BattleCommandMode.SwapCandidates:
+                foreach (var slot in BattleSwapSlots())
+                    yield return new ScreenEntry(BattleSlotNumber(false, slot), "", Screen.Battle, EntryAction.BattleSwapWith, slot.ToString(CultureInfo.InvariantCulture));
+                break;
             case BattleCommandMode.TargetCandidates:
                 foreach (var target in BattleTargets())
                     yield return new ScreenEntry(BattleSlotNumber(target.IsEnemy, target.Slot), "", Screen.Battle, EntryAction.BattleChooseTarget,

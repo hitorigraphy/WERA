@@ -30,6 +30,8 @@ public sealed partial class GameSession
         Basic,
         /// <summary>행동 후보: 지금 보고 있는 캐릭터가 장착한 스킬들([101]부터)과 [106] 취소.</summary>
         ActionCandidates,
+        /// <summary>교체 후보: 보는 캐릭터와 자리를 바꿀 아군 슬롯(자신을 뺀 모든 칸, 빈 칸 포함)이 흰색이 되어 슬롯 번호로 고르고, 커맨드는 [101] 취소뿐이다.</summary>
+        SwapCandidates,
         /// <summary>아이템 후보: 지금 보고 있는 캐릭터가 쓸 수 있는 아이템들([101]부터, skill_code가 있는 보유 아이템)과 [106] 취소.</summary>
         ItemCandidates,
         /// <summary>대상 후보: 고른 스킬의 타겟 대상(skill_master의 target_type)에 맞는 살아 있는 유닛만 슬롯이 흰색(리더는 연두색)이 되어 슬롯 번호로 고르고, 커맨드는 [101] 취소뿐이다.</summary>
@@ -270,6 +272,46 @@ public sealed partial class GameSession
         BattleTop = BattleTopEnemyHeavy;
     }
 
+    /// <summary>[105] 교체: 보는 캐릭터와 자리를 바꿀 아군 슬롯을 고르는 교체 후보로 바뀌고 화면은 적 1 / 아군 3으로 바뀐다.</summary>
+    void OpenBattleSwap()
+    {
+        if (BattleCurrentSlot is null) return;
+        BattleCommands = BattleCommandMode.SwapCandidates;
+        BattleTop = BattleTopAllyHeavy;
+    }
+
+    /// <summary>교체 후보에서 고를 수 있는 아군 슬롯들: 보는 캐릭터의 슬롯을 뺀 모든 칸(빈 칸 포함).</summary>
+    List<int> BattleSwapSlots() =>
+        BattleCurrentSlot is { } current ? Enumerable.Range(0, PartySlotCount).Where(i => i != current).ToList() : [];
+
+    /// <summary>
+    /// 보는 캐릭터의 유닛과 고른 슬롯의 유닛(빈 칸이면 그 칸으로 옮김)의 자리를 바꾼다. 바로 실행되고 행동을 쓰지 않으며,
+    /// 이번 턴에 정한 행동·아이템·타겟은 유닛과 함께 따라가고 아군을 가리킨 타겟도 새 자리로 바뀐다. 보는 캐릭터는 그대로 같은 유닛이다.
+    /// </summary>
+    void SwapBattleUnits(int other)
+    {
+        if (BattleCurrentSlot is not { } current || !BattleSwapSlots().Contains(other)) return;
+        var units = PartyInstance.Units;
+        (units[current], units[other]) = (units[other], units[current]);
+
+        int Moved(int slot) => slot == current ? other : slot == other ? current : slot;
+        Dictionary<int, T> Remap<T>(Dictionary<int, T> map, Func<T, T> value) =>
+            map.ToDictionary(kv => Moved(kv.Key), kv => value(kv.Value));
+        Combatant Retarget(Combatant c) => c.IsEnemy ? c : c with { Slot = Moved(c.Slot) };
+        var actions = Remap(battleActions, v => v);
+        var items = Remap(battleItems, v => v);
+        var targets = Remap(battleTargets, Retarget);
+        battleActions.Clear(); battleItems.Clear(); battleTargets.Clear();
+        foreach (var (k, v) in actions) battleActions[k] = v;
+        foreach (var (k, v) in items) battleItems[k] = v;
+        foreach (var (k, v) in targets) battleTargets[k] = v;
+
+        BattleCurrentSlot = other;
+        battlePendingSkill = null;
+        battlePendingItem = null;
+        BattleCommands = BattleCommandMode.Basic;
+    }
+
     /// <summary>[103] 아이템: 커맨드가 보는 캐릭터의 아이템 후보로 바뀌고 화면은 적 3 / 아군 1로 바뀐다.</summary>
     void OpenBattleItemCandidates()
     {
@@ -351,6 +393,7 @@ public sealed partial class GameSession
         bool Gray(bool isEnemy, int slot) => BattleCommands switch
         {
             BattleCommandMode.ActionCandidates or BattleCommandMode.ItemCandidates => true,
+            BattleCommandMode.SwapCandidates => isEnemy || !BattleSwapSlots().Contains(slot),
             BattleCommandMode.TargetCandidates => !targets.Contains(new Combatant(isEnemy, slot)),
             _ => false,
         };
@@ -408,7 +451,7 @@ public sealed partial class GameSession
             yield return new ScreenEntry("106", "취소", Screen.Battle, EntryAction.BattleCancelActions);
             yield break;
         }
-        if (BattleCommands == BattleCommandMode.TargetCandidates)
+        if (BattleCommands is BattleCommandMode.TargetCandidates or BattleCommandMode.SwapCandidates)
         {
             yield return new ScreenEntry("101", "취소", Screen.Battle, EntryAction.BattleCancelActions);
             yield break;
@@ -417,7 +460,7 @@ public sealed partial class GameSession
         yield return new ScreenEntry("102", "행동 설정", Screen.Battle, EntryAction.BattleOpenActions);
         yield return new ScreenEntry("103", "아이템", Screen.Battle, EntryAction.BattleOpenItems);
         yield return new ScreenEntry("104", "이전 캐릭터", Screen.Battle, EntryAction.BattleSelectCharacter, "-1");
-        yield return new ScreenEntry("105", "교체", Screen.Battle, EntryAction.BattleCommand);
+        yield return new ScreenEntry("105", "교체", Screen.Battle, EntryAction.BattleOpenSwap);
         yield return new ScreenEntry("106", "실행", Screen.Battle, EntryAction.BattleExecute, Enabled: BattleAllActionsSet);
         yield return new ScreenEntry("107", "도망", Screen.Battle, EntryAction.BattleRun);
     }

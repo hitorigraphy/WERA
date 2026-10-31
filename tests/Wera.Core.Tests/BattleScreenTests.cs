@@ -573,4 +573,53 @@ public class BattleScreenTests
         Assert.Null(s.BattleActionOf(1));
         Assert.Null(s.BattleItemOf(1));
     }
+
+    [Fact]
+    public void The_swap_command_lets_any_other_ally_slot_including_empty_ones_be_picked_by_slot_number()
+    {
+        var s = Started(twoUnits: true);
+        s.Activate("105");
+        Assert.Equal(GameSession.BattleCommandMode.SwapCandidates, s.BattleCommands);
+        Assert.Equal(["101"], s.Entries.Where(e => e.Action == EntryAction.BattleCancelActions).Select(e => e.Code));
+        Assert.Equal(["12", "13", "14", "15", "16", "17", "18", "19"], s.Entries.Where(e => e.Action == EntryAction.BattleSwapWith).Select(e => e.Code));
+        Assert.Equal(GameSession.BattleTopAllyHeavy, s.BattleTop);
+
+        s.Activate("101");                                                          // 취소
+        Assert.Equal(GameSession.BattleCommandMode.Basic, s.BattleCommands);
+        Assert.Equal(0, s.BattleCurrentSlot);
+    }
+
+    [Fact]
+    public void Swapping_exchanges_the_units_and_their_set_actions_follow_them()
+    {
+        var s = Started(twoUnits: true);
+        var (first, second) = (s.PartyInstance.Units[0]!.CharacterCode, s.PartyInstance.Units[1]!.CharacterCode);
+        s.Activate("102"); s.Activate("101"); s.Activate("1");                      // 첫째 유닛이 행동을 정하고 둘째로 넘어갔다
+        s.Activate("104");
+        Assert.Equal(0, s.BattleCurrentSlot);
+        s.Activate("105"); s.Activate("12");                                        // 슬롯 1과 교체
+
+        Assert.Equal((second, first), (s.PartyInstance.Units[0]!.CharacterCode, s.PartyInstance.Units[1]!.CharacterCode));
+        Assert.Equal(1, s.BattleCurrentSlot);                                       // 보는 유닛은 그대로 같은 유닛
+        Assert.Equal(GameSession.BattleCommandMode.Basic, s.BattleCommands);
+        Assert.NotNull(s.BattleActionOf(1));
+        Assert.Null(s.BattleActionOf(0));
+    }
+
+    [Fact]
+    public void Swapping_into_an_empty_slot_moves_the_unit_and_retargets_ally_targets()
+    {
+        var s = Started();
+        s.AddInventory(3, 1);
+        s.Activate("103"); s.Activate("101"); s.Activate("11");                     // 약초를 자신에게
+        Assert.Equal((0, false), (s.BattleTargetOf(0)!.Value, s.BattleTargetIsEnemyOf(0)!.Value));
+
+        s.Activate("105"); s.Activate("19");                                        // 빈 슬롯 8로 이동
+        Assert.Null(s.PartyInstance.Units[0]);
+        Assert.NotNull(s.PartyInstance.Units[8]);
+        Assert.Equal(8, s.BattleCurrentSlot);
+        Assert.Equal("C3", s.BattleItemOf(8));
+        Assert.Equal((8, false), (s.BattleTargetOf(8)!.Value, s.BattleTargetIsEnemyOf(8)!.Value));
+        Assert.Null(s.BattleActionOf(0));
+    }
 }

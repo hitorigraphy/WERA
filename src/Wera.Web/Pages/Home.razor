@@ -520,9 +520,9 @@
                                     @foreach (var slot in row.Slots)
                                     {
                                         @* 슬롯 번호(적 [1]~[9], 아군 [11]~[19])가 이름 앞에 붙고, 이미지나 번호를 누르면 상태 확인 페이지로(대상을 고를 때는 대상 선택) 간다 *@
-                                        var number = slot.IsEmpty ? null : GameSession.BattleSlotNumber(row.IsEnemy, slot.Slot);
-                                        var clickable = number is not null && session.Entries.Any(e => e.Code == number);
-                                        @homeSlot((number is null ? slot : slot with { Name = $"[{number}] {slot.Name}" }, clickable ? number : null))
+                                        var number = GameSession.BattleSlotNumber(row.IsEnemy, slot.Slot);
+                                        var clickable = session.Entries.Any(e => e.Code == number);       @* 빈 칸도 교체할 자리로는 고를 수 있다 *@
+                                        @homeSlot((slot.IsEmpty ? slot : slot with { Name = $"[{number}] {slot.Name}" }, clickable ? number : null))
                                     }
                                 </div>
                             }
@@ -557,7 +557,7 @@
                     }
                     @* 구분선 아래: 왼쪽 네 칸 중 세 칸에 커맨드(윗줄 [101]~[103], 아랫줄 [104]~[106]), 윗줄 오른쪽 끝에 구성 전환([1000] ▲, [1001] ▼) *@
                     <div class="battle-commands">
-                        <div class="battle-command-list @(session.BattleCommands == GameSession.BattleCommandMode.Basic ? "battle-command-basic" : "")">@entryList(session.Entries.Where(e => e.Action != EntryAction.BattleScroll && e.Action != EntryAction.BattleViewUnit && e.Action != EntryAction.BattleChooseTarget))</div>
+                        <div class="battle-command-list @(session.BattleCommands == GameSession.BattleCommandMode.Basic ? "battle-command-basic" : "")">@entryList(session.Entries.Where(e => e.Action != EntryAction.BattleScroll && e.Action != EntryAction.BattleViewUnit && e.Action != EntryAction.BattleChooseTarget && e.Action != EntryAction.BattleSwapWith))</div>
                         <div class="battle-scroll">@entryList(session.Entries.Where(e => e.Action == EntryAction.BattleScroll))</div>
                     </div>
                 }

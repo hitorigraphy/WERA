@@ -81,14 +81,16 @@ public enum EntryAction
     ToggleLeader,
     /// <summary>전투(임시)를 시작한다: 정해진 전투의 적 파티를 뽑고 작전 화면으로 간다.</summary>
     StartBattle,
-    /// <summary>작전 화면의 커맨드 중 아직 동작이 없는 것([103] 상태 확인, [105] 아이템, [106] 실행).</summary>
-    BattleCommand,
     /// <summary>이전(-1)/다음(1) 캐릭터(Arg)로 보는 캐릭터를 옮긴다.</summary>
     BattleSelectCharacter,
     /// <summary>행동 설정: 커맨드를 보는 캐릭터의 행동 후보로 바꾸고 화면을 적 3 / 아군 1로 바꾼다.</summary>
     BattleOpenActions,
     /// <summary>행동 후보에서 스킬(Arg)을 고른다.</summary>
     BattleChooseSkill,
+    /// <summary>[105] 교체: 커맨드를 대상 후보처럼 바꿔 자리를 바꿀 아군 슬롯(빈 칸 포함)을 슬롯에서 고르게 한다.</summary>
+    BattleOpenSwap,
+    /// <summary>교체 후보에서 슬롯(Arg = 슬롯 번호)을 골라 보는 캐릭터와 자리를 바꾼다.</summary>
+    BattleSwapWith,
     /// <summary>[103] 아이템: 커맨드를 보는 캐릭터가 쓸 수 있는 아이템 후보로 바꾸고 화면을 적 3 / 아군 1로 바꾼다.</summary>
     BattleOpenItems,
     /// <summary>아이템 후보에서 아이템(Arg = "C코드"(커먼) 또는 "U인스턴스ID"(유니크))을 고른다.</summary>
@@ -824,8 +826,12 @@ public sealed partial class GameSession
                 BeginBattle();
                 Screen = entry.Target;
                 break;
-            case EntryAction.BattleCommand:
-                break;                                 // 아직 동작이 없다(교체)
+            case EntryAction.BattleOpenSwap:
+                OpenBattleSwap();
+                break;
+            case EntryAction.BattleSwapWith:
+                SwapBattleUnits(int.Parse(entry.Arg!, CultureInfo.InvariantCulture));
+                break;
             case EntryAction.BattleOpenItems:
                 OpenBattleItemCandidates();
                 break;
