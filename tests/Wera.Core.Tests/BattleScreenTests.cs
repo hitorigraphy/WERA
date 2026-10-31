@@ -296,6 +296,9 @@ public class BattleScreenTests
 
         Assert.Equal(s.BattleLog.Count, s.BattleLogLines.Count);
         Assert.All(s.BattleLogLines, l => Assert.Contains(" → ", l));
+        Assert.Contains("당신 → 적 ", s.BattleLogLines[0] + s.BattleLogLines[1] + s.BattleLogLines[2]);
+        Assert.Contains(s.BattleLog, x => !x.IsEnemy && x.Slot == 0 && x.Damage == 10);   // 스킬1은 피해 10
+        Assert.Contains(s.BattleLogLines, l => l.EndsWith("(피해 10)"));
         Assert.Equal(GameSession.BattleOutcomeKind.None, s.BattleOutcome);
         Assert.Equal(2 + enemyCount, s.BattleLog.Count);             // 전원이 1회씩
         Assert.Equal(s.BattleLog.OrderByDescending(a => a.OrderPoint).Select(a => (a.IsEnemy, a.Slot)), s.BattleLog.Select(a => (a.IsEnemy, a.Slot)));

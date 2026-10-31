@@ -19,15 +19,16 @@ public sealed partial class GameSession
     public IReadOnlyList<BattleActed> BattleLog => battleLog;
     readonly List<BattleActed> battleLog = [];
 
-    /// <summary>실행한 행동 한 건: 시전자 쪽(적 여부)과 슬롯, 스킬 번호, 대상 쪽의 슬롯, 그때의 OrderPoint.</summary>
-    public readonly record struct BattleActed(bool IsEnemy, int Slot, int SkillNumber, int TargetSlot, decimal OrderPoint);
+    /// <summary>실행한 행동 한 건: 시전자 쪽(적 여부)과 슬롯, 스킬 번호, 대상 쪽의 슬롯, 그때의 OrderPoint, 대상이 입은 피해(행동 전후 대상의 hp 차이; 음수면 회복).</summary>
+    public readonly record struct BattleActed(bool IsEnemy, int Slot, int SkillNumber, int TargetSlot, decimal OrderPoint, long Damage);
 
-    /// <summary>이번 턴 행동 기록을 화면에 보여 줄 한 줄씩("시전자 → 대상 : 스킬N", 행동한 순서). 적의 이름 앞에는 "적 "이 붙는다.</summary>
+    /// <summary>이번 턴 행동 기록을 화면에 보여 줄 한 줄씩("시전자 → 대상 : 스킬N (피해 N)", 행동한 순서). 적의 이름 앞에는 "적 "이 붙는다.</summary>
     public IReadOnlyList<string> BattleLogLines => battleLog.Select(a =>
     {
         string Name(bool enemy, int slot) => (enemy ? "적 " : "") +
             (UnitOf(new Combatant(enemy, slot)) is { } unit ? CharacterName(unit.CharacterCode) : "?");
-        return $"{Name(a.IsEnemy, a.Slot)} → {Name(!a.IsEnemy, a.TargetSlot)} : {BattleSkillNames[a.SkillNumber - 1]}";
+        var result = a.Damage > 0 ? $"피해 {a.Damage}" : a.Damage < 0 ? $"회복 {-a.Damage}" : "피해 없음";
+        return $"{Name(a.IsEnemy, a.Slot)} → {Name(!a.IsEnemy, a.TargetSlot)} : {BattleSkillNames[a.SkillNumber - 1]} ({result})";
     }).ToList();
 
     readonly record struct Combatant(bool IsEnemy, int Slot);
@@ -88,10 +89,11 @@ public sealed partial class GameSession
             targetOf[actor] = victim.Slot;
             var caster = UnitOf(actor)!;
             var main = UnitOf(victim)!;
+            var hpBefore = store.CharacterOf(main)!.Hp;
             new SkillExecuteCircuit(Pack, store, BattleSkillCode(skillOf[actor]), caster, main).Execute();
             new AfterHitCircuit(Pack, store, caster, main).Execute();
             new AfterAttackCircuit(Pack, store, caster, main).Execute();
-            battleLog.Add(new BattleActed(actor.IsEnemy, actor.Slot, skillOf[actor], victim.Slot, best));
+            battleLog.Add(new BattleActed(actor.IsEnemy, actor.Slot, skillOf[actor], victim.Slot, best, hpBefore - store.CharacterOf(main)!.Hp));
 
             if (LivingOf(true).Count == 0) BattleOutcome = BattleOutcomeKind.Win;
             else if (LivingOf(false).Count == 0) BattleOutcome = BattleOutcomeKind.Lose;
