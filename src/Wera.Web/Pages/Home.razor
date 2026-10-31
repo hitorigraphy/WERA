@@ -29,6 +29,7 @@
         if (cell.Look.HasFlag(DungeonCellLook.Battle)) classes.Add("dbattle");
         if (cell.Look.HasFlag(DungeonCellLook.Adv)) classes.Add("dadv");
         if (cell.Look.HasFlag(DungeonCellLook.Warp)) classes.Add("dwarp");
+        if (cell.Look.HasFlag(DungeonCellLook.Event)) classes.Add("devent");
         return string.Join(' ', classes);
     }
 

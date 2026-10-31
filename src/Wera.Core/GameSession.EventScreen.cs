@@ -71,6 +71,12 @@ public sealed partial class GameSession
         {
             CurrentEvent = null;
             CurrentStep = null;
+            if (CurrentDungeonCode is not null)         // 던전 이벤트가 끝났다: 이동 화면으로 돌아와 남은 효과를 이어 간다
+            {
+                Screen = Screen.DungeonMove;
+                ContinueTileEffects();
+                return;
+            }
             Screen = Screen.Event;
             return;
         }
@@ -78,6 +84,7 @@ public sealed partial class GameSession
         {
             CurrentEvent = null;
             CurrentStep = null;
+            if (CurrentDungeonCode is not null) LeaveDungeon();
             gameOver = true;
             Screen = Screen.GameOver;
             return;
@@ -101,7 +108,7 @@ public sealed partial class GameSession
         battleReturnScreen = Screen.EventPlay;
         battlePartyBefore = CurrentPartyIndex;
         var playerParty = Array.FindIndex(Parties, p => p.IndexOf(GamePack.PlayerCharacterCode) >= 0);
-        if (playerParty >= 0) CurrentPartyIndex = playerParty;
+        if (playerParty >= 0 && CurrentDungeonCode is null) CurrentPartyIndex = playerParty;      // 던전 이벤트의 전투는 던전에 들어온 파티가 나간다
         battleResultFlag = step.ResultFlag;
         BeginBattle(step.Code);
         Screen = Screen.Battle;

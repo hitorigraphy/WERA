@@ -173,7 +173,9 @@ public sealed partial class GamePack
             eventConditions, (code, r, groups) => new GameEvent(code, r[1], groups));
         var advs = LoadAdvs(zip);
         var battles = LoadBattles(zip);
-        var eventFlows = LoadEventFlows(zip, events, advs, battles, tags, inventory);
+        var eventFlows = LoadEventFlows(zip, events?.Select(e => e.Code).ToList(), advs, battles, tags, inventory);
+        var dungeonEvents = LoadCodeNames(zip, DungeonEventMasterPath, "code", "name", "던전 이벤트", (code, name) => new DungeonEventEntry(code, name));
+        var dungeonEventFlows = LoadEventFlows(zip, dungeonEvents?.Select(e => e.Code).ToList(), advs, battles, tags, inventory, dungeon: true);
         var advFlows = LoadAdvFlows(zip, advs, inventory, tags);
         var communicationGroups = LoadCommunicationGroups(zip);
         var communications = LoadCommunications(zip, communicationGroups);
@@ -185,7 +187,7 @@ public sealed partial class GamePack
         var presetUnitDrops = LoadPresetUnitDrops(zip, presetUnits, inventory);
         var presetParties = LoadPresetParties(zip, presetUnits);
         var battleEnemies = LoadBattleEnemies(zip, battles, presetParties);
-        var tileEffects = LoadTileEffects(zip, advs, battles);
+        var tileEffects = LoadTileEffects(zip, advs, battles, dungeonEvents);
         var dungeonTiles = LoadDungeonTiles(zip, dungeons, tileEffects);
         var dungeonMaps = LoadDungeonMaps(zip, dungeons, dungeonTiles, tileEffects);
         var dungeonEncounters = LoadDungeonEncounters(zip, dungeons, dungeonMaps, battles);
@@ -242,6 +244,8 @@ public sealed partial class GamePack
             Turns = turns,
             Events = events,
             EventFlows = eventFlows,
+            DungeonEvents = dungeonEvents,
+            DungeonEventFlows = dungeonEventFlows,
             Advs = advs,
             AdvFlows = advFlows,
             Battles = battles,

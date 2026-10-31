@@ -10,3 +10,5 @@ code	tile_effect	value_1	value_2	value_3	memo
 8	Stairs	0	0	0	계단 표시
 9	Warp	0	4	5	원래 맵(레이어 0)의 (x 4, y 5)로 이동(올라가는 계단)
 9	Stairs	0	0	0	계단 표시
+10	DungeonEvent	6001	0	0	던전 이벤트 6001(상자)
+10	Interact	0	0	0	Enter를 눌러야 연다

@@ -6,7 +6,7 @@ namespace Wera.Core;
 
 /// <summary>
 /// 타일의 효과 종류. TSV에는 이름(대소문자 무시)으로 적는다. 타일 하나에 효과를 여러 개 겹칠 수 있다(타일 마스터에서 같은 타일 코드에 다른 효과의 행을 더한다).
-/// 숫자 값은 정해진 번호다: None 0, Wall 1, Exit 2, FixedBattle 3, Adv 4, Warp 5, Stairs 6, Impassable 7, Interact 8.
+/// 숫자 값은 정해진 번호다: None 0, Wall 1, Exit 2, FixedBattle 3, Adv 4, Warp 5, Stairs 6, Impassable 7, Interact 8, DungeonEvent 9.
 /// </summary>
 [JsonConverter(typeof(JsonStringEnumConverter<TileEffectType>))]
 public enum TileEffectType
@@ -38,6 +38,11 @@ public enum TileEffectType
     /// 인자는 쓰이지 않는다. 같이 겹친 효과들이 Enter를 누를 때 효과 번호 순서대로 실행된다(Warp의 도착 칸 효과는 실행하지 않는다).
     /// </summary>
     Interact = 8,
+    /// <summary>
+    /// 닿으면 던전 이벤트를 재생한다. value_1이 던전 이벤트 마스터의 코드다. 던전 이벤트의 흐름은 이벤트 흐름과 같은 종류(Adv, Battle, SetFlag, Jump*, GameOver 등)를 쓰고,
+    /// 끝나면 이동 화면으로 돌아와 나머지 효과를 이어 실행한다. Enter로 발동시키려면 <see cref="Interact"/>를 같이 겹친다.
+    /// </summary>
+    DungeonEvent = 9,
 }
 
 /// <summary>타일 마스터의 한 행: 타일(TileCode)이 가진 효과(EffectType)와 그 인자. 키는 (TileCode, EffectType)이라 한 타일에 효과 종류별로 한 행씩 겹칠 수 있다.</summary>
@@ -80,9 +85,9 @@ public sealed partial class GamePack
     /// <summary>
     /// 타일 마스터를 읽는다. 키 (타일 코드, 효과)를 두 번 쓸 수 없다. 효과는 이름으로 적고, 인자(value_1~3)는 정수(long, 비우면 0)다.
     /// 효과별 인자 검증: Warp는 도착 layer_number와 pos_y가 0 이상, pos_x가 0~29(도착 칸이 맵에 있는지는 던전 맵 마스터를 읽을 때 본다), FixedBattle의 value_1은 전투 마스터의 코드, Adv의 value_1은 ADV 마스터의 코드여야 한다
-    /// (전투나 ADV 효과가 있으려면 그 마스터가 있어야 한다). None, Wall, Exit, Stairs, Impassable, Interact는 인자를 보지 않는다.
+    /// (전투나 ADV 효과가 있으려면 그 마스터가 있어야 한다). DungeonEvent의 value_1은 던전 이벤트 마스터의 코드여야 한다. None, Wall, Exit, Stairs, Impassable, Interact는 인자를 보지 않는다.
     /// </summary>
-    static List<TileEffect>? LoadTileEffects(ZipArchive zip, List<AdvEntry>? advs, List<BattleEntry>? battles)
+    static List<TileEffect>? LoadTileEffects(ZipArchive zip, List<AdvEntry>? advs, List<BattleEntry>? battles, List<DungeonEventEntry>? dungeonEvents)
     {
         const string file = TileMasterPath;
         var text = TryReadEntry(zip, file);
@@ -90,6 +95,7 @@ public sealed partial class GamePack
 
         var advCodes = advs?.Select(a => a.Code).ToHashSet();
         var battleCodes = battles?.Select(b => b.Code).ToHashSet();
+        var dungeonEventCodes = dungeonEvents?.Select(e => e.Code).ToHashSet();
         var rows = new List<TileEffect>();
         var seen = new HashSet<(long, TileEffectType)>();
         foreach (var r in Body(file, text, "code", "tile_effect", "value_1", "value_2", "value_3"))
@@ -120,6 +126,10 @@ public sealed partial class GamePack
                     break;
                 case TileEffectType.Warp when v1 < 0 || v2 < 0 || v2 >= DungeonMapWidth || v3 < 0:
                     throw new PackFormatException($"{file}: {where} Warp의 도착(layer_number {v1}, pos_x {v2}, pos_y {v3})은 layer_number와 pos_y가 0 이상, pos_x가 0 이상 {DungeonMapWidth} 미만이어야 합니다.");
+                case TileEffectType.DungeonEvent:
+                    if (dungeonEventCodes is null) throw new PackFormatException($"{file}: {where} DungeonEvent가 있으려면 {DungeonEventMasterPath}도 필요합니다.");
+                    if (!dungeonEventCodes.Contains(v1)) throw new PackFormatException($"{file}: {where} DungeonEvent의 던전 이벤트 '{v1}'가 던전 이벤트 마스터에 없습니다.");
+                    break;
                 case TileEffectType.Adv:
                     if (advCodes is null) throw new PackFormatException($"{file}: {where} Adv가 있으려면 {AdvMasterPath}도 필요합니다.");
                     if (!advCodes.Contains(v1)) throw new PackFormatException($"{file}: {where} Adv의 ADV '{v1}'가 ADV 마스터에 없습니다.");

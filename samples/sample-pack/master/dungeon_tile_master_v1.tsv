@@ -7,3 +7,4 @@ dungeon_code	local_tile_text	tile_code	memo
 1999	A	7	ADV
 1999	>	8	내려가는 계단
 1999	<	9	올라가는 계단
+1999	C	10	상자(Enter로 던전 이벤트 6001)

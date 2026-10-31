@@ -849,7 +849,7 @@ public sealed partial class GameSession
                     PlayerFlagOps.Set(PlayerFlags, battleResultFlag, BattleOutcome switch { BattleOutcomeKind.Win => 1, BattleOutcomeKind.Run => 2, _ => 3 });
                 battleResultFlag = 0;
                 Screen = entry.Target;
-                if (CurrentDungeonCode is not null && BattleOutcome == BattleOutcomeKind.Lose) EndDungeonByDefeat();      // 던전 전투 패배: 주인공이 있으면 게임 오버, 없으면 홈
+                if (CurrentDungeonCode is not null && CurrentEvent is null && BattleOutcome == BattleOutcomeKind.Lose) EndDungeonByDefeat();      // 던전 전투 패배: 주인공이 있으면 게임 오버, 없으면 홈
                 else if (CurrentEvent is not null && Screen == Screen.EventPlay) ShowNextEventStep();      // 이벤트의 Battle 칸 다음부터 이어 간다
                 else if (CurrentDungeonCode is not null && Screen == Screen.DungeonMove) ContinueTileEffects();      // 던전: 남은 타일 효과를 이어 간다
                 break;

@@ -94,6 +94,9 @@ public sealed record GameEvent(long Code, string Name, IReadOnlyList<IReadOnlyLi
 public sealed record EventFlow(
     long EventCode, long FlowNumber, EventFlowType FlowType, long Param1, long Param2, long Param3);
 
+/// <summary>던전 이벤트 마스터의 한 행: 던전의 타일(DungeonEvent 효과)에서 재생하는 이벤트. 이벤트 마스터와 따로의 코드 공간이고 조건은 없다(타일이 언제 닿는지/Enter인지 정한다).</summary>
+public sealed record DungeonEventEntry(long Code, string Name);
+
 /// <summary>ADV 마스터의 한 행.</summary>
 public sealed record AdvEntry(long Code, string Name);
 
@@ -108,6 +111,8 @@ public sealed partial class GamePack
     public const string EventConditionMasterPath = "master/event_condition_master_v1.tsv";
     public const string EventFlowMasterPath = "master/event_flow_master_v1.tsv";
     public const string EventFlowConditionMasterPath = "master/event_flow_condition_master_v1.tsv";
+    public const string DungeonEventMasterPath = "master/dungeon_event_master_v1.tsv";
+    public const string DungeonEventFlowMasterPath = "master/dungeon_event_flow_master_v1.tsv";
     public const string AdvMasterPath = "master/adv_master_v1.tsv";
     public const string BattleMasterPath = "master/battle_master_v1.tsv";
 
@@ -116,6 +121,12 @@ public sealed partial class GamePack
 
     /// <summary>이벤트 흐름 마스터가 없으면 null. 게임팩 파일 순서.</summary>
     public IReadOnlyList<EventFlow>? EventFlows { get; init; }
+
+    /// <summary>던전 이벤트 마스터가 없으면 null. 게임팩 파일 순서.</summary>
+    public IReadOnlyList<DungeonEventEntry>? DungeonEvents { get; init; }
+
+    /// <summary>던전 이벤트 흐름 마스터가 없으면 null. 게임팩 파일 순서. EventCode가 던전 이벤트의 코드다.</summary>
+    public IReadOnlyList<EventFlow>? DungeonEventFlows { get; init; }
 
     /// <summary>ADV 마스터가 없으면 null.</summary>
     public IReadOnlyList<AdvEntry>? Advs { get; init; }
@@ -155,24 +166,28 @@ public sealed partial class GamePack
     /// 흐름 조건 마스터(event_flow_condition_master)는 없어졌다. 그 파일이 게임팩에 있으면 로드 오류다.
     /// </summary>
     static List<EventFlow>? LoadEventFlows(
-        ZipArchive zip, List<GameEvent>? events, List<AdvEntry>? advs, List<BattleEntry>? battles, IReadOnlyList<TagEntry>? tags, IReadOnlyDictionary<long, InventoryEntry> inventory)
+        ZipArchive zip, IReadOnlyCollection<long>? events, List<AdvEntry>? advs, List<BattleEntry>? battles, IReadOnlyList<TagEntry>? tags, IReadOnlyDictionary<long, InventoryEntry> inventory,
+        bool dungeon = false)
     {
-        const string file = EventFlowMasterPath;
+        // 던전 이벤트(타일에서 재생하는 이벤트)의 흐름 마스터는 같은 규칙에 파일과 열 이름만 다르다.
+        var file = dungeon ? DungeonEventFlowMasterPath : EventFlowMasterPath;
+        var masterFile = dungeon ? DungeonEventMasterPath : EventMasterPath;
+        var label = dungeon ? "던전 이벤트" : "이벤트";
         const string conditionFile = EventFlowConditionMasterPath;
         var text = TryReadEntry(zip, file);
         // 흐름 조건 마스터는 없어졌다: 조건에 따라 칸을 건너뛰려면 JumpFlag*로 뛰어넘는다. 조용히 무시하면 조건이 사라지므로 오류로 알린다.
-        if (FindEntry(zip, conditionFile) is not null)
+        if (!dungeon && FindEntry(zip, conditionFile) is not null)
             throw new PackFormatException($"{conditionFile}는 더 이상 쓰이지 않습니다(조건은 JumpFlag* 칸으로 건너뛰어 냅니다). 이 파일을 지워 주세요.");
         if (text is null) return null;
-        if (events is null) throw new PackFormatException($"{file}가 있으려면 {EventMasterPath}도 필요합니다.");
+        if (events is null) throw new PackFormatException($"{file}가 있으려면 {masterFile}도 필요합니다.");
 
-        var eventCodes = events.Select(e => e.Code).ToHashSet();
+        var eventCodes = events.ToHashSet();
         var rows = new List<(long Event, long Flow, EventFlowType Type, long P1, long P2, long P3)>();
         var seen = new HashSet<(long, long)>();
-        foreach (var r in Body(file, text, "event_code", "flow_number", "flow_type", "param_1", "param_2", "param_3"))
+        foreach (var r in Body(file, text, dungeon ? "dungeon_event_code" : "event_code", "flow_number", "flow_type", "param_1", "param_2", "param_3"))
         {
-            var eventCode = ParseLong(file, "이벤트 코드", r[0]);
-            var who = $"이벤트 '{eventCode}'의";
+            var eventCode = ParseLong(file, $"{label} 코드", r[0]);
+            var who = $"{label} '{eventCode}'의";
             var flow = ParseLong(file, $"{who} 흐름 번호", r[1]);
             var where = $"{who} 흐름 {flow}의";
             // 숫자("1")도 Enum.TryParse를 통과하므로 이름 목록으로 먼저 거른다.
@@ -182,9 +197,9 @@ public sealed partial class GamePack
                     $"{file}: {where} 흐름 종류 '{r[2]}'을(를) 알 수 없습니다. ({string.Join(", ", Enum.GetNames<EventFlowType>())})");
 
             if (!eventCodes.Contains(eventCode))
-                throw new PackFormatException($"{file}: 이벤트 '{eventCode}'가 이벤트 마스터에 없습니다.");
+                throw new PackFormatException($"{file}: {label} '{eventCode}'가 {label} 마스터에 없습니다.");
             if (!seen.Add((eventCode, flow)))
-                throw new PackFormatException($"{file}: 같은 키(이벤트 {eventCode}, 흐름 {flow})가 두 번 있습니다.");
+                throw new PackFormatException($"{file}: 같은 키({label} {eventCode}, 흐름 {flow})가 두 번 있습니다.");
             rows.Add((eventCode, flow, type,
                 OptionalLong(file, $"{where} 인자 1", r[3]),
                 OptionalLong(file, $"{where} 인자 2", r[4]),
@@ -196,7 +211,7 @@ public sealed partial class GamePack
         var battleCodes = battles?.Select(b => b.Code).ToHashSet();
         foreach (var (eventCode, flow, type, p1, p2, p3) in rows)
         {
-            var where = $"{file}: 이벤트 '{eventCode}'의 흐름 {flow}의";
+            var where = $"{file}: {label} '{eventCode}'의 흐름 {flow}의";
             if (type == EventFlowType.AddInventory) CheckAddInventory(where, p1, p2, inventory);
             if (RandomJump.Is(type.ToString()) && p2 < 1)
                 throw new PackFormatException($"{where} JumpRandom의 모수 '{p2}'는 1 이상이어야 합니다.");
@@ -209,12 +224,12 @@ public sealed partial class GamePack
                     throw new PackFormatException(
                         $"{where} 점프할 흐름 번호 '{p1}'는 자신의 흐름 번호 {flow}보다 커야 합니다(뒤로만 점프할 수 있어 무한 반복이 생기지 않습니다).");
                 case EventFlowType.Jump when !seen.Contains((eventCode, p1)):
-                    throw new PackFormatException($"{where} 점프할 흐름 번호 '{p1}'가 같은 이벤트의 흐름에 없습니다.");
+                    throw new PackFormatException($"{where} 점프할 흐름 번호 '{p1}'가 같은 {label}의 흐름에 없습니다.");
                 case var jump when HaveTagJump.IsConditionalJump(jump.ToString()) && p3 <= flow:
                     throw new PackFormatException(
                         $"{where} 점프할 흐름 번호 '{p3}'는 자신의 흐름 번호 {flow}보다 커야 합니다(뒤로만 점프할 수 있어 무한 반복이 생기지 않습니다).");
                 case var jump when HaveTagJump.IsConditionalJump(jump.ToString()) && !seen.Contains((eventCode, p3)):
-                    throw new PackFormatException($"{where} 점프할 흐름 번호 '{p3}'가 같은 이벤트의 흐름에 없습니다.");
+                    throw new PackFormatException($"{where} 점프할 흐름 번호 '{p3}'가 같은 {label}의 흐름에 없습니다.");
                 case EventFlowType.Adv when advCodes is null:
                     throw new PackFormatException($"{where} Adv가 있으려면 {AdvMasterPath}도 필요합니다.");
                 case EventFlowType.Adv when !advCodes!.Contains(p1):
@@ -262,6 +277,12 @@ public sealed partial class GamePack
     // ---- 키로 찾기 ----
 
     public GameEvent? FindEvent(long code) => Events?.FirstOrDefault(e => e.Code == code);
+
+    public DungeonEventEntry? FindDungeonEvent(long code) => DungeonEvents?.FirstOrDefault(e => e.Code == code);
+
+    /// <summary>한 던전 이벤트의 흐름 칸들(흐름 번호 순).</summary>
+    public IReadOnlyList<EventFlow> DungeonEventFlowsOf(long dungeonEventCode) =>
+        (DungeonEventFlows ?? []).Where(f => f.EventCode == dungeonEventCode).OrderBy(f => f.FlowNumber).ToList();
 
     public AdvEntry? FindAdv(long code) =>
         Masters.AdvRowTable.TryFindByCode(code, out var r) ? new AdvEntry(r.Code, r.Name) : null;

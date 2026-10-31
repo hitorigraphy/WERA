@@ -1,0 +1,5 @@
+dungeon_event_code	flow_number	flow_type	param_1	param_2	param_3	memo
+6001	1	JumpFlagGreaterOrEqual	2002	1	4	테스트용(이미 열었으면 4로)
+6001	2	SetFlag	2002	1	0	테스트용(연 표시)
+6001	3	Adv	4002	0	0	테스트용(ADV 4002)
+6001	4	Finish	0	0	0	테스트용

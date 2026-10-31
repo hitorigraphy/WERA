@@ -43,6 +43,7 @@ public sealed class EventFlowCircuit
     /// <summary>끝났는가(끝난 뒤의 <see cref="Advance"/>는 계속 Finished를 돌려준다).</summary>
     public bool IsFinished { get; private set; }
 
+    /// <param name="flows">실행할 흐름 칸들(흐름 번호 순). null이면 이벤트 마스터의 이벤트(eventCode)의 흐름을 쓴다. 던전 이벤트는 던전 이벤트의 흐름을 넘긴다.</param>
     /// <param name="flags">조건 판정에 쓰고 SetFlag, ModFlag가 바꾸는 플레이어 플래그. 실행 도중 바뀐 값이 보이도록 같은 사전을 그대로 넘긴다.</param>
     /// <param name="random">JumpRandom 칸이 부르는 동작(모수 → 0 이상 모수 미만의 무작위 정수). 세션이 넘기며, null이면 기본 난수를 쓴다.</param>
     /// <param name="characterHasTag">JumpCharacterHaveTag 칸이 부르는 동작(캐릭터 코드, 태그 코드 → 가졌는가). 세션이 넘기며, null이면 거짓으로 본다.</param>
@@ -53,7 +54,8 @@ public sealed class EventFlowCircuit
         Func<long, long>? countInventory = null,
         Func<long, long, bool>? characterHasTag = null,
         Func<long, long, bool>? uniqueItemHasTag = null,
-        Func<long, long>? random = null)
+        Func<long, long>? random = null,
+        IReadOnlyList<EventFlow>? flows = null)
     {
         EventCode = eventCode;
         this.flags = flags;
@@ -62,7 +64,7 @@ public sealed class EventFlowCircuit
         this.characterHasTag = characterHasTag;
         this.uniqueItemHasTag = uniqueItemHasTag;
         this.random = random;
-        flows = pack.FlowsOf(eventCode);
+        this.flows = flows ?? pack.FlowsOf(eventCode);
     }
 
     /// <summary>

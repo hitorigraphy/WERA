@@ -122,7 +122,7 @@ public class DungeonFlowTests
         // 벽(#, 타일 2)은 보이기만 하는 Wall뿐이라 지나갈 수 있고, 바닥(., 타일 1)에 이동불가를 겹치면 못 간다.
         var s = Entered(SamplePackWith((GamePack.TileMasterPath, header
             + "1\tImpassable\t0\t0\t0\n2\tWall\t0\t0\t0\n3\tNone\t0\t0\t0\n4\tExit\t0\t0\t0\n5\tNone\t0\t0\t0\n"
-            + "7\tNone\t0\t0\t0\n8\tNone\t0\t0\t0\n9\tNone\t0\t0\t0\n")));
+            + "7\tNone\t0\t0\t0\n8\tNone\t0\t0\t0\n9\tNone\t0\t0\t0\n10\tNone\t0\t0\t0\n")));
         Walk(s, "U");
         Assert.Equal((0L, 1L, 0L), At(s));                                                    // 지나갈 수 있는 벽 위에 섰다
         Walk(s, "R");
@@ -366,6 +366,85 @@ public class DungeonFlowTests
         Assert.False(s.CanInteractDungeon);
         s.InteractDungeon();
         Assert.Equal((0L, 2L, 1L), At(s));
+    }
+
+    /// <summary>바닥(타일 1)을 던전 이벤트(touch면 바로, interact면 Enter로)가 있는 칸으로 바꾸고 던전 이벤트 6002(주어진 흐름)를 둔다.</summary>
+    static GamePack WithFloorEvent(string flows, bool interact = false) =>
+        SamplePackWith(("master/battle_master_v1.tsv", RunnableBattle),
+            ("master/tile_master_v1.tsv", File.ReadAllText(TileMaster()).Replace("1\tNone\t0\t0\t0", "1\tDungeonEvent\t6002\t0\t0" + (interact ? "\t\n1\tInteract\t0\t0\t0" : ""))),
+            (GamePack.DungeonEventMasterPath, "code\tname\n6001\t상자\n6002\t바닥 이벤트\n"),
+            (GamePack.DungeonEventFlowMasterPath, "dungeon_event_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\n" + flows));
+
+    [Fact]
+    public void A_dungeon_event_tile_plays_the_event_and_returns_to_the_dungeon()
+    {
+        var s = Entered(WithFloorEvent("6002\t1\tSetFlag\t3003\t7\t0\n6002\t2\tAdv\t4002\t0\t0\n6002\t3\tFinish\t0\t0\t0\n"));
+        Walk(s, "R");                                                                         // 닿으면 바로 재생
+        Assert.Equal(Screen.EventPlay, s.Screen);
+        Assert.Equal(7, s.PlayerFlags[3003]);
+        Assert.Equal("전투에서 승리했습니다.", s.CurrentAdvStep!.Value.Text);
+        s.Activate("1");
+        Assert.Equal(Screen.DungeonMove, s.Screen);                                           // 이벤트가 끝나면 이동 화면으로
+        Assert.Null(s.CurrentEvent);
+        Assert.Equal(1999, s.CurrentDungeonCode);
+        Assert.Equal((0L, 2L, 1L), At(s));
+    }
+
+    [Fact]
+    public void A_dungeon_event_with_interact_plays_only_with_enter()
+    {
+        var s = Entered(WithFloorEvent("6002\t1\tSetFlag\t3003\t7\t0\n6002\t2\tFinish\t0\t0\t0\n", interact: true));
+        Walk(s, "R");
+        Assert.Equal(Screen.DungeonMove, s.Screen);
+        Assert.False(s.PlayerFlags.ContainsKey(3003));
+        Assert.True(s.CanInteractDungeon);
+        s.InteractDungeon();
+        Assert.Equal(7, s.PlayerFlags[3003]);                                                 // 장면이 없는 이벤트는 바로 끝나 이동 화면에 있다
+        Assert.Equal(Screen.DungeonMove, s.Screen);
+    }
+
+    [Fact]
+    public void A_dungeon_event_battle_uses_the_dungeon_party_and_the_flow_decides_what_a_defeat_means()
+    {
+        const string flows = "6002\t1\tBattle\t5001\t2001\t0\n6002\t2\tJumpFlagEqual\t2001\t3\t4\n6002\t3\tFinish\t0\t0\t0\n6002\t4\tGameOver\t0\t0\t0\n";
+        var s = Entered(WithFloorEvent(flows));
+        s.NextRandom = _ => 1;
+        Walk(s, "R");
+        Assert.Equal(Screen.Battle, s.Screen);
+        Assert.Equal(0, s.CurrentPartyIndex);
+        FinishLosing(s, 1);
+        s.Activate("999");
+        Assert.Equal(2001, s.PlayerFlags.Keys.Single(k => k == 2001));
+        Assert.Equal(3, s.PlayerFlags[2001]);
+        Assert.Equal(Screen.GameOver, s.Screen);                                              // 패배 분기가 GameOver 칸으로 간다
+        Assert.Null(s.CurrentDungeonCode);
+
+        var win = Entered(WithFloorEvent("6002\t1\tBattle\t5001\t2001\t0\n6002\t2\tFinish\t0\t0\t0\n"));
+        win.NextRandom = _ => 1;
+        Walk(win, "R");
+        win.Activate("106");                                                                  // 도망
+        win.Activate("999");
+        Assert.Equal(Screen.DungeonMove, win.Screen);                                         // 이벤트가 끝나 던전으로 돌아온다
+        Assert.Equal(2, win.PlayerFlags[2001]);
+    }
+
+    [Fact]
+    public void The_sample_chest_opens_with_enter_and_plays_its_adv_only_the_first_time()
+    {
+        var pack = SamplePackWith(("master/tile_master_v1.tsv", File.ReadAllText(TileMaster()).Replace("5\tFixedBattle\t5001\t0\t0", "5\tNone\t0\t0\t0")));
+        var s = Entered(pack);
+        Walk(s, "RRDDRRUURRDDRR");                                                            // (9,3) 상자 'C'
+        Assert.Equal(Screen.DungeonMove, s.Screen);
+        Assert.True(s.DungeonMapRows[3][9].Look.HasFlag(DungeonCellLook.Event));
+        Assert.True(s.CanInteractDungeon);
+        s.InteractDungeon();
+        Assert.Equal(Screen.EventPlay, s.Screen);
+        Assert.Equal("전투에서 승리했습니다.", s.CurrentAdvStep!.Value.Text);
+        s.Activate("1");
+        Assert.Equal(Screen.DungeonMove, s.Screen);
+        Assert.Equal(1, s.PlayerFlags[2002]);
+        s.InteractDungeon();                                                                  // 두 번째는 이미 열어 ADV 없이 끝난다
+        Assert.Equal(Screen.DungeonMove, s.Screen);
     }
 
     [Fact]

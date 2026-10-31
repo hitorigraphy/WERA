@@ -110,6 +110,30 @@ public class DungeonMapTests
     }
 
     [Fact]
+    public void The_dungeon_event_masters_load_and_the_tile_effect_is_validated()
+    {
+        const string flows = "dungeon_event_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\n6001\t1\tAdv\t4001\t0\t0\n6001\t2\tJump\t3\t0\t0\n6001\t3\tFinish\t0\t0\t0\n";
+        var pack = Load((GamePack.DungeonEventMasterPath, "code\tname\n6001\t상자\n"), (GamePack.DungeonEventFlowMasterPath, flows),
+            (GamePack.TileMasterPath, TileHeader + "1\tNone\t0\t0\t0\n2\tWall\t0\t0\t0\n3\tExit\t0\t0\t0\n4\tDungeonEvent\t6001\t0\t0\n"));
+        Assert.Equal("상자", pack.FindDungeonEvent(6001)!.Name);
+        Assert.Equal([1L, 2L, 3L], pack.DungeonEventFlowsOf(6001).Select(f => f.FlowNumber));
+        Assert.Equal(new TileEffect(4, TileEffectType.DungeonEvent, 6001, 0, 0), pack.TileEffectsOf(4).Single());
+        Assert.Null(pack.FindDungeonEvent(1));
+        Assert.Empty(pack.DungeonEventFlowsOf(1));
+
+        Rejects("던전 이벤트 '9'가 던전 이벤트 마스터에 없습니다", (GamePack.DungeonEventMasterPath, "code\tname\n6001\t상자\n"),
+            (GamePack.DungeonEventFlowMasterPath, "dungeon_event_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\n9\t1\tFinish\t0\t0\t0\n"));
+        Rejects("ADV '9'", (GamePack.DungeonEventMasterPath, "code\tname\n6001\t상자\n"),
+            (GamePack.DungeonEventFlowMasterPath, "dungeon_event_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\n6001\t1\tAdv\t9\t0\t0\n"));
+        Rejects("같은 던전 이벤트의 흐름에 없습니다", (GamePack.DungeonEventMasterPath, "code\tname\n6001\t상자\n"),
+            (GamePack.DungeonEventFlowMasterPath, "dungeon_event_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\n6001\t1\tJump\t5\t0\t0\n"));
+        Rejects("던전 이벤트 '9'", (GamePack.TileMasterPath, TileHeader + "1\tDungeonEvent\t9\t0\t0\n"),
+            (GamePack.DungeonEventMasterPath, "code\tname\n6001\t상자\n"));
+        RejectsWithout(GamePack.DungeonEventMasterPath, "dungeon_event_master_v1.tsv도 필요", (GamePack.TileMasterPath, TileHeader + "1\tDungeonEvent\t6001\t0\t0\n"));
+        Rejects("dungeon_event_master_v1.tsv도 필요", (GamePack.DungeonEventFlowMasterPath, "dungeon_event_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\n6001\t1\tFinish\t0\t0\t0\n"));
+    }
+
+    [Fact]
     public void Bad_tile_masters_are_rejected()
     {
         Rejects("알 수 없습니다", (GamePack.TileMasterPath, TileHeader + "1\tLava\t0\t0\t0\n"));
@@ -187,6 +211,7 @@ public class DungeonMapTests
         Assert.Equal(6, (int)TileEffectType.Stairs);
         Assert.Equal(7, (int)TileEffectType.Impassable);
         Assert.Equal(8, (int)TileEffectType.Interact);
+        Assert.Equal(9, (int)TileEffectType.DungeonEvent);
         Assert.DoesNotContain("Start", Enum.GetNames<TileEffectType>());
         Assert.DoesNotContain("RandomBattle", Enum.GetNames<TileEffectType>());      // 전투는 던전 인카운트 마스터로 정한다
     }

@@ -15,6 +15,8 @@ public enum DungeonCellLook
     Adv = 16,
     Warp = 32,
     Impassable = 64,
+    /// <summary>던전 이벤트(DungeonEvent)가 있는 칸.</summary>
+    Event = 128,
 }
 
 /// <summary>던전 화면의 한 칸. Text는 맵 TSV의 글자(맵 밖이면 ""), IsPlayer면 화면은 그 자리에 플레이어 표시를 그린다.</summary>
@@ -159,7 +161,7 @@ public sealed partial class GameSession
     static IEnumerable<TileEffect> InteractEffects(IReadOnlyList<TileEffect> effects) =>
         effects.Where(e => e.EffectType == TileEffectType.Exit
                 || effects.Any(i => i.EffectType == TileEffectType.Interact)
-                && e.EffectType is TileEffectType.FixedBattle or TileEffectType.Adv or TileEffectType.Warp)
+                && e.EffectType is TileEffectType.FixedBattle or TileEffectType.Adv or TileEffectType.Warp or TileEffectType.DungeonEvent)
             .OrderBy(e => (int)e.EffectType);
 
     /// <summary>
@@ -200,6 +202,9 @@ public sealed partial class GameSession
                     return;
                 case TileEffectType.Adv:
                     StartDungeonAdv(effect.Value1);
+                    return;
+                case TileEffectType.DungeonEvent:
+                    StartDungeonEvent(effect.Value1);
                     return;
                 case TileEffectType.Warp:
                     (DungeonLayer, DungeonX, DungeonY) = (effect.Value1, effect.Value2, effect.Value3);
@@ -253,6 +258,18 @@ public sealed partial class GameSession
         ShowNextAdvStep();
     }
 
+    /// <summary>
+    /// 던전 이벤트: 던전 이벤트 마스터의 이벤트를 재생한다(이벤트 진행 화면). 이벤트의 ADV와 전투를 끝까지 따라가고(전투에는 던전에 들어온 파티가 나간다),
+    /// 이벤트가 끝나면 던전 이동 화면으로 돌아와 남은 효과를 이어 실행한다. 전투에서 지면 던전이 정하는 것이 아니라 이벤트 흐름이 정한다(결과 플래그 + JumpFlag* + GameOver 등).
+    /// </summary>
+    void StartDungeonEvent(long dungeonEventCode)
+    {
+        encounterPending = false;                      // 이벤트를 연 걸음에는 인카운트 판정을 하지 않는다
+        CurrentEvent = new EventFlowCircuit(Pack, dungeonEventCode, PlayerFlags, AddInventory, CountInventory, CharacterHasTag, UniqueItemHasTag, NextRandom,
+            Pack.DungeonEventFlowsOf(dungeonEventCode));
+        ShowNextEventStep();
+    }
+
     /// <summary>ADV(던전에서 연 것)가 끝나 던전 이동 화면으로 돌아오고 남은 효과를 이어 실행한다.</summary>
     void ReturnToDungeonAfterAdv()
     {
@@ -298,6 +315,7 @@ public sealed partial class GameSession
                 TileEffectType.FixedBattle => DungeonCellLook.Battle,
                 TileEffectType.Adv => DungeonCellLook.Adv,
                 TileEffectType.Warp => DungeonCellLook.Warp,
+                TileEffectType.DungeonEvent => DungeonCellLook.Event,
                 TileEffectType.Impassable => DungeonCellLook.Impassable,
                 _ => DungeonCellLook.None,
             };
