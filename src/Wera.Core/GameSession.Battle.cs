@@ -30,7 +30,7 @@ public sealed partial class GameSession
         Basic,
         /// <summary>행동 후보: 지금 보고 있는 캐릭터가 고를 수 있는 스킬들(지금은 고정으로 스킬1~4)과 [106] 취소.</summary>
         ActionCandidates,
-        /// <summary>대상 후보: 고른 스킬의 메인 타겟이 될 수 있는 유닛(지금은 쓰러지지 않은 적)만 슬롯이 흰색(리더는 연두색)이 되어 슬롯 번호로 고르고, 커맨드는 [101] 취소뿐이다.</summary>
+        /// <summary>대상 후보: 고른 스킬의 타겟 대상(skill_master의 target_type)에 맞는 살아 있는 유닛만 슬롯이 흰색(리더는 연두색)이 되어 슬롯 번호로 고르고, 커맨드는 [101] 취소뿐이다.</summary>
         TargetCandidates,
     }
 
@@ -46,14 +46,17 @@ public sealed partial class GameSession
     /// <summary>이번 턴에 아군 유닛(파티 슬롯 번호)마다 설정한 행동(스킬 번호 1~4). 설정하지 않은 유닛은 없다.</summary>
     readonly Dictionary<int, int> battleActions = [];
 
-    /// <summary>이번 턴에 아군 유닛(파티 슬롯 번호)마다 고른 메인 타겟(적 슬롯 번호). 스킬과 함께 정해진다.</summary>
-    readonly Dictionary<int, int> battleTargets = [];
+    /// <summary>이번 턴에 아군 유닛(파티 슬롯 번호)마다 고른 메인 타겟(어느 편의 몇 번 슬롯). 스킬과 함께 정해진다.</summary>
+    readonly Dictionary<int, Combatant> battleTargets = [];
 
     /// <summary>대상 후보에서 고르는 중인 스킬 번호(행동 후보에서 스킬을 고른 뒤). 없으면 null.</summary>
     int? battlePendingSkill;
 
-    /// <summary>슬롯의 아군 유닛이 이번 턴에 정한 메인 타겟(적 슬롯 번호). 정하지 않았으면 null.</summary>
-    public int? BattleTargetOf(int slot) => battleTargets.TryGetValue(slot, out var target) ? target : null;
+    /// <summary>슬롯의 아군 유닛이 이번 턴에 정한 메인 타겟의 슬롯 번호. 정하지 않았으면 null.</summary>
+    public int? BattleTargetOf(int slot) => battleTargets.TryGetValue(slot, out var target) ? target.Slot : null;
+
+    /// <summary>슬롯의 아군 유닛이 정한 메인 타겟이 적 편인가(정하지 않았으면 null).</summary>
+    public bool? BattleTargetIsEnemyOf(int slot) => battleTargets.TryGetValue(slot, out var target) ? target.IsEnemy : null;
 
     /// <summary>슬롯의 아군 유닛이 이번 턴에 설정한 행동(스킬 번호). 설정하지 않았으면 null.</summary>
     public int? BattleActionOf(int slot) => battleActions.TryGetValue(slot, out var skill) ? skill : null;
@@ -219,20 +222,36 @@ public sealed partial class GameSession
         BattleCommands = BattleCommandMode.TargetCandidates;
     }
 
-    /// <summary>대상 후보에서 적을 고르면 보는 캐릭터의 행동(스킬과 메인 타겟)이 정해지고 다음 캐릭터로 넘어간다.</summary>
-    void ChooseBattleTarget(int enemySlot)
+    /// <summary>대상 후보에서 유닛(Arg: "E슬롯"은 적, "A슬롯"은 아군)을 고르면 보는 캐릭터의 행동(스킬과 메인 타겟)이 정해지고 다음 캐릭터로 넘어간다.</summary>
+    void ChooseBattleTarget(string arg)
     {
-        if (BattleCurrentSlot is { } slot && battlePendingSkill is { } skill)
+        var target = new Combatant(arg[0] == 'E', int.Parse(arg.AsSpan(1), CultureInfo.InvariantCulture));
+        if (BattleCurrentSlot is { } slot && battlePendingSkill is { } skill && BattleTargets().Contains(target))
         {
             battleActions[slot] = skill;
-            battleTargets[slot] = enemySlot;
+            battleTargets[slot] = target;
         }
         SelectBattleCharacter(1);
     }
 
-    /// <summary>메인 타겟이 될 수 있는 적 슬롯 번호들(임시 인스턴스가 있고 쓰러지지 않은 적, 칸 순서).</summary>
-    List<int> BattleTargetSlots() =>
-        enemyInstances.Where(e => !e.Value.IsDead).Select(e => e.Key).Order().ToList();
+    /// <summary>스킬 번호(행동 후보 1~4)의 타겟 대상. 스킬 마스터에 없으면 상대편(Enemy).</summary>
+    SkillTargetType SkillTargetTypeOf(int skillNumber) =>
+        Pack.FindSkill(BattleSkillCode(skillNumber))?.TargetType ?? SkillTargetType.Enemy;
+
+    /// <summary>시전자가 그 타겟 대상의 스킬로 메인 타겟으로 삼을 수 있는 살아 있는 유닛들(적 편 슬롯 순, 아군 편 슬롯 순).</summary>
+    List<Combatant> TargetCandidatesOf(Combatant caster, SkillTargetType type) => type switch
+    {
+        SkillTargetType.Enemy => LivingOf(!caster.IsEnemy),
+        SkillTargetType.Ally => LivingOf(caster.IsEnemy),
+        SkillTargetType.Self => IsAlive(caster) ? [caster] : [],
+        _ => [.. LivingOf(true), .. LivingOf(false)],
+    };
+
+    /// <summary>대상 후보에서 고를 수 있는 유닛들: 보는 캐릭터가 고른 스킬의 타겟 대상에 맞는 살아 있는 유닛. 고른 스킬이 없으면 비어 있다.</summary>
+    List<Combatant> BattleTargets() =>
+        BattleCurrentSlot is { } slot && battlePendingSkill is { } skill
+            ? TargetCandidatesOf(new Combatant(false, slot), SkillTargetTypeOf(skill))
+            : [];
 
     /// <summary>적 슬롯 하나의 표시: 임시 캐릭터 인스턴스의 현재 값을 보여 준다. 빈 칸은 빈 슬롯.</summary>
     PartySlotView EnemySlotView(int slot)
@@ -252,11 +271,11 @@ public sealed partial class GameSession
     {
         var enemy = CurrentEnemyPartyCode is { } code ? Pack.FindPresetParty(code) : null;
         // 행동 후보에서는 모든 슬롯이 회색으로 고를 수 없고, 대상 후보에서는 고를 수 있는 적만 흰색(리더는 연두색)이다
-        var targets = BattleCommands == BattleCommandMode.TargetCandidates ? BattleTargetSlots() : [];
+        var targets = BattleCommands == BattleCommandMode.TargetCandidates ? BattleTargets() : [];
         bool Gray(bool isEnemy, int slot) => BattleCommands switch
         {
             BattleCommandMode.ActionCandidates => true,
-            BattleCommandMode.TargetCandidates => !(isEnemy && targets.Contains(slot)),
+            BattleCommandMode.TargetCandidates => !targets.Contains(new Combatant(isEnemy, slot)),
             _ => false,
         };
         var enemySlots = Enumerable.Range(0, PartySlotCount).Select(EnemySlotView).Select(v => v with { IsGray = Gray(true, v.Slot) }).ToList();

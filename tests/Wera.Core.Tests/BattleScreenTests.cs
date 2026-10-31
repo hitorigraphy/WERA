@@ -219,7 +219,7 @@ public class BattleScreenTests
         Assert.Equal(GameSession.BattleCommandMode.Basic, s.BattleCommands);
         Assert.Null(s.BattleActionOf(0));
 
-        s.Activate("102"); s.Activate("103");                      // 스킬3 → 대상 후보
+        s.Activate("102"); s.Activate("101");                      // 스킬1 → 대상 후보
         Assert.Equal(GameSession.BattleCommandMode.TargetCandidates, s.BattleCommands);
         Assert.Null(s.BattleActionOf(0));                          // 대상을 고르기 전에는 행동이 아니다
         Assert.Equal(["101", "1", "3", "5", "8"], s.Entries.Where(e => e.Action is EntryAction.BattleChooseTarget or EntryAction.BattleCancelActions).Select(e => e.Code));
@@ -228,8 +228,8 @@ public class BattleScreenTests
         Assert.Equal(GameSession.BattleCommandMode.Basic, s.BattleCommands);
         Assert.Null(s.BattleActionOf(0));
 
-        s.Activate("102"); s.Activate("103"); s.Activate("3");     // 스킬3, 적 슬롯 2(코드 3)
-        Assert.Equal((3, 2), (s.BattleActionOf(0)!.Value, s.BattleTargetOf(0)!.Value));
+        s.Activate("102"); s.Activate("101"); s.Activate("3");     // 스킬1, 적 슬롯 2(코드 3)
+        Assert.Equal((1, 2), (s.BattleActionOf(0)!.Value, s.BattleTargetOf(0)!.Value));
         Assert.Equal(GameSession.BattleCommandMode.Basic, s.BattleCommands);
         Assert.Equal(1, s.BattleCurrentSlot);                      // 다음 캐릭터로 넘어간다
     }
@@ -252,7 +252,7 @@ public class BattleScreenTests
 
         s.Activate("102"); s.Activate("101"); s.Activate("1");     // 첫 유닛: 스킬1 → 다음 캐릭터로
         Assert.False(Entry(s, "106").Enabled);                     // 둘째 유닛이 아직
-        s.Activate("102"); s.Activate("104"); s.Activate("1");     // 둘째 유닛: 스킬4
+        s.Activate("102"); s.Activate("104"); s.Activate("12");     // 둘째 유닛: 스킬4(자신)
         Assert.True(s.BattleAllActionsSet);
         Assert.True(Entry(s, "106").Enabled);
         Assert.Equal((1, 4), (s.BattleActionOf(0)!.Value, s.BattleActionOf(1)!.Value));
@@ -266,7 +266,7 @@ public class BattleScreenTests
     {
         var s = Started(twoUnits: true);
         Assert.Equal(["당신", "용사", "빈 슬롯"], AllyFront(s).Select(v => v.Name));
-        s.Activate("102"); s.Activate("103"); s.Activate("1");     // 첫 유닛: 스킬3
+        s.Activate("102"); s.Activate("103"); s.Activate("11");     // 첫 유닛: 스킬3(같은 편)
         Assert.Equal(["스킬3", "용사", "빈 슬롯"], AllyFront(s).Select(v => v.Name));
     }
 
@@ -415,5 +415,38 @@ public class BattleScreenTests
         s.Activate("5");                                           // 적 슬롯 4
         Assert.Equal(4, s.BattleTargetOf(0));
         Assert.Equal(GameSession.BattleCommandMode.Basic, s.BattleCommands);
+    }
+
+    // 예시 게임팩: 스킬1(1001) 적, 스킬2(1002) 적, 스킬3(1003) 같은 편, 스킬4(1004) 자신
+    static List<string> SelectableNumbers(GameSession s) =>
+        s.BattleRows.Where(r => r.Kind == BattleRowKind.Slots).SelectMany(r => r.Slots.Select(v => (r.IsEnemy, v)))
+            .Where(x => !x.v.IsEmpty && !x.v.IsGray).Select(x => GameSession.BattleSlotNumber(x.IsEnemy, x.v.Slot)).Order().ToList();
+
+    [Fact]
+    public void Selectable_targets_follow_the_skills_target_type()
+    {
+        var s = Started(twoUnits: true);
+        s.Activate("102"); s.Activate("101");                      // 스킬1: 적
+        Assert.Equal(["1", "3", "5", "8"], SelectableNumbers(s));
+        s.Activate("101");                                         // 취소
+        s.Activate("102"); s.Activate("103");                      // 스킬3: 같은 편(자신 포함)
+        Assert.Equal(["11", "12"], SelectableNumbers(s));
+        s.Activate("101");
+        s.Activate("102"); s.Activate("104");                      // 스킬4: 자신(보는 캐릭터: 슬롯 0)
+        Assert.Equal(["11"], SelectableNumbers(s));
+    }
+
+    [Fact]
+    public void An_ally_target_heals_and_the_log_shows_the_ally_as_the_target()
+    {
+        var s = Started(twoUnits: true);
+        FirstOnly(s);
+        s.Characters[7001].Statuses[GamePack.HpStatusCode] = 10;
+        s.Activate("102"); s.Activate("103"); s.Activate("12");   // 첫 유닛: 스킬3 → 용사(슬롯 1)
+        Assert.Equal((3, false, 1), (s.BattleActionOf(0)!.Value, s.BattleTargetIsEnemyOf(0)!.Value, s.BattleTargetOf(0)!.Value));
+        s.Activate("102"); s.Activate("104"); s.Activate("12");   // 둘째 유닛: 스킬4 → 자신
+        s.Activate("106");
+        Assert.Contains(s.BattleLog, a => !a.IsEnemy && a.Slot == 0 && !a.TargetIsEnemy && a.TargetSlot == 1 && a.Damage == -10);
+        Assert.Contains(s.BattleLogLines, l => l.StartsWith("당신 → 용사 : 스킬3") && l.EndsWith("(회복 10)"));
     }
 }

@@ -91,7 +91,7 @@ public enum EntryAction
     BattleChooseSkill,
     /// <summary>행동 후보에서 나와 기본 커맨드로 돌아간다.</summary>
     BattleCancelActions,
-    /// <summary>대상 후보에서 적 유닛을 고른다(Arg = 적 슬롯 번호).</summary>
+    /// <summary>대상 후보에서 유닛을 고른다(Arg = "E슬롯"(적) 또는 "A슬롯"(아군)).</summary>
     BattleChooseTarget,
     /// <summary>[106] 실행: 이번 턴의 행동을 순서대로 실행한다.</summary>
     BattleExecute,
@@ -842,7 +842,7 @@ public sealed partial class GameSession
                 RunFromBattle();
                 break;
             case EntryAction.BattleChooseTarget:
-                ChooseBattleTarget(int.Parse(entry.Arg!, CultureInfo.InvariantCulture));
+                ChooseBattleTarget(entry.Arg!);
                 break;
             case EntryAction.BattleCancelActions:
                 battlePendingSkill = null;

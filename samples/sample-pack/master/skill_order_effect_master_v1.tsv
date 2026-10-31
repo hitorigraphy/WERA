@@ -2,6 +2,12 @@ skill_code	execute_number	effect_type	value_1	value_2	value_3	memo
 1001	1	FocusCasterCharacter				시전자의 캐릭터를 포커스
 1001	2	FocusedCharacterValueToCache	1	0		순서: 시전자 레벨
 1001	3	CacheToResult	0			
-1002	1	FocusCasterCharacter				
-1002	2	FocusedCharacterValueToCache	1	0		
+1002	1	FocusCasterCharacter				시전자의 캐릭터를 포커스
+1002	2	FocusedCharacterValueToCache	1	0		순서: 시전자 레벨
 1002	3	CacheToResult	0			
+1003	1	FocusCasterCharacter				시전자의 캐릭터를 포커스
+1003	2	FocusedCharacterValueToCache	1	0		순서: 시전자 레벨
+1003	3	CacheToResult	0			
+1004	1	FocusCasterCharacter				시전자의 캐릭터를 포커스
+1004	2	FocusedCharacterValueToCache	1	0		순서: 시전자 레벨
+1004	3	CacheToResult	0			

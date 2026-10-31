@@ -5,3 +5,6 @@ skill_code	execute_number	effect_type	value_1	value_2	value_3	memo
 1002	1	SetCacheValue	0	-20		피해 20
 1002	2	FocusMainTargetCharacter				
 1002	3	CacheToFocusedCharacterModValue	2	0		
+1003	1	SetCacheValue	0	10		회복 10
+1003	2	FocusMainTargetCharacter				
+1003	3	CacheToFocusedCharacterModValue	2	0		

@@ -27,7 +27,20 @@ public static class SkillSlotRules
 }
 
 /// <summary>스킬 마스터의 한 행.</summary>
-public sealed record SkillEntry(long Code, string Name);
+public sealed record SkillEntry(long Code, string Name, SkillTargetType TargetType = SkillTargetType.Enemy);
+
+/// <summary>스킬의 타겟 대상(skill_master의 target_type): 시전자 기준으로 메인 타겟이 될 수 있는 유닛(쓰러진 유닛은 제외).</summary>
+public enum SkillTargetType
+{
+    /// <summary>시전자의 상대편 유닛.</summary>
+    Enemy,
+    /// <summary>시전자와 같은 편 유닛(시전자 자신 포함).</summary>
+    Ally,
+    /// <summary>시전자 자신뿐.</summary>
+    Self,
+    /// <summary>편을 가리지 않고 모든 유닛.</summary>
+    Any,
+}
 
 /// <summary>스킬 태그 마스터의 한 행.</summary>
 public sealed record SkillTag(long SkillCode, long TagCode);
@@ -158,8 +171,30 @@ public sealed partial class GamePack
     static List<SkillSlotEntry>? LoadSkillSlots(ZipArchive zip) =>
         LoadCodeNames(zip, SkillSlotMasterPath, "code", "name", "스킬 슬롯", (code, name) => new SkillSlotEntry(code, name));
 
-    static List<SkillEntry>? LoadSkills(ZipArchive zip) =>
-        LoadCodeNames(zip, SkillMasterPath, "code", "name", "스킬", (code, name) => new SkillEntry(code, name));
+    /// <summary>스킬 마스터: code, name과 선택 열 target_type(Enemy/Ally/Self/Any, 이름만, 비우거나 열이 없으면 Enemy).</summary>
+    static List<SkillEntry>? LoadSkills(ZipArchive zip)
+    {
+        var text = TryReadEntry(zip, SkillMasterPath);
+        if (text is null) return null;
+        var rows = Tsv.WithoutMemo(Tsv.Parse(text));
+        var withTarget = rows.Count > 0 && rows[0].Length > 2 && rows[0][2] == "target_type";
+        string[] header = withTarget ? ["code", "name", "target_type"] : ["code", "name"];
+
+        var skills = new List<SkillEntry>();
+        var seen = new HashSet<long>();
+        foreach (var r in Body(SkillMasterPath, text, header))
+        {
+            var code = ParseLong(SkillMasterPath, "스킬 코드", r[0]);
+            if (!seen.Add(code))
+                throw new PackFormatException($"{SkillMasterPath}: 스킬 코드 '{code}'가 중복됩니다.");
+            var type = SkillTargetType.Enemy;
+            if (withTarget && r[2] != "" &&
+                (!Enum.GetNames<SkillTargetType>().Contains(r[2], StringComparer.OrdinalIgnoreCase) || !Enum.TryParse(r[2], ignoreCase: true, out type)))
+                throw new PackFormatException($"{SkillMasterPath}: 스킬 코드 '{code}'의 target_type '{r[2]}'을(를) 알 수 없습니다({string.Join(", ", Enum.GetNames<SkillTargetType>())}).");
+            skills.Add(new SkillEntry(code, r[1], type));
+        }
+        return skills;
+    }
 
     /// <summary>캐릭터 스킬 슬롯 태그 마스터: 캐릭터는 캐릭터 인벤토리에, 스킬 슬롯은 스킬 슬롯 마스터에, 태그는 태그 마스터에 있어야 하고 네 열이 키라 같은 키를 두 번 쓸 수 없다.</summary>
     static List<CharacterSkillSlotTag>? LoadCharacterSkillSlotTags(
@@ -284,7 +319,7 @@ public sealed partial class GamePack
         Masters.SkillSlotRowTable.TryFindByCode(code, out var r) ? new SkillSlotEntry(r.Code, r.Name) : null;
 
     public SkillEntry? FindSkill(long code) =>
-        Masters.SkillRowTable.TryFindByCode(code, out var r) ? new SkillEntry(r.Code, r.Name) : null;
+        Masters.SkillRowTable.TryFindByCode(code, out var r) ? new SkillEntry(r.Code, r.Name, (SkillTargetType)r.TargetType) : null;
 
     /// <summary>캐릭터의 스킬 슬롯 태그 전부(스킬 슬롯, 그룹, 태그 코드 순).</summary>
     public IReadOnlyList<CharacterSkillSlotTag> SkillSlotTagsOf(long characterCode) =>

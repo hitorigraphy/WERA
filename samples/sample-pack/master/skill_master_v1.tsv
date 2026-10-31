@@ -1,3 +1,5 @@
-code	name	memo
-1001	베기	테스트용
-1002	불꽃	테스트용
+code	name	target_type	memo
+1001	베기	Enemy	테스트용: 적 1체
+1002	불꽃	Enemy	테스트용
+1003	치유	Ally	테스트용: 같은 편(자신 포함) 1체
+1004	집중	Self	테스트용: 자신
