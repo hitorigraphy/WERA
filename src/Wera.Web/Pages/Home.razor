@@ -557,7 +557,7 @@
                     }
                     @* 구분선 아래: 왼쪽 네 칸 중 세 칸에 커맨드(윗줄 [101]~[103], 아랫줄 [104]~[106]), 윗줄 오른쪽 끝에 구성 전환([1000] ▲, [1001] ▼) *@
                     <div class="battle-commands">
-                        <div class="battle-command-list @(session.BattleCommands == GameSession.BattleCommandMode.Basic ? "battle-command-basic" : "")">@entryList(session.Entries.Where(e => e.Action != EntryAction.BattleScroll && e.Action != EntryAction.BattleViewUnit))</div>
+                        <div class="battle-command-list @(session.BattleCommands == GameSession.BattleCommandMode.Basic ? "battle-command-basic" : "")">@entryList(session.Entries.Where(e => e.Action != EntryAction.BattleScroll && e.Action != EntryAction.BattleViewUnit && e.Action != EntryAction.BattleChooseTarget))</div>
                         <div class="battle-scroll">@entryList(session.Entries.Where(e => e.Action == EntryAction.BattleScroll))</div>
                     </div>
                 }
@@ -673,7 +673,7 @@
 
     /// <summary>슬롯 이름 줄의 CSS 클래스: 리더는 연두색, 전투에서 보고 있는 캐릭터는 파란색(리더여도 파란색).</summary>
     static string SlotNameClass(PartySlotView view) =>
-        "slot-name" + (view.IsLeader ? " leader" : "") + (view.IsSelected ? " selected" : "");
+        "slot-name" + (view.IsLeader ? " leader" : "") + (view.IsSelected ? " selected" : "") + (view.IsGray ? " gray" : "");
 
     string CommandPlaceholder => session?.Screen switch
     {

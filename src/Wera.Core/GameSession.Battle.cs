@@ -30,7 +30,7 @@ public sealed partial class GameSession
         Basic,
         /// <summary>행동 후보: 지금 보고 있는 캐릭터가 고를 수 있는 스킬들(지금은 고정으로 스킬1~4)과 [106] 취소.</summary>
         ActionCandidates,
-        /// <summary>대상 후보: 고른 스킬의 메인 타겟이 될 수 있는 적 유닛들(쓰러지지 않은 적, 코드는 적 슬롯 번호+1)과 [106] 취소.</summary>
+        /// <summary>대상 후보: 고른 스킬의 메인 타겟이 될 수 있는 유닛(지금은 쓰러지지 않은 적)만 슬롯이 흰색(리더는 연두색)이 되어 슬롯 번호로 고르고, 커맨드는 [101] 취소뿐이다.</summary>
         TargetCandidates,
     }
 
@@ -242,7 +242,7 @@ public sealed partial class GameSession
             slot, state.CharacterCode, $"Lv.{state.Level}", CharacterName(state.CharacterCode),
             Gauge.Render(state.Hp, state.MaxHp, gray: state.IsDead),
             Gauge.Render(state.Xp, state.XpMax, gray: state.IsDead),
-            AttributeBadges(state.CharacterCode), []);
+            AttributeBadges(state.CharacterCode), [], IsLeader: enemyUnits[slot]?.IsLeader == true);
     }
 
     static string BattleRowTitle(int rowInSide) => rowInSide switch { 0 => "전위", 1 => "중위", _ => "후위" };
@@ -251,8 +251,16 @@ public sealed partial class GameSession
     IReadOnlyList<BattleRowView> AllBattleRows()
     {
         var enemy = CurrentEnemyPartyCode is { } code ? Pack.FindPresetParty(code) : null;
-        var enemySlots = Enumerable.Range(0, PartySlotCount).Select(EnemySlotView).ToList();
-        var allySlots = PartySlotViews.Select(v => v with { IsSelected = v.Slot == BattleCurrentSlot, Name = BattleActionOf(v.Slot) is { } skill ? BattleSkillNames[skill - 1] : v.Name }).ToList();     // 보는 캐릭터의 이름은 파란색
+        // 행동 후보에서는 모든 슬롯이 회색으로 고를 수 없고, 대상 후보에서는 고를 수 있는 적만 흰색(리더는 연두색)이다
+        var targets = BattleCommands == BattleCommandMode.TargetCandidates ? BattleTargetSlots() : [];
+        bool Gray(bool isEnemy, int slot) => BattleCommands switch
+        {
+            BattleCommandMode.ActionCandidates => true,
+            BattleCommandMode.TargetCandidates => !(isEnemy && targets.Contains(slot)),
+            _ => false,
+        };
+        var enemySlots = Enumerable.Range(0, PartySlotCount).Select(EnemySlotView).Select(v => v with { IsGray = Gray(true, v.Slot) }).ToList();
+        var allySlots = PartySlotViews.Select(v => v with { IsSelected = v.Slot == BattleCurrentSlot, IsGray = Gray(false, v.Slot), Name = BattleActionOf(v.Slot) is { } skill ? BattleSkillNames[skill - 1] : v.Name }).ToList();     // 보는 캐릭터의 이름은 파란색
 
         BattleRowView Row(bool isEnemy, int rowInSide) => new(
             BattleRowKind.Slots, isEnemy, BattleRowTitle(rowInSide),
@@ -295,10 +303,7 @@ public sealed partial class GameSession
         }
         if (BattleCommands == BattleCommandMode.TargetCandidates)
         {
-            foreach (var enemy in BattleTargetSlots())
-                yield return new ScreenEntry((enemy + 1).ToString(CultureInfo.InvariantCulture), CharacterName(enemyInstances[enemy].CharacterCode), Screen.Battle,
-                    EntryAction.BattleChooseTarget, enemy.ToString(CultureInfo.InvariantCulture));
-            yield return new ScreenEntry("106", "취소", Screen.Battle, EntryAction.BattleCancelActions);
+            yield return new ScreenEntry("101", "취소", Screen.Battle, EntryAction.BattleCancelActions);
             yield break;
         }
         yield return new ScreenEntry("101", "다음 캐릭터", Screen.Battle, EntryAction.BattleSelectCharacter, "1");

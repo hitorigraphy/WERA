@@ -55,14 +55,25 @@ public sealed partial class GameSession
         _ => null,
     }) ?? equip.Key;
 
-    /// <summary>작전 화면 슬롯의 번호 항목: 적 슬롯은 대상 후보를 고를 때를 빼고 상태 확인으로 간다(그때는 같은 번호가 대상 선택이다).</summary>
+    /// <summary>
+    /// 작전 화면 슬롯의 번호 항목: 기본 커맨드에서는 상태 확인으로 가고, 행동 후보(스킬 목록)에서는 모두 고를 수 없으며,
+    /// 대상 후보에서는 고를 수 있는 슬롯(<see cref="BattleTargetSlots"/>)만 대상 선택이다.
+    /// </summary>
     IEnumerable<ScreenEntry> BattleSlotEntries()
     {
-        if (BattleCommands != BattleCommandMode.TargetCandidates)
-            foreach (var slot in enemyInstances.Keys.Order())
-                yield return new ScreenEntry(BattleSlotNumber(true, slot), "", Screen.UnitStatus, EntryAction.BattleViewUnit, $"E{slot}");
-        foreach (var slot in BattleUnitSlots())
-            yield return new ScreenEntry(BattleSlotNumber(false, slot), "", Screen.UnitStatus, EntryAction.BattleViewUnit, $"A{slot}");
+        switch (BattleCommands)
+        {
+            case BattleCommandMode.Basic:
+                foreach (var slot in enemyInstances.Keys.Order())
+                    yield return new ScreenEntry(BattleSlotNumber(true, slot), "", Screen.UnitStatus, EntryAction.BattleViewUnit, $"E{slot}");
+                foreach (var slot in BattleUnitSlots())
+                    yield return new ScreenEntry(BattleSlotNumber(false, slot), "", Screen.UnitStatus, EntryAction.BattleViewUnit, $"A{slot}");
+                break;
+            case BattleCommandMode.TargetCandidates:
+                foreach (var slot in BattleTargetSlots())
+                    yield return new ScreenEntry(BattleSlotNumber(true, slot), "", Screen.Battle, EntryAction.BattleChooseTarget, Text(slot));
+                break;
+        }
     }
 
     void ViewBattleUnit(string arg)

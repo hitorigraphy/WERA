@@ -222,8 +222,9 @@ public class BattleScreenTests
         s.Activate("102"); s.Activate("103");                      // 스킬3 → 대상 후보
         Assert.Equal(GameSession.BattleCommandMode.TargetCandidates, s.BattleCommands);
         Assert.Null(s.BattleActionOf(0));                          // 대상을 고르기 전에는 행동이 아니다
-        Assert.Equal(["1", "3", "5", "8", "106"], s.Entries.Where(e => e.Action is EntryAction.BattleChooseTarget or EntryAction.BattleCancelActions).Select(e => e.Code));
-        s.Activate("106");                                         // 취소
+        Assert.Equal(["101", "1", "3", "5", "8"], s.Entries.Where(e => e.Action is EntryAction.BattleChooseTarget or EntryAction.BattleCancelActions).Select(e => e.Code));
+        Assert.Equal(["101", "1000", "1001"], BattleCodes(s).Where(c => c != "1" && c != "3" && c != "5" && c != "8"));   // 하단 커맨드는 [101] 취소뿐
+        s.Activate("101");                                         // 취소
         Assert.Equal(GameSession.BattleCommandMode.Basic, s.BattleCommands);
         Assert.Null(s.BattleActionOf(0));
 
@@ -380,5 +381,39 @@ public class BattleScreenTests
         s.Activate("107");
         Assert.Equal(GameSession.BattleOutcomeKind.Run, s.BattleOutcome);
         Assert.DoesNotContain(s.Entries, e => e.Action != EntryAction.BattleScroll && e.Action != EntryAction.BattleViewUnit && e.Code != "999");
+    }
+
+    [Fact]
+    public void Status_pages_open_only_from_the_basic_commands_and_slots_are_gray_while_choosing_a_skill()
+    {
+        var s = Started();
+        Assert.Contains(s.Entries, e => e.Action == EntryAction.BattleViewUnit);
+        Assert.All(s.BattleRows.Where(r => r.Kind == BattleRowKind.Slots).SelectMany(r => r.Slots), v => Assert.False(v.IsGray));
+
+        s.Activate("102");                                         // 스킬 목록: 모든 슬롯이 회색이고 번호를 눌러도 상태 확인이 아니다
+        Assert.DoesNotContain(s.Entries, e => e.Action is EntryAction.BattleViewUnit or EntryAction.BattleChooseTarget);
+        Assert.All(s.BattleRows.Where(r => r.Kind == BattleRowKind.Slots).SelectMany(r => r.Slots), v => Assert.True(v.IsGray));
+        s.Activate("11");
+        Assert.Equal(Screen.Battle, s.Screen);
+    }
+
+    [Fact]
+    public void Choosing_a_skill_makes_the_selectable_targets_white_and_the_rest_gray_and_the_slot_number_picks_the_target()
+    {
+        var s = Started(twoUnits: true);
+        FirstOnly(s);
+        s.EnemyInstances[2].Statuses[GamePack.HpStatusCode] = 0;      // 쓰러진 적은 고를 수 없다
+        s.Activate("102"); s.Activate("101");
+        var enemyRows = s.BattleRows.Where(r => r.IsEnemy && r.Kind == BattleRowKind.Slots).SelectMany(r => r.Slots).Where(v => !v.IsEmpty).ToList();
+        Assert.Equal([(0, false), (2, true), (4, false), (7, false)], enemyRows.OrderBy(v => v.Slot).Select(v => (v.Slot, v.IsGray)));
+        Assert.All(s.BattleRows.Where(r => !r.IsEnemy && r.Kind == BattleRowKind.Slots).SelectMany(r => r.Slots), v => Assert.True(v.IsGray));   // 아군은 대상이 아니다
+
+        s.Activate("3");                                           // 쓰러진 적의 번호: 아무 일도 없다
+        Assert.Equal(GameSession.BattleCommandMode.TargetCandidates, s.BattleCommands);
+        s.Activate("11");                                          // 아군 번호도 대상이 아니다
+        Assert.Equal(Screen.Battle, s.Screen);
+        s.Activate("5");                                           // 적 슬롯 4
+        Assert.Equal(4, s.BattleTargetOf(0));
+        Assert.Equal(GameSession.BattleCommandMode.Basic, s.BattleCommands);
     }
 }
