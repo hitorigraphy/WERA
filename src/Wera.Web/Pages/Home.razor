@@ -831,15 +831,28 @@
         if (session is { AdvanceOnAnyKey: true }) await Activate(GameSession.NextEventStepCode);
     }
 
+    /// <summary>방금 keydown이 이동 키를 처리했다(그 키의 input 이벤트는 글자만 지운다. 한글 입력기가 켜져 있어도 키 위치(Code)로 처리하기 위해서다).</summary>
+    bool dungeonKeyHandled;
+
     async Task OnDungeonInput(ChangeEventArgs e)
     {
-        foreach (var key in e.Value?.ToString() ?? "") session!.PressDungeonKey(key);
+        if (!dungeonKeyHandled)                       // keydown이 키를 알려 주지 못한 입력(모바일 자판 등)은 글자로 처리한다
+            foreach (var key in e.Value?.ToString() ?? "") session!.PressDungeonKey(key);
+        dungeonKeyHandled = false;
         await JS.InvokeVoidAsync("wera.clearInput", commandInput);
         focusCommand = true;
     }
 
     void OnDungeonKey(KeyboardEventArgs e)
     {
+        dungeonKeyHandled = false;
+        switch (e.CtrlKey || e.AltKey || e.MetaKey ? "" : e.Code)
+        {
+            case "KeyW": session!.PressDungeonKey('w'); dungeonKeyHandled = true; break;
+            case "KeyS": session!.PressDungeonKey('s'); dungeonKeyHandled = true; break;
+            case "KeyA": session!.PressDungeonKey('a'); dungeonKeyHandled = true; break;
+            case "KeyD": session!.PressDungeonKey('d'); dungeonKeyHandled = true; break;
+        }
         switch (e.Key)
         {
             case "Enter": session!.InteractDungeon(); break;

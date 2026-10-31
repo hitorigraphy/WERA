@@ -103,6 +103,8 @@ public class DungeonFlowTests
         Walk(s, "LD");
         Assert.Equal((0L, 1L, 2L), At(s));
         Assert.Equal(Screen.DungeonMove, s.Screen);
+        foreach (var jamo in "ㅇㅁㅈㄴ") s.PressDungeonKey(jamo);                             // 한글 입력 상태의 D A W S(ㅇ ㅁ ㅈ ㄴ)도 같다
+        Assert.Equal((0L, 1L, 2L), At(s));                                                    // 오른쪽(벽), 왼쪽(벽), 위(1,1), 아래(1,2)
     }
 
     [Fact]

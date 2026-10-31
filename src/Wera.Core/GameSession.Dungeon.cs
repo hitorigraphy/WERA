@@ -136,7 +136,7 @@ public sealed partial class GameSession
     bool encounterPending;
 
     /// <summary>
-    /// 던전 이동 키 입력: W 위, S 아래, A 왼쪽, D 오른쪽(대소문자 무시, 방향키도 된다). 던전 이동 화면이 아니거나 다른 키면 아무 일도 없다.
+    /// 던전 이동 키 입력: W 위, S 아래, A 왼쪽, D 오른쪽(대소문자 무시, 한글 입력 상태의 ㅈ ㄴ ㅁ ㅇ도 같다. 방향키는 화면이 W A S D로 바꿔 부른다). 던전 이동 화면이 아니거나 다른 키면 아무 일도 없다.
     /// </summary>
     public void PressDungeonKey(char key)
     {
@@ -144,10 +144,10 @@ public sealed partial class GameSession
         Message = null;
         switch (char.ToLowerInvariant(key))
         {
-            case 'w': StepDungeon('U'); break;
-            case 's': StepDungeon('D'); break;
-            case 'a': StepDungeon('L'); break;
-            case 'd': StepDungeon('R'); break;
+            case 'w' or 'ㅈ': StepDungeon('U'); break;      // 한글 입력기가 켜져 있어도 같은 자리의 키(ㅈ ㅁ ㄴ ㅇ)로 움직인다
+            case 's' or 'ㄴ': StepDungeon('D'); break;
+            case 'a' or 'ㅁ': StepDungeon('L'); break;
+            case 'd' or 'ㅇ': StepDungeon('R'); break;
         }
     }
 
