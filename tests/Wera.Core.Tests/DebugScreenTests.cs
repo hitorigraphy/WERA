@@ -27,13 +27,34 @@ public class DebugScreenTests
         var s = GameSession.NewGame(SamplePack());
         Assert.Equal(["200", "300", "400"], s.HomeMenu[2].Entries.Select(e => e.Code));
         Assert.Equal(Screen.Debug, s.Activate("400")!.Target);
-        Assert.Equal(["401", "402", "403", "999"], s.Entries.Select(e => e.Code));
-        Assert.Equal(["캐릭터 추가", "장비 추가", "아이템 추가", "돌아가기"], s.Entries.Select(e => e.Label));
+        Assert.Equal(["401", "402", "403", "404", "999"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["캐릭터 추가", "장비 추가", "아이템 추가", "스킬 추가", "돌아가기"], s.Entries.Select(e => e.Label));
         Assert.Equal(Screen.DebugAddCharacter, s.Activate("401")!.Target);
         s.Activate("999");
         Assert.Equal(Screen.Debug, s.Screen);
         s.Activate("999");
         Assert.Equal(Screen.Home, s.Screen);
+    }
+
+    [Fact]
+    public void Add_skill_picks_an_owned_character_then_adds_master_skills_to_its_pool()
+    {
+        var s = GameSession.NewGame(SamplePack());
+        s.AddCharacter(7001);
+        s.Activate("400");
+        Assert.Equal(Screen.DebugSkillCharacter, s.Activate("404")!.Target);
+        Assert.Equal(["당신", "용사"], s.DebugList.Select(d => d.Name).Take(2));          // 가진 캐릭터만(코드순)
+        var pick = s.Entries.First(e => e.Label.StartsWith("용사"));
+        Assert.Equal(Screen.DebugAddSkill, s.Activate(pick.Code)!.Target);
+        Assert.Equal(s.Pack.Skills!.Select(k => k.Code), s.DebugList.Select(d => d.Code));
+        s.Activate("1"); s.Activate("1");                                                 // 첫 스킬을 두 번
+        Assert.Equal(2, s.Characters[7001].SkillPool.Count);
+        Assert.All(s.Characters[7001].SkillPool, p => Assert.Equal(s.Pack.Skills![0].Code, p.SkillCode));
+        Assert.Contains("스킬 추가", s.Message);
+        s.Activate("999");
+        Assert.Equal(Screen.DebugSkillCharacter, s.Screen);
+        s.Activate("999");
+        Assert.Equal(Screen.Debug, s.Screen);
     }
 
     [Fact]

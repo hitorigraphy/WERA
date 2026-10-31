@@ -50,6 +50,10 @@ public enum Screen
     DebugAddEquipment,
     /// <summary>디버그: 마스터의 모든 커먼 아이템을 페이지당 20개씩 보여 주고 누르면 추가한다. 돌아가기는 디버그 화면.</summary>
     DebugAddItem,
+    /// <summary>디버그 스킬 추가의 1단계: 가진 캐릭터 중 스킬을 받을 캐릭터를 고른다. 돌아가기는 디버그.</summary>
+    DebugSkillCharacter,
+    /// <summary>디버그 스킬 추가의 2단계: 마스터의 모든 스킬을 늘어놓고, 누르면 고른 캐릭터의 스킬 풀에 더한다. 돌아가기는 캐릭터 고르기.</summary>
+    DebugAddSkill,
     /// <summary>동료 확인 화면(201): 가진 캐릭터 목록.</summary>
     CompanionCheck,
     /// <summary>장비 확인 화면(202): 가진 유니크 아이템 목록.</summary>
@@ -119,6 +123,8 @@ public enum EntryAction
     ClearSkillSlot,
     /// <summary>디버그 추가 화면에서 항목(Arg = 마스터 코드)을 하나 추가한다. 화면은 그대로다.</summary>
     DebugAdd,
+    /// <summary>디버그 스킬 추가에서 스킬을 받을 캐릭터(Arg = 캐릭터 코드)를 고른다.</summary>
+    DebugSelectSkillCharacter,
     /// <summary>디버그 추가 화면의 페이지를 넘긴다(Arg = -1 이전, 1 다음).</summary>
     DebugPage,
 }
@@ -659,6 +665,8 @@ public sealed partial class GameSession
                 case Screen.DebugAddCharacter:
                 case Screen.DebugAddEquipment:
                 case Screen.DebugAddItem:
+                case Screen.DebugSkillCharacter:
+                case Screen.DebugAddSkill:
                     return DebugEntries();
                 default:
                     return [];
@@ -772,6 +780,11 @@ public sealed partial class GameSession
                 break;
             case EntryAction.DebugAdd:
                 Message = DebugAddOne(long.Parse(entry.Arg!, CultureInfo.InvariantCulture));
+                break;
+            case EntryAction.DebugSelectSkillCharacter:
+                DebugSkillTarget = long.Parse(entry.Arg!, CultureInfo.InvariantCulture);
+                DebugPage = 0;
+                Screen = entry.Target;
                 break;
             case EntryAction.DebugPage:
                 ChangeDebugPage(int.Parse(entry.Arg!, CultureInfo.InvariantCulture));
