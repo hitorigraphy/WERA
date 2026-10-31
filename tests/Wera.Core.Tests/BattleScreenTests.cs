@@ -803,4 +803,19 @@ public class BattleScreenTests
         Go(none);
         Assert.Equal(1, EnemyActs(none).Single().TargetSlot);
     }
+
+    [Fact]
+    public void The_sample_pack_enemies_aim_at_the_weaker_of_the_first_two_allies()
+    {
+        var s = Started(roll: 1, twoUnits: true);                                   // 적 파티 2: 전사 하나
+        FirstOnly(s);                                                               // 랜덤이었다면 첫 후보(슬롯 0)
+        s.Characters[1].Statuses[GamePack.HpStatusCode] = 40;
+        s.Characters[7001].Statuses[GamePack.HpStatusCode] = 5;
+        var slot = s.EnemyInstances.Keys.Single();
+        s.EnemyInstances[slot].Statuses[GamePack.HpStatusCode] = 9999;
+        for (var i = 0; i < 2; i++) { s.Activate("102"); s.Activate("101"); s.Activate((slot + 1).ToString()); }
+        s.Activate("107");
+        Assert.All(s.BattleLog.Where(a => a.IsEnemy && !a.IsSub && a.SkillCode is 1001 or 1002), a => Assert.Equal(1, a.TargetSlot));
+        Assert.Contains(s.BattleLog, a => a.IsEnemy && !a.IsSub && a.SkillCode is 1001 or 1002);
+    }
 }

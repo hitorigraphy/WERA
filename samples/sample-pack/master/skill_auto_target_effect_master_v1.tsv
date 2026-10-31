@@ -1,0 +1,17 @@
+skill_code	execute_number	effect_type	value_1	value_2	value_3	memo
+1001	1	FocusSubTargetCharacter	0			후보 0번의 캐릭터를 포커스
+1001	2	FocusedCharacterValueToCache	2	0		hp를 캐시 0에
+1001	3	FocusSubTargetCharacter	1			후보 1번의 캐릭터를 포커스(없으면 포커스가 비어 캐시 1은 비어 있음)
+1001	4	FocusedCharacterValueToCache	2	1		hp를 캐시 1에
+1001	5	JumpCacheGreaterThan	0	1	8	후보 0의 hp가 더 크면 8로(캐시 1이 없으면 점프하지 않음)
+1001	6	SubTargetToResult	0			후보 0번이 메인 타겟
+1001	7	Finish				
+1001	8	SubTargetToResult	1			후보 1번이 메인 타겟(hp가 더 낮은 쪽)
+1002	1	FocusSubTargetCharacter	0			후보 0번의 캐릭터를 포커스
+1002	2	FocusedCharacterValueToCache	2	0		hp를 캐시 0에
+1002	3	FocusSubTargetCharacter	1			후보 1번의 캐릭터를 포커스(없으면 포커스가 비어 캐시 1은 비어 있음)
+1002	4	FocusedCharacterValueToCache	2	1		hp를 캐시 1에
+1002	5	JumpCacheGreaterThan	0	1	8	후보 0의 hp가 더 크면 8로(캐시 1이 없으면 점프하지 않음)
+1002	6	SubTargetToResult	0			후보 0번이 메인 타겟
+1002	7	Finish				
+1002	8	SubTargetToResult	1			후보 1번이 메인 타겟(hp가 더 낮은 쪽)
