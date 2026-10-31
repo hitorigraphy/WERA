@@ -519,7 +519,10 @@
                                 <div class="battle-row">
                                     @foreach (var slot in row.Slots)
                                     {
-                                        @homeSlot((slot, null))
+                                        @* 슬롯 번호(적 [1]~[9], 아군 [11]~[19])가 이름 앞에 붙고, 이미지나 번호를 누르면 상태 확인 페이지로(대상을 고를 때는 대상 선택) 간다 *@
+                                        var number = slot.IsEmpty ? null : GameSession.BattleSlotNumber(row.IsEnemy, slot.Slot);
+                                        var clickable = number is not null && session.Entries.Any(e => e.Code == number);
+                                        @homeSlot((number is null ? slot : slot with { Name = $"[{number}] {slot.Name}" }, clickable ? number : null))
                                     }
                                 </div>
                             }
@@ -550,13 +553,47 @@
                     }
                     @if (session.BattleOutcome != GameSession.BattleOutcomeKind.None)
                     {
-                        <p class="end">@(session.BattleOutcome == GameSession.BattleOutcomeKind.Win ? "전투에서 승리했습니다!" : "전투에서 패배했습니다...")</p>
+                        <p class="end">@(session.BattleOutcome switch { GameSession.BattleOutcomeKind.Win => "전투에서 승리했습니다!", GameSession.BattleOutcomeKind.Lose => "전투에서 패배했습니다...", _ => "전투에서 도망쳤습니다." })</p>
                     }
                     @* 구분선 아래: 왼쪽 네 칸 중 세 칸에 커맨드(윗줄 [101]~[103], 아랫줄 [104]~[106]), 윗줄 오른쪽 끝에 구성 전환([1000] ▲, [1001] ▼) *@
                     <div class="battle-commands">
-                        <div class="battle-command-list">@entryList(session.Entries.Where(e => e.Action != EntryAction.BattleScroll))</div>
+                        <div class="battle-command-list @(session.BattleCommands == GameSession.BattleCommandMode.Basic ? "battle-command-basic" : "")">@entryList(session.Entries.Where(e => e.Action != EntryAction.BattleScroll && e.Action != EntryAction.BattleViewUnit))</div>
                         <div class="battle-scroll">@entryList(session.Entries.Where(e => e.Action == EntryAction.BattleScroll))</div>
                     </div>
+                }
+                break;
+
+            case Screen.UnitStatus:
+                @if (session.UnitStatus is { } unitStatus)
+                {
+                    <h2>@unitStatus.Name <span class="slot-level">@unitStatus.LevelText</span></h2>
+                    <div class="gauge-line">HP : <span class="gauge gauge-@unitStatus.Hp.Color.ToString().ToLowerInvariant()">@unitStatus.Hp.Text</span></div>
+                    <div class="gauge-line">XP : <span class="gauge gauge-@unitStatus.Xp.Color.ToString().ToLowerInvariant()">@unitStatus.Xp.Text</span></div>
+                    <h3>스테이터스</h3>
+                    <ul class="companions">
+                        @foreach (var line in unitStatus.Statuses)
+                        {
+                            <li><span class="companion-cell" style="width: @(GameSession.CompanionNameColumns)ch">@line.Label</span> <span class="companion-cell">@line.Value</span></li>
+                        }
+                    </ul>
+                    <h3>장비</h3>
+                    <ul class="companions">
+                        @foreach (var line in unitStatus.Equipment)
+                        {
+                            <li><span class="companion-cell" style="width: @(GameSession.CompanionNameColumns)ch">@line.Label</span> <span class="companion-cell">@line.Value</span></li>
+                        }
+                    </ul>
+                    <h3>스킬</h3>
+                    <ul class="companions">
+                        @foreach (var line in unitStatus.Skills)
+                        {
+                            <li><span class="companion-cell" style="width: @(GameSession.CompanionNameColumns)ch">@line.Label</span> <span class="companion-cell">@line.Value</span></li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <p class="end">캐릭터를 찾을 수 없습니다.</p>
                 }
                 break;
 

@@ -26,7 +26,7 @@ public sealed partial class GameSession
     /// <summary>작전 화면 아래의 커맨드가 지금 어떤 모습인가.</summary>
     public enum BattleCommandMode
     {
-        /// <summary>기본 커맨드: 윗줄 [101] 이전 캐릭터, [102] 행동 설정, [103] 상태 확인 / 아랫줄 [104] 다음 캐릭터, [105] 아이템, [106] 실행.</summary>
+        /// <summary>기본 커맨드: 윗줄 [101] 다음 캐릭터, [102] 행동 설정, [103] 아이템 / 아랫줄 [104] 이전 캐릭터, [105] 교체, [106] 실행, [107] 도망.</summary>
         Basic,
         /// <summary>행동 후보: 지금 보고 있는 캐릭터가 고를 수 있는 스킬들(지금은 고정으로 스킬1~4)과 [106] 취소.</summary>
         ActionCandidates,
@@ -277,6 +277,7 @@ public sealed partial class GameSession
     IReadOnlyList<ScreenEntry> BattleEntries() =>
     [
         .. BattleCommandEntries(),
+        .. BattleSlotEntries(),
         new ScreenEntry(BattleScrollUpEntryCode, "▲", Screen.Battle, EntryAction.BattleScroll, "-1", Enabled: BattleTop > 0),
         new ScreenEntry(BattleScrollDownEntryCode, "▼", Screen.Battle, EntryAction.BattleScroll, "1", Enabled: BattleTop < BattleTopAllyHeavy),
     ];
@@ -302,10 +303,11 @@ public sealed partial class GameSession
         }
         yield return new ScreenEntry("101", "다음 캐릭터", Screen.Battle, EntryAction.BattleSelectCharacter, "1");
         yield return new ScreenEntry("102", "행동 설정", Screen.Battle, EntryAction.BattleOpenActions);
-        yield return new ScreenEntry("103", "상태 확인", Screen.Battle, EntryAction.BattleCommand);
+        yield return new ScreenEntry("103", "아이템", Screen.Battle, EntryAction.BattleCommand);
         yield return new ScreenEntry("104", "이전 캐릭터", Screen.Battle, EntryAction.BattleSelectCharacter, "-1");
-        yield return new ScreenEntry("105", "아이템", Screen.Battle, EntryAction.BattleCommand);
+        yield return new ScreenEntry("105", "교체", Screen.Battle, EntryAction.BattleCommand);
         yield return new ScreenEntry("106", "실행", Screen.Battle, EntryAction.BattleExecute, Enabled: BattleAllActionsSet);
+        yield return new ScreenEntry("107", "도망", Screen.Battle, EntryAction.BattleRun);
     }
 
     /// <summary>▲(음수)는 적 3 / 아군 1 구성으로, ▼(양수)는 적 1 / 아군 3 구성으로 바로 넘어간다(그 사이 구성은 보여 주지 않는다).</summary>

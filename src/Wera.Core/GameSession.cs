@@ -28,6 +28,8 @@ public enum Screen
     SkillPoolList,
     /// <summary>전투(임시) 화면(110): 정해진 전투의 작전 화면(슬롯 네 줄과 가운데 영역). 돌아가기는 홈.</summary>
     Battle,
+    /// <summary>전투 화면에서 슬롯 번호나 이미지를 눌러 간 캐릭터 상태 확인(상세) 페이지. 돌아가기는 전투.</summary>
+    UnitStatus,
     /// <summary>선택한 슬롯 캐릭터의 장비 슬롯 목록. 돌아가기는 장비 착용 화면.</summary>
     EquipmentList,
     /// <summary>선택한 장비 슬롯에 낄 수 있는 장비 목록(슬롯 태그 마스터에 부합하는 장비). 돌아가기는 장비 슬롯 목록.</summary>
@@ -93,6 +95,10 @@ public enum EntryAction
     BattleChooseTarget,
     /// <summary>[106] 실행: 이번 턴의 행동을 순서대로 실행한다.</summary>
     BattleExecute,
+    /// <summary>전투 화면의 슬롯 번호: 그 캐릭터의 상태 확인 페이지로 간다(Arg = "E슬롯"(적) 또는 "A슬롯"(아군)).</summary>
+    BattleViewUnit,
+    /// <summary>[107] 도망: 전투를 끝낸다.</summary>
+    BattleRun,
     /// <summary>작전 화면을 위(-1)나 아래(1) 구성으로 바로 넘긴다(Arg): 적 3 / 아군 1 ↔ 적 1 / 아군 3.</summary>
     BattleScroll,
     /// <summary>파티 이름 변경 화면으로 간다(들어온 화면을 기억해 두었다가 끝나면 돌아간다).</summary>
@@ -660,6 +666,8 @@ public sealed partial class GameSession
                     return [new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home)];
                 case Screen.Battle:
                     return BattleEntries();
+                case Screen.UnitStatus:
+                    return [new ScreenEntry(BackEntryCode, "돌아가기", Screen.Battle)];
                 case Screen.SkillCharacter:
                     return SkillCharacterEntries();
                 case Screen.SkillSlotSelect:
@@ -825,6 +833,13 @@ public sealed partial class GameSession
                 break;
             case EntryAction.BattleExecute:
                 ExecuteBattleTurn();
+                break;
+            case EntryAction.BattleViewUnit:
+                ViewBattleUnit(entry.Arg!);
+                Screen = Screen.UnitStatus;
+                break;
+            case EntryAction.BattleRun:
+                RunFromBattle();
                 break;
             case EntryAction.BattleChooseTarget:
                 ChooseBattleTarget(int.Parse(entry.Arg!, CultureInfo.InvariantCulture));

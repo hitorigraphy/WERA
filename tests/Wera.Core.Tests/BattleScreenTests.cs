@@ -31,7 +31,7 @@ public class BattleScreenTests
     static string Titles(GameSession s) =>
         string.Join(",", s.BattleRows.Select(r => r.Kind == BattleRowKind.Border ? "|" : (r.IsEnemy ? "적 " : "아군 ") + r.Title));
 
-    static IEnumerable<string> BattleCodes(GameSession s) => s.Entries.Where(e => e.Code != "999").Select(e => e.Code);
+    static IEnumerable<string> BattleCodes(GameSession s) => s.Entries.Where(e => e.Code != "999" && e.Action != EntryAction.BattleViewUnit).Select(e => e.Code);
 
     static ScreenEntry Entry(GameSession s, string code) => s.Entries.Single(e => e.Code == code);
 
@@ -91,7 +91,7 @@ public class BattleScreenTests
     public void The_buttons_jump_between_enemy_three_ally_one_and_enemy_one_ally_three()
     {
         var s = Started();
-        Assert.Equal(["101", "102", "103", "104", "105", "106", "1000", "1001"], BattleCodes(s));
+        Assert.Equal(["101", "102", "103", "104", "105", "106", "107", "1000", "1001"], BattleCodes(s));
         Assert.Equal([true, false], s.Entries.Where(e => e.Action == EntryAction.BattleScroll).Select(e => e.Enabled));   // 지금 적 1 / 아군 3
         Assert.Equal(["▲", "▼"], s.Entries.Where(e => e.Action == EntryAction.BattleScroll).Select(e => e.Label));
 
@@ -318,7 +318,7 @@ public class BattleScreenTests
         win.Activate("102"); win.Activate("102"); win.Activate((slot + 1).ToString());
         win.Activate("106");
         Assert.Equal(GameSession.BattleOutcomeKind.Win, win.BattleOutcome);
-        Assert.DoesNotContain(win.Entries, e => e.Action != EntryAction.BattleScroll && e.Code != "999");   // 커맨드는 없다
+        Assert.DoesNotContain(win.Entries, e => e.Action != EntryAction.BattleScroll && e.Action != EntryAction.BattleViewUnit && e.Code != "999");   // 커맨드는 없다
 
         var lose = Started(roll: 1);
         FirstOnly(lose);
@@ -329,5 +329,56 @@ public class BattleScreenTests
         lose.Activate("102"); lose.Activate("101"); lose.Activate((slot + 1).ToString());
         lose.Activate("106");
         Assert.Equal(GameSession.BattleOutcomeKind.Lose, lose.BattleOutcome);
+    }
+
+    [Fact]
+    public void Basic_commands_are_next_action_item_previous_swap_execute_and_run()
+    {
+        var s = Started();
+        Assert.Equal(["다음 캐릭터", "행동 설정", "아이템", "이전 캐릭터", "교체", "실행", "도망"],
+            s.Entries.Where(e => e.Action != EntryAction.BattleViewUnit && e.Action != EntryAction.BattleScroll && e.Code != "999").Select(e => e.Label));
+        Assert.DoesNotContain(s.Entries, e => e.Label == "상태 확인");
+        Assert.True(Entry(s, "107").Enabled);                       // 도망은 행동을 정하지 않아도 누를 수 있다
+    }
+
+    [Fact]
+    public void Battle_slots_have_numbers_and_choosing_one_opens_that_characters_status_page()
+    {
+        var s = Started();
+        Assert.Equal("11", GameSession.BattleSlotNumber(false, 0));    // 아군 슬롯 번호 + 11
+        Assert.Equal("1", GameSession.BattleSlotNumber(true, 0));      // 적 슬롯 번호 + 1
+        var enemySlot = s.EnemyInstances.Keys.First();
+        s.Activate(GameSession.BattleSlotNumber(true, enemySlot));
+        Assert.Equal(Screen.UnitStatus, s.Screen);
+        var enemy = s.UnitStatus!;
+        Assert.Equal(s.Pack.FindCharacter(s.EnemyInstances[enemySlot].CharacterCode)!.Name, enemy.Name);
+        Assert.Contains(enemy.Statuses, l => l.Value == s.EnemyInstances[enemySlot].Hp.ToString());
+
+        s.Activate("999");
+        Assert.Equal(Screen.Battle, s.Screen);
+        s.Activate("11");                                           // 아군 슬롯 0
+        Assert.Equal("당신", s.UnitStatus!.Name);
+        Assert.Equal("Lv.1", s.UnitStatus.LevelText);
+    }
+
+    [Fact]
+    public void While_choosing_a_target_the_enemy_numbers_pick_the_target_instead_of_opening_the_status_page()
+    {
+        var s = Started();
+        FirstOnly(s);
+        var slot = s.EnemyInstances.Keys.First();
+        s.Activate("102"); s.Activate("101");
+        s.Activate(GameSession.BattleSlotNumber(true, slot));
+        Assert.Equal(Screen.Battle, s.Screen);
+        Assert.Equal(slot, s.BattleTargetOf(0));
+    }
+
+    [Fact]
+    public void Run_ends_the_battle_and_removes_the_commands()
+    {
+        var s = Started();
+        s.Activate("107");
+        Assert.Equal(GameSession.BattleOutcomeKind.Run, s.BattleOutcome);
+        Assert.DoesNotContain(s.Entries, e => e.Action != EntryAction.BattleScroll && e.Action != EntryAction.BattleViewUnit && e.Code != "999");
     }
 }

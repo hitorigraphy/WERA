@@ -4,9 +4,9 @@ namespace Wera.Core;
 public sealed partial class GameSession
 {
     /// <summary>전투의 결과: 아직 진행 중이면 None.</summary>
-    public enum BattleOutcomeKind { None, Win, Lose }
+    public enum BattleOutcomeKind { None, Win, Lose, Run }
 
-    /// <summary>진행 중인 전투의 결과. 적이 모두 쓰러지면 Win, 아군이 모두 쓰러지면 Lose, 전투를 시작하면 None으로 돌아간다.</summary>
+    /// <summary>진행 중인 전투의 결과. 적이 모두 쓰러지면 Win, 아군이 모두 쓰러지면 Lose, 도망치면 Run, 전투를 시작하면 None으로 돌아간다.</summary>
     public BattleOutcomeKind BattleOutcome { get; private set; }
 
     /// <summary>
