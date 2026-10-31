@@ -29,7 +29,7 @@ public static class SkillSlotRules
 /// <summary>스킬 마스터의 한 행.</summary>
 public sealed record SkillEntry(long Code, string Name, SkillMainTargetType MainTargetType = SkillMainTargetType.Enemy, SkillSubTargetType SubTargetType = SkillSubTargetType.None);
 
-/// <summary>스킬의 메인 타겟 대상(skill_master의 main_target_type): 시전자 기준으로 메인 타겟이 될 수 있는 유닛(쓰러진 유닛은 제외).</summary>
+/// <summary>스킬의 메인 타겟 대상(skill_master의 main_target_type): 시전자 기준으로 메인 타겟이 될 수 있는 유닛. 기절(쓰러진) 유닛을 대상으로 하는 종류(<see cref="AllyFallen"/>, <see cref="EnemyFallen"/>)를 뺀 나머지는 쓰러진 유닛을 제외한다.</summary>
 public enum SkillMainTargetType
 {
     /// <summary>시전자의 상대편 유닛.</summary>
@@ -40,6 +40,12 @@ public enum SkillMainTargetType
     Self,
     /// <summary>편을 가리지 않고 모든 유닛.</summary>
     Any,
+    /// <summary>시전자와 같은 편의 기절(쓰러진) 유닛(부활 스킬 등).</summary>
+    AllyFallen,
+    /// <summary>시전자의 상대편의 기절(쓰러진) 유닛.</summary>
+    EnemyFallen,
+    /// <summary>메인 타겟이 없다. 전투에서 직접 쓸 수 없는 스킬(행동 후보와 적의 스킬 선택에서 빠짐)이고 패시브 스킬 등으로만 쓴다.</summary>
+    None,
 }
 
 /// <summary>스킬 태그 마스터의 한 행.</summary>
@@ -172,7 +178,7 @@ public sealed partial class GamePack
         LoadCodeNames(zip, SkillSlotMasterPath, "code", "name", "스킬 슬롯", (code, name) => new SkillSlotEntry(code, name));
 
     /// <summary>
-    /// 스킬 마스터: code, name과 선택 열 main_target_type(<see cref="SkillMainTargetType"/>: Enemy/Ally/Self/Any, 비우거나 열이 없으면 Enemy),
+    /// 스킬 마스터: code, name과 선택 열 main_target_type(<see cref="SkillMainTargetType"/>: Enemy/Ally/Self/Any/AllyFallen/EnemyFallen/None, 비우거나 열이 없으면 Enemy),
     /// 그 다음의 선택 열 sub_target_type(<see cref="SkillSubTargetType"/> 이름, 비우거나 열이 없으면 None). 이름만 쓰고 대소문자는 무시한다.
     /// </summary>
     static List<SkillEntry>? LoadSkills(ZipArchive zip)

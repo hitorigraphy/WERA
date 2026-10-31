@@ -140,6 +140,8 @@ public class SkillMasterTests
         var pack = Load((GamePack.SkillMasterPath, "code\tname\tmain_target_type\n1\t베기\tenemy\n2\t치유\tAlly\n3\t집중\tSELF\n4\t폭풍\tAny\n5\t기본\t\n"));
         Assert.Equal([SkillMainTargetType.Enemy, SkillMainTargetType.Ally, SkillMainTargetType.Self, SkillMainTargetType.Any, SkillMainTargetType.Enemy],
             new long[] { 1, 2, 3, 4, 5 }.Select(c => pack.FindSkill(c)!.MainTargetType));
+        var fallen = Load((GamePack.SkillMasterPath, "code\tname\tmain_target_type\n1\t부활\tAllyFallen\n2\t시체\tenemyfallen\n3\t패시브\tNone\n"));
+        Assert.Equal([SkillMainTargetType.AllyFallen, SkillMainTargetType.EnemyFallen, SkillMainTargetType.None], new long[] { 1, 2, 3 }.Select(c => fallen.FindSkill(c)!.MainTargetType));
         Rejects("main_target_type 'Everyone'", (GamePack.SkillMasterPath, "code\tname\tmain_target_type\n1\t베기\tEveryone\n"));
         Rejects("main_target_type '1'", (GamePack.SkillMasterPath, "code\tname\tmain_target_type\n1\t베기\t1\n"));    // 숫자는 안 된다
     }

@@ -40,8 +40,18 @@ public sealed partial class GameSession
 
     bool IsAlive(Combatant c) => UnitOf(c) is { } unit && CreateUnitStore().CharacterOf(unit) is { IsDead: false };
 
+    bool IsFallen(Combatant c) => UnitOf(c) is { } unit && CreateUnitStore().CharacterOf(unit) is { IsDead: true };
+
     List<Combatant> LivingOf(bool enemy) =>
         Enumerable.Range(0, PartySlotCount).Select(i => new Combatant(enemy, i)).Where(IsAlive).ToList();
+
+    /// <summary>그 편에서 쓰러진 유닛들(슬롯 순).</summary>
+    List<Combatant> FallenOf(bool enemy) =>
+        Enumerable.Range(0, PartySlotCount).Select(i => new Combatant(enemy, i)).Where(IsFallen).ToList();
+
+    /// <summary>그 편에 있는 유닛 전부, 쓰러진 것도 포함(슬롯 순).</summary>
+    List<Combatant> ExistingOf(bool enemy) =>
+        Enumerable.Range(0, PartySlotCount).Select(i => new Combatant(enemy, i)).Where(c => UnitOf(c) is not null).ToList();
 
     /// <summary>
     /// [107] 실행: 전원이 1회씩 행동할 때까지(또는 한쪽이 모두 쓰러질 때까지) 순서를 다시 계산하며 스킬을 쓴다. 아군은 설정한 스킬과 메인 타겟을 쓰고,
@@ -150,10 +160,10 @@ public sealed partial class GameSession
         return result;
     }
 
-    /// <summary>행동하는 유닛이 노릴 대상: 정해 둔 대상이 살아 있으면 그대로, 쓰러졌으면 그 스킬의 타겟 대상에 맞는 살아 있는 유닛 중 랜덤. 없으면 null.</summary>
+    /// <summary>행동하는 유닛이 노릴 대상: 정해 둔 대상이 아직 그 스킬의 메인 타겟 대상에 맞으면 그대로, 아니면 자동 타겟(<see cref="AutoTargetOf"/>). 없으면 null.</summary>
     Combatant? ResolveBattleTarget(Combatant actor, long skillCode, Dictionary<Combatant, Combatant> targetOf)
     {
-        if (targetOf.TryGetValue(actor, out var chosen) && IsAlive(chosen)) return chosen;
+        if (targetOf.TryGetValue(actor, out var chosen) && TargetCandidatesOf(actor, SkillTargetTypeOf(skillCode)).Contains(chosen)) return chosen;     // 정해 둔 대상이 아직 그 스킬의 대상이 될 수 있으면 그대로
         return AutoTargetOf(actor, skillCode);
     }
 }

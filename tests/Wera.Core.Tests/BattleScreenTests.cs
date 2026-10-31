@@ -818,4 +818,56 @@ public class BattleScreenTests
         Assert.All(s.BattleLog.Where(a => a.IsEnemy && !a.IsSub && a.SkillCode is 1001 or 1002), a => Assert.Equal(1, a.TargetSlot));
         Assert.Contains(s.BattleLog, a => a.IsEnemy && !a.IsSub && a.SkillCode is 1001 or 1002);
     }
+
+    // 스킬 3(치유)은 메인 타겟 없음(None), 스킬 4(집중)는 아군 기절 유닛(AllyFallen)으로 바꾼 예시 팩
+    static GameSession StartedWithFallenTypes()
+    {
+        var pack = SamplePackWith((GamePack.SkillMasterPath, "code\tname\tmain_target_type\tsub_target_type\n1001\t베기\tEnemy\t\n1002\t불꽃\tEnemy\tSameRow\n1003\t치유\tNone\t\n1004\t집중\tAllyFallen\t\n"));
+        var s = GameSession.NewGame(pack);
+        s.NextRandom = _ => 0;
+        s.Activate("105"); s.Activate("1"); s.Activate("1"); s.Activate("999");
+        s.AddCharacter(7001);
+        s.Party[1] = 7001;
+        Assert.NotNull(s.Activate("110"));
+        return s;
+    }
+
+    [Fact]
+    public void A_skill_without_a_main_target_is_not_an_action_candidate_and_fallen_types_target_fallen_units()
+    {
+        var s = StartedWithFallenTypes();
+        s.Activate("102");
+        Assert.Equal(["베기", "불꽃", "집중", "취소"],                                  // 치유(None)는 후보가 아니다
+            s.Entries.Where(e => e.Action is EntryAction.BattleChooseSkill or EntryAction.BattleCancelActions).Select(e => e.Label));
+
+        s.Activate("103");                                                          // 집중: 아군 기절 유닛
+        Assert.Empty(s.Entries.Where(e => e.Action == EntryAction.BattleChooseTarget));      // 쓰러진 아군이 없다
+        s.Activate("101");
+        s.Characters[7001].Statuses[GamePack.HpStatusCode] = 0;                     // 용사가 쓰러졌다
+        s.Activate("102"); s.Activate("103");
+        Assert.Equal(["12"], s.Entries.Where(e => e.Action == EntryAction.BattleChooseTarget).Select(e => e.Code));
+    }
+
+    [Fact]
+    public void An_auto_target_result_that_points_at_a_fallen_unit_falls_back_to_a_valid_random_target()
+    {
+        var rows = "skill_code\texecute_number\teffect_type\tvalue_1\tvalue_2\tvalue_3\n1001\t1\tSubTargetToResult\t0\t\t\n1002\t1\tSubTargetToResult\t0\t\t\n";
+        var s = GameSession.NewGame(SamplePackWith((GamePack.SkillAutoTargetEffectMasterPath, rows)));
+        s.NextRandom = _ => 1;                                                      // 적 파티 2: 전사 하나
+        s.Activate("105"); s.Activate("1"); s.Activate("1"); s.Activate("999");
+        s.AddCharacter(7001);
+        s.Party[1] = 7001;
+        Assert.NotNull(s.Activate("110"));
+        s.NextRandom = _ => 0;
+        s.Characters[1].Statuses[GamePack.HpStatusCode] = 0;                        // 후보 0번(슬롯 0)이 이미 쓰러져 있다
+        var slot = s.EnemyInstances.Keys.Single();
+        s.EnemyInstances[slot].Statuses[GamePack.HpStatusCode] = 9999;
+        Assert.True(s.BattleAllActionsSet == false);
+        s.Activate("101");                                                          // 쓰러진 슬롯 0을 건너뛰고
+        s.Activate("102"); s.Activate("101"); s.Activate((slot + 1).ToString());     // 살아 있는 용사(슬롯 1)만 행동한다
+        Assert.True(s.BattleAllActionsSet);                                         // 쓰러진 유닛은 행동을 정하지 않아도 된다
+        s.Activate("107");
+        Assert.All(s.BattleLog.Where(a => a.IsEnemy && !a.IsSub && a.SkillCode is 1001 or 1002), a => Assert.Equal(1, a.TargetSlot));   // 쓰러진 슬롯 0을 고른 Result는 부적절해 랜덤(유효한 후보뿐)
+        Assert.Contains(s.BattleLog, a => a.IsEnemy && !a.IsSub && a.SkillCode is 1001 or 1002);
+    }
 }

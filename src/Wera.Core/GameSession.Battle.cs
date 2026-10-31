@@ -50,7 +50,8 @@ public sealed partial class GameSession
         if (UnitOf(combatant) is not { } unit || CreateUnitStore().CharacterOf(unit) is not { } character) return [];
         return character.SkillSlots.OrderBy(s => s.Key)
             .Where(s => s.Value >= 0 && s.Value < character.SkillPool.Count)
-            .Select(s => new BattleSkillOption(s.Key, character.SkillPool[(int)s.Value].SkillCode, SkillName(character.SkillPool[(int)s.Value].SkillCode))).ToList();
+            .Select(s => new BattleSkillOption(s.Key, character.SkillPool[(int)s.Value].SkillCode, SkillName(character.SkillPool[(int)s.Value].SkillCode)))
+            .Where(o => SkillTargetTypeOf(o.SkillCode) != SkillMainTargetType.None).ToList();      // 메인 타겟이 없는 스킬은 직접 쓸 수 없다(패시브용)
     }
 
     /// <summary>
@@ -342,9 +343,9 @@ public sealed partial class GameSession
         SelectBattleCharacter(1);
     }
 
-    /// <summary>슬롯의 유닛이 행동을 정해야 하는데 아직 정하지 않았는가(장착한 스킬이 없는 유닛은 정하지 않아도 된다).</summary>
+    /// <summary>슬롯의 유닛이 행동을 정해야 하는데 아직 정하지 않았는가(장착한 스킬이 없는 유닛과 쓰러진 유닛은 정하지 않아도 된다).</summary>
     bool BattleActionNeeded(int slot) =>
-        !battleActions.ContainsKey(slot) && !battleMoves.ContainsKey(slot) && BattleSkillsOf(new Combatant(false, slot)).Count > 0;
+        !battleActions.ContainsKey(slot) && !battleMoves.ContainsKey(slot) && IsAlive(new Combatant(false, slot)) && BattleSkillsOf(new Combatant(false, slot)).Count > 0;
 
     /// <summary>[103] 아이템: 커맨드가 보는 캐릭터의 아이템 후보로 바뀌고 화면은 적 3 / 아군 1로 바뀐다.</summary>
     void OpenBattleItemCandidates()
@@ -399,7 +400,8 @@ public sealed partial class GameSession
     List<Combatant> SubTargetsOf(Combatant main, long skillCode)
     {
         var type = Pack.FindSkill(skillCode)?.SubTargetType ?? SkillSubTargetType.None;
-        return SubTargetPicker.Pick(type, main.Slot, slot => IsAlive(new Combatant(main.IsEnemy, slot)), n => (int)NextRandom(n))
+        var fallen = SkillTargetTypeOf(skillCode) is SkillMainTargetType.AllyFallen or SkillMainTargetType.EnemyFallen;     // 기절 유닛 대상 스킬은 서브 타겟도 기절 유닛
+        return SubTargetPicker.Pick(type, main.Slot, slot => fallen ? IsFallen(new Combatant(main.IsEnemy, slot)) : IsAlive(new Combatant(main.IsEnemy, slot)), n => (int)NextRandom(n))
             .Select(slot => new Combatant(main.IsEnemy, slot)).ToList();
     }
 
@@ -409,24 +411,44 @@ public sealed partial class GameSession
         SkillMainTargetType.Enemy => LivingOf(!caster.IsEnemy),
         SkillMainTargetType.Ally => LivingOf(caster.IsEnemy),
         SkillMainTargetType.Self => IsAlive(caster) ? [caster] : [],
+        SkillMainTargetType.AllyFallen => FallenOf(caster.IsEnemy),
+        SkillMainTargetType.EnemyFallen => FallenOf(!caster.IsEnemy),
+        SkillMainTargetType.None => [],
         _ => [.. LivingOf(true), .. LivingOf(false)],
     };
 
     /// <summary>
-    /// 시전자가 스킬의 메인 타겟을 자동으로 고른다: 메인 타겟이 될 수 있는 후보(<see cref="TargetCandidatesOf"/>)를 자동 타겟 서킷에 서브 타겟 자리로 넣고
-    /// 한 바퀴 돌려 Result로 정해진 후보를 쓴다. 스킬에 자동 타겟 이펙트가 없거나 Result가 적절하지 못한 값이면 후보 중 랜덤 1체이고, 후보가 없으면 null이다.
+    /// 자동 타겟 서킷에 넣는 후보: 그 메인 타겟 대상이 가리키는 편의 유닛 전부로 쓰러진 유닛도 포함한다(적 편 슬롯 순, 아군 편 슬롯 순; Self는 시전자, None은 없음).
+    /// 서킷이 고른 후보가 <see cref="TargetCandidatesOf"/>에 없으면(쓰러진 유닛을 고름 등) 적절하지 못한 Result다.
+    /// </summary>
+    List<Combatant> AutoTargetCandidatesOf(Combatant caster, SkillMainTargetType type) => type switch
+    {
+        SkillMainTargetType.Enemy or SkillMainTargetType.EnemyFallen => ExistingOf(!caster.IsEnemy),
+        SkillMainTargetType.Ally or SkillMainTargetType.AllyFallen => ExistingOf(caster.IsEnemy),
+        SkillMainTargetType.Self => [caster],
+        SkillMainTargetType.None => [],
+        _ => [.. ExistingOf(true), .. ExistingOf(false)],
+    };
+
+    /// <summary>
+    /// 시전자가 스킬의 메인 타겟을 자동으로 고른다: 그 메인 타겟 대상의 편에 있는 유닛 전부(<see cref="AutoTargetCandidatesOf"/>, 쓰러진 유닛 포함)를 자동 타겟 서킷에
+    /// 서브 타겟 자리로 넣고 한 바퀴 돌려 Result로 정해진 후보를 쓴다. 스킬에 자동 타겟 이펙트가 없거나, Result가 놓이지 않았거나 후보를 벗어났거나,
+    /// 고른 후보가 메인 타겟 대상이 될 수 없는(<see cref="TargetCandidatesOf"/>에 없는: 쓰러진 유닛, 기절 유닛 대상 스킬이면 살아 있는 유닛) 적절하지 못한 값이면
+    /// 메인 타겟이 될 수 있는 유닛 중 랜덤 1체이고, 그런 유닛이 없으면 null이다.
     /// </summary>
     Combatant? AutoTargetOf(Combatant caster, long skillCode)
     {
-        var candidates = TargetCandidatesOf(caster, SkillTargetTypeOf(skillCode));
-        if (candidates.Count == 0) return null;
+        var type = SkillTargetTypeOf(skillCode);
+        var valid = TargetCandidatesOf(caster, type);
+        if (valid.Count == 0) return null;
         if (Pack.SkillAutoTargetEffectsOf(skillCode).Count > 0)
         {
+            var candidates = AutoTargetCandidatesOf(caster, type);
             var circuit = new SkillAutoTargetCircuit(Pack, CreateUnitStore(), skillCode, UnitOf(caster), candidates.Select(c => UnitOf(c)!));
             circuit.Execute();
-            if (circuit.ChosenOf(candidates.Count) is { } chosen) return candidates[chosen];
+            if (circuit.ChosenOf(candidates.Count) is { } chosen && valid.Contains(candidates[chosen])) return candidates[chosen];
         }
-        return candidates[(int)NextRandom(candidates.Count)];
+        return valid[(int)NextRandom(valid.Count)];
     }
 
     /// <summary>대상 후보에서 고를 수 있는 유닛들: 보는 캐릭터가 고른 스킬의 타겟 대상에 맞는 살아 있는 유닛. 고른 스킬이 없으면 비어 있다.</summary>
