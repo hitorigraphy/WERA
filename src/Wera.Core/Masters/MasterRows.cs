@@ -573,6 +573,17 @@ public record AfterLoadUniqueItemFlowRow
     public required long Value3 { get; init; }
 }
 
+/// <summary>피격 후 이펙트: 키는 execute_number 하나.</summary>
+[MemoryTable("after_hit_effect"), MessagePackObject(true)]
+public record AfterHitEffectRow
+{
+    [PrimaryKey] public required long ExecuteNumber { get; init; }
+    public required AfterHitEffectType EffectType { get; init; }
+    public required long Value1 { get; init; }
+    public required long Value2 { get; init; }
+    public required long Value3 { get; init; }
+}
+
 /// <summary>스킬 순서 이펙트: 복합키는 (스킬, 실행 번호)이고, 보조키 스킬 코드로 그 스킬의 순서 이펙트 전부를 찾는다.</summary>
 [MemoryTable("skill_order_effect"), MessagePackObject(true)]
 public record SkillOrderEffectRow
