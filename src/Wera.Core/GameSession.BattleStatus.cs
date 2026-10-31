@@ -37,8 +37,7 @@ public sealed partial class GameSession
             var equipment = Pack.EquipmentSlotsOf(unit.CharacterCode)
                 .Select(slot => new UnitStatusLine(slot.Name,
                     unit.Equipment.TryGetValue(slot.Code, out var equip) ? BattleEquipName(store, equip) : "비어 있음")).ToList();
-            var skills = Pack.SkillSlotTagsOf(unit.CharacterCode).Select(r => r.SkillSlotCode).Distinct().Order()
-                .Select(Pack.FindSkillSlot).OfType<SkillSlotEntry>()
+            var skills = Pack.SkillSlotsOf(unit.CharacterCode)
                 .Select(slot => new UnitStatusLine(slot.Name, EquippedSkillName(character, slot.Code) ?? "비어 있음")).ToList();
             var xp = XpLine(character with { CharacterCode = unit.CharacterCode });
             return new UnitStatusView(CharacterName(unit.CharacterCode), $"Lv.{character.Level}",

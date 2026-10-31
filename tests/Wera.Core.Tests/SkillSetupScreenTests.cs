@@ -33,8 +33,8 @@ public class SkillSetupScreenTests
     public void The_character_screen_lists_the_skill_slots_in_order_then_the_skill_pool_button()
     {
         var s = Opened();
-        Assert.Equal(["1", "2", "0", "999"], s.Entries.Select(e => e.Code));
-        Assert.Equal(["스킬 슬롯 1 : 비어 있음", "스킬 슬롯 2 : 비어 있음", "스킬 풀", "돌아가기"], s.Entries.Select(e => e.Label));
+        Assert.Equal(["1", "2", "3", "4", "5", "0", "999"], s.Entries.Select(e => e.Code));     // 스킬 슬롯 마스터의 모든 슬롯(태그 규칙이 없는 3~5도)
+        Assert.Equal(["스킬 슬롯 1 : 비어 있음", "스킬 슬롯 2 : 비어 있음", "스킬 슬롯 3 : 비어 있음", "스킬 슬롯 4 : 비어 있음", "스킬 슬롯 5 : 비어 있음", "스킬 풀", "돌아가기"], s.Entries.Select(e => e.Label));
         Assert.Equal(Screen.SkillPoolList, s.Entries.Single(e => e.Code == GameSession.SkillPoolEntryCode).Target);
         s.Activate("999");
         Assert.Equal(Screen.SkillSetup, s.Screen);

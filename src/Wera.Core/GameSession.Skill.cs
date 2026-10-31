@@ -18,11 +18,10 @@ public sealed partial class GameSession
     CharacterInstance? CurrentCharacterInstance =>
         CurrentCharacterCode is { } code && Characters.TryGetValue(code, out var instance) ? instance : null;
 
-    /// <summary>지금 보는 캐릭터의 스킬 슬롯들(스킬 슬롯 코드순). 스킬 슬롯 태그 마스터에 규칙이 있는 슬롯만이다(규칙이 없으면 아무것도 넣을 수 없다).</summary>
+    /// <summary>지금 보는 캐릭터의 스킬 슬롯들(스킬 슬롯 코드순). 스킬 슬롯 마스터의 모든 슬롯이다(태그 규칙이 없는 슬롯에는 아무것도 넣을 수 없다).</summary>
     public IReadOnlyList<SkillSlotEntry> CurrentSkillSlots =>
         CurrentCharacterCode is { } character
-            ? Pack.SkillSlotTagsOf(character).Select(r => r.SkillSlotCode).Distinct().Order()
-                .Select(Pack.FindSkillSlot).OfType<SkillSlotEntry>().ToList()
+            ? Pack.SkillSlotsOf(character)
             : [];
 
     /// <summary>스킬 슬롯 하나에 장착한 스킬의 이름. 비었으면 null.</summary>

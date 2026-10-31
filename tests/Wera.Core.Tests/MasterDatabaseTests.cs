@@ -201,8 +201,8 @@ public class MasterDatabaseTests
     {
         var pack = FullPack();
         Assert.Equal(["무기", "방어구"], pack.EquipmentSlotsOf(7001).Select(s => s.Name));
-        Assert.Equal(["무기"], pack.EquipmentSlotsOf(7002).Select(s => s.Name));
-        Assert.Empty(pack.EquipmentSlotsOf(7003));
+        Assert.Equal(["무기", "방어구"], pack.EquipmentSlotsOf(7002).Select(s => s.Name));      // 슬롯은 마스터의 모든 슬롯
+        Assert.Equal(["무기", "방어구"], pack.EquipmentSlotsOf(7003).Select(s => s.Name));
         Assert.True(pack.CanEquip(7001, 1, 9001));
         Assert.False(pack.CanEquip(7001, 1, 9002));                    // 대검은 중량
         Assert.True(pack.CanEquip(7002, 1, 9003));                     // 마법

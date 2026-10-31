@@ -254,13 +254,12 @@ public class EquipmentTests
     // ---- 게임팩 전체에서의 조회 ----
 
     [Fact]
-    public void A_character_has_the_equipment_slots_that_appear_for_it_in_the_slot_tag_master()
+    public void Every_character_has_every_slot_of_the_equipment_slot_master_whatever_the_slot_tag_master_says()
     {
         var pack = Pack();
-        Assert.Equal(["무기", "방어구"], pack.EquipmentSlotsOf(7001).Select(s => s.Name));
-        Assert.Equal(["무기"], pack.EquipmentSlotsOf(7002).Select(s => s.Name));
-        Assert.Empty(pack.EquipmentSlotsOf(7003));                      // 행이 없는 캐릭터
-        Assert.Empty(pack.EquipmentSlotsOf(9999));
+        foreach (var character in new long[] { 7001, 7002, 7003, 9999 })                // 태그 행이 없는 캐릭터도 같다
+            Assert.Equal(["무기", "방어구"], pack.EquipmentSlotsOf(character).Select(s => s.Name));
+        Assert.False(pack.CanEquip(7003, 1, 9001));                     // 규칙이 없는 슬롯에는 낄 수 없다
     }
 
     [Fact]
@@ -331,11 +330,11 @@ public class EquipmentTests
     }
 
     [Fact]
-    public void A_character_without_equipment_slots_gets_only_the_back_entry()
+    public void A_character_without_slot_rules_still_lists_every_slot()
     {
         var s = Session();
-        s.Activate("9");                                          // 도적
-        Assert.Equal(["999"], s.Entries.Select(e => e.Code));
+        s.Activate("9");                                          // 도적: 슬롯 태그 행이 없어도 슬롯은 모두 있다
+        Assert.Equal(["1", "2", "999"], s.Entries.Select(e => e.Code));
     }
 
     [Fact]

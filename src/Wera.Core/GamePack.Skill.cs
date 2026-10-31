@@ -338,6 +338,10 @@ public sealed partial class GamePack
     public SkillEntry? FindSkill(long code) =>
         Masters.SkillRowTable.TryFindByCode(code, out var r) ? new SkillEntry(r.Code, r.Name, (SkillMainTargetType)r.MainTargetType, (SkillSubTargetType)r.SubTargetType) : null;
 
+    /// <summary>캐릭터가 가진 스킬 슬롯들: 스킬 슬롯 마스터의 모든 슬롯(슬롯 코드 순). 태그 마스터는 슬롯의 유무가 아니라 무엇을 넣을 수 있는지만 정한다.</summary>
+    public IReadOnlyList<SkillSlotEntry> SkillSlotsOf(long characterCode) =>
+        (SkillSlots ?? []).OrderBy(s => s.Code).ToList();
+
     /// <summary>캐릭터의 스킬 슬롯 태그 전부(스킬 슬롯, 그룹, 태그 코드 순).</summary>
     public IReadOnlyList<CharacterSkillSlotTag> SkillSlotTagsOf(long characterCode) =>
         Masters.CharacterSkillSlotTagRowTable.FindByCharacterCode(characterCode)

@@ -46,8 +46,7 @@ public sealed partial class GameSession
             var character = state with { CharacterCode = code };
             var equipment = Pack.EquipmentSlotsOf(code)
                 .Select(slot => new UnitStatusLine(slot.Name, EquippedItemOf(code, slot.Code) is { } target ? NameOf(target) : "비어 있음")).ToList();
-            var skills = Pack.SkillSlotTagsOf(code).Select(r => r.SkillSlotCode).Distinct().Order()
-                .Select(Pack.FindSkillSlot).OfType<SkillSlotEntry>()
+            var skills = Pack.SkillSlotsOf(code)
                 .Select(slot => new UnitStatusLine(slot.Name, EquippedSkillName(character, slot.Code) ?? "비어 있음")).ToList();
             var xp = XpLine(character, CharacterDetailExpWidth);
             return new CharacterDetailView(
