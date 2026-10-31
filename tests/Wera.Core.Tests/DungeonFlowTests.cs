@@ -188,8 +188,8 @@ public class DungeonFlowTests
         s.Activate("999");
         Assert.Equal(Screen.GameOver, s.Screen);
         Assert.Null(s.CurrentDungeonCode);
-        Assert.Equal(Screen.Home, s.Activate("999")!.Target);
-        Assert.Equal(Screen.Home, s.Screen);
+        Assert.Equal(Screen.Load, s.Activate("999")!.Target);
+        Assert.Equal(Screen.Load, s.Screen);
     }
 
     [Fact]
