@@ -26,6 +26,25 @@ public sealed class BattleUnit
         return unit;
     }
 
+    /// <summary>
+    /// 캐릭터 인스턴스로 유닛을 만든다: 인스턴스의 모든 스테이터스를 현재 값으로 채우고, 범위는 인스턴스의 레벨에 맞는 캐릭터 스테이터스 마스터 행의
+    /// 최솟값~최댓값이다(행이 없는 스테이터스는 범위 제한이 없다).
+    /// </summary>
+    public static BattleUnit FromInstance(GamePack pack, CharacterInstance character)
+    {
+        var unit = new BattleUnit(character.CharacterCode);
+        foreach (var (status, value) in character.Statuses)
+        {
+            var row = pack.CharacterStatusAt(character.CharacterCode, status, character.Level);
+            unit.statuses[status] = (value, row?.MinValue ?? decimal.MinValue, row?.MaxValue ?? decimal.MaxValue);
+        }
+        return unit;
+    }
+
+    /// <summary>스테이터스 값들을 정수로 돌려준다(소수는 버림).</summary>
+    public Dictionary<long, long> ToStatuses() =>
+        statuses.ToDictionary(kv => kv.Key, kv => (long)Math.Truncate(Math.Clamp(kv.Value.Value, long.MinValue, long.MaxValue)));
+
     /// <summary>스테이터스 값. 이 유닛에게 그 스테이터스가 없으면 null.</summary>
     public decimal? ValueOf(long statusCode) => statuses.TryGetValue(statusCode, out var s) ? s.Value : null;
 
