@@ -33,7 +33,7 @@ public class CharacterStatusesTests
     {
         var c = FullPack().NewCharacterInstance(7001);
         Assert.Equal(
-            new Dictionary<long, long> { [1] = 1, [2] = 25, [3] = 4, [4] = 60, [5] = 80, [6] = 12 }.OrderBy(kv => kv.Key),
+            new Dictionary<long, long> { [1] = 1, [2] = 25, [3] = 4, [4] = 60, [5] = 80, [6] = 12, [8] = 0, [9] = 0 }.OrderBy(kv => kv.Key),
             c.Statuses.OrderBy(kv => kv.Key));
         Assert.Equal((1L, 25L, 60L, 4L, 80L), (c.Level, c.Hp, c.MaxHp, c.Xpp, c.XppMax));
         Assert.Empty(c.SkillPool);
@@ -46,7 +46,7 @@ public class CharacterStatusesTests
         var pack = FullPack();
         var c = pack.NewCharacterInstance(7002);                                 // max_hp, xpp, xpp_max 행이 없다
         Assert.Equal((1L, 20L, 20L, 0L, 0L), (c.Level, c.Hp, c.MaxHp, c.Xpp, c.XppMax));
-        Assert.Equal([1L, 2L, 3L, 4L, 5L], c.Statuses.Keys.Order());
+        Assert.Equal([1L, 2L, 3L, 4L, 5L, 8L, 9L], c.Statuses.Keys.Order());      // 예약 코드는 늘 들어간다(exp 8, exp_max 9 포함)
 
         var bare = GamePack.Load(CoreTests.PackZip(("pack.tsv", "id\tdemo\ntitle\t데모\n"))).NewCharacterInstance(7001);
         Assert.Equal((1L, 1L, 1L, 0L, 0L), (bare.Level, bare.Hp, bare.MaxHp, bare.Xpp, bare.XppMax));

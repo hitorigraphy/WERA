@@ -52,7 +52,7 @@ public sealed partial class GameSession
             var xp = XpLine(character);
             return new CharacterDetailView(
                 CharacterName(code), $"Lv.{state.Level}",
-                Gauge.Render(state.Xpp, state.XppMax, gray: state.IsDead, CharacterDetailExpWidth),
+                Gauge.Render(state.Exp, state.ExpMax, gray: state.IsDead, CharacterDetailExpWidth),
                 Gauge.Render(state.Hp, state.MaxHp, gray: state.IsDead),
                 xp.Gauge, xp.Name,
                 equipment, skills, Pack.FindCharacter(code)?.Description ?? "");

@@ -1354,7 +1354,7 @@ public sealed partial class GameSession
                 throw new SaveFormatException(
                     $"세이브의 캐릭터 '{code}' 상태가 올바르지 않습니다 (Lv {loaded.Level}, HP {loaded.Hp}/{loaded.MaxHp}, XPP {loaded.Xpp}/{loaded.XppMax}).");
             foreach (var status in loaded.Statuses.Keys)
-                if (pack.FindStatus(status) is null && pack.Statuses is not null && status > GamePack.XppMaxStatusCode)
+                if (pack.FindStatus(status) is null && pack.Statuses is not null && status > GamePack.ExpMaxStatusCode)
                     throw new SaveFormatException($"세이브의 캐릭터 '{code}'의 스테이터스 '{status}'가 스테이터스 마스터에 없습니다.");
             loaded = loaded with { SkillPool = loaded.SkillPool.Select(skill =>
             {

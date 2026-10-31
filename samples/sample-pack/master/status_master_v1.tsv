@@ -6,3 +6,5 @@ status_code	status_name	memo
 5	xpp_max	예약 코드 5(필요 경험치; 행이 없으면 xpp 행의 최댓값)
 6	skill_level	스킬/아이템 스테이터스 예시
 7	durability	유니크 아이템 스테이터스 예시
+8	exp	예약 코드 8(경험치; 캐릭터 상세 화면의 Exp 바)
+9	exp_max	예약 코드 9(필요 경험치; 행이 없으면 exp 행의 최댓값)

@@ -49,6 +49,8 @@ public sealed record CharacterInstance
     [JsonIgnore] public long MaxHp => Statuses.GetValueOrDefault(GamePack.MaxHpStatusCode);
     [JsonIgnore] public long Xpp => Statuses.GetValueOrDefault(GamePack.XppStatusCode);
     [JsonIgnore] public long XppMax => Statuses.GetValueOrDefault(GamePack.XppMaxStatusCode);
+    [JsonIgnore] public long Exp => Statuses.GetValueOrDefault(GamePack.ExpStatusCode);
+    [JsonIgnore] public long ExpMax => Statuses.GetValueOrDefault(GamePack.ExpMaxStatusCode);
 
     /// <summary>상태만 아는 인스턴스(시험, 임베디드 이펙트): ID는 비어 있고 코드와 순서는 0이다. 세션은 보유할 때 ID와 코드를 채운다.</summary>
     public static CharacterInstance Stats(long level, long hp, long maxHp, long xpp, long xppMax) =>
@@ -57,7 +59,7 @@ public sealed record CharacterInstance
             Statuses = new Dictionary<long, long>
             {
                 [GamePack.LevelStatusCode] = level, [GamePack.HpStatusCode] = hp, [GamePack.MaxHpStatusCode] = maxHp,
-                [GamePack.XppStatusCode] = xpp, [GamePack.XppMaxStatusCode] = xppMax,
+                [GamePack.XppStatusCode] = xpp, [GamePack.XppMaxStatusCode] = xppMax, [GamePack.ExpStatusCode] = 0, [GamePack.ExpMaxStatusCode] = 0,
             },
         };
 
@@ -72,6 +74,7 @@ public sealed record CharacterInstance
     {
         var maxHp = Math.Max(0, MaxHp);
         var xppMax = Math.Max(0, XppMax);
+        var expMax = Math.Max(0, ExpMax);
         var statuses = new Dictionary<long, long>(Statuses)
         {
             [GamePack.LevelStatusCode] = Math.Max(1, Level),
@@ -79,6 +82,8 @@ public sealed record CharacterInstance
             [GamePack.HpStatusCode] = Math.Clamp(Hp, 0, maxHp),
             [GamePack.XppMaxStatusCode] = xppMax,
             [GamePack.XppStatusCode] = Math.Clamp(Xpp, 0, xppMax),
+            [GamePack.ExpMaxStatusCode] = expMax,
+            [GamePack.ExpStatusCode] = Math.Clamp(Exp, 0, expMax),
         };
         return this with { Statuses = statuses };
     }

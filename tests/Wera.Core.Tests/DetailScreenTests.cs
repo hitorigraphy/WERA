@@ -86,4 +86,17 @@ public class DetailScreenTests
         s.Activate("999");
         Assert.Null(s.CharacterDetail);
     }
+
+    [Fact]
+    public void The_exp_bar_shows_the_exp_status_not_the_xpp()
+    {
+        var s = SampleSession();
+        var player = GamePack.PlayerCharacterCode;
+        s.Characters[player] = s.Characters[player].WithStatus(GamePack.ExpStatusCode, 30).WithStatus(GamePack.ExpMaxStatusCode, 60).WithStatus(GamePack.XppStatusCode, 5);
+        s.Activate("201");
+        s.Activate(s.Entries.First(e => e.Code != "999").Code);
+        Assert.Equal(Gauge.Render(30, 60, gray: false, GameSession.CharacterDetailExpWidth), s.CharacterDetail!.Exp);
+        Assert.Equal((8L, 9L), (GamePack.ExpStatusCode, GamePack.ExpMaxStatusCode));
+        Assert.Equal(100, SampleSession().Characters[player].ExpMax);               // 샘플 팩: 새 캐릭터의 필요 경험치 100
+    }
 }
