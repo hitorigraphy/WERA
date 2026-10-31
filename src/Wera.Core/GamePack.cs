@@ -133,12 +133,16 @@ public sealed partial class GamePack
         var tradeConditions = new List<FlatCondition>();
         // 던전 마스터는 code, name에 선택 열 셋(entry_layer_number, entry_pos_x, entry_pos_y: 던전 맵의 도입 지점)을 더할 수 있다. 셋은 함께 있어야 한다.
         var dungeonMasterText = TryReadEntry(zip, DungeonMasterPath);
-        var dungeonEntryColumns = dungeonMasterText is not null && Tsv.WithoutMemo(Tsv.Parse(dungeonMasterText)) is { Count: > 0 } dungeonRows
-            && dungeonRows[0].Length > 2 && dungeonRows[0][2] == "entry_layer_number";
+        // 또 하나의 선택 열 encounter_rate(한 칸 움직일 때 전투를 만날 확률 %)는 도입 지점 열들 뒤에 둔다.
+        var dungeonHeader = dungeonMasterText is not null && Tsv.WithoutMemo(Tsv.Parse(dungeonMasterText)) is { Count: > 0 } dungeonRows ? dungeonRows[0] : [];
+        var dungeonEntryColumns = dungeonHeader.Contains("entry_layer_number");
+        var dungeonRateColumn = dungeonHeader.Contains("encounter_rate");
+        var dungeonRateIndex = dungeonEntryColumns ? 5 : 2;
         var dungeons = LoadConditioned(zip, DungeonMasterPath,
-            dungeonEntryColumns ? ["code", "name", "entry_layer_number", "entry_pos_x", "entry_pos_y"] : ["code", "name"],
+            ["code", "name", .. dungeonEntryColumns ? new[] { "entry_layer_number", "entry_pos_x", "entry_pos_y" } : [], .. dungeonRateColumn ? new[] { "encounter_rate" } : []],
             DungeonFlagMasterPath, "던전", "dungeon_code",
-            dungeonConditions, (code, r, groups) => new Dungeon(code, r[1], groups, dungeonEntryColumns ? ParseDungeonEntry(code, r) : null));
+            dungeonConditions, (code, r, groups) => new Dungeon(code, r[1], groups, dungeonEntryColumns ? ParseDungeonEntry(code, r) : null,
+                dungeonRateColumn ? ParseEncounterRate(code, r[dungeonRateIndex]) : 0));
         var shops = LoadConditioned(zip, ShopMasterPath, ["code", "name"], ShopConditionMasterPath, "상점", "shop_code",
             shopConditions, (code, r, groups) => new Shop(code, r[1], groups));
         var itemInventory = LoadItemInventory(zip);
@@ -184,6 +188,7 @@ public sealed partial class GamePack
         var tileEffects = LoadTileEffects(zip, advs, battles);
         var dungeonTiles = LoadDungeonTiles(zip, dungeons, tileEffects);
         var dungeonMaps = LoadDungeonMaps(zip, dungeons, dungeonTiles, tileEffects);
+        var dungeonEncounters = LoadDungeonEncounters(zip, dungeons, dungeonMaps, battles);
         var skillSlots = LoadSkillSlots(zip);
         var characterSkillSlotTags = LoadCharacterSkillSlotTags(zip, characterInventory, skillSlots, tags);
         var skills = LoadSkills(zip);
@@ -253,6 +258,7 @@ public sealed partial class GamePack
             TileEffects = tileEffects,
             DungeonTiles = dungeonTiles,
             DungeonMaps = dungeonMaps,
+            DungeonEncounters = dungeonEncounters,
             SkillSlots = skillSlots,
             CharacterSkillSlotTags = characterSkillSlotTags,
             Skills = skills,
@@ -279,7 +285,7 @@ public sealed partial class GamePack
                 events, eventConditions, eventFlows, advs, battles, advFlows, communicationGroups, communications,
                 communicationSoloFlows, communicationDuoFlows, communicationDefaultFlows,
                 presetUnits, presetUnitEquips, presetUnitDrops, presetParties, battleEnemies,
-                tileEffects, dungeonTiles, dungeonMaps,
+                tileEffects, dungeonTiles, dungeonMaps, dungeonEncounters,
                 skillSlots, characterSkillSlotTags, skills, skillTags, skillExecuteEffects, skillOrderEffects, skillAutoTargetEffects,
                 skillStatuses, uniqueItemStatuses, afterLoadCharacterFlows, afterLoadUniqueItemFlows,
                 afterHitEffects, afterAttackEffects, afterBattleWinEffects, afterBattleLoseEffects, afterBattleRunEffects,
@@ -318,6 +324,16 @@ public sealed partial class GamePack
         return long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n)
             ? n
             : throw new PackFormatException($"{file}: {what} '{value}'이(가) 정수가 아닙니다.");
+    }
+
+    /// <summary>던전 마스터의 encounter_rate: 비우면 0, 아니면 0~100의 정수(%)다.</summary>
+    static long ParseEncounterRate(long code, string value)
+    {
+        if (value == "") return 0;
+        var rate = ParseLong(DungeonMasterPath, $"던전 '{code}'의 encounter_rate", value);
+        return rate is < 0 or > 100
+            ? throw new PackFormatException($"{DungeonMasterPath}: 던전 '{code}'의 encounter_rate '{rate}'는 0 이상 100 이하여야 합니다.")
+            : rate;
     }
 
     /// <summary>던전 마스터의 도입 지점 세 칸: 모두 비면 없음(null), 하나라도 있으면 셋 다 정수여야 하고 layer_number와 pos_y는 0 이상, pos_x는 0~29다.</summary>

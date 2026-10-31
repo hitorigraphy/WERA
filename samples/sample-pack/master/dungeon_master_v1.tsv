@@ -1,4 +1,4 @@
-code	name	entry_layer_number	entry_pos_x	entry_pos_y	memo
-1001	초원				
-1002	동굴				
-1999	테스트 던전	0	1	1	테스트용
+code	name	entry_layer_number	entry_pos_x	entry_pos_y	encounter_rate	memo
+1001	초원					
+1002	동굴					
+1999	테스트 던전	0	1	1	10	테스트용

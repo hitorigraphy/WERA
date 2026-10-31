@@ -121,10 +121,6 @@ public enum EntryAction
     SelectDungeon,
     /// <summary>던전 파티 선택 화면에서 파티(Arg의 번호)를 골라 던전의 도입 지점으로 들어간다.</summary>
     EnterDungeon,
-    /// <summary>던전 이동 화면에서 Arg의 방향(U, D, L, R)으로 한 칸 움직이고 닿은 칸의 효과를 실행한다.</summary>
-    DungeonStep,
-    /// <summary>던전에서 나가 홈으로 돌아간다.</summary>
-    LeaveDungeon,
     /// <summary>항목의 코드에 해당하는 캐릭터를 선택한 슬롯에 배치한다(이미 배치된 캐릭터면 위치 교환).</summary>
     PlaceCharacter,
     /// <summary>선택한 슬롯의 캐릭터를 파티에서 뺀다(슬롯이 빈다).</summary>
@@ -801,12 +797,6 @@ public sealed partial class GameSession
                 break;
             case EntryAction.EnterDungeon:
                 EnterDungeon(int.Parse(entry.Arg!, CultureInfo.InvariantCulture));
-                break;
-            case EntryAction.DungeonStep:
-                StepDungeon(entry.Arg![0]);
-                break;
-            case EntryAction.LeaveDungeon:
-                LeaveDungeon();
                 break;
             case EntryAction.SelectParty:
                 CurrentPartyIndex = int.Parse(entry.Arg!, CultureInfo.InvariantCulture);

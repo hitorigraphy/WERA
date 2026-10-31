@@ -10,7 +10,7 @@ public enum DungeonCellLook
     Wall = 1,
     Stairs = 2,
     Exit = 4,
-    /// <summary>닿으면 전투가 벌어질 수 있는 칸(FixedBattle, RandomBattle).</summary>
+    /// <summary>닿으면 전투가 벌어질 수 있는 칸(FixedBattle).</summary>
     Battle = 8,
     Adv = 16,
     Warp = 32,
@@ -46,23 +46,17 @@ public sealed partial class GameSession
         new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home),
     ];
 
-    /// <summary>던전에 데려갈 파티 고르기: 리더가 있는 파티만 고를 수 있다(리더가 없는 파티는 던전에 파견할 수 없다).</summary>
+    /// <summary>던전에 데려갈 파티 고르기: 파견할 수 있는 파티(리더가 있는 파티)만 나온다. 리더가 없는 등 출격할 수 없는 파티는 표시하지 않는다.</summary>
     IReadOnlyList<ScreenEntry> DungeonPartySelectEntries() =>
     [
-        .. Parties.Select((p, i) => new ScreenEntry((PartySelectCodeBase + i).ToString(CultureInfo.InvariantCulture), p.Name, Screen.DungeonMove,
-            EntryAction.EnterDungeon, i.ToString(CultureInfo.InvariantCulture), Enabled: IsDispatchable(i))),
+        .. Parties.Select((p, i) => (p, i)).Where(x => IsDispatchable(x.i))
+            .Select(x => new ScreenEntry((PartySelectCodeBase + x.i).ToString(CultureInfo.InvariantCulture), x.p.Name, Screen.DungeonMove,
+                EntryAction.EnterDungeon, x.i.ToString(CultureInfo.InvariantCulture))),
         new ScreenEntry(BackEntryCode, "돌아가기", Screen.DungeonSelect),
     ];
 
-    /// <summary>던전 이동 화면의 명령: [1] 위, [2] 아래, [3] 왼쪽, [4] 오른쪽(갈 수 없는 쪽은 회색)과 [999] 던전에서 나가기.</summary>
-    IReadOnlyList<ScreenEntry> DungeonMoveEntries() =>
-    [
-        new ScreenEntry("1", "위", Screen.DungeonMove, EntryAction.DungeonStep, "U", Enabled: CanStep('U')),
-        new ScreenEntry("2", "아래", Screen.DungeonMove, EntryAction.DungeonStep, "D", Enabled: CanStep('D')),
-        new ScreenEntry("3", "왼쪽", Screen.DungeonMove, EntryAction.DungeonStep, "L", Enabled: CanStep('L')),
-        new ScreenEntry("4", "오른쪽", Screen.DungeonMove, EntryAction.DungeonStep, "R", Enabled: CanStep('R')),
-        new ScreenEntry(BackEntryCode, "던전에서 나가기", Screen.Home, EntryAction.LeaveDungeon),
-    ];
+    /// <summary>던전 이동 화면에는 목록이 없다: W A S D(또는 방향키)로 움직이고 Enter로 지금 서 있는 칸과 상호작용한다(<see cref="PressDungeonKey"/>, <see cref="InteractDungeon"/>).</summary>
+    IReadOnlyList<ScreenEntry> DungeonMoveEntries() => [];
 
     /// <summary>고른 파티로 던전에 들어간다: 던전 마스터의 도입 지점에 선다(도입 지점 칸의 효과는 실행하지 않는다).</summary>
     void EnterDungeon(int partyIndex)
@@ -72,6 +66,7 @@ public sealed partial class GameSession
         CurrentDungeonCode = code;
         (DungeonLayer, DungeonX, DungeonY) = (entry.LayerNumber, entry.PosX, entry.PosY);
         pendingTileEffects.Clear();
+        encounterPending = false;
         Screen = Screen.DungeonMove;
     }
 
@@ -81,6 +76,7 @@ public sealed partial class GameSession
         CurrentDungeonCode = null;
         selectedDungeonCode = null;
         pendingTileEffects.Clear();
+        encounterPending = false;
         Screen = Screen.Home;
     }
 
@@ -128,8 +124,42 @@ public sealed partial class GameSession
         pendingTileEffects.Clear();
         foreach (var effect in DungeonCellEffects(DungeonCellText(DungeonLayer, DungeonX, DungeonY)!).OrderBy(e => (int)e.EffectType))
             pendingTileEffects.Enqueue(effect);
+        encounterPending = true;
         ContinueTileEffects();
     }
+
+    /// <summary>방금 한 걸음의 인카운트 판정이 남았다(칸의 효과를 모두 실행한 뒤에 한 번만 한다).</summary>
+    bool encounterPending;
+
+    /// <summary>
+    /// 던전 이동 키 입력: W 위, S 아래, A 왼쪽, D 오른쪽(대소문자 무시, 방향키도 된다). 던전 이동 화면이 아니거나 다른 키면 아무 일도 없다.
+    /// </summary>
+    public void PressDungeonKey(char key)
+    {
+        if (Screen != Screen.DungeonMove) return;
+        Message = null;
+        switch (char.ToLowerInvariant(key))
+        {
+            case 'w': StepDungeon('U'); break;
+            case 's': StepDungeon('D'); break;
+            case 'a': StepDungeon('L'); break;
+            case 'd': StepDungeon('R'); break;
+        }
+    }
+
+    /// <summary>지금 서 있는 칸에서 Enter로 할 수 있는 상호작용이 있는가(출구 칸).</summary>
+    public bool CanInteractDungeon =>
+        Screen == Screen.DungeonMove && DungeonCellText(DungeonLayer, DungeonX, DungeonY) is { } text
+        && DungeonCellEffects(text).Any(e => e.EffectType == TileEffectType.Exit);
+
+    /// <summary>지금 서 있는 칸의 상호작용(Enter): 출구 칸이면 던전에서 나간다. 던전에서 나가는 곳은 출구뿐이다. 할 일이 없으면 아무 일도 없다.</summary>
+    public void InteractDungeon()
+    {
+        if (!CanInteractDungeon) return;
+        Message = null;
+        LeaveDungeon();
+    }
+
 
     /// <summary>
     /// 닿은 칸의 효과들을 효과 번호 순서대로 하나씩 실행한다. Exit는 던전에서 나가고, FixedBattle과 RandomBattle(확률에 맞으면)은 전투 화면으로,
@@ -143,14 +173,8 @@ public sealed partial class GameSession
             var effect = pendingTileEffects.Dequeue();
             switch (effect.EffectType)
             {
-                case TileEffectType.Exit:
-                    LeaveDungeon();
-                    return;
                 case TileEffectType.FixedBattle:
                     StartDungeonBattle(effect.Value1);
-                    return;
-                case TileEffectType.RandomBattle when RandomJump.Hit(effect.Value1, RandomJump.Roll(effect.Value2, NextRandom)):
-                    StartDungeonBattle(effect.Value3);
                     return;
                 case TileEffectType.Adv:
                     StartDungeonAdv(effect.Value1);
@@ -160,11 +184,32 @@ public sealed partial class GameSession
                     break;
             }
         }
+        if (!encounterPending) return;
+        encounterPending = false;
+        CheckEncounter();
+    }
+
+    /// <summary>
+    /// 인카운트 판정: 던전 마스터의 인카운트률(%)로 0~99의 난수가 그보다 작으면 전투가 벌어지고, 지금 맵의 던전 인카운트 마스터에서 가중치로 전투를 하나 고른다.
+    /// 지금 맵에 설정된 전투가 없으면 인카운트하지 않는다(난수도 뽑지 않는다).
+    /// </summary>
+    void CheckEncounter()
+    {
+        if (CurrentDungeonCode is not { } code || Pack.Dungeons?.FirstOrDefault(d => d.Code == code) is not { EncounterRate: > 0 } dungeon) return;
+        var candidates = Pack.DungeonEncountersOf(code, DungeonLayer);
+        if (candidates.Count == 0 || !RandomJump.Hit(dungeon.EncounterRate, RandomJump.Roll(100, NextRandom))) return;
+        var roll = NextRandom(candidates.Sum(c => c.Weight));
+        foreach (var candidate in candidates)
+        {
+            if (roll < candidate.Weight) { StartDungeonBattle(candidate.BattleCode); return; }
+            roll -= candidate.Weight;
+        }
     }
 
     /// <summary>던전의 전투: 던전에 들어온 파티가 싸우고, 끝나면 [999]가 던전 이동 화면으로 돌아와 남은 효과를 이어 간다.</summary>
     void StartDungeonBattle(long battleCode)
     {
+        encounterPending = false;                      // 이 걸음은 이미 전투를 하므로 또 인카운트 판정을 하지 않는다
         battleReturnScreen = Screen.DungeonMove;
         battlePartyBefore = null;
         battleResultFlag = 0;
@@ -175,6 +220,7 @@ public sealed partial class GameSession
     /// <summary>던전의 ADV: 이벤트 없이 ADV 하나를 재생하고, 끝나면 던전 이동 화면으로 돌아와 남은 효과를 이어 간다.</summary>
     void StartDungeonAdv(long advCode)
     {
+        encounterPending = false;                      // ADV를 연 걸음에는 인카운트 판정을 하지 않는다
         CurrentEvent = null;
         CurrentCommunicationFlow = null;
         CurrentStep = new EventStep(EventStepKind.Adv, 0, advCode);
@@ -227,7 +273,7 @@ public sealed partial class GameSession
                 TileEffectType.Wall => DungeonCellLook.Wall,
                 TileEffectType.Stairs => DungeonCellLook.Stairs,
                 TileEffectType.Exit => DungeonCellLook.Exit,
-                TileEffectType.FixedBattle or TileEffectType.RandomBattle => DungeonCellLook.Battle,
+                TileEffectType.FixedBattle => DungeonCellLook.Battle,
                 TileEffectType.Adv => DungeonCellLook.Adv,
                 TileEffectType.Warp => DungeonCellLook.Warp,
                 TileEffectType.Impassable => DungeonCellLook.Impassable,

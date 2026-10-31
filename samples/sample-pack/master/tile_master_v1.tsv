@@ -5,7 +5,6 @@ code	tile_effect	value_1	value_2	value_3	memo
 3	None	0	0	0	시작 위치 표시(효과 없음; 도입 지점은 던전 마스터가 정한다)
 4	Exit	0	0	0	출구
 5	FixedBattle	5001	0	0	고정 전투
-6	RandomBattle	30	100	5001	30% 확률로 전투 5001
 7	Adv	4001	0	0	ADV 4001
 8	Warp	1	2	1	다른 맵(레이어 1)의 (x 2, y 1)로 이동(내려가는 계단)
 8	Stairs	0	0	0	계단 표시

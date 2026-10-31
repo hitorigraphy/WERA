@@ -259,4 +259,4 @@ input.command { width: min(100%, 26rem); }
 .dadv { color: #5cc8e8; }
 .dwarp { text-decoration: underline; }
 .dplayer { background: #fff; color: #000; font-weight: bold; }
-.dungeon-moves .entries { display: flex; gap: 1.5ch; flex-wrap: wrap; }
+.dungeon-help { margin: 0.5em 0 0; opacity: 0.7; }

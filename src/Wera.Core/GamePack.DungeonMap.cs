@@ -6,7 +6,7 @@ namespace Wera.Core;
 
 /// <summary>
 /// 타일의 효과 종류. TSV에는 이름(대소문자 무시)으로 적는다. 타일 하나에 효과를 여러 개 겹칠 수 있다(타일 마스터에서 같은 타일 코드에 다른 효과의 행을 더한다).
-/// 숫자 값은 정해진 번호다: None 0, Wall 1, Exit 2, FixedBattle 3, RandomBattle 4, Adv 5, Warp 6, Stairs 7, Impassable 8.
+/// 숫자 값은 정해진 번호다: None 0, Wall 1, Exit 2, FixedBattle 3, Adv 4, Warp 5, Stairs 6, Impassable 7.
 /// </summary>
 [JsonConverter(typeof(JsonStringEnumConverter<TileEffectType>))]
 public enum TileEffectType
@@ -15,29 +15,24 @@ public enum TileEffectType
     None = 0,
     /// <summary>벽을 표시한다(보이기만 한다). 들어갈 수 없게 하려면 <see cref="Impassable"/>을 같이 겹친다.</summary>
     Wall = 1,
-    /// <summary>던전을 나가는 칸. 인자는 아직 쓰이지 않는다.</summary>
+    /// <summary>던전을 나가는 칸: 던전에서 나가는 곳은 여기뿐이다(닿기만 해서는 나가지 않고, 그 칸에서 Enter를 눌러야 나간다). 인자는 쓰이지 않는다.</summary>
     Exit = 2,
     /// <summary>닿으면 정해진 전투가 벌어진다. value_1이 battle_code(전투 마스터)다.</summary>
     FixedBattle = 3,
-    /// <summary>
-    /// 닿으면 확률로 전투가 벌어진다. value_1이 확률(chance), value_2가 모수(bound), value_3이 battle_code(전투 마스터)다:
-    /// 0 이상 bound 미만의 무작위 정수 r을 뽑아 r &lt; chance면 전투가 벌어진다(JumpRandom과 같은 규칙). 모수는 1 이상이어야 한다.
-    /// </summary>
-    RandomBattle = 4,
     /// <summary>닿으면 ADV로 넘어간다. value_1이 adv_code(ADV 마스터)다.</summary>
-    Adv = 5,
+    Adv = 4,
     /// <summary>
     /// 닿으면 같은 던전 안의 다른 칸으로 옮겨 간다(계단, 워프). value_1이 도착할 layer_number, value_2가 pos_x, value_3이 pos_y다.
     /// 다른 던전으로는 갈 수 없다(던전은 홈 화면에서 던전과 파티를 골라 들어가므로). 도착 칸은 그 던전의 맵에 있는 글자 칸이어야 한다(던전 맵 마스터 로드 검증).
     /// </summary>
-    Warp = 6,
+    Warp = 5,
     /// <summary>계단을 표시한다(보이기만 한다). 층을 오가게 하려면 <see cref="Warp"/>를 같이 겹친다. 인자는 쓰이지 않는다.</summary>
-    Stairs = 7,
+    Stairs = 6,
     /// <summary>
     /// 이동불가: 이 효과가 있는 타일 칸으로는 들어갈 수 없다. 인자는 쓰이지 않는다. Wall과 겹치면 못 지나가는 벽이고, Wall만 있으면 지나갈 수 있는 벽이며,
     /// Warp와 Stairs만 있고 Wall이 없으면 옆 맵으로 걸어 넘어가는 듯한 이동이 된다.
     /// </summary>
-    Impassable = 8,
+    Impassable = 7,
 }
 
 /// <summary>타일 마스터의 한 행: 타일(TileCode)이 가진 효과(EffectType)와 그 인자. 키는 (TileCode, EffectType)이라 한 타일에 효과 종류별로 한 행씩 겹칠 수 있다.</summary>
@@ -45,6 +40,9 @@ public sealed record TileEffect(long TileCode, TileEffectType EffectType, long V
 
 /// <summary>던전 타일 마스터의 한 행: 그 던전의 맵 TSV에서 한 글자(LocalTileText)가 가리키는 타일(TileCode). 키는 (DungeonCode, LocalTileText).</summary>
 public sealed record DungeonTile(long DungeonCode, string LocalTileText, long TileCode);
+
+/// <summary>던전 인카운트 마스터의 한 행: 그 던전의 LayerNumber번 맵에서 전투(BattleCode)를 만날 몫(Weight). 키는 (DungeonCode, LayerNumber, BattleCode).</summary>
+public sealed record DungeonEncounter(long DungeonCode, long LayerNumber, long Weight, long BattleCode);
 
 /// <summary>던전 맵 마스터의 한 줄: 그 던전의 LayerNumber번 맵(던전 안에 맵이 여러 개일 수 있다)의 위쪽에서 PosY번째 줄(0부터). Cells는 pos_x_0 ~ pos_x_29의 글자이고 빈 칸은 ""(맵 밖)이다.</summary>
 public sealed record DungeonMapLine(long DungeonCode, long LayerNumber, long PosY, IReadOnlyList<string> Cells);
@@ -57,6 +55,7 @@ public sealed partial class GamePack
     public const string TileMasterPath = "master/tile_master_v1.tsv";
     public const string DungeonTileMasterPath = "master/dungeon_tile_master_v1.tsv";
     public const string DungeonMapMasterPath = "master/dungeon_map_master_v1.tsv";
+    public const string DungeonEncounterMasterPath = "master/dungeon_encounter_master_v1.tsv";
 
     /// <summary>던전 맵의 가로 칸 수(pos_x_0 ~ pos_x_29).</summary>
     public const int DungeonMapWidth = 30;
@@ -70,9 +69,12 @@ public sealed partial class GamePack
     /// <summary>던전 맵 마스터가 없으면 null. 게임팩 파일 순서.</summary>
     public IReadOnlyList<DungeonMapLine>? DungeonMaps { get; init; }
 
+    /// <summary>던전 인카운트 마스터가 없으면 null. 게임팩 파일 순서.</summary>
+    public IReadOnlyList<DungeonEncounter>? DungeonEncounters { get; init; }
+
     /// <summary>
     /// 타일 마스터를 읽는다. 키 (타일 코드, 효과)를 두 번 쓸 수 없다. 효과는 이름으로 적고, 인자(value_1~3)는 정수(long, 비우면 0)다.
-    /// 효과별 인자 검증: Warp는 도착 layer_number와 pos_y가 0 이상, pos_x가 0~29(도착 칸이 맵에 있는지는 던전 맵 마스터를 읽을 때 본다), FixedBattle의 value_1과 RandomBattle의 value_3은 전투 마스터의 코드, RandomBattle의 value_2(모수)는 1 이상, Adv의 value_1은 ADV 마스터의 코드여야 한다
+    /// 효과별 인자 검증: Warp는 도착 layer_number와 pos_y가 0 이상, pos_x가 0~29(도착 칸이 맵에 있는지는 던전 맵 마스터를 읽을 때 본다), FixedBattle의 value_1은 전투 마스터의 코드, Adv의 value_1은 ADV 마스터의 코드여야 한다
     /// (전투나 ADV 효과가 있으려면 그 마스터가 있어야 한다). None, Wall, Exit, Stairs, Impassable은 인자를 보지 않는다.
     /// </summary>
     static List<TileEffect>? LoadTileEffects(ZipArchive zip, List<AdvEntry>? advs, List<BattleEntry>? battles)
@@ -110,10 +112,6 @@ public sealed partial class GamePack
             {
                 case TileEffectType.FixedBattle:
                     CheckBattle(v1);
-                    break;
-                case TileEffectType.RandomBattle:
-                    if (v2 < 1) throw new PackFormatException($"{file}: {where} RandomBattle의 모수 '{v2}'는 1 이상이어야 합니다.");
-                    CheckBattle(v3);
                     break;
                 case TileEffectType.Warp when v1 < 0 || v2 < 0 || v2 >= DungeonMapWidth || v3 < 0:
                     throw new PackFormatException($"{file}: {where} Warp의 도착(layer_number {v1}, pos_x {v2}, pos_y {v3})은 layer_number와 pos_y가 0 이상, pos_x가 0 이상 {DungeonMapWidth} 미만이어야 합니다.");
@@ -235,6 +233,52 @@ public sealed partial class GamePack
                 }
         return rows;
     }
+
+    /// <summary>
+    /// 던전 인카운트 마스터를 읽는다(dungeon_code, layer_number, weight, battle_code). 던전은 던전 마스터에, 그 던전의 맵(layer_number)은 던전 맵 마스터에, 전투는 전투 마스터에 있어야 하고,
+    /// 가중치는 1 이상이며 키 (던전, layer_number, battle_code)를 두 번 쓸 수 없다. 한 맵에 전투가 하나도 없으면 그 맵에서는 인카운트하지 않는다.
+    /// </summary>
+    static List<DungeonEncounter>? LoadDungeonEncounters(ZipArchive zip, List<Dungeon>? dungeons, List<DungeonMapLine>? maps, List<BattleEntry>? battles)
+    {
+        const string file = DungeonEncounterMasterPath;
+        var text = TryReadEntry(zip, file);
+        if (text is null) return null;
+        if (dungeons is null) throw new PackFormatException($"{file}가 있으려면 {DungeonMasterPath}도 필요합니다.");
+        if (maps is null) throw new PackFormatException($"{file}가 있으려면 {DungeonMapMasterPath}도 필요합니다.");
+        if (battles is null) throw new PackFormatException($"{file}가 있으려면 {BattleMasterPath}도 필요합니다.");
+
+        var dungeonCodes = dungeons.Select(d => d.Code).ToHashSet();
+        var layers = maps.Select(m => (m.DungeonCode, m.LayerNumber)).ToHashSet();
+        var battleCodes = battles.Select(b => b.Code).ToHashSet();
+        var rows = new List<DungeonEncounter>();
+        var seen = new HashSet<(long, long, long)>();
+        foreach (var r in Body(file, text, "dungeon_code", "layer_number", "weight", "battle_code"))
+        {
+            var dungeon = ParseLong(file, "던전 코드", r[0]);
+            var layer = ParseLong(file, $"던전 '{dungeon}'의 layer_number", r[1]);
+            var weight = ParseLong(file, $"던전 '{dungeon}'의 레이어 {layer}의 weight", r[2]);
+            var battle = ParseLong(file, $"던전 '{dungeon}'의 레이어 {layer}의 battle_code", r[3]);
+            if (!dungeonCodes.Contains(dungeon))
+                throw new PackFormatException($"{file}: 던전 코드 '{dungeon}'가 던전 마스터에 없습니다.");
+            if (!layers.Contains((dungeon, layer)))
+                throw new PackFormatException($"{file}: 던전 '{dungeon}'에 layer_number '{layer}'의 맵이 없습니다.");
+            if (weight < 1)
+                throw new PackFormatException($"{file}: 던전 '{dungeon}'의 레이어 {layer}의 weight '{weight}'는 1 이상이어야 합니다.");
+            if (!battleCodes.Contains(battle))
+                throw new PackFormatException($"{file}: 던전 '{dungeon}'의 레이어 {layer}의 전투 '{battle}'가 전투 마스터에 없습니다.");
+            if (!seen.Add((dungeon, layer, battle)))
+                throw new PackFormatException($"{file}: 같은 키(던전 {dungeon}, layer_number {layer}, 전투 {battle})가 두 번 있습니다.");
+            rows.Add(new DungeonEncounter(dungeon, layer, weight, battle));
+        }
+        return rows;
+    }
+
+    /// <summary>한 던전의 한 맵(layer_number)에서 만날 수 있는 전투들(전투 코드 순). 없으면 빈 목록(그 맵에서는 인카운트하지 않는다).</summary>
+    public IReadOnlyList<DungeonEncounter> DungeonEncountersOf(long dungeonCode, long layerNumber) =>
+        Masters.DungeonEncounterRowTable.FindByDungeonCode(dungeonCode)
+            .Where(r => r.LayerNumber == layerNumber)
+            .OrderBy(r => r.BattleCode)
+            .Select(r => new DungeonEncounter(r.DungeonCode, r.LayerNumber, r.Weight, r.BattleCode)).ToList();
 
     /// <summary>공백이 아닌 보이는 글자 하나인가(조합 문자나 이모지는 하나로 센다).</summary>
     static bool IsSingleVisibleChar(string s) =>

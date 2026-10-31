@@ -267,7 +267,7 @@
                         </div>
                     }
                 </div>
-                <div class="dungeon-moves">@commands</div>
+                <p class="dungeon-help">W A S D(방향키)로 이동@(session.CanInteractDungeon ? " · Enter: 출구에서 던전을 나간다" : "")</p>
                 break;
 
             case Screen.GameOver:
@@ -687,8 +687,17 @@
         }
         @* 홈 이후 모든 화면의 맨 아래에 좌우 폭 끝까지 늘 보이는 코드 입력칸 *@
         <div class="command-bar">
-            <input @ref="commandInput" class="command" autocomplete="off" placeholder="@CommandPlaceholder"
-                   @bind="command" @bind:event="oninput" @onkeydown="OnCommandKey" />
+            @if (session.Screen == Screen.DungeonMove)
+            {
+                @* 던전 이동: 글을 쓰지 않고 키만 받는다(W A S D는 누르는 즉시 이동, Enter는 지금 칸의 상호작용) *@
+                <input @ref="commandInput" class="command" autocomplete="off" placeholder="W A S D 이동, Enter 상호작용"
+                       value="" @oninput="OnDungeonInput" @onkeydown="OnDungeonKey" />
+            }
+            else
+            {
+                <input @ref="commandInput" class="command" autocomplete="off" placeholder="@CommandPlaceholder"
+                       @bind="command" @bind:event="oninput" @onkeydown="OnCommandKey" />
+            }
         </div>
     }
 </main>
@@ -730,7 +739,7 @@
             focusCommand = false;
             if (session is { AdvanceOnAnyKey: true })
                 await advanceArea.FocusAsync(preventScroll: true);       // 아무 키나 누르면 넘어가는 장면은 장면 영역이 키를 받는다
-            else if (session is { Entries.Count: > 0 } or { Screen: Screen.DungeonSelect })
+            else if (session is { Entries.Count: > 0 } or { Screen: Screen.DungeonSelect or Screen.DungeonMove })
                 await commandInput.FocusAsync(preventScroll: true);
         }
 
@@ -819,6 +828,26 @@
     async Task OnAdvanceClick()
     {
         if (session is { AdvanceOnAnyKey: true }) await Activate(GameSession.NextEventStepCode);
+    }
+
+    async Task OnDungeonInput(ChangeEventArgs e)
+    {
+        foreach (var key in e.Value?.ToString() ?? "") session!.PressDungeonKey(key);
+        await JS.InvokeVoidAsync("wera.clearInput", commandInput);
+        focusCommand = true;
+    }
+
+    void OnDungeonKey(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "Enter": session!.InteractDungeon(); break;
+            case "ArrowUp": session!.PressDungeonKey('w'); break;
+            case "ArrowDown": session!.PressDungeonKey('s'); break;
+            case "ArrowLeft": session!.PressDungeonKey('a'); break;
+            case "ArrowRight": session!.PressDungeonKey('d'); break;
+        }
+        focusCommand = true;
     }
 
     async Task OnCommandKey(KeyboardEventArgs e)

@@ -46,6 +46,7 @@ public sealed partial class GamePack
         List<PresetUnit>? presetUnits, List<PresetUnitEquip>? presetUnitEquips, List<PresetUnitDrop>? presetUnitDrops,
         List<PresetParty>? presetParties, List<BattleEnemy>? battleEnemies,
         List<TileEffect>? tileEffects, List<DungeonTile>? dungeonTiles, List<DungeonMapLine>? dungeonMaps,
+        List<DungeonEncounter>? dungeonEncounters,
         List<SkillSlotEntry>? skillSlots, List<CharacterSkillSlotTag>? characterSkillSlotTags,
         List<SkillEntry>? skills, List<SkillTag>? skillTags, List<SkillExecuteEffect>? skillExecuteEffects,
         List<SkillOrderEffect>? skillOrderEffects, List<SkillAutoTargetEffect>? skillAutoTargetEffects,
@@ -67,7 +68,7 @@ public sealed partial class GamePack
         }).ToList());
 
         builder.Append((dungeons ?? []).Select(d => new DungeonRow
-            { Code = d.Code, Name = d.Name, EntryLayerNumber = d.Entry?.LayerNumber, EntryPosX = d.Entry?.PosX, EntryPosY = d.Entry?.PosY }).ToList());
+            { Code = d.Code, Name = d.Name, EntryLayerNumber = d.Entry?.LayerNumber, EntryPosX = d.Entry?.PosX, EntryPosY = d.Entry?.PosY, EncounterRate = d.EncounterRate }).ToList());
         builder.Append(dungeonConditions.Select(c => new DungeonFlagRow
         { DungeonCode = c.Code, GroupNumber = c.GroupNumber,
             FlagCode = c.Condition.FlagCode, Type = c.Condition.Type, Value = c.Condition.Value,
@@ -172,6 +173,8 @@ public sealed partial class GamePack
             { DungeonCode = t.DungeonCode, LocalTileText = t.LocalTileText, TileCode = t.TileCode }).ToList());
         builder.Append((dungeonMaps ?? []).Select(m => new DungeonMapRow
             { DungeonCode = m.DungeonCode, LayerNumber = m.LayerNumber, PosY = m.PosY, Cells = [.. m.Cells] }).ToList());
+        builder.Append((dungeonEncounters ?? []).Select(e => new DungeonEncounterRow
+            { DungeonCode = e.DungeonCode, LayerNumber = e.LayerNumber, BattleCode = e.BattleCode, Weight = e.Weight }).ToList());
         builder.Append((presetUnits ?? []).Select(u => new PresetUnitRow { Code = u.Code, CharacterCode = u.CharacterCode }).ToList());
         builder.Append((presetUnitEquips ?? []).Select(e => new PresetUnitEquipRow
             { PresetUnitCode = e.PresetUnitCode, EquipmentSlotCode = e.EquipmentSlotCode, ItemCode = e.ItemCode }).ToList());

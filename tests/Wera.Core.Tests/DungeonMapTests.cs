@@ -42,11 +42,10 @@ public class DungeonMapTests
     public void The_masters_load_and_are_looked_up_by_tile_dungeon_and_character()
     {
         var pack = Load(
-            (GamePack.TileMasterPath, TileHeader + "1\tNone\t0\t0\t0\n5\tFixedBattle\t5001\t0\t0\n5\tWall\t0\t0\t0\n6\tRandomBattle\t30\t100\t5001\n7\tAdv\t4001\t0\t0\n"),
+            (GamePack.TileMasterPath, TileHeader + "1\tNone\t0\t0\t0\n5\tFixedBattle\t5001\t0\t0\n5\tWall\t0\t0\t0\n7\tAdv\t4001\t0\t0\n"),
             (GamePack.DungeonTileMasterPath, DungeonTileHeader + "1001\t.\t1\n1001\tB\t5\n"),
             (GamePack.DungeonMapMasterPath, MapHeader + Row(1001, 0, 1, ".B.") + Row(1001, 0, 0, "B . ") + Row(1001, 2, 0, "B") + Row(1001, 1, 5, ".")));
         Assert.Equal([TileEffectType.Wall, TileEffectType.FixedBattle], pack.TileEffectsOf(5).Select(e => e.EffectType));      // 같은 타일에 효과가 겹치고 효과 번호 순
-        Assert.Equal(new TileEffect(6, TileEffectType.RandomBattle, 30, 100, 5001), pack.TileEffectsOf(6).Single());
         Assert.Equal(5, pack.DungeonTileCodeOf(1001, "B"));
         Assert.Null(pack.DungeonTileCodeOf(1001, "x"));
         Assert.Null(pack.DungeonTileCodeOf(1002, "B"));
@@ -74,6 +73,42 @@ public class DungeonMapTests
         Assert.Empty(pack.DungeonMapOf(1001));
     }
 
+    const string EncounterHeader = "dungeon_code\tlayer_number\tweight\tbattle_code\n";
+    const string DungeonsWithRate = "code\tname\tentry_layer_number\tentry_pos_x\tentry_pos_y\tencounter_rate\n1001\t초원\t0\t0\t0\t25\n1002\t동굴\t\t\t\t\n";
+
+    static (string, string)[] WithMap() =>
+        [(GamePack.DungeonMasterPath, DungeonsWithRate), (GamePack.DungeonMapMasterPath, MapHeader + Row(1001, 0, 0, ".") + Row(1001, 1, 0, "."))];
+
+    [Fact]
+    public void The_dungeon_encounter_master_gives_each_map_its_weighted_battles_and_the_dungeon_its_rate()
+    {
+        var pack = Load([.. WithMap(), (GamePack.DungeonEncounterMasterPath, EncounterHeader + "1001\t0\t3\t5001\n1001\t0\t1\t5002\n1001\t1\t1\t5001\n"),
+            (GamePack.BattleMasterPath, "code\tname\n5001\t전투\n5002\t전투 2\n")]);
+        Assert.Equal(25, pack.Dungeons!.Single(d => d.Code == 1001).EncounterRate);
+        Assert.Equal(0, pack.Dungeons!.Single(d => d.Code == 1002).EncounterRate);
+        Assert.Equal([(5001L, 3L), (5002L, 1L)], pack.DungeonEncountersOf(1001, 0).Select(e => (e.BattleCode, e.Weight)));
+        Assert.Equal([5001L], pack.DungeonEncountersOf(1001, 1).Select(e => e.BattleCode));
+        Assert.Empty(pack.DungeonEncountersOf(1001, 2));                                      // 설정된 전투가 없는 맵은 인카운트하지 않는다
+        Assert.Equal(0, Load().Dungeons!.First().EncounterRate);                              // 열이 없으면 0
+    }
+
+    [Fact]
+    public void Bad_encounter_masters_and_rates_are_rejected()
+    {
+        (string, string)[] With(string rows) =>
+            [.. WithMap(), (GamePack.DungeonEncounterMasterPath, EncounterHeader + rows)];
+        Rejects("던전 코드 '9'", With("9\t0\t1\t5001\n"));
+        Rejects("layer_number '3'의 맵이 없습니다", With("1001\t3\t1\t5001\n"));
+        Rejects("weight '0'", With("1001\t0\t0\t5001\n"));
+        Rejects("전투 '9'", With("1001\t0\t1\t9\n"));
+        Rejects("두 번", With("1001\t0\t1\t5001\n1001\t0\t2\t5001\n"));
+        Rejects("encounter_rate '101'", (GamePack.DungeonMasterPath, "code\tname\tencounter_rate\n1001\t초원\t101\n"));
+        Rejects("encounter_rate '-1'", (GamePack.DungeonMasterPath, "code\tname\tencounter_rate\n1001\t초원\t-1\n"));
+        Rejects("정수가 아닙니다", (GamePack.DungeonMasterPath, "code\tname\tencounter_rate\n1001\t초원\tx\n"));
+        Assert.Equal(40, Load((GamePack.DungeonMasterPath, "code\tname\tencounter_rate\n1001\t초원\t40\n1002\t동굴\t\n")).Dungeons![0].EncounterRate);   // 도입 지점 열 없이도 된다
+        RejectsWithout(GamePack.BattleMasterPath, "battle_master_v1.tsv도 필요", With("1001\t0\t1\t5001\n"));
+    }
+
     [Fact]
     public void Bad_tile_masters_are_rejected()
     {
@@ -81,8 +116,6 @@ public class DungeonMapTests
         Rejects("알 수 없습니다", (GamePack.TileMasterPath, TileHeader + "1\t1\t0\t0\t0\n"));                                // 숫자는 안 된다
         Rejects("두 번", (GamePack.TileMasterPath, TileHeader + "1\tWall\t0\t0\t0\n1\tWall\t0\t0\t0\n"));
         Rejects("전투 '9'", (GamePack.TileMasterPath, TileHeader + "1\tFixedBattle\t9\t0\t0\n"));
-        Rejects("모수", (GamePack.TileMasterPath, TileHeader + "1\tRandomBattle\t30\t0\t5001\n"));
-        Rejects("전투 '9'", (GamePack.TileMasterPath, TileHeader + "1\tRandomBattle\t30\t100\t9\n"));
         Rejects("ADV '9'", (GamePack.TileMasterPath, TileHeader + "1\tAdv\t9\t0\t0\n"));
         RejectsWithout(GamePack.BattleMasterPath, "battle_master_v1.tsv도 필요", (GamePack.TileMasterPath, TileHeader + "1\tFixedBattle\t5001\t0\t0\n"));
         Rejects("헤더", (GamePack.TileMasterPath, "code\ttile_effect\n1\tWall\n"));
@@ -128,7 +161,7 @@ public class DungeonMapTests
         Assert.Superset(new HashSet<TileEffectType>
         {
             TileEffectType.None, TileEffectType.Wall, TileEffectType.Exit,
-            TileEffectType.FixedBattle, TileEffectType.RandomBattle, TileEffectType.Adv, TileEffectType.Warp, TileEffectType.Stairs, TileEffectType.Impassable,
+            TileEffectType.FixedBattle, TileEffectType.Adv, TileEffectType.Warp, TileEffectType.Stairs, TileEffectType.Impassable,
         }, kinds);
     }
 
@@ -149,10 +182,12 @@ public class DungeonMapTests
             (GamePack.DungeonMapMasterPath, MapHeader + Row(1001, 0, 0, ">")));                                                  // 그 맵이 없다
         Rejects("pos_x 30", (GamePack.TileMasterPath, TileHeader + "2\tWarp\t0\t30\t0\n"));
         Rejects("Warp의 도착", (GamePack.TileMasterPath, TileHeader + "2\tWarp\t-1\t0\t0\n"));
-        Assert.Equal(6, (int)TileEffectType.Warp);
-        Assert.Equal(7, (int)TileEffectType.Stairs);
-        Assert.Equal(8, (int)TileEffectType.Impassable);
+        Assert.Equal(4, (int)TileEffectType.Adv);
+        Assert.Equal(5, (int)TileEffectType.Warp);
+        Assert.Equal(6, (int)TileEffectType.Stairs);
+        Assert.Equal(7, (int)TileEffectType.Impassable);
         Assert.DoesNotContain("Start", Enum.GetNames<TileEffectType>());
+        Assert.DoesNotContain("RandomBattle", Enum.GetNames<TileEffectType>());      // 전투는 던전 인카운트 마스터로 정한다
     }
 
     [Fact]

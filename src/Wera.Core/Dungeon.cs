@@ -46,7 +46,8 @@ public readonly record struct DungeonEntry(long LayerNumber, long PosX, long Pos
 
 /// <param name="Groups">그룹넘버 순으로 정렬된 조건 묶음.</param>
 /// <param name="Entry">도입 지점(던전 마스터의 entry_layer_number, entry_pos_x, entry_pos_y). 던전 맵이 없는 던전은 null.</param>
-public sealed record Dungeon(long Code, string Name, IReadOnlyList<IReadOnlyList<FlagCondition>> Groups, DungeonEntry? Entry = null)
+/// <param name="EncounterRate">던전 마스터의 encounter_rate(0~100, 비우면 0): 한 칸 움직일 때마다 전투를 만날 확률(%). 만날 전투는 던전 인카운트 마스터에서 레이어마다 정한다.</param>
+public sealed record Dungeon(long Code, string Name, IReadOnlyList<IReadOnlyList<FlagCondition>> Groups, DungeonEntry? Entry = null, long EncounterRate = 0)
 {
     public bool IsAvailable(IReadOnlyDictionary<long, long> playerFlags) => ConditionGroups.IsMet(Groups, playerFlags);
 }

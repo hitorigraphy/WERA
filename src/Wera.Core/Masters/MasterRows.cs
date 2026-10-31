@@ -49,6 +49,7 @@ public record DungeonRow
     public long? EntryLayerNumber { get; init; }
     public long? EntryPosX { get; init; }
     public long? EntryPosY { get; init; }
+    public long EncounterRate { get; init; }
 }
 
 /// <summary>던전 입장 조건: 복합키는 (던전, 그룹넘버, 플래그)이고, 보조키 던전 코드로 그 던전의 조건 전부를 찾는다.</summary>
@@ -407,6 +408,19 @@ public record DungeonMapRow
     [PrimaryKey(keyOrder: 1)] public required long LayerNumber { get; init; }
     [PrimaryKey(keyOrder: 2)] public required long PosY { get; init; }
     public required string[] Cells { get; init; }
+}
+
+/// <summary>던전 인카운트: 복합키는 (던전, 맵 번호, 전투)이고, 보조키 던전 코드로 그 던전의 인카운트 전부를 찾는다. 가중치(Weight)는 그 맵에서 전투를 고를 때의 몫이다.</summary>
+[MemoryTable("dungeon_encounter"), MessagePackObject(true)]
+public record DungeonEncounterRow
+{
+    [PrimaryKey(keyOrder: 0)]
+    [SecondaryKey(0), NonUnique]
+    public required long DungeonCode { get; init; }
+
+    [PrimaryKey(keyOrder: 1)] public required long LayerNumber { get; init; }
+    [PrimaryKey(keyOrder: 2)] public required long BattleCode { get; init; }
+    public required long Weight { get; init; }
 }
 
 [MemoryTable("preset_unit"), MessagePackObject(true)]
