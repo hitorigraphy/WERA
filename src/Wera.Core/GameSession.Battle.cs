@@ -30,6 +30,8 @@ public sealed partial class GameSession
         Basic,
         /// <summary>행동 후보: 지금 보고 있는 캐릭터가 고를 수 있는 스킬들(지금은 고정으로 스킬1~4)과 [106] 취소.</summary>
         ActionCandidates,
+        /// <summary>대상 후보: 고른 스킬의 메인 타겟이 될 수 있는 적 유닛들(쓰러지지 않은 적, 코드는 적 슬롯 번호+1)과 [106] 취소.</summary>
+        TargetCandidates,
     }
 
     /// <summary>행동 후보의 스킬 이름. 사용 가능한 스킬 목록은 나중에 쓰고, 지금은 고정으로 스킬1~4다.</summary>
@@ -43,6 +45,15 @@ public sealed partial class GameSession
 
     /// <summary>이번 턴에 아군 유닛(파티 슬롯 번호)마다 설정한 행동(스킬 번호 1~4). 설정하지 않은 유닛은 없다.</summary>
     readonly Dictionary<int, int> battleActions = [];
+
+    /// <summary>이번 턴에 아군 유닛(파티 슬롯 번호)마다 고른 메인 타겟(적 슬롯 번호). 스킬과 함께 정해진다.</summary>
+    readonly Dictionary<int, int> battleTargets = [];
+
+    /// <summary>대상 후보에서 고르는 중인 스킬 번호(행동 후보에서 스킬을 고른 뒤). 없으면 null.</summary>
+    int? battlePendingSkill;
+
+    /// <summary>슬롯의 아군 유닛이 이번 턴에 정한 메인 타겟(적 슬롯 번호). 정하지 않았으면 null.</summary>
+    public int? BattleTargetOf(int slot) => battleTargets.TryGetValue(slot, out var target) ? target : null;
 
     /// <summary>슬롯의 아군 유닛이 이번 턴에 설정한 행동(스킬 번호). 설정하지 않았으면 null.</summary>
     public int? BattleActionOf(int slot) => battleActions.TryGetValue(slot, out var skill) ? skill : null;
@@ -168,6 +179,8 @@ public sealed partial class GameSession
     void BeginTurn()
     {
         battleActions.Clear();
+        battleTargets.Clear();
+        battlePendingSkill = null;
         BattleCurrentSlot = BattleUnitSlots() is { Count: > 0 } slots ? slots[0] : null;
         BattleCommands = BattleCommandMode.Basic;
         BattleTop = BattleTopAllyHeavy;
@@ -183,6 +196,7 @@ public sealed partial class GameSession
         if (slots.Count == 0) return;
         var at = BattleCurrentSlot is { } current ? slots.IndexOf(current) : -1;
         BattleCurrentSlot = slots[((at + delta) % slots.Count + slots.Count) % slots.Count];
+        battlePendingSkill = null;
         BattleCommands = BattleCommandMode.Basic;
         BattleTop = BattleTopAllyHeavy;
     }
@@ -195,12 +209,28 @@ public sealed partial class GameSession
         BattleTop = BattleTopEnemyHeavy;
     }
 
-    /// <summary>행동 후보에서 스킬을 고르면 보는 캐릭터의 이번 턴 행동이 그 스킬로 정해지고 기본 커맨드로 돌아간다.</summary>
+    /// <summary>행동 후보에서 스킬을 고르면 메인 타겟을 고르는 대상 후보로 바뀐다(아직 행동은 정해지지 않는다).</summary>
     void ChooseBattleSkill(int skill)
     {
-        if (BattleCurrentSlot is { } slot) battleActions[slot] = skill;
-        BattleCommands = BattleCommandMode.Basic;
+        if (BattleCurrentSlot is null) return;
+        battlePendingSkill = skill;
+        BattleCommands = BattleCommandMode.TargetCandidates;
     }
+
+    /// <summary>대상 후보에서 적을 고르면 보는 캐릭터의 행동(스킬과 메인 타겟)이 정해지고 다음 캐릭터로 넘어간다.</summary>
+    void ChooseBattleTarget(int enemySlot)
+    {
+        if (BattleCurrentSlot is { } slot && battlePendingSkill is { } skill)
+        {
+            battleActions[slot] = skill;
+            battleTargets[slot] = enemySlot;
+        }
+        SelectBattleCharacter(1);
+    }
+
+    /// <summary>메인 타겟이 될 수 있는 적 슬롯 번호들(임시 인스턴스가 있고 쓰러지지 않은 적, 칸 순서).</summary>
+    List<int> BattleTargetSlots() =>
+        enemyInstances.Where(e => !e.Value.IsDead).Select(e => e.Key).Order().ToList();
 
     /// <summary>적 슬롯 하나의 표시: 임시 캐릭터 인스턴스의 현재 값을 보여 준다. 빈 칸은 빈 슬롯.</summary>
     PartySlotView EnemySlotView(int slot)
@@ -256,6 +286,14 @@ public sealed partial class GameSession
             for (var i = 0; i < BattleSkillNames.Count; i++)
                 yield return new ScreenEntry((101 + i).ToString(CultureInfo.InvariantCulture), BattleSkillNames[i], Screen.Battle,
                     EntryAction.BattleChooseSkill, (i + 1).ToString(CultureInfo.InvariantCulture));
+            yield return new ScreenEntry("106", "취소", Screen.Battle, EntryAction.BattleCancelActions);
+            yield break;
+        }
+        if (BattleCommands == BattleCommandMode.TargetCandidates)
+        {
+            foreach (var enemy in BattleTargetSlots())
+                yield return new ScreenEntry((enemy + 1).ToString(CultureInfo.InvariantCulture), CharacterName(enemyInstances[enemy].CharacterCode), Screen.Battle,
+                    EntryAction.BattleChooseTarget, enemy.ToString(CultureInfo.InvariantCulture));
             yield return new ScreenEntry("106", "취소", Screen.Battle, EntryAction.BattleCancelActions);
             yield break;
         }

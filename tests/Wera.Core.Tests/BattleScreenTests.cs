@@ -212,17 +212,34 @@ public class BattleScreenTests
     }
 
     [Fact]
-    public void Choosing_a_skill_sets_the_action_and_returns_to_the_basic_commands_and_cancel_sets_nothing()
+    public void Choosing_a_skill_then_a_target_sets_the_action_and_moves_to_the_next_character_and_cancel_sets_nothing()
     {
         var s = Started(twoUnits: true);
         s.Activate("102"); s.Activate("106");                      // 취소
         Assert.Equal(GameSession.BattleCommandMode.Basic, s.BattleCommands);
         Assert.Null(s.BattleActionOf(0));
 
-        s.Activate("102"); s.Activate("103");                      // 스킬3
-        Assert.Equal(3, s.BattleActionOf(0));
+        s.Activate("102"); s.Activate("103");                      // 스킬3 → 대상 후보
+        Assert.Equal(GameSession.BattleCommandMode.TargetCandidates, s.BattleCommands);
+        Assert.Null(s.BattleActionOf(0));                          // 대상을 고르기 전에는 행동이 아니다
+        Assert.Equal(["1", "3", "5", "8", "106"], s.Entries.Where(e => e.Action is EntryAction.BattleChooseTarget or EntryAction.BattleCancelActions).Select(e => e.Code));
+        s.Activate("106");                                         // 취소
         Assert.Equal(GameSession.BattleCommandMode.Basic, s.BattleCommands);
-        Assert.Equal(0, s.BattleCurrentSlot);                      // 보는 캐릭터는 그대로
+        Assert.Null(s.BattleActionOf(0));
+
+        s.Activate("102"); s.Activate("103"); s.Activate("3");     // 스킬3, 적 슬롯 2(코드 3)
+        Assert.Equal((3, 2), (s.BattleActionOf(0)!.Value, s.BattleTargetOf(0)!.Value));
+        Assert.Equal(GameSession.BattleCommandMode.Basic, s.BattleCommands);
+        Assert.Equal(1, s.BattleCurrentSlot);                      // 다음 캐릭터로 넘어간다
+    }
+
+    [Fact]
+    public void Defeated_enemies_cannot_be_targeted()
+    {
+        var s = Started();
+        s.EnemyInstances[2].Statuses[GamePack.HpStatusCode] = 0;      // 적 슬롯 2를 쓰러뜨린다
+        s.Activate("102"); s.Activate("101");
+        Assert.Equal(["1", "5", "8"], s.Entries.Where(e => e.Action == EntryAction.BattleChooseTarget).Select(e => e.Code));
     }
 
     [Fact]
@@ -232,10 +249,9 @@ public class BattleScreenTests
         Assert.Equal(("실행", false), (Entry(s, "106").Label, Entry(s, "106").Enabled));
         Assert.False(s.BattleAllActionsSet);
 
-        s.Activate("102"); s.Activate("101");                      // 첫 유닛: 스킬1
+        s.Activate("102"); s.Activate("101"); s.Activate("1");     // 첫 유닛: 스킬1 → 다음 캐릭터로
         Assert.False(Entry(s, "106").Enabled);                     // 둘째 유닛이 아직
-        s.Activate("101");                                         // 다음 캐릭터
-        s.Activate("102"); s.Activate("104");                      // 둘째 유닛: 스킬4
+        s.Activate("102"); s.Activate("104"); s.Activate("1");     // 둘째 유닛: 스킬4
         Assert.True(s.BattleAllActionsSet);
         Assert.True(Entry(s, "106").Enabled);
         Assert.Equal((1, 4), (s.BattleActionOf(0)!.Value, s.BattleActionOf(1)!.Value));
@@ -249,7 +265,7 @@ public class BattleScreenTests
     {
         var s = Started(twoUnits: true);
         Assert.Equal(["당신", "용사", "빈 슬롯"], AllyFront(s).Select(v => v.Name));
-        s.Activate("102"); s.Activate("103");                      // 첫 유닛: 스킬3
+        s.Activate("102"); s.Activate("103"); s.Activate("1");     // 첫 유닛: 스킬3
         Assert.Equal(["스킬3", "용사", "빈 슬롯"], AllyFront(s).Select(v => v.Name));
     }
 
@@ -261,7 +277,7 @@ public class BattleScreenTests
         Assert.Equal(0, s.BattleCurrentSlot);
         s.Activate("101");
         Assert.Equal(0, s.BattleCurrentSlot);
-        s.Activate("102"); s.Activate("102");
+        s.Activate("102"); s.Activate("102"); s.Activate("1");
         Assert.True(s.BattleAllActionsSet);                        // 유닛이 하나뿐이면 하나만 정하면 실행할 수 있다
     }
 }
