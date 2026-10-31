@@ -243,7 +243,6 @@ public sealed partial class GameSession
     void BeginTurn()
     {
         PullFormations();
-        RunBeforeTurnCircuits();
         battleActions.Clear();
         battleMoves.Clear();
         battleTargets.Clear();
@@ -293,14 +292,6 @@ public sealed partial class GameSession
                 }
             }
         }
-    }
-
-    /// <summary>턴 시작 전 서킷: 진형 당기기 뒤에 살아 있는 유닛마다(아군 슬롯 순, 적 슬롯 순) 한 번씩 돌린다(시전자는 그 유닛).</summary>
-    void RunBeforeTurnCircuits()
-    {
-        var store = CreateUnitStore();
-        foreach (var unit in new[] { false, true }.SelectMany(LivingOf))
-            new BattleBeforeTurnCircuit(Pack, store, UnitOf(unit), null).Execute();
     }
 
     /// <summary>

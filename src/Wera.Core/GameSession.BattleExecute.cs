@@ -104,7 +104,6 @@ public sealed partial class GameSession
             targetOf[actor] = victim;
             var caster = UnitOf(actor)!;
             var main = UnitOf(victim)!;
-            var aliveBefore = new[] { false, true }.SelectMany(LivingOf).ToList();
             var hpBefore = store.CharacterOf(main)!.Hp;
             var subCombatants = SubTargetsOf(victim, skillOf[actor]);
             var subs = subCombatants.Select(c => UnitOf(c)!).ToList();
@@ -118,9 +117,6 @@ public sealed partial class GameSession
             battleLog.Add(new BattleActed(actor.IsEnemy, actor.Slot, skillOf[actor], victim.IsEnemy, victim.Slot, best, hpBefore - store.CharacterOf(main)!.Hp));
             for (var i = 0; i < subs.Count; i++)
                 battleLog.Add(new BattleActed(actor.IsEnemy, actor.Slot, skillOf[actor], subCombatants[i].IsEnemy, subCombatants[i].Slot, best, subHpBefore[i] - store.CharacterOf(subs[i])!.Hp, IsSub: true));
-
-            foreach (var fallen in aliveBefore.Where(c => !IsAlive(c)))                  // 이 행동으로 쓰러진 유닛마다 쓰러진 직후 서킷(시전자는 쓰러진 유닛, 메인 타겟은 행동한 유닛)
-                new BattleAfterFallenCircuit(Pack, store, UnitOf(fallen), caster).Execute();
 
             if (LivingOf(true).Count == 0) BattleOutcome = BattleOutcomeKind.Win;
             else if (LivingOf(false).Count == 0) BattleOutcome = BattleOutcomeKind.Lose;

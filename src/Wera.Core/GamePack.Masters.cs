@@ -51,7 +51,6 @@ public sealed partial class GamePack
         List<OwnerStatus>? skillStatuses, List<OwnerStatus>? uniqueItemStatuses,
         List<LoadCharacterFlow>? afterLoadCharacterFlows, List<LoadUniqueItemFlow>? afterLoadUniqueItemFlows,
         List<AfterHitEffect>? afterHitEffects, List<AfterAttackEffect>? afterAttackEffects,
-        List<BattleAfterFallenEffect>? battleAfterFallenEffects, List<BattleBeforeTurnEffect>? battleBeforeTurnEffects,
         List<AfterBattleWinEffect>? afterBattleWinEffects,
         List<AfterBattleLoseEffect>? afterBattleLoseEffects,
         List<AfterBattleRunEffect>? afterBattleRunEffects,
@@ -190,10 +189,6 @@ public sealed partial class GamePack
         builder.Append((afterHitEffects ?? []).Select(e => new AfterHitEffectRow
         { ExecuteNumber = e.ExecuteNumber, EffectType = e.EffectType, Value1 = e.Value1, Value2 = e.Value2, Value3 = e.Value3 }).ToList());
         builder.Append((afterAttackEffects ?? []).Select(e => new AfterAttackEffectRow
-        { ExecuteNumber = e.ExecuteNumber, EffectType = e.EffectType, Value1 = e.Value1, Value2 = e.Value2, Value3 = e.Value3 }).ToList());
-        builder.Append((battleAfterFallenEffects ?? []).Select(e => new BattleAfterFallenEffectRow
-        { ExecuteNumber = e.ExecuteNumber, EffectType = e.EffectType, Value1 = e.Value1, Value2 = e.Value2, Value3 = e.Value3 }).ToList());
-        builder.Append((battleBeforeTurnEffects ?? []).Select(e => new BattleBeforeTurnEffectRow
         { ExecuteNumber = e.ExecuteNumber, EffectType = e.EffectType, Value1 = e.Value1, Value2 = e.Value2, Value3 = e.Value3 }).ToList());
         builder.Append((afterBattleWinEffects ?? []).Select(e => new AfterBattleWinEffectRow
         { ExecuteNumber = e.ExecuteNumber, EffectType = e.EffectType, Value1 = e.Value1, Value2 = e.Value2, Value3 = e.Value3 }).ToList());
