@@ -47,9 +47,10 @@ public class DebugScreenTests
         var pick = s.Entries.First(e => e.Label.StartsWith("용사"));
         Assert.Equal(Screen.DebugAddSkill, s.Activate(pick.Code)!.Target);
         Assert.Equal(s.Pack.Skills!.Select(k => k.Code), s.DebugList.Select(d => d.Code));
+        var before = s.Characters[7001].SkillPool.Count;                                  // 생성 후 이펙트가 넣은 스킬
         s.Activate("1"); s.Activate("1");                                                 // 첫 스킬을 두 번
-        Assert.Equal(2, s.Characters[7001].SkillPool.Count);
-        Assert.All(s.Characters[7001].SkillPool, p => Assert.Equal(s.Pack.Skills![0].Code, p.SkillCode));
+        Assert.Equal(before + 2, s.Characters[7001].SkillPool.Count);
+        Assert.All(s.Characters[7001].SkillPool.Skip(before), p => Assert.Equal(s.Pack.Skills![0].Code, p.SkillCode));
         Assert.Contains("스킬 추가", s.Message);
         s.Activate("999");
         Assert.Equal(Screen.DebugSkillCharacter, s.Screen);

@@ -829,7 +829,7 @@ public sealed partial class GameSession
                 OpenBattleActionCandidates();
                 break;
             case EntryAction.BattleChooseSkill:
-                ChooseBattleSkill(int.Parse(entry.Arg!, CultureInfo.InvariantCulture));
+                ChooseBattleSkill(long.Parse(entry.Arg!, CultureInfo.InvariantCulture));
                 break;
             case EntryAction.BattleExecute:
                 ExecuteBattleTurn();

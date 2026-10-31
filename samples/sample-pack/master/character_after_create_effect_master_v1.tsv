@@ -1,0 +1,41 @@
+character_code	execute_number	effect_type	value_1	value_2	value_3	memo
+1	1	AddSkillToPool	1001			스킬 풀에 더하고
+1	2	SetSkillToSlot	1			슬롯에 장착
+1	3	AddSkillToPool	1002			스킬 풀에 더하고
+1	4	SetSkillToSlot	2			슬롯에 장착
+1	5	AddSkillToPool	1003			스킬 풀에 더하고
+1	6	SetSkillToSlot	3			슬롯에 장착
+1	7	AddSkillToPool	1004			스킬 풀에 더하고
+1	8	SetSkillToSlot	4			슬롯에 장착
+7001	1	AddSkillToPool	1001			스킬 풀에 더하고
+7001	2	SetSkillToSlot	1			슬롯에 장착
+7001	3	AddSkillToPool	1002			스킬 풀에 더하고
+7001	4	SetSkillToSlot	2			슬롯에 장착
+7001	5	AddSkillToPool	1003			스킬 풀에 더하고
+7001	6	SetSkillToSlot	3			슬롯에 장착
+7001	7	AddSkillToPool	1004			스킬 풀에 더하고
+7001	8	SetSkillToSlot	4			슬롯에 장착
+7002	1	AddSkillToPool	1001			스킬 풀에 더하고
+7002	2	SetSkillToSlot	1			슬롯에 장착
+7002	3	AddSkillToPool	1002			스킬 풀에 더하고
+7002	4	SetSkillToSlot	2			슬롯에 장착
+7002	5	AddSkillToPool	1003			스킬 풀에 더하고
+7002	6	SetSkillToSlot	3			슬롯에 장착
+7002	7	AddSkillToPool	1004			스킬 풀에 더하고
+7002	8	SetSkillToSlot	4			슬롯에 장착
+7003	1	AddSkillToPool	1001			스킬 풀에 더하고
+7003	2	SetSkillToSlot	1			슬롯에 장착
+7003	3	AddSkillToPool	1002			스킬 풀에 더하고
+7003	4	SetSkillToSlot	2			슬롯에 장착
+7003	5	AddSkillToPool	1003			스킬 풀에 더하고
+7003	6	SetSkillToSlot	3			슬롯에 장착
+7003	7	AddSkillToPool	1004			스킬 풀에 더하고
+7003	8	SetSkillToSlot	4			슬롯에 장착
+7004	1	AddSkillToPool	1001			스킬 풀에 더하고
+7004	2	SetSkillToSlot	1			슬롯에 장착
+7004	3	AddSkillToPool	1002			스킬 풀에 더하고
+7004	4	SetSkillToSlot	2			슬롯에 장착
+7004	5	AddSkillToPool	1003			스킬 풀에 더하고
+7004	6	SetSkillToSlot	3			슬롯에 장착
+7004	7	AddSkillToPool	1004			스킬 풀에 더하고
+7004	8	SetSkillToSlot	4			슬롯에 장착

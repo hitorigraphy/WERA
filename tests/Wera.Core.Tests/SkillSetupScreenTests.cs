@@ -22,6 +22,7 @@ public class SkillSetupScreenTests
         s.Characters[7001] = s.Characters[7001] with
         {
             SkillPool = [new SkillInstance(1001), new SkillInstance(1002), new SkillInstance(1001)],
+            SkillSlots = [],                                                    // 생성 후 이펙트가 장착한 스킬은 비운다
         };
         s.Activate("103");
         Assert.Equal(Screen.SkillCharacter, s.Activate("1")!.Target);

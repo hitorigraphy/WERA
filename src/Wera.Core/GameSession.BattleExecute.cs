@@ -9,18 +9,12 @@ public sealed partial class GameSession
     /// <summary>진행 중인 전투의 결과. 적이 모두 쓰러지면 Win, 아군이 모두 쓰러지면 Lose, 도망치면 Run, 전투를 시작하면 None으로 돌아간다.</summary>
     public BattleOutcomeKind BattleOutcome { get; private set; }
 
-    /// <summary>
-    /// 행동 후보의 스킬 번호(1~4)에 대응하는 스킬 마스터 코드. 사용 가능한 스킬 목록이 생기기 전까지의 임시 규칙으로 1000 + 번호이다
-    /// (스킬 마스터에 없는 코드는 이펙트가 없어 아무 일도 하지 않는다).
-    /// </summary>
-    public static long BattleSkillCode(int skillNumber) => 1000 + skillNumber;
-
     /// <summary>이번 턴에 마지막으로 실행한 행동들(행동한 순서대로). 다음 턴을 시작하면 비워진다.</summary>
     public IReadOnlyList<BattleActed> BattleLog => battleLog;
     readonly List<BattleActed> battleLog = [];
 
-    /// <summary>실행한 행동 한 건: 시전자 쪽(적 여부)과 슬롯, 스킬 번호, 대상 쪽(적 여부)과 슬롯, 그때의 OrderPoint, 대상이 입은 피해(행동 전후 대상의 hp 차이; 음수면 회복).</summary>
-    public readonly record struct BattleActed(bool IsEnemy, int Slot, int SkillNumber, bool TargetIsEnemy, int TargetSlot, decimal OrderPoint, long Damage);
+    /// <summary>실행한 행동 한 건: 시전자 쪽(적 여부)과 슬롯, 스킬 코드, 대상 쪽(적 여부)과 슬롯, 그때의 OrderPoint, 대상이 입은 피해(행동 전후 대상의 hp 차이; 음수면 회복).</summary>
+    public readonly record struct BattleActed(bool IsEnemy, int Slot, long SkillCode, bool TargetIsEnemy, int TargetSlot, decimal OrderPoint, long Damage);
 
     /// <summary>이번 턴 행동 기록을 화면에 보여 줄 한 줄씩("시전자 → 대상 : 스킬N (피해 N)", 행동한 순서). 적의 이름 앞에는 "적 "이 붙는다.</summary>
     public IReadOnlyList<string> BattleLogLines => battleLog.Select(a =>
@@ -28,7 +22,7 @@ public sealed partial class GameSession
         string Name(bool enemy, int slot) => (enemy ? "적 " : "") +
             (UnitOf(new Combatant(enemy, slot)) is { } unit ? CharacterName(unit.CharacterCode) : "?");
         var result = a.Damage > 0 ? $"피해 {a.Damage}" : a.Damage < 0 ? $"회복 {-a.Damage}" : "피해 없음";
-        return $"{Name(a.IsEnemy, a.Slot)} → {Name(a.TargetIsEnemy, a.TargetSlot)} : {BattleSkillNames[a.SkillNumber - 1]} ({result})";
+        return $"{Name(a.IsEnemy, a.Slot)} → {Name(a.TargetIsEnemy, a.TargetSlot)} : {SkillName(a.SkillCode)} ({result})";
     }).ToList();
 
     readonly record struct Combatant(bool IsEnemy, int Slot);
@@ -51,9 +45,9 @@ public sealed partial class GameSession
         battleLog.Clear();
         var store = CreateUnitStore();
 
-        var skillOf = new Dictionary<Combatant, int>();
+        var skillOf = new Dictionary<Combatant, long>();
         var targetOf = new Dictionary<Combatant, Combatant>();
-        foreach (var slot in BattleUnitSlots())
+        foreach (var slot in BattleUnitSlots().Where(battleActions.ContainsKey))      // 장착한 스킬이 없는 유닛은 행동하지 않는다
         {
             var ally = new Combatant(false, slot);
             skillOf[ally] = battleActions[slot];
@@ -61,7 +55,9 @@ public sealed partial class GameSession
         }
         foreach (var enemy in LivingOf(true))
         {
-            skillOf[enemy] = (int)NextRandom(BattleSkillNames.Count) + 1;
+            var skills = BattleSkillsOf(enemy);
+            if (skills.Count == 0) continue;
+            skillOf[enemy] = skills[(int)NextRandom(skills.Count)].SkillCode;
             var candidates = TargetCandidatesOf(enemy, SkillTargetTypeOf(skillOf[enemy]));
             if (candidates.Count > 0) targetOf[enemy] = candidates[(int)NextRandom(candidates.Count)];
         }
@@ -78,7 +74,7 @@ public sealed partial class GameSession
             foreach (var c in waiting)
             {
                 var target = ResolveBattleTarget(c, skillOf[c], targetOf);
-                var order = new SkillOrderCircuit(Pack, store, BattleSkillCode(skillOf[c]), UnitOf(c), target is { } t ? UnitOf(t) : null);
+                var order = new SkillOrderCircuit(Pack, store, skillOf[c], UnitOf(c), target is { } t ? UnitOf(t) : null);
                 order.Execute();
                 if (order.Result > best) { best = order.Result; actor = c; }
             }
@@ -90,7 +86,7 @@ public sealed partial class GameSession
             var caster = UnitOf(actor)!;
             var main = UnitOf(victim)!;
             var hpBefore = store.CharacterOf(main)!.Hp;
-            new SkillExecuteCircuit(Pack, store, BattleSkillCode(skillOf[actor]), caster, main).Execute();
+            new SkillExecuteCircuit(Pack, store, skillOf[actor], caster, main).Execute();
             new AfterHitCircuit(Pack, store, caster, main).Execute();
             new AfterAttackCircuit(Pack, store, caster, main).Execute();
             battleLog.Add(new BattleActed(actor.IsEnemy, actor.Slot, skillOf[actor], victim.IsEnemy, victim.Slot, best, hpBefore - store.CharacterOf(main)!.Hp));
@@ -107,10 +103,10 @@ public sealed partial class GameSession
     }
 
     /// <summary>행동하는 유닛이 노릴 대상: 정해 둔 대상이 살아 있으면 그대로, 쓰러졌으면 그 스킬의 타겟 대상에 맞는 살아 있는 유닛 중 랜덤. 없으면 null.</summary>
-    Combatant? ResolveBattleTarget(Combatant actor, int skillNumber, Dictionary<Combatant, Combatant> targetOf)
+    Combatant? ResolveBattleTarget(Combatant actor, long skillCode, Dictionary<Combatant, Combatant> targetOf)
     {
         if (targetOf.TryGetValue(actor, out var chosen) && IsAlive(chosen)) return chosen;
-        var candidates = TargetCandidatesOf(actor, SkillTargetTypeOf(skillNumber));
+        var candidates = TargetCandidatesOf(actor, SkillTargetTypeOf(skillCode));
         if (candidates.Count == 0) return null;
         return candidates[(int)NextRandom(candidates.Count)];
     }

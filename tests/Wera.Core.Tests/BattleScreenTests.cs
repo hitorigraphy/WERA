@@ -201,7 +201,7 @@ public class BattleScreenTests
         Assert.Equal(GameSession.BattleCommandMode.ActionCandidates, s.BattleCommands);
         Assert.Equal(GameSession.BattleTopEnemyHeavy, s.BattleTop);
         Assert.Equal(["101", "102", "103", "104", "106", "1000", "1001"], BattleCodes(s));
-        Assert.Equal(["스킬1", "스킬2", "스킬3", "스킬4", "취소"],
+        Assert.Equal(["베기", "불꽃", "치유", "집중", "취소"],
             s.Entries.Where(e => e.Action is EntryAction.BattleChooseSkill or EntryAction.BattleCancelActions).Select(e => e.Label));
 
         s.Activate("1001");                                        // 이후 ▲▼는 행동 후보에서도 자유롭다
@@ -229,7 +229,7 @@ public class BattleScreenTests
         Assert.Null(s.BattleActionOf(0));
 
         s.Activate("102"); s.Activate("101"); s.Activate("3");     // 스킬1, 적 슬롯 2(코드 3)
-        Assert.Equal((1, 2), (s.BattleActionOf(0)!.Value, s.BattleTargetOf(0)!.Value));
+        Assert.Equal((1001, 2), (s.BattleActionOf(0)!.Value, s.BattleTargetOf(0)!.Value));
         Assert.Equal(GameSession.BattleCommandMode.Basic, s.BattleCommands);
         Assert.Equal(1, s.BattleCurrentSlot);                      // 다음 캐릭터로 넘어간다
     }
@@ -255,7 +255,7 @@ public class BattleScreenTests
         s.Activate("102"); s.Activate("104"); s.Activate("12");     // 둘째 유닛: 스킬4(자신)
         Assert.True(s.BattleAllActionsSet);
         Assert.True(Entry(s, "106").Enabled);
-        Assert.Equal((1, 4), (s.BattleActionOf(0)!.Value, s.BattleActionOf(1)!.Value));
+        Assert.Equal((1001, 1004), (s.BattleActionOf(0)!.Value, s.BattleActionOf(1)!.Value));
 
         s.Activate("106");                                         // 아직 동작은 없다
         Assert.Equal(Screen.Battle, s.Screen);
@@ -267,7 +267,7 @@ public class BattleScreenTests
         var s = Started(twoUnits: true);
         Assert.Equal(["당신", "용사", "빈 슬롯"], AllyFront(s).Select(v => v.Name));
         s.Activate("102"); s.Activate("103"); s.Activate("11");     // 첫 유닛: 스킬3(같은 편)
-        Assert.Equal(["스킬3", "용사", "빈 슬롯"], AllyFront(s).Select(v => v.Name));
+        Assert.Equal(["치유", "용사", "빈 슬롯"], AllyFront(s).Select(v => v.Name));
     }
 
     [Fact]
@@ -443,10 +443,57 @@ public class BattleScreenTests
         FirstOnly(s);
         s.Characters[7001].Statuses[GamePack.HpStatusCode] = 10;
         s.Activate("102"); s.Activate("103"); s.Activate("12");   // 첫 유닛: 스킬3 → 용사(슬롯 1)
-        Assert.Equal((3, false, 1), (s.BattleActionOf(0)!.Value, s.BattleTargetIsEnemyOf(0)!.Value, s.BattleTargetOf(0)!.Value));
+        Assert.Equal((1003, false, 1), (s.BattleActionOf(0)!.Value, s.BattleTargetIsEnemyOf(0)!.Value, s.BattleTargetOf(0)!.Value));
         s.Activate("102"); s.Activate("104"); s.Activate("12");   // 둘째 유닛: 스킬4 → 자신
         s.Activate("106");
         Assert.Contains(s.BattleLog, a => !a.IsEnemy && a.Slot == 0 && !a.TargetIsEnemy && a.TargetSlot == 1 && a.Damage == -10);
-        Assert.Contains(s.BattleLogLines, l => l.StartsWith("당신 → 용사 : 스킬3") && l.EndsWith("(회복 10)"));
+        Assert.Contains(s.BattleLogLines, l => l.StartsWith("당신 → 용사 : 치유") && l.EndsWith("(회복 10)"));
+    }
+
+    [Fact]
+    public void Skill_candidates_are_the_equipped_skills_in_slot_order_and_the_chosen_skill_is_its_code()
+    {
+        var s = Started();
+        s.Characters[1] = s.Characters[1] with
+        {
+            SkillPool = [new SkillInstance(1002), new SkillInstance(1001), new SkillInstance(1004)],
+            SkillSlots = new Dictionary<long, long> { [3] = 2, [1] = 0 },           // 슬롯 1 불꽃, 슬롯 3 집중, 베기는 풀에만
+        };
+        s.Activate("102");
+        Assert.Equal([("101", "불꽃"), ("102", "집중"), ("106", "취소")],
+            s.Entries.Where(e => e.Action is EntryAction.BattleChooseSkill or EntryAction.BattleCancelActions).Select(e => (e.Code, e.Label)));
+        s.Activate("101"); s.Activate("1");
+        Assert.Equal(1002, s.BattleActionOf(0));
+    }
+
+    [Fact]
+    public void A_unit_without_equipped_skills_needs_no_action_and_does_not_act()
+    {
+        var s = Started(twoUnits: true);
+        FirstOnly(s);
+        s.Characters[7001] = s.Characters[7001] with { SkillSlots = [] };           // 용사는 장착한 스킬이 없다
+        s.Activate("102"); s.Activate("101"); s.Activate("1");                      // 당신만 행동을 정한다
+        Assert.True(s.BattleAllActionsSet);
+        s.Activate("106");
+        Assert.DoesNotContain(s.BattleLog, a => !a.IsEnemy && a.Slot == 1);         // 용사는 행동하지 않았다
+        Assert.Contains(s.BattleLog, a => !a.IsEnemy && a.Slot == 0);
+    }
+
+    [Fact]
+    public void An_enemy_picks_among_its_equipped_skills_only_and_does_not_act_without_any()
+    {
+        var s = Started(roll: 1);                                                     // 적 파티 2: 전사 하나
+        FirstOnly(s);
+        var slot = s.EnemyInstances.Keys.Single();
+        s.EnemyInstances[slot].SkillSlots.Clear();
+        s.EnemyInstances[slot].SkillSlots[2] = 1;                                     // 전사는 불꽃(풀 번호 1)만 장착
+        s.Activate("102"); s.Activate("101"); s.Activate((slot + 1).ToString());
+        s.Activate("106");
+        Assert.Equal([1002L], s.BattleLog.Where(a => a.IsEnemy).Select(a => a.SkillCode));
+
+        s.EnemyInstances[slot].SkillSlots.Clear();                                    // 이제 장착한 스킬이 없다
+        s.Activate("102"); s.Activate("101"); s.Activate((slot + 1).ToString());
+        s.Activate("106");
+        Assert.DoesNotContain(s.BattleLog, a => a.IsEnemy);
     }
 }

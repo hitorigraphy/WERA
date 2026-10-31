@@ -28,14 +28,26 @@ public sealed partial class GameSession
     {
         /// <summary>기본 커맨드: 윗줄 [101] 다음 캐릭터, [102] 행동 설정, [103] 아이템 / 아랫줄 [104] 이전 캐릭터, [105] 교체, [106] 실행, [107] 도망.</summary>
         Basic,
-        /// <summary>행동 후보: 지금 보고 있는 캐릭터가 고를 수 있는 스킬들(지금은 고정으로 스킬1~4)과 [106] 취소.</summary>
+        /// <summary>행동 후보: 지금 보고 있는 캐릭터가 장착한 스킬들([101]부터)과 [106] 취소.</summary>
         ActionCandidates,
         /// <summary>대상 후보: 고른 스킬의 타겟 대상(skill_master의 target_type)에 맞는 살아 있는 유닛만 슬롯이 흰색(리더는 연두색)이 되어 슬롯 번호로 고르고, 커맨드는 [101] 취소뿐이다.</summary>
         TargetCandidates,
     }
 
-    /// <summary>행동 후보의 스킬 이름. 사용 가능한 스킬 목록은 나중에 쓰고, 지금은 고정으로 스킬1~4다.</summary>
-    public static IReadOnlyList<string> BattleSkillNames { get; } = ["스킬1", "스킬2", "스킬3", "스킬4"];
+    /// <summary>행동 후보의 스킬 하나: 장착한 스킬 슬롯의 코드와 스킬 코드, 이름.</summary>
+    public sealed record BattleSkillOption(long SlotCode, long SkillCode, string Name);
+
+    /// <summary>
+    /// 유닛이 쓸 수 있는 스킬: 캐릭터가 스킬 슬롯에 장착한 스킬들(스킬 슬롯 코드순, 스킬 풀에 있는 것만). 이것이 행동 후보이고
+    /// 적은 이 중에서 랜덤으로 쓴다. 장착한 스킬이 없는 유닛은 행동을 설정하지 않아도 되고(실행을 막지 않음) 행동하지 않는다.
+    /// </summary>
+    List<BattleSkillOption> BattleSkillsOf(Combatant combatant)
+    {
+        if (UnitOf(combatant) is not { } unit || CreateUnitStore().CharacterOf(unit) is not { } character) return [];
+        return character.SkillSlots.OrderBy(s => s.Key)
+            .Where(s => s.Value >= 0 && s.Value < character.SkillPool.Count)
+            .Select(s => new BattleSkillOption(s.Key, character.SkillPool[(int)s.Value].SkillCode, SkillName(character.SkillPool[(int)s.Value].SkillCode))).ToList();
+    }
 
     /// <summary>지금 보고 있는(행동을 설정하는) 아군 캐릭터의 파티 슬롯 번호. 파티에 유닛이 없으면 null.</summary>
     public int? BattleCurrentSlot { get; private set; }
@@ -43,14 +55,14 @@ public sealed partial class GameSession
     /// <summary>지금 작전 화면 아래의 커맨드 모습.</summary>
     public BattleCommandMode BattleCommands { get; private set; }
 
-    /// <summary>이번 턴에 아군 유닛(파티 슬롯 번호)마다 설정한 행동(스킬 번호 1~4). 설정하지 않은 유닛은 없다.</summary>
-    readonly Dictionary<int, int> battleActions = [];
+    /// <summary>이번 턴에 아군 유닛(파티 슬롯 번호)마다 설정한 행동(스킬 코드). 설정하지 않은 유닛은 없다.</summary>
+    readonly Dictionary<int, long> battleActions = [];
 
     /// <summary>이번 턴에 아군 유닛(파티 슬롯 번호)마다 고른 메인 타겟(어느 편의 몇 번 슬롯). 스킬과 함께 정해진다.</summary>
     readonly Dictionary<int, Combatant> battleTargets = [];
 
     /// <summary>대상 후보에서 고르는 중인 스킬 번호(행동 후보에서 스킬을 고른 뒤). 없으면 null.</summary>
-    int? battlePendingSkill;
+    long? battlePendingSkill;
 
     /// <summary>슬롯의 아군 유닛이 이번 턴에 정한 메인 타겟의 슬롯 번호. 정하지 않았으면 null.</summary>
     public int? BattleTargetOf(int slot) => battleTargets.TryGetValue(slot, out var target) ? target.Slot : null;
@@ -58,11 +70,11 @@ public sealed partial class GameSession
     /// <summary>슬롯의 아군 유닛이 정한 메인 타겟이 적 편인가(정하지 않았으면 null).</summary>
     public bool? BattleTargetIsEnemyOf(int slot) => battleTargets.TryGetValue(slot, out var target) ? target.IsEnemy : null;
 
-    /// <summary>슬롯의 아군 유닛이 이번 턴에 설정한 행동(스킬 번호). 설정하지 않았으면 null.</summary>
-    public int? BattleActionOf(int slot) => battleActions.TryGetValue(slot, out var skill) ? skill : null;
+    /// <summary>슬롯의 아군 유닛이 이번 턴에 설정한 행동(스킬 코드). 설정하지 않았으면 null.</summary>
+    public long? BattleActionOf(int slot) => battleActions.TryGetValue(slot, out var skill) ? skill : null;
 
-    /// <summary>파티의 모든 유닛이 이번 턴의 행동을 설정했는가([106] 실행은 이때만 누를 수 있다).</summary>
-    public bool BattleAllActionsSet => BattleUnitSlots().All(battleActions.ContainsKey);
+    /// <summary>파티의 모든 유닛이 이번 턴의 행동을 설정했는가([106] 실행은 이때만 누를 수 있다). 장착한 스킬이 없는 유닛은 설정하지 않아도 된다.</summary>
+    public bool BattleAllActionsSet => BattleUnitSlots().Where(s => BattleSkillsOf(new Combatant(false, s)).Count > 0).All(battleActions.ContainsKey);
 
     /// <summary>아군 파티에 유닛이 있는 슬롯 번호들(칸 순서).</summary>
     List<int> BattleUnitSlots() =>
@@ -214,10 +226,10 @@ public sealed partial class GameSession
         BattleTop = BattleTopEnemyHeavy;
     }
 
-    /// <summary>행동 후보에서 스킬을 고르면 메인 타겟을 고르는 대상 후보로 바뀐다(아직 행동은 정해지지 않는다).</summary>
-    void ChooseBattleSkill(int skill)
+    /// <summary>행동 후보에서 스킬을 고르면 메인 타겟을 고르는 대상 후보로 바뀐다(아직 행동은 정해지지 않는다). 보는 캐릭터가 장착한 스킬만 고를 수 있다.</summary>
+    void ChooseBattleSkill(long skill)
     {
-        if (BattleCurrentSlot is null) return;
+        if (BattleCurrentSlot is not { } current || !BattleSkillsOf(new Combatant(false, current)).Any(o => o.SkillCode == skill)) return;
         battlePendingSkill = skill;
         BattleCommands = BattleCommandMode.TargetCandidates;
     }
@@ -234,9 +246,9 @@ public sealed partial class GameSession
         SelectBattleCharacter(1);
     }
 
-    /// <summary>스킬 번호(행동 후보 1~4)의 타겟 대상. 스킬 마스터에 없으면 상대편(Enemy).</summary>
-    SkillTargetType SkillTargetTypeOf(int skillNumber) =>
-        Pack.FindSkill(BattleSkillCode(skillNumber))?.TargetType ?? SkillTargetType.Enemy;
+    /// <summary>스킬의 타겟 대상. 스킬 마스터에 없으면 상대편(Enemy).</summary>
+    SkillTargetType SkillTargetTypeOf(long skillCode) =>
+        Pack.FindSkill(skillCode)?.TargetType ?? SkillTargetType.Enemy;
 
     /// <summary>시전자가 그 타겟 대상의 스킬로 메인 타겟으로 삼을 수 있는 살아 있는 유닛들(적 편 슬롯 순, 아군 편 슬롯 순).</summary>
     List<Combatant> TargetCandidatesOf(Combatant caster, SkillTargetType type) => type switch
@@ -279,7 +291,7 @@ public sealed partial class GameSession
             _ => false,
         };
         var enemySlots = Enumerable.Range(0, PartySlotCount).Select(EnemySlotView).Select(v => v with { IsGray = Gray(true, v.Slot) }).ToList();
-        var allySlots = PartySlotViews.Select(v => v with { IsSelected = v.Slot == BattleCurrentSlot, IsGray = Gray(false, v.Slot), Name = BattleActionOf(v.Slot) is { } skill ? BattleSkillNames[skill - 1] : v.Name }).ToList();     // 보는 캐릭터의 이름은 파란색
+        var allySlots = PartySlotViews.Select(v => v with { IsSelected = v.Slot == BattleCurrentSlot, IsGray = Gray(false, v.Slot), Name = BattleActionOf(v.Slot) is { } skill ? SkillName(skill) : v.Name }).ToList();     // 보는 캐릭터의 이름은 파란색
 
         BattleRowView Row(bool isEnemy, int rowInSide) => new(
             BattleRowKind.Slots, isEnemy, BattleRowTitle(rowInSide),
@@ -314,9 +326,11 @@ public sealed partial class GameSession
         if (BattleOutcome != BattleOutcomeKind.None) yield break;       // 결판이 났으면 커맨드는 없다
         if (BattleCommands == BattleCommandMode.ActionCandidates)
         {
-            for (var i = 0; i < BattleSkillNames.Count; i++)
-                yield return new ScreenEntry((101 + i).ToString(CultureInfo.InvariantCulture), BattleSkillNames[i], Screen.Battle,
-                    EntryAction.BattleChooseSkill, (i + 1).ToString(CultureInfo.InvariantCulture));
+            // 장착한 스킬들이 [101]부터 차례로 나온다([106]은 취소라 건너뛴다)
+            var skills = BattleCurrentSlot is { } current ? BattleSkillsOf(new Combatant(false, current)) : [];
+            for (var i = 0; i < skills.Count; i++)
+                yield return new ScreenEntry((101 + i + (i >= 5 ? 1 : 0)).ToString(CultureInfo.InvariantCulture), skills[i].Name, Screen.Battle,
+                    EntryAction.BattleChooseSkill, skills[i].SkillCode.ToString(CultureInfo.InvariantCulture));
             yield return new ScreenEntry("106", "취소", Screen.Battle, EntryAction.BattleCancelActions);
             yield break;
         }
