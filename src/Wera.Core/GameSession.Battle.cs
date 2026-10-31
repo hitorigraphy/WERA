@@ -116,7 +116,7 @@ public sealed partial class GameSession
         if (CurrentEnemyPartyCode is not { } code || Pack.FindPresetParty(code) is not { } party) return;
         for (var slot = 0; slot < party.UnitCodes.Count; slot++)
             if (party.UnitCodes[slot] is { } unitCode && Pack.FindPresetUnit(unitCode) is { } unit)
-                enemyInstances[slot] = Pack.NewCharacterInstance(unit.CharacterCode, $"enemy-{slot}", slot);
+                enemyInstances[slot] = new CharacterAfterCreateCircuit(Pack, Pack.NewCharacterInstance(unit.CharacterCode, $"enemy-{slot}", slot)).Execute();
     }
 
     /// <summary>

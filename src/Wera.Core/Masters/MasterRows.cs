@@ -642,3 +642,33 @@ public record SkillOrderEffectRow
     public required long Value2 { get; init; }
     public required long Value3 { get; init; }
 }
+
+/// <summary>캐릭터 생성 후 이펙트: 복합키는 (캐릭터, 실행 번호)이고, 보조키 캐릭터 코드로 그 캐릭터의 이펙트 전부를 찾는다.</summary>
+[MemoryTable("character_after_create_effect"), MessagePackObject(true)]
+public record CharacterAfterCreateEffectRow
+{
+    [PrimaryKey(keyOrder: 0)]
+    [SecondaryKey(0), NonUnique]
+    public required long CharacterCode { get; init; }
+
+    [PrimaryKey(keyOrder: 1)] public required long ExecuteNumber { get; init; }
+    public required CharacterAfterCreateEffectType EffectType { get; init; }
+    public required long Value1 { get; init; }
+    public required long Value2 { get; init; }
+    public required long Value3 { get; init; }
+}
+
+/// <summary>유니크 아이템 생성 후 이펙트: 복합키는 (유니크 아이템, 실행 번호)이고, 보조키 유니크 아이템 코드로 그 유니크 아이템의 이펙트 전부를 찾는다.</summary>
+[MemoryTable("unique_item_after_create_effect"), MessagePackObject(true)]
+public record UniqueItemAfterCreateEffectRow
+{
+    [PrimaryKey(keyOrder: 0)]
+    [SecondaryKey(0), NonUnique]
+    public required long ItemCode { get; init; }
+
+    [PrimaryKey(keyOrder: 1)] public required long ExecuteNumber { get; init; }
+    public required UniqueItemAfterCreateEffectType EffectType { get; init; }
+    public required long Value1 { get; init; }
+    public required long Value2 { get; init; }
+    public required long Value3 { get; init; }
+}

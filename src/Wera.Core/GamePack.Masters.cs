@@ -53,7 +53,8 @@ public sealed partial class GamePack
         List<AfterHitEffect>? afterHitEffects, List<AfterAttackEffect>? afterAttackEffects,
         List<AfterBattleWinEffect>? afterBattleWinEffects,
         List<AfterBattleLoseEffect>? afterBattleLoseEffects,
-        List<AfterBattleRunEffect>? afterBattleRunEffects)
+        List<AfterBattleRunEffect>? afterBattleRunEffects,
+        List<CharacterAfterCreateEffect>? characterAfterCreateEffects, List<UniqueItemAfterCreateEffect>? uniqueItemAfterCreateEffects)
     {
         var builder = new DatabaseBuilder();
 
@@ -195,6 +196,10 @@ public sealed partial class GamePack
         { ExecuteNumber = e.ExecuteNumber, EffectType = e.EffectType, Value1 = e.Value1, Value2 = e.Value2, Value3 = e.Value3 }).ToList());
         builder.Append((afterBattleRunEffects ?? []).Select(e => new AfterBattleRunEffectRow
         { ExecuteNumber = e.ExecuteNumber, EffectType = e.EffectType, Value1 = e.Value1, Value2 = e.Value2, Value3 = e.Value3 }).ToList());
+        builder.Append((characterAfterCreateEffects ?? []).Select(e => new CharacterAfterCreateEffectRow
+        { CharacterCode = e.CharacterCode, ExecuteNumber = e.ExecuteNumber, EffectType = e.EffectType, Value1 = e.Value1, Value2 = e.Value2, Value3 = e.Value3 }).ToList());
+        builder.Append((uniqueItemAfterCreateEffects ?? []).Select(e => new UniqueItemAfterCreateEffectRow
+        { ItemCode = e.ItemCode, ExecuteNumber = e.ExecuteNumber, EffectType = e.EffectType, Value1 = e.Value1, Value2 = e.Value2, Value3 = e.Value3 }).ToList());
         builder.Append((skillStatuses ?? []).Select(s => new SkillStatusRow
         { SkillCode = s.OwnerCode, StatusCode = s.StatusCode, InitialValue = s.InitialValue, MinValue = s.MinValue, MaxValue = s.MaxValue }).ToList());
         builder.Append((uniqueItemStatuses ?? []).Select(s => new UniqueItemStatusRow

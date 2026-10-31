@@ -188,6 +188,8 @@ public sealed partial class GamePack
         var afterBattleWinEffects = LoadAfterBattleWinEffects(zip, statuses);
         var afterBattleLoseEffects = LoadAfterBattleLoseEffects(zip, statuses);
         var afterBattleRunEffects = LoadAfterBattleRunEffects(zip, statuses);
+        var characterAfterCreateEffects = LoadCharacterAfterCreateEffects(zip, characterInventory?.Select(c => c.Code), statuses);
+        var uniqueItemAfterCreateEffects = LoadUniqueItemAfterCreateEffects(zip, uniqueItems?.Select(u => u.ItemCode), statuses);
         var skillStatuses = LoadOwnerStatuses(zip, SkillStatusMasterPath, "skill_code", "스킬", SkillMasterPath, skills?.Select(s => s.Code), statuses);
         var uniqueItemStatuses = LoadOwnerStatuses(zip, UniqueItemStatusMasterPath, "item_code", "유니크 아이템", UniqueItemInventoryMasterPath, uniqueItems?.Select(u => u.ItemCode), statuses);
 
@@ -245,6 +247,8 @@ public sealed partial class GamePack
             AfterBattleWinEffects = afterBattleWinEffects,
             AfterBattleLoseEffects = afterBattleLoseEffects,
             AfterBattleRunEffects = afterBattleRunEffects,
+            CharacterAfterCreateEffects = characterAfterCreateEffects,
+            UniqueItemAfterCreateEffects = uniqueItemAfterCreateEffects,
             SkillStatuses = skillStatuses,
             UniqueItemStatuses = uniqueItemStatuses,
             Masters = BuildMasters(
@@ -257,7 +261,8 @@ public sealed partial class GamePack
                 presetUnits, presetUnitEquips, presetUnitDrops, presetParties, battleEnemies,
                 skillSlots, characterSkillSlotTags, skills, skillTags, skillExecuteEffects, skillOrderEffects,
                 skillStatuses, uniqueItemStatuses, afterLoadCharacterFlows, afterLoadUniqueItemFlows,
-                afterHitEffects, afterAttackEffects, afterBattleWinEffects, afterBattleLoseEffects, afterBattleRunEffects),
+                afterHitEffects, afterAttackEffects, afterBattleWinEffects, afterBattleLoseEffects, afterBattleRunEffects,
+                characterAfterCreateEffects, uniqueItemAfterCreateEffects),
             EmbeddedEffects = embeddedEffects,
         };
         pack.CheckPresetUnitEquips();
