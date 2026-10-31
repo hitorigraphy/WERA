@@ -64,7 +64,7 @@ public class HomeMenuTests
         var s = Session();
         s.Activate(code);
         Assert.Equal(screen, s.Screen);
-        Assert.Equal(["999"], s.Entries.Select(e => e.Code));
+        Assert.Equal("999", s.Entries[^1].Code);      // 줄을 누르면 상세 화면으로 가고, 맨 끝은 돌아가기
         s.Activate("999");
         Assert.Equal(Screen.Home, s.Screen);
     }

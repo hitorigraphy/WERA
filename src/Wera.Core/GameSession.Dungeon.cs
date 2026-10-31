@@ -60,7 +60,7 @@ public sealed partial class GameSession
     /// <summary>던전 이동 화면의 명령은 오른쪽 패널의 [201] 스테이터스 확인, [203] 아이템 확인, [200] 세이브뿐이다. 이동은 W A S D(또는 방향키), 지금 칸과의 상호작용은 Enter다(<see cref="PressDungeonKey"/>, <see cref="InteractDungeon"/>).</summary>
     IReadOnlyList<ScreenEntry> DungeonMoveEntries() =>
     [
-        new ScreenEntry(CompanionCheckEntryCode, "스테이터스 확인", Screen.CompanionCheck),
+        new ScreenEntry(CompanionCheckEntryCode, "스테이터스 확인", Screen.StatusCheck),
         new ScreenEntry(ItemCheckEntryCode, "아이템 확인", Screen.ItemCheck),
         new ScreenEntry(SaveEntryCode, "세이브", Screen.DungeonMove, EntryAction.Save),
     ];

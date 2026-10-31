@@ -506,36 +506,56 @@
                 </div>
                 break;
 
+            case Screen.StatusCheck:
+                <h2>스테이터스 확인</h2>
+                @* 보는 파티의 슬롯(파티 설정과 같은 3×3). 캐릭터가 있는 슬롯을 고르면 캐릭터 상세 화면으로 간다 *@
+                @partyGrid(true)
+                break;
+
+            case Screen.CharacterDetail:
+            case Screen.EquipmentDetail:
+            case Screen.ItemDetail:
+                @* 상세 화면의 내용은 아직 정의되지 않았다: 무엇을 보고 있는지 이름만 보여 준다 *@
+                @if (session.DetailHeading is { } heading)
+                {
+                    <h2>@heading.Title</h2>
+                    <p>@heading.Name</p>
+                }
+                break;
+
             case Screen.CompanionCheck:
                 <h2>동료 확인</h2>
-                @* 지금 가진 캐릭터(당신 포함)를 OrderNumber순, 같으면 인스턴스 ID순으로 *@
+                @* 지금 가진 캐릭터(당신 포함)를 OrderNumber순, 같으면 인스턴스 ID순으로. 줄을 누르면(또는 번호를 입력하면) 캐릭터 상세 화면으로 간다 *@
                 <ul class="companions">
-                    @foreach (var r in session.Companions)
+                    @foreach (var (r, entry) in session.Companions.Zip(session.Entries))
                     {
+                        var code = entry.Code;
                         @* 코드 칸은 반각 8칸, 이름 칸은 32칸, Lv/Hp/Xp 칸은 8칸씩 고정 너비(ch)라 글꼴에서 한글 폭이 달라도 칸이 맞는다 *@
-                        <li><span class="companion-cell" style="width: @(GameSession.CompanionCodeColumns)ch">@r.Order</span> <span class="companion-cell" style="width: @(GameSession.CompanionNameColumns)ch">@r.Name</span> <span class="companion-cell" style="width: @(GameSession.CompanionStatColumns)ch">@r.Level</span> <span class="companion-cell" style="width: @(GameSession.CompanionStatColumns)ch">@r.Hp</span> <span class="companion-cell" style="width: @(GameSession.CompanionStatColumns)ch">@r.Xp</span></li>
+                        <li><button class="textlink row-link" @onclick="() => Activate(code)"><span class="companion-cell" style="width: @(GameSession.CompanionCodeColumns)ch">@r.Order</span> <span class="companion-cell" style="width: @(GameSession.CompanionNameColumns)ch">@r.Name</span> <span class="companion-cell" style="width: @(GameSession.CompanionStatColumns)ch">@r.Level</span> <span class="companion-cell" style="width: @(GameSession.CompanionStatColumns)ch">@r.Hp</span> <span class="companion-cell" style="width: @(GameSession.CompanionStatColumns)ch">@r.Xp</span></button></li>
                     }
                 </ul>
                 break;
 
             case Screen.EquipmentCheck:
                 <h2>장비 확인</h2>
-                @* 지금 가진 장비(유니크 아이템)를 OrderNumber순, 같으면 인스턴스 ID순으로 "[순서 번호] 이름" *@
+                @* 지금 가진 장비(유니크 아이템)를 OrderNumber순, 같으면 인스턴스 ID순으로 "[순서 번호] 이름". 줄을 누르면 장비 상세 화면으로 간다 *@
                 <ul class="companions">
-                    @foreach (var e in session.Equipments)
+                    @foreach (var (e, entry) in session.Equipments.Zip(session.Entries))
                     {
-                        <li><span class="companion-cell" style="width: @(GameSession.CompanionCodeColumns)ch">@e.Order</span> <span class="companion-cell" style="width: @(GameSession.CompanionNameColumns)ch">@e.Name</span></li>
+                        var code = entry.Code;
+                        <li><button class="textlink row-link" @onclick="() => Activate(code)"><span class="companion-cell" style="width: @(GameSession.CompanionCodeColumns)ch">@e.Order</span> <span class="companion-cell" style="width: @(GameSession.CompanionNameColumns)ch">@e.Name</span></button></li>
                     }
                 </ul>
                 break;
 
             case Screen.ItemCheck:
                 <h2>아이템 확인</h2>
-                @* 지금 가진 커먼 아이템을 인벤토리 마스터 순서대로 "[아이템 코드] 이름 수량 N" *@
+                @* 지금 가진 커먼 아이템을 인벤토리 마스터 순서대로 "[아이템 코드] 이름 수량 N". 줄을 누르면 아이템 상세 화면으로 간다 *@
                 <ul class="companions">
-                    @foreach (var r in session.Items)
+                    @foreach (var (r, entry) in session.Items.Zip(session.Entries))
                     {
-                        <li><span class="companion-cell" style="width: @(GameSession.CompanionCodeColumns)ch">@r.Code</span> <span class="companion-cell" style="width: @(GameSession.CompanionNameColumns)ch">@r.Name</span> <span class="companion-cell" style="width: @(GameSession.ItemAmountColumns)ch">@r.Amount</span></li>
+                        var code = entry.Code;
+                        <li><button class="textlink row-link" @onclick="() => Activate(code)"><span class="companion-cell" style="width: @(GameSession.CompanionCodeColumns)ch">@r.Code</span> <span class="companion-cell" style="width: @(GameSession.CompanionNameColumns)ch">@r.Name</span> <span class="companion-cell" style="width: @(GameSession.ItemAmountColumns)ch">@r.Amount</span></button></li>
                     }
                 </ul>
                 break;

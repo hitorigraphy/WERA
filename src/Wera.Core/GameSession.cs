@@ -62,7 +62,15 @@ public enum Screen
     DebugSkillCharacter,
     /// <summary>디버그 스킬 추가의 2단계: 마스터의 모든 스킬을 늘어놓고, 누르면 고른 캐릭터의 스킬 풀에 더한다. 돌아가기는 캐릭터 고르기.</summary>
     DebugAddSkill,
-    /// <summary>동료 확인 화면(201): 가진 캐릭터 목록.</summary>
+    /// <summary>스테이터스 확인 화면(던전 이동 화면의 [201]): 보는 파티의 슬롯을 파티 설정처럼 보여 주고, 캐릭터가 있는 슬롯을 고르면 캐릭터 상세 화면으로 간다.</summary>
+    StatusCheck,
+    /// <summary>캐릭터 상세 화면: 스테이터스 확인이나 동료 확인에서 고른 캐릭터. 내용은 아직 정의되지 않았다. 돌아가기는 연 화면.</summary>
+    CharacterDetail,
+    /// <summary>장비 상세 화면: 장비 확인에서 고른 장비. 내용은 아직 정의되지 않았다. 돌아가기는 장비 확인.</summary>
+    EquipmentDetail,
+    /// <summary>아이템 상세 화면: 아이템 확인에서 고른 커먼 아이템. 내용은 아직 정의되지 않았다. 돌아가기는 아이템 확인.</summary>
+    ItemDetail,
+    /// <summary>동료 확인 화면(201): 가진 캐릭터 목록. 하나를 고르면 캐릭터 상세 화면으로 간다.</summary>
     CompanionCheck,
     /// <summary>장비 확인 화면(202): 가진 유니크 아이템 목록.</summary>
     EquipmentCheck,
@@ -153,6 +161,8 @@ public enum EntryAction
     DebugSelectSkillCharacter,
     /// <summary>디버그 추가 화면의 페이지를 넘긴다(Arg = -1 이전, 1 다음).</summary>
     DebugPage,
+    /// <summary>상세 화면을 연다(Arg = "C:캐릭터 코드", "S:파티 슬롯", "E:장비 인스턴스 ID", "I:아이템 코드"). 연 화면이 돌아갈 화면이 된다.</summary>
+    OpenDetail,
 }
 
 /// <summary>화면에 나오는 클릭 가능한 텍스트. 클릭하거나 Code를 입력하면 Action을 수행한다.</summary>
@@ -679,10 +689,18 @@ public sealed partial class GameSession
                         .ToList();
                 case Screen.Load:
                     return gameOver ? [] : [new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home)];      // 게임 오버 뒤의 로드 화면은 돌아갈 수 없다
+                case Screen.StatusCheck:
+                    return StatusCheckEntries();
                 case Screen.CompanionCheck:
+                    return CompanionCheckEntries();
                 case Screen.EquipmentCheck:
+                    return EquipmentCheckEntries();
                 case Screen.ItemCheck:
-                    return [new ScreenEntry(BackEntryCode, "돌아가기", CurrentDungeonCode is not null ? Screen.DungeonMove : Screen.Home)];      // 던전에서 연 확인 화면은 던전으로 돌아간다
+                    return ItemCheckEntries();
+                case Screen.CharacterDetail:
+                case Screen.EquipmentDetail:
+                case Screen.ItemDetail:
+                    return DetailEntries();      // 던전에서 연 확인 화면은 던전으로 돌아간다
                 case Screen.Battle:
                     return BattleEntries();
                 case Screen.UnitStatus:
@@ -762,6 +780,9 @@ public sealed partial class GameSession
                 }
                 if (IsDebugAddScreen(entry.Target)) DebugPage = 0;       // 추가 화면에 들어오면 첫 페이지다
                 Screen = entry.Target;
+                break;
+            case EntryAction.OpenDetail:
+                OpenDetail(entry.Arg!, entry.Target);
                 break;
             case EntryAction.SelectCommunicationGroup:
                 CurrentCommunicationGroupCode = CodeOf(entry) / CommunicationGroupEntryFactor;

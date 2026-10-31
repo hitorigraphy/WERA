@@ -119,8 +119,8 @@ public class DungeonFlowTests
         Assert.Equal("2층", s.DungeonLayerName);                                              // 층이 바뀌면 층 이름도 바뀐다
         Assert.Equal("테스트 던전", s.DungeonName);
 
-        Assert.Equal(Screen.CompanionCheck, s.Activate("201")!.Target);
-        Assert.Equal(["999"], s.Entries.Select(e => e.Code));
+        Assert.Equal(Screen.StatusCheck, s.Activate("201")!.Target);
+        Assert.Equal("999", s.Entries[^1].Code);
         Assert.Equal(Screen.DungeonMove, s.Activate("999")!.Target);                          // 확인 화면의 돌아가기는 던전으로
         Assert.Equal((1L, 2L, 1L), At(s));                                                    // 서 있던 자리 그대로
         Assert.Equal(Screen.ItemCheck, s.Activate("203")!.Target);
