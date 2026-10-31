@@ -267,6 +267,45 @@
                 @partyCommands
                 break;
 
+            case Screen.SkillCharacter:
+                <h2>@(session.CurrentSlotCharacterName)의 스킬 설정</h2>
+                @if (session.CurrentSkillSlots.Count == 0)
+                {
+                    <p class="end">스킬 슬롯이 없습니다.</p>
+                }
+                @if (session.Message is not null)
+                {
+                    <p class="message" role="status">@session.Message</p>
+                }
+                @* 스킬 슬롯을 순서대로, 구분선 아래에 스킬 풀 *@
+                @entryList(session.Entries.Where(e => e.Target == Screen.SkillSlotSelect))
+                <div class="menu-separator"></div>
+                @entryList(session.Entries.Where(e => e.Target == Screen.SkillPoolList))
+                break;
+
+            case Screen.SkillSlotSelect:
+                <h2>@(session.CurrentSlotCharacterName)의 @(session.Pack.FindSkillSlot(session.CurrentSkillSlotCode ?? 0)?.Name)</h2>
+                @if (session.SlottableSkillRows.Count == 0)
+                {
+                    <p class="end">장착할 수 있는 스킬이 없습니다.</p>
+                }
+                @entryList(session.Entries)
+                break;
+
+            case Screen.SkillPoolList:
+                <h2>@(session.CurrentSlotCharacterName)의 스킬 풀</h2>
+                @if (session.SkillPoolRows.Count == 0)
+                {
+                    <p class="end">익힌 스킬이 없습니다.</p>
+                }
+                <ul class="companions">
+                    @foreach (var r in session.SkillPoolRows)
+                    {
+                        <li>@(r.Index + 1). @r.Name@(r.EquippedSlotName is null ? "" : $" ({r.EquippedSlotName})")</li>
+                    }
+                </ul>
+                break;
+
             case Screen.PartyRename:
                 <h2>파티 설정 : 이름 변경</h2>
                 <p>현재 이름: @session.PartyName</p>

@@ -18,7 +18,14 @@ public enum Screen
     EquipmentSetup,
     /// <summary>파티 설정(리더 지정): 같은 3×3 슬롯. 리더 태그를 가진 캐릭터의 슬롯을 고르면 리더로 지정하거나 해제한다. 돌아가기는 홈.</summary>
     LeaderSetup,
+    /// <summary>파티 설정(스킬 설정): 같은 3×3 슬롯. 캐릭터가 있는 슬롯을 고르면 그 캐릭터의 스킬 설정 화면으로 간다. 돌아가기는 홈.</summary>
     SkillSetup,
+    /// <summary>선택한 슬롯 캐릭터의 스킬 슬롯(장착한 스킬)을 순서대로 보여 주고, 구분선 아래에 스킬 풀 버튼이 있다. 돌아가기는 스킬 설정.</summary>
+    SkillCharacter,
+    /// <summary>선택한 스킬 슬롯에 넣을 수 있는 스킬 풀 안의 스킬 목록. 고르면 장착한다. 돌아가기는 캐릭터의 스킬 설정.</summary>
+    SkillSlotSelect,
+    /// <summary>선택한 캐릭터가 지금까지 익힌 스킬 목록(스킬 풀). 돌아가기는 캐릭터의 스킬 설정.</summary>
+    SkillPoolList,
     /// <summary>전투(임시) 화면(110): 정해진 전투의 작전 화면(슬롯 네 줄과 가운데 영역). 돌아가기는 홈.</summary>
     Battle,
     /// <summary>선택한 슬롯 캐릭터의 장비 슬롯 목록. 돌아가기는 장비 착용 화면.</summary>
@@ -106,6 +113,10 @@ public enum EntryAction
     SelectCommunicationGroup,
     /// <summary>교류 화면에서 항목의 코드에 해당하는 교류를 시작해 흐름을 재생한다.</summary>
     StartCommunication,
+    /// <summary>스킬 슬롯 선택 화면에서 스킬 풀의 스킬(Arg = 풀 번호)을 그 슬롯에 장착한다.</summary>
+    EquipSkill,
+    /// <summary>스킬 슬롯 선택 화면에서 그 슬롯의 스킬을 뺀다.</summary>
+    ClearSkillSlot,
     /// <summary>디버그 추가 화면에서 항목(Arg = 마스터 코드)을 하나 추가한다. 화면은 그대로다.</summary>
     DebugAdd,
     /// <summary>디버그 추가 화면의 페이지를 넘긴다(Arg = -1 이전, 1 다음).</summary>
@@ -579,12 +590,12 @@ public sealed partial class GameSession
                         .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home))
                         .ToList();
                 case Screen.SkillSetup:
-                    // 아직 만들지 않은 모드: 캐릭터가 있는 슬롯이 보이지만 고를 수 없다(눌러도 반응이 없다). 돌아가면 홈으로 간다.
+                    // 캐릭터가 있는 슬롯만 고를 수 있고 고르면 그 캐릭터의 스킬 설정으로 간다. 돌아가면 홈으로 간다.
                     return RenamePartyEntries()
                         .Concat(PartySlotViews
                         .Where(v => !v.IsEmpty)
                         .Select(v => new ScreenEntry(
-                            (v.Slot + 1).ToString(), v.Name, Screen.SkillSetup, Arg: v.Slot.ToString(), Enabled: false)))
+                            (v.Slot + 1).ToString(), v.Name, Screen.SkillCharacter, Arg: v.Slot.ToString())))
                         .Concat(PartySelectEntries(Screen.SkillSetup))
                         .Concat(ModeEntries(Screen.SkillSetup))
                         .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home))
@@ -638,6 +649,12 @@ public sealed partial class GameSession
                     return [new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home)];
                 case Screen.Battle:
                     return BattleEntries();
+                case Screen.SkillCharacter:
+                    return SkillCharacterEntries();
+                case Screen.SkillSlotSelect:
+                    return SkillSlotSelectEntries();
+                case Screen.SkillPoolList:
+                    return [new ScreenEntry(BackEntryCode, "돌아가기", Screen.SkillCharacter)];
                 case Screen.Debug:
                 case Screen.DebugAddCharacter:
                 case Screen.DebugAddEquipment:
@@ -691,10 +708,12 @@ public sealed partial class GameSession
                 CurrentSlot = entry.Target switch
                 {
                     Screen.CharacterSelect or Screen.EquipmentList => int.Parse(entry.Arg!, CultureInfo.InvariantCulture),
-                    Screen.EquipmentSelect => CurrentSlot,      // 같은 캐릭터를 계속 본다
+                    Screen.SkillCharacter when entry.Arg is not null => int.Parse(entry.Arg, CultureInfo.InvariantCulture),
+                    Screen.EquipmentSelect or Screen.SkillCharacter or Screen.SkillSlotSelect or Screen.SkillPoolList => CurrentSlot,      // 같은 캐릭터를 계속 본다
                     _ => null,
                 };
                 CurrentEquipmentSlotCode = entry.Target == Screen.EquipmentSelect ? CodeOf(entry) : null;
+                CurrentSkillSlotCode = entry.Target == Screen.SkillSlotSelect ? CodeOf(entry) : null;
                 CurrentSupportRole = entry.Target == Screen.SupportSelect ? Enum.Parse<SupportRole>(entry.Arg!) : null;
                 if (entry.Target == Screen.Interaction && Screen != Screen.CommunicationPlay)
                 {
@@ -739,6 +758,16 @@ public sealed partial class GameSession
             case EntryAction.ClearSlot:
                 Party[CurrentSlot!.Value] = null;
                 CurrentSlot = null;
+                Screen = entry.Target;
+                break;
+            case EntryAction.EquipSkill:
+                Message = EquipSkillFromScreen(int.Parse(entry.Arg!, CultureInfo.InvariantCulture));
+                CurrentSkillSlotCode = null;
+                Screen = entry.Target;                  // 같은 캐릭터의 스킬 슬롯 목록(CurrentSlot 유지)
+                break;
+            case EntryAction.ClearSkillSlot:
+                Message = ClearSkillSlotFromScreen();
+                CurrentSkillSlotCode = null;
                 Screen = entry.Target;
                 break;
             case EntryAction.DebugAdd:

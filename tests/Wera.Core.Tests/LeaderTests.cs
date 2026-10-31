@@ -216,7 +216,7 @@ public class LeaderTests
         Assert.Equal(Screen.SkillSetup, s.Activate("103")!.Target);
         Assert.Equal(Screen.SkillSetup, s.Screen);
         Assert.False(s.Entries.Single(e => e.Code == "103").Enabled);                      // 지금 모드
-        Assert.All(s.Entries.Where(e => e.Arg is not null && e.Code.Length == 1 && e.Code != "0"), e => Assert.False(e.Enabled));   // 슬롯은 아직 고를 수 없다
+        Assert.All(s.Entries.Where(e => e.Arg is not null && e.Code.Length == 1 && e.Code != "0"), e => Assert.Equal(Screen.SkillCharacter, e.Target));   // 슬롯을 고르면 그 캐릭터의 스킬 설정으로 간다
         s.Activate("104");
         Assert.Equal(Screen.LeaderSetup, s.Screen);
         s.Activate("999");
