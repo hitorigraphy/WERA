@@ -468,7 +468,7 @@ public class DungeonFlowTests
     public void Only_an_exit_tile_lets_the_party_leave_and_only_with_enter()
     {
         var s = Entered(SamplePackWith(("master/tile_master_v1.tsv", File.ReadAllText(TileMaster()).Replace("1\tNone\t0\t0\t0", "1\tExit\t0\t0\t0"))));
-        Assert.False(s.CanInteractDungeon);                                                   // 시작 칸(S, 타일 3)은 출구가 아니다
+        Assert.True(s.CanInteractDungeon);                                                    // 시작 칸(S, 타일 3)은 입구이자 출구다
         Walk(s, "R");                                                                         // 바닥(타일 1)을 출구로 바꿨다
         Assert.Equal(Screen.DungeonMove, s.Screen);                                           // 닿기만 해서는 나가지 않는다
         Assert.True(s.CanInteractDungeon);
@@ -477,12 +477,18 @@ public class DungeonFlowTests
         Assert.Null(s.CurrentDungeonCode);
 
         var t = Entered();
+        Assert.True(t.CanInteractDungeon);                                                    // 입구(S)는 곧 출구다
+        Walk(t, "R");
         Assert.False(t.CanInteractDungeon);                                                   // 출구가 아닌 칸에서는 Enter가 아무 일도 하지 않는다
         t.InteractDungeon();
         Assert.Equal(Screen.DungeonMove, t.Screen);
         Assert.Null(t.Activate("999"));                                                       // 던전에서 나가는 [999]는 없다
         Assert.Equal(Screen.DungeonMove, t.Screen);
         Assert.NotNull(t.CurrentDungeonCode);
+        Walk(t, "L");
+        t.InteractDungeon();                                                                  // 입구로 돌아와 Enter
+        Assert.Equal(Screen.Home, t.Screen);
+        Assert.Null(t.CurrentDungeonCode);
     }
 
     static string TileMaster()
