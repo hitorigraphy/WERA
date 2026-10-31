@@ -1,12 +1,12 @@
 namespace Wera.Core;
 
 /// <summary>
-/// 스킬 순서 서킷: 스킬을 쓰는 순서를 정하는 OrderPoint를 계산한다. 시전자, 메인 타겟, 서브 타겟들과 캐시(<see cref="CircuitBase.CacheValues"/>), 그리고 <see cref="Result"/>를 갖고,
+/// 스킬 순서 서킷: 스킬을 쓰는 순서를 정하는 OrderPoint를 계산한다. 시전자, 메인 타겟, 서브 타겟들과 캐시(<see cref="UnitCircuitBase.CacheValues"/>), 그리고 <see cref="Result"/>를 갖고,
 /// 스킬의 순서 이펙트(스킬 순서 이펙트 마스터)를 실행 번호 순서로 실행한 뒤의 Result가 OrderPoint다. 순서 이펙트는 포커스한 것의 스테이터스를 읽기만 하고 바꾸지 않는다.
 /// 점프와 Finish 규칙은 <see cref="SkillExecuteCircuit"/>과 같다.
 /// </summary>
 public sealed class SkillOrderCircuit(GamePack pack, UnitStore store, long skillCode, PartyUnit? caster, PartyUnit? mainTarget, IEnumerable<PartyUnit>? subTarget = null)
-    : CircuitBase(pack, store, caster, mainTarget, subTarget)
+    : UnitCircuitBase(pack, store, caster, mainTarget, subTarget)
 {
     public long SkillCode { get; } = skillCode;
 

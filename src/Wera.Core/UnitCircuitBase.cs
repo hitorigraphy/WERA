@@ -10,7 +10,7 @@ public readonly record struct CircuitEffect(long ExecuteNumber, int TypeNumber, 
 /// 서킷 안의 스테이터스 값은 소수(decimal)로 들고 있다가 끝날 때 정수(소수는 버림)로, 각 스테이터스의 최솟값~최댓값으로 맞춰 저장소(<see cref="UnitStore"/>)에 되돌린다.
 /// 점프(Jump, JumpCache*)는 뒤의 실행 번호로 건너뛰고 Finish는 거기서 끝낸다(점프는 뒤로만 가므로 반드시 끝난다).
 /// </summary>
-public abstract class CircuitBase
+public abstract class UnitCircuitBase
 {
     // 서킷이 만지는 인스턴스마다 하나씩 만든 작업 사본: 소수 버퍼와 지금까지 바뀐 인스턴스를 가진다. 같은 인스턴스는 하나만 만든다.
     sealed class CharacterWork(CharacterInstance original, StatusBuffer buffer)
@@ -45,7 +45,7 @@ public abstract class CircuitBase
     ItemWork? focusedItem;
     SkillWork? focusedSkill;
 
-    protected CircuitBase(GamePack pack, UnitStore store, PartyUnit? caster, PartyUnit? mainTarget, IEnumerable<PartyUnit>? subTarget = null)
+    protected UnitCircuitBase(GamePack pack, UnitStore store, PartyUnit? caster, PartyUnit? mainTarget, IEnumerable<PartyUnit>? subTarget = null)
     {
         Pack = pack;
         Store = store;

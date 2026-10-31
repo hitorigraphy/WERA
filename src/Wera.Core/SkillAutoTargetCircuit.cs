@@ -6,7 +6,7 @@ namespace Wera.Core;
 /// 이펙트는 후보를 FocusSubTarget*로 포커스해 스테이터스를 읽기만 하고 바꾸지 않으며, SubTargetToResult로 Result를 놓는다. 점프와 Finish 규칙은 <see cref="SkillExecuteCircuit"/>과 같다.
 /// </summary>
 public sealed class SkillAutoTargetCircuit(GamePack pack, UnitStore store, long skillCode, PartyUnit? caster, IEnumerable<PartyUnit> candidates)
-    : CircuitBase(pack, store, caster, null, candidates)
+    : UnitCircuitBase(pack, store, caster, null, candidates)
 {
     public long SkillCode { get; } = skillCode;
 
