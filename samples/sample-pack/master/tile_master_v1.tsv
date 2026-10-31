@@ -1,7 +1,7 @@
 code	tile_effect	value_1	value_2	value_3	memo
 1	None	0	0	0	바닥
 2	Wall	0	0	0	벽
-3	Start	0	0	0	시작 칸
+3	None	0	0	0	시작 위치 표시(효과 없음; 도입 지점은 던전 마스터가 정한다)
 4	Exit	0	0	0	출구
 5	FixedBattle	5001	0	0	고정 전투
 6	RandomBattle	30	100	5001	30% 확률로 전투 5001

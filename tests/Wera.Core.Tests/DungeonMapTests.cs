@@ -20,7 +20,7 @@ public class DungeonMapTests
 
     static (string, string)[] Base() =>
         [("pack.tsv", "id\tdemo\ntitle\t데모\n"), (GamePack.DungeonMasterPath, Dungeons), (GamePack.BattleMasterPath, Battles), (GamePack.AdvMasterPath, Advs),
-         (GamePack.TileMasterPath, TileHeader + "1\tNone\t0\t0\t0\n2\tWall\t0\t0\t0\n3\tStart\t0\t0\t0\n"),
+         (GamePack.TileMasterPath, TileHeader + "1\tNone\t0\t0\t0\n2\tWall\t0\t0\t0\n3\tExit\t0\t0\t0\n"),
          (GamePack.DungeonTileMasterPath, DungeonTileHeader + "1001\t.\t1\n1001\t#\t2\n1001\tS\t3\n")];
 
     static GamePack Load(params (string, string)[] extra)
@@ -127,7 +127,7 @@ public class DungeonMapTests
             .SelectMany(t => pack.TileEffectsOf(t)).Select(e => e.EffectType).ToHashSet();
         Assert.Superset(new HashSet<TileEffectType>
         {
-            TileEffectType.None, TileEffectType.Wall, TileEffectType.Start, TileEffectType.Exit,
+            TileEffectType.None, TileEffectType.Wall, TileEffectType.Exit,
             TileEffectType.FixedBattle, TileEffectType.RandomBattle, TileEffectType.Adv, TileEffectType.Warp,
         }, kinds);
     }
@@ -149,7 +149,8 @@ public class DungeonMapTests
             (GamePack.DungeonMapMasterPath, MapHeader + Row(1001, 0, 0, ">")));                                                  // 그 맵이 없다
         Rejects("pos_x 30", (GamePack.TileMasterPath, TileHeader + "2\tWarp\t0\t30\t0\n"));
         Rejects("Warp의 도착", (GamePack.TileMasterPath, TileHeader + "2\tWarp\t-1\t0\t0\n"));
-        Assert.Equal(7, (int)TileEffectType.Warp);
+        Assert.Equal(6, (int)TileEffectType.Warp);
+        Assert.DoesNotContain("Start", Enum.GetNames<TileEffectType>());
     }
 
     [Fact]

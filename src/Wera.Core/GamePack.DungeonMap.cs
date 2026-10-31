@@ -6,7 +6,7 @@ namespace Wera.Core;
 
 /// <summary>
 /// 타일의 효과 종류. TSV에는 이름(대소문자 무시)으로 적는다. 타일 하나에 효과를 여러 개 겹칠 수 있다(타일 마스터에서 같은 타일 코드에 다른 효과의 행을 더한다).
-/// 숫자 값은 정해진 번호다: None 0, Wall 1, Start 2, Exit 3, FixedBattle 4, RandomBattle 5, Adv 6, Warp 7.
+/// 숫자 값은 정해진 번호다: None 0, Wall 1, Exit 2, FixedBattle 3, RandomBattle 4, Adv 5, Warp 6.
 /// </summary>
 [JsonConverter(typeof(JsonStringEnumConverter<TileEffectType>))]
 public enum TileEffectType
@@ -15,24 +15,22 @@ public enum TileEffectType
     None = 0,
     /// <summary>벽: 들어갈 수 없다.</summary>
     Wall = 1,
-    /// <summary>던전에 들어왔을 때 서는 칸. 인자는 아직 쓰이지 않는다.</summary>
-    Start = 2,
     /// <summary>던전을 나가는 칸. 인자는 아직 쓰이지 않는다.</summary>
-    Exit = 3,
+    Exit = 2,
     /// <summary>닿으면 정해진 전투가 벌어진다. value_1이 battle_code(전투 마스터)다.</summary>
-    FixedBattle = 4,
+    FixedBattle = 3,
     /// <summary>
     /// 닿으면 확률로 전투가 벌어진다. value_1이 확률(chance), value_2가 모수(bound), value_3이 battle_code(전투 마스터)다:
     /// 0 이상 bound 미만의 무작위 정수 r을 뽑아 r &lt; chance면 전투가 벌어진다(JumpRandom과 같은 규칙). 모수는 1 이상이어야 한다.
     /// </summary>
-    RandomBattle = 5,
+    RandomBattle = 4,
     /// <summary>닿으면 ADV로 넘어간다. value_1이 adv_code(ADV 마스터)다.</summary>
-    Adv = 6,
+    Adv = 5,
     /// <summary>
     /// 닿으면 같은 던전 안의 다른 칸으로 옮겨 간다(계단, 워프). value_1이 도착할 layer_number, value_2가 pos_x, value_3이 pos_y다.
     /// 다른 던전으로는 갈 수 없다(던전은 홈 화면에서 던전과 파티를 골라 들어가므로). 도착 칸은 그 던전의 맵에 있는 글자 칸이어야 한다(던전 맵 마스터 로드 검증).
     /// </summary>
-    Warp = 7,
+    Warp = 6,
 }
 
 /// <summary>타일 마스터의 한 행: 타일(TileCode)이 가진 효과(EffectType)와 그 인자. 키는 (TileCode, EffectType)이라 한 타일에 효과 종류별로 한 행씩 겹칠 수 있다.</summary>
@@ -68,7 +66,7 @@ public sealed partial class GamePack
     /// <summary>
     /// 타일 마스터를 읽는다. 키 (타일 코드, 효과)를 두 번 쓸 수 없다. 효과는 이름으로 적고, 인자(value_1~3)는 정수(long, 비우면 0)다.
     /// 효과별 인자 검증: Warp는 도착 layer_number와 pos_y가 0 이상, pos_x가 0~29(도착 칸이 맵에 있는지는 던전 맵 마스터를 읽을 때 본다), FixedBattle의 value_1과 RandomBattle의 value_3은 전투 마스터의 코드, RandomBattle의 value_2(모수)는 1 이상, Adv의 value_1은 ADV 마스터의 코드여야 한다
-    /// (전투나 ADV 효과가 있으려면 그 마스터가 있어야 한다). None, Wall, Start, Exit는 인자를 보지 않는다.
+    /// (전투나 ADV 효과가 있으려면 그 마스터가 있어야 한다). None, Wall, Exit는 인자를 보지 않는다.
     /// </summary>
     static List<TileEffect>? LoadTileEffects(ZipArchive zip, List<AdvEntry>? advs, List<BattleEntry>? battles)
     {
