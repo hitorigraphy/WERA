@@ -277,3 +277,5 @@ input.command { width: min(100%, 26rem); }
 .char-info hr { border: 0; border-top: 1px solid #666; margin: .6rem 0; }
 .char-columns { display: grid; grid-template-columns: 1fr 1fr; gap: .2rem 1ch; }
 .char-description { margin: 0; white-space: pre-wrap; }
+.char-columns .textlink { color: #fff; padding: 0; }
+.char-columns .textlink:disabled { color: #fff; cursor: default; text-decoration: none; }   /* 빈 슬롯 줄은 고를 수 없다 */

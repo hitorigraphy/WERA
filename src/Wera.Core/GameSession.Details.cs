@@ -4,8 +4,13 @@ namespace Wera.Core;
 
 public sealed partial class GameSession
 {
-    /// <summary>상세 화면(캐릭터, 장비, 아이템)에서 돌아갈 화면: 상세 화면을 연 화면이다.</summary>
-    Screen detailReturnScreen = Screen.Home;
+    /// <summary>상세 화면이 열릴 때 쌓는 "열기 전" 화면: 돌아가기는 맨 위 것으로 돌아간다(상세에서 다른 상세로 들어가도 차례로 돌아온다).</summary>
+    readonly Stack<DetailFrame> detailBack = new();
+
+    sealed record DetailFrame(Screen Screen, long? Character, string? Equipment, long? Item, long? Skill);
+
+    /// <summary>스킬 상세 화면이 보여 주는 스킬의 코드. 그 화면이 아니면 null.</summary>
+    public long? DetailSkillCode { get; private set; }
 
     /// <summary>캐릭터 상세 화면이 보여 주는 캐릭터의 코드. 그 화면이 아니면 null.</summary>
     public long? DetailCharacterCode { get; private set; }
@@ -26,6 +31,7 @@ public sealed partial class GameSession
         Screen.EquipmentDetail when DetailEquipmentId is { } id && UniqueItemInstances.TryGetValue(id, out var item) =>
             ("장비 상세", Pack.FindUniqueItem(item.ItemCode)?.ItemName ?? Text(item.ItemCode)),
         Screen.ItemDetail when DetailItemCode is { } code => ("아이템 상세", Pack.ItemInventory?.FirstOrDefault(i => i.Code == code)?.Name ?? Text(code)),
+        Screen.SkillDetail when DetailSkillCode is { } code => ("스킬 상세", SkillName(code)),
         _ => null,
     };
 
@@ -96,25 +102,70 @@ public sealed partial class GameSession
         new ScreenEntry(BackEntryCode, "돌아가기", CheckBackScreen),
     ];
 
-    /// <summary>상세 화면의 돌아가기는 상세 화면을 연 화면이다.</summary>
-    IReadOnlyList<ScreenEntry> DetailEntries() => [new ScreenEntry(BackEntryCode, "돌아가기", detailReturnScreen)];
+    /// <summary>
+    /// 상세 화면의 돌아가기는 상세 화면을 연 화면이다. 캐릭터 상세는 그 앞에 장비 슬롯 줄(1번부터)과 스킬 슬롯 줄(101번부터) 항목이 있다:
+    /// 장비 줄은 낀 것이 유니크 아이템이면 장비 상세, 커먼 아이템이면 아이템 상세, 보유 캐릭터면 캐릭터 상세로, 스킬 줄은 스킬 상세로 간다(빈 줄은 고를 수 없다).
+    /// </summary>
+    IReadOnlyList<ScreenEntry> DetailEntries()
+    {
+        var back = new ScreenEntry(BackEntryCode, "돌아가기", detailBack.Count > 0 ? detailBack.Peek().Screen : Screen.Home, EntryAction.CloseDetail);
+        if (Screen != Screen.CharacterDetail || DetailCharacterCode is not { } code || !Characters.TryGetValue(code, out var state)) return [back];
 
-    /// <summary>상세 화면을 연다: Arg는 "C:캐릭터 코드", "S:파티 슬롯 번호", "E:장비 인스턴스 ID", "I:아이템 코드". 지금 화면이 돌아갈 화면이 된다.</summary>
+        var rows = new List<ScreenEntry>();
+        var number = 1;
+        foreach (var slot in Pack.EquipmentSlotsOf(code))
+        {
+            var target = EquippedItemOf(code, slot.Code);
+            var (screen, arg) = target switch
+            {
+                { Kind: EquipKind.UniqueItem } t when UniqueItemInstances.ContainsKey(t.Instance ?? "") => (Screen.EquipmentDetail, $"E:{t.Instance}"),
+                { Kind: EquipKind.CommonItem } t => (Screen.ItemDetail, $"I:{t.Code.ToString(CultureInfo.InvariantCulture)}"),
+                { Kind: EquipKind.Character } t when Characters.ContainsKey(t.Code) => (Screen.CharacterDetail, $"C:{t.Code.ToString(CultureInfo.InvariantCulture)}"),
+                _ => (Screen.CharacterDetail, (string?)null),
+            };
+            rows.Add(new ScreenEntry((number++).ToString(CultureInfo.InvariantCulture), slot.Name, screen, EntryAction.OpenDetail, arg, Enabled: arg is not null));
+        }
+        number = 101;
+        foreach (var slot in Pack.SkillSlotsOf(code))
+        {
+            var skill = state.SkillSlots.TryGetValue(slot.Code, out var index) && index >= 0 && index < state.SkillPool.Count ? state.SkillPool[(int)index].SkillCode : (long?)null;
+            rows.Add(new ScreenEntry((number++).ToString(CultureInfo.InvariantCulture), slot.Name, Screen.SkillDetail, EntryAction.OpenDetail,
+                skill is { } s ? $"K:{s.ToString(CultureInfo.InvariantCulture)}" : null, Enabled: skill is not null));
+        }
+        return [.. rows, back];
+    }
+
+    /// <summary>상세 화면을 연다: Arg는 "C:캐릭터 코드", "S:파티 슬롯 번호", "E:장비 인스턴스 ID", "I:아이템 코드", "K:스킬 코드". 지금 화면(과 그 화면이 보던 것)이 돌아갈 곳이 된다.</summary>
     void OpenDetail(string arg, Screen target)
     {
         var value = arg[2..];
-        DetailCharacterCode = null;
-        DetailEquipmentId = null;
-        DetailItemCode = null;
+        var from = new DetailFrame(Screen, DetailCharacterCode, DetailEquipmentId, DetailItemCode, DetailSkillCode);
+        long? character = null, item = null, skill = null;
+        string? equipment = null;
         switch (arg[0])
         {
-            case 'C': DetailCharacterCode = long.Parse(value, CultureInfo.InvariantCulture); break;
-            case 'S': DetailCharacterCode = Party[int.Parse(value, CultureInfo.InvariantCulture)]; break;
-            case 'E': DetailEquipmentId = value; break;
-            case 'I': DetailItemCode = long.Parse(value, CultureInfo.InvariantCulture); break;
+            case 'C': character = long.Parse(value, CultureInfo.InvariantCulture); break;
+            case 'S': character = Party[int.Parse(value, CultureInfo.InvariantCulture)]; break;
+            case 'E': equipment = value; break;
+            case 'I': item = long.Parse(value, CultureInfo.InvariantCulture); break;
+            case 'K': skill = long.Parse(value, CultureInfo.InvariantCulture); break;
         }
-        if (DetailCharacterCode is null && DetailEquipmentId is null && DetailItemCode is null) return;      // 빈 슬롯 등: 열 수 없다
-        detailReturnScreen = Screen;
+        if (character is null && equipment is null && item is null && skill is null) return;      // 빈 슬롯 등: 열 수 없다
+        if (!IsDetailScreen(Screen)) detailBack.Clear();                                             // 목록 화면에서 처음 여는 것이면 새로 쌓는다
+        detailBack.Push(from);
+        (DetailCharacterCode, DetailEquipmentId, DetailItemCode, DetailSkillCode) = (character, equipment, item, skill);
         Screen = target;
+    }
+
+    static bool IsDetailScreen(Screen screen) =>
+        screen is Screen.CharacterDetail or Screen.EquipmentDetail or Screen.ItemDetail or Screen.SkillDetail;
+
+    /// <summary>상세 화면의 돌아가기: 열기 전의 화면으로, 그 화면이 상세 화면이었으면 보던 것도 되살린다.</summary>
+    void CloseDetail()
+    {
+        if (detailBack.Count == 0) { Screen = Screen.Home; return; }
+        var f = detailBack.Pop();
+        (DetailCharacterCode, DetailEquipmentId, DetailItemCode, DetailSkillCode) = (f.Character, f.Equipment, f.Item, f.Skill);
+        Screen = f.Screen;
     }
 }

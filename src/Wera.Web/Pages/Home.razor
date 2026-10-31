@@ -520,6 +520,7 @@
                 @* 캐릭터 상세: 좌측 하단에 250×750 이미지 칸, 오른쪽에 이름/레벨, Exp 바, HP/XPP, 상태값(미정), 장비, 스킬, 설명문을 구분선으로 나눠 놓는다 *@
                 @if (session.CharacterDetail is { } detail)
                 {
+                    <h2>캐릭터 상세</h2>
                     <div class="char-detail">
                         <div class="char-image" role="img" aria-label="No Image">No Image</div>
                         <div class="char-info">
@@ -537,16 +538,18 @@
                             </div>
                             <hr />
                             <div class="char-columns">
-                                @foreach (var line in detail.Equipment)
+                                @foreach (var (line, entry) in detail.Equipment.Zip(session.Entries))
                                 {
-                                    <div>@line.Label : @line.Value</div>
+                                    var code = entry.Code;
+                                    <div><button class="textlink row-link" disabled="@(!entry.Enabled)" @onclick="() => Activate(code)">@line.Label : @line.Value</button></div>
                                 }
                             </div>
                             <hr />
                             <div class="char-columns">
-                                @foreach (var line in detail.Skills)
+                                @foreach (var (line, entry) in detail.Skills.Zip(session.Entries.Skip(detail.Equipment.Count)))
                                 {
-                                    <div>@line.Label : @line.Value</div>
+                                    var code = entry.Code;
+                                    <div><button class="textlink row-link" disabled="@(!entry.Enabled)" @onclick="() => Activate(code)">@line.Label : @line.Value</button></div>
                                 }
                             </div>
                             <hr />
@@ -558,6 +561,7 @@
 
             case Screen.EquipmentDetail:
             case Screen.ItemDetail:
+            case Screen.SkillDetail:
                 @* 상세 화면의 내용은 아직 정의되지 않았다: 무엇을 보고 있는지 이름만 보여 준다 *@
                 @if (session.DetailHeading is { } heading)
                 {

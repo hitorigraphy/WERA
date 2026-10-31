@@ -70,6 +70,8 @@ public enum Screen
     EquipmentDetail,
     /// <summary>아이템 상세 화면: 아이템 확인에서 고른 커먼 아이템. 내용은 아직 정의되지 않았다. 돌아가기는 아이템 확인.</summary>
     ItemDetail,
+    /// <summary>스킬 상세 화면: 캐릭터 상세의 스킬 슬롯 줄에서 고른 스킬. 내용은 아직 정의되지 않았다. 돌아가기는 연 화면.</summary>
+    SkillDetail,
     /// <summary>동료 확인 화면(201): 가진 캐릭터 목록. 하나를 고르면 캐릭터 상세 화면으로 간다.</summary>
     CompanionCheck,
     /// <summary>장비 확인 화면(202): 가진 유니크 아이템 목록.</summary>
@@ -161,8 +163,10 @@ public enum EntryAction
     DebugSelectSkillCharacter,
     /// <summary>디버그 추가 화면의 페이지를 넘긴다(Arg = -1 이전, 1 다음).</summary>
     DebugPage,
-    /// <summary>상세 화면을 연다(Arg = "C:캐릭터 코드", "S:파티 슬롯", "E:장비 인스턴스 ID", "I:아이템 코드"). 연 화면이 돌아갈 화면이 된다.</summary>
+    /// <summary>상세 화면을 연다(Arg = "C:캐릭터 코드", "S:파티 슬롯", "E:장비 인스턴스 ID", "I:아이템 코드", "K:스킬 코드"). 연 화면이 돌아갈 화면이 된다.</summary>
     OpenDetail,
+    /// <summary>상세 화면의 돌아가기: 상세 화면을 열기 전의 화면과 그 화면이 보던 것으로 돌아간다.</summary>
+    CloseDetail,
 }
 
 /// <summary>화면에 나오는 클릭 가능한 텍스트. 클릭하거나 Code를 입력하면 Action을 수행한다.</summary>
@@ -701,6 +705,7 @@ public sealed partial class GameSession
                 case Screen.CharacterDetail:
                 case Screen.EquipmentDetail:
                 case Screen.ItemDetail:
+                case Screen.SkillDetail:
                     return DetailEntries();      // 던전에서 연 확인 화면은 던전으로 돌아간다
                 case Screen.Battle:
                     return BattleEntries();
@@ -784,6 +789,9 @@ public sealed partial class GameSession
                 break;
             case EntryAction.OpenDetail:
                 OpenDetail(entry.Arg!, entry.Target);
+                break;
+            case EntryAction.CloseDetail:
+                CloseDetail();
                 break;
             case EntryAction.SelectCommunicationGroup:
                 CurrentCommunicationGroupCode = CodeOf(entry) / CommunicationGroupEntryFactor;

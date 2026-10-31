@@ -98,6 +98,41 @@ public class DetailScreenTests
     }
 
     [Fact]
+    public void Equipment_and_skill_rows_of_the_character_detail_open_their_details_and_back_returns_step_by_step()
+    {
+        var s = SampleSession();
+        s.Activate("201");
+        s.Activate(s.Entries.First(e => e.Code != "999").Code);
+        var player = s.DetailCharacterCode;
+        var skills = s.Entries.Where(e => e.Target == Screen.SkillDetail).ToList();
+        Assert.Equal(s.CharacterDetail!.Skills.Count, skills.Count);
+        Assert.Equal(s.CharacterDetail!.Equipment.Count + s.CharacterDetail!.Skills.Count + 1, s.Entries.Count);
+        Assert.All(s.Entries.Where(e => e.Target == Screen.EquipmentDetail), e => Assert.True(e.Enabled));
+
+        var filled = skills.First(e => e.Enabled);                                       // 주인공이 장착한 스킬
+        Assert.Equal(Screen.SkillDetail, s.Activate(filled.Code)!.Target);
+        Assert.Equal("스킬 상세", s.DetailHeading!.Value.Title);
+        Assert.NotNull(s.DetailSkillCode);
+        Assert.Equal(Screen.CharacterDetail, s.Activate("999")!.Target);                 // 보던 캐릭터 상세로 돌아온다
+        Assert.Equal(player, s.DetailCharacterCode);
+        Assert.Null(s.DetailSkillCode);
+
+        s.Activate("999");                                                               // 동료 확인으로
+        s.AddCharacter(7001);
+        s.Party[0] = 7001;                                                               // 용사는 슬롯 1에 검을 낄 수 있다
+        var sword = s.Pack.Inventory.Values.Where(i => i.Kind == InventoryKind.UniqueItem).Select(i => i.Code).First(c => s.Pack.CanEquip(7001, 1, c));
+        var id = s.AddUniqueItem(sword)!;
+        Assert.True(s.Equip(7001, 1, EquipRef.Unique(id)));
+        s.Activate("201");
+        s.Activate(s.Entries.First(e => e.Label == "용사").Code);
+        Assert.Equal(Screen.EquipmentDetail, s.Activate("1")!.Target);                    // 첫 장비 슬롯 줄
+        Assert.Equal(id, s.DetailEquipmentId);
+        Assert.Equal(Screen.CharacterDetail, s.Activate("999")!.Target);
+        Assert.Equal(7001, s.DetailCharacterCode);
+        Assert.Equal(Screen.CompanionCheck, s.Activate("999")!.Target);
+    }
+
+    [Fact]
     public void The_exp_bar_shows_the_exp_status_not_the_xpp()
     {
         var s = SampleSession();
