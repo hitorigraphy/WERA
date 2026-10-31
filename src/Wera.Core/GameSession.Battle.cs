@@ -412,6 +412,23 @@ public sealed partial class GameSession
         _ => [.. LivingOf(true), .. LivingOf(false)],
     };
 
+    /// <summary>
+    /// 시전자가 스킬의 메인 타겟을 자동으로 고른다: 메인 타겟이 될 수 있는 후보(<see cref="TargetCandidatesOf"/>)를 자동 타겟 서킷에 서브 타겟 자리로 넣고
+    /// 한 바퀴 돌려 Result로 정해진 후보를 쓴다. 스킬에 자동 타겟 이펙트가 없거나 Result가 적절하지 못한 값이면 후보 중 랜덤 1체이고, 후보가 없으면 null이다.
+    /// </summary>
+    Combatant? AutoTargetOf(Combatant caster, long skillCode)
+    {
+        var candidates = TargetCandidatesOf(caster, SkillTargetTypeOf(skillCode));
+        if (candidates.Count == 0) return null;
+        if (Pack.SkillAutoTargetEffectsOf(skillCode).Count > 0)
+        {
+            var circuit = new SkillAutoTargetCircuit(Pack, CreateUnitStore(), skillCode, UnitOf(caster), candidates.Select(c => UnitOf(c)!));
+            circuit.Execute();
+            if (circuit.ChosenOf(candidates.Count) is { } chosen) return candidates[chosen];
+        }
+        return candidates[(int)NextRandom(candidates.Count)];
+    }
+
     /// <summary>대상 후보에서 고를 수 있는 유닛들: 보는 캐릭터가 고른 스킬의 타겟 대상에 맞는 살아 있는 유닛. 고른 스킬이 없으면 비어 있다.</summary>
     List<Combatant> BattleTargets() =>
         BattleCurrentSlot is { } slot && battlePendingSkill is { } skill

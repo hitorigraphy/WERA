@@ -47,7 +47,7 @@ public sealed partial class GamePack
         List<PresetParty>? presetParties, List<BattleEnemy>? battleEnemies,
         List<SkillSlotEntry>? skillSlots, List<CharacterSkillSlotTag>? characterSkillSlotTags,
         List<SkillEntry>? skills, List<SkillTag>? skillTags, List<SkillExecuteEffect>? skillExecuteEffects,
-        List<SkillOrderEffect>? skillOrderEffects,
+        List<SkillOrderEffect>? skillOrderEffects, List<SkillAutoTargetEffect>? skillAutoTargetEffects,
         List<OwnerStatus>? skillStatuses, List<OwnerStatus>? uniqueItemStatuses,
         List<LoadCharacterFlow>? afterLoadCharacterFlows, List<LoadUniqueItemFlow>? afterLoadUniqueItemFlows,
         List<AfterHitEffect>? afterHitEffects, List<AfterAttackEffect>? afterAttackEffects,
@@ -211,6 +211,10 @@ public sealed partial class GamePack
             Value1 = e.Value1, Value2 = e.Value2, Value3 = e.Value3,
         }).ToList());
         builder.Append((skillOrderEffects ?? []).Select(e => new SkillOrderEffectRow
+        { SkillCode = e.SkillCode, ExecuteNumber = e.ExecuteNumber, EffectType = e.EffectType,
+            Value1 = e.Value1, Value2 = e.Value2, Value3 = e.Value3,
+        }).ToList());
+        builder.Append((skillAutoTargetEffects ?? []).Select(e => new SkillAutoTargetEffectRow
         { SkillCode = e.SkillCode, ExecuteNumber = e.ExecuteNumber, EffectType = e.EffectType,
             Value1 = e.Value1, Value2 = e.Value2, Value3 = e.Value3,
         }).ToList());

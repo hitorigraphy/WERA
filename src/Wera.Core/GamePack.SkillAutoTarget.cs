@@ -1,0 +1,144 @@
+using System.IO.Compression;
+using System.Text.Json.Serialization;
+
+namespace Wera.Core;
+
+/// <summary>
+/// 스킬 자동 타겟 이펙트가 하는 일의 종류. TSV에는 이름(대소문자 무시)으로 적는다. 자동 타겟 서킷(<see cref="SkillAutoTargetCircuit"/>)이 실행하고, 스테이터스는 읽기만 하며 목적은 Result(메인 타겟이 될 유닛)를 정하는 것이다.
+/// 메인 타겟이 될 수 있는 유닛들(후보)이 서브 타겟 자리에 번호 0부터 차례로 등록되어 있어 FocusSubTarget*로 후보를 포커스해 읽고, SubTargetToResult로 후보 하나를 Result로 놓는다.
+/// 구성은 스킬 실행 이펙트(<see cref="EffectType"/>)와 같다: 번호와 이름, 인자가 같다. 다만 스테이터스를 바꾸는 종류(CacheToFocused*)는 없고 SubTargetToResult가 더해져 있다.
+/// 숫자 값은 정해진 번호다: None 0, FocusCasterCharacter 1, FocusMainTargetCharacter 2, FocusSubTargetCharacter 3, FocusCasterEquipment 4, FocusMainTargetEquipment 5, FocusSubTargetEquipment 6, FocusCasterSkill 7, FocusMainTargetSkill 8, FocusSubTargetSkill 9, FocusedCharacterValueToCache 12, FocusedItemValueToCache 15, FocusedSkillValueToCache 18, CacheAdd 19, CacheSubtract 20, CacheMultiply 21, CacheDivide 22, SetCacheValue 23, Jump 24, Finish 25, JumpCacheEqual 26, JumpCacheNotEqual 27, JumpCacheGreaterThan 28, JumpCacheGreaterOrEqual 29, JumpCacheLessThan 30, JumpCacheLessOrEqual 31, SubTargetToResult 32.
+/// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter<AutoTargetEffectType>))]
+public enum AutoTargetEffectType
+{
+    /// <summary>아무 일도 하지 않는다. 값은 보지 않는다.</summary>
+    None = 0,
+    /// <summary>시전자의 캐릭터를 포커스한다(FocusedCharacterInstance). 값은 보지 않는다. 시전자가 없거나 그 캐릭터를 찾을 수 없으면 포커스는 비워진다.</summary>
+    FocusCasterCharacter = 1,
+    /// <summary>메인 타겟의 캐릭터를 포커스한다. 인자와 예외는 <see cref="FocusCasterCharacter"/>와 같다.</summary>
+    FocusMainTargetCharacter = 2,
+    /// <summary>서브 타겟의 캐릭터를 포커스한다. value_1이 서브 타겟 번호(0부터, SubTarget 목록의 번호)이고, 그 번호의 서브 타겟이 없으면 포커스는 비워진다.</summary>
+    FocusSubTargetCharacter = 3,
+    /// <summary>시전자가 장비 슬롯에 낀 유니크 아이템을 포커스한다(FocusedUniqueItemInstance). value_1이 장비 슬롯 코드(장비 슬롯 마스터에 있어야 함)이고, 슬롯이 비었거나 낀 것이 유니크 아이템이 아니면(커먼 아이템, 캐릭터) 포커스는 비워진다.</summary>
+    FocusCasterEquipment = 4,
+    /// <summary>메인 타겟의 장비를 포커스한다. 인자와 예외는 <see cref="FocusCasterEquipment"/>와 같다.</summary>
+    FocusMainTargetEquipment = 5,
+    /// <summary>서브 타겟의 장비를 포커스한다. value_1이 서브 타겟 번호, value_2가 장비 슬롯 코드이고 예외는 <see cref="FocusCasterEquipment"/>와 같다(그 번호의 서브 타겟이 없어도 포커스는 비워진다).</summary>
+    FocusSubTargetEquipment = 6,
+    /// <summary>시전자의 캐릭터가 스킬 슬롯에 장착한 스킬을 포커스한다(FocusedSkill). value_1이 스킬 슬롯 코드(스킬 슬롯 마스터에 있어야 함)이고, 슬롯이 비었으면 포커스는 비워진다.</summary>
+    FocusCasterSkill = 7,
+    /// <summary>메인 타겟의 캐릭터가 장착한 스킬을 포커스한다. 인자와 예외는 <see cref="FocusCasterSkill"/>과 같다.</summary>
+    FocusMainTargetSkill = 8,
+    /// <summary>서브 타겟의 캐릭터가 장착한 스킬을 포커스한다. value_1이 서브 타겟 번호, value_2가 스킬 슬롯 코드이고 예외는 <see cref="FocusCasterSkill"/>과 같다.</summary>
+    FocusSubTargetSkill = 9,
+    /// <summary>포커스한 캐릭터의 스테이터스 값을 서킷 캐시의 cache_index번에 쓴다(이전 값은 덮어씀). value_1이 status_code, value_2가 cache_index(0~<see cref="GamePack.MaxCacheIndex"/>)이고 value_3은 보지 않는다. 캐시가 그 번호보다 짧으면 모자란 칸을 0으로 채워 늘린다. 포커스가 비었거나 그 스테이터스가 없으면 캐시를 건드리지 않는다.</summary>
+    FocusedCharacterValueToCache = 12,
+    /// <summary>포커스한 유니크 아이템의 스테이터스 값을 서킷 캐시에 쓴다. 인자와 예외는 <see cref="FocusedCharacterValueToCache"/>와 같다.</summary>
+    FocusedItemValueToCache = 15,
+    /// <summary>포커스한 스킬의 스테이터스 값을 서킷 캐시에 쓴다. 인자와 예외는 <see cref="FocusedCharacterValueToCache"/>와 같다.</summary>
+    FocusedSkillValueToCache = 18,
+    /// <summary>캐시 계산: cache[value_1] = cache[value_2] + cache[value_3]. 세 값 모두 cache_index(0~<see cref="GamePack.MaxCacheIndex"/>)다. 결과를 쓸 번호가 캐시보다 뒤면 모자란 칸을 0으로 채워 늘린다. 계산할 칸(value_2나 value_3)이 캐시에 없거나 결과가 decimal 범위를 넘으면 아무 일도 하지 않는다.</summary>
+    CacheAdd = 19,
+    /// <summary>cache[value_1] = cache[value_2] - cache[value_3]. 인자와 예외는 <see cref="CacheAdd"/>와 같다.</summary>
+    CacheSubtract = 20,
+    /// <summary>cache[value_1] = cache[value_2] * cache[value_3]. 인자와 예외는 <see cref="CacheAdd"/>와 같다.</summary>
+    CacheMultiply = 21,
+    /// <summary>cache[value_1] = cache[value_2] / cache[value_3](나눗셈은 decimal 그대로, 반올림 없음). 인자와 예외는 <see cref="CacheAdd"/>와 같고, value_3의 칸이 0이면 아무 일도 하지 않는다.</summary>
+    CacheDivide = 22,
+    /// <summary>캐시에 상수를 쓴다: cache[value_1] = value_2 / 10^value_3. value_1이 cache_index(0~<see cref="GamePack.MaxCacheIndex"/>), value_2가 정수 값, value_3이 소수 자릿수(0~28)다(15, 2는 0.15). 캐시가 짧으면 모자란 칸을 0으로 채워 늘린다.</summary>
+    SetCacheValue = 23,
+    /// <summary>조건 없이 점프한다. value_1이 점프할 execute_number이고, 같은 마스터의 같은 소유자(스킬, 캐릭터, 아이템별 마스터에서는 같은 코드)에 있어야 하며 자신의 execute_number보다 커야 한다(뒤로만 가서 무한 반복이 없다).</summary>
+    Jump = 24,
+    /// <summary>이펙트 실행을 끝낸다(뒤의 이펙트는 실행하지 않는다).</summary>
+    Finish = 25,
+    /// <summary>cache[value_1]과 cache[value_2]를 견주어(같다) 참이면 value_3의 execute_number로 점프하고, 거짓이면 다음 이펙트로 간다. value_1과 value_2는 cache_index이고 둘 중 하나가 캐시에 없으면 거짓이다. 점프 대상의 규칙은 <see cref="Jump"/>와 같다.</summary>
+    JumpCacheEqual = 26,
+    /// <summary>같지 않다. 인자와 규칙은 <see cref="JumpCacheEqual"/>과 같다.</summary>
+    JumpCacheNotEqual = 27,
+    /// <summary>cache[value_1] &gt; cache[value_2]. 인자와 규칙은 <see cref="JumpCacheEqual"/>과 같다.</summary>
+    JumpCacheGreaterThan = 28,
+    /// <summary>cache[value_1] &gt;= cache[value_2]. 인자와 규칙은 <see cref="JumpCacheEqual"/>과 같다.</summary>
+    JumpCacheGreaterOrEqual = 29,
+    /// <summary>cache[value_1] &lt; cache[value_2]. 인자와 규칙은 <see cref="JumpCacheEqual"/>과 같다.</summary>
+    JumpCacheLessThan = 30,
+    /// <summary>cache[value_1] &lt;= cache[value_2]. 인자와 규칙은 <see cref="JumpCacheEqual"/>과 같다.</summary>
+    JumpCacheLessOrEqual = 31,
+    /// <summary>Result를 서브 타겟 자리의 후보 하나로 놓는다: value_1이 후보 번호(0부터, 후보 목록의 번호)이고 0 이상이어야 한다. 나중에 실행한 것이 앞의 것을 덮어쓴다. 후보 번호가 후보 목록을 벗어나면 Result는 적절하지 못한 값이 되어 서킷이 끝난 뒤 랜덤으로 1체를 고른다.</summary>
+    SubTargetToResult = 32,
+}
+
+/// <summary>스킬 자동 타겟 이펙트 마스터의 한 행: 스킬의 자동 타겟 서킷이 execute_number 순서대로 실행하는 이펙트 하나(종류와 값 셋).</summary>
+public sealed record SkillAutoTargetEffect(long SkillCode, long ExecuteNumber, AutoTargetEffectType EffectType, long Value1, long Value2, long Value3);
+
+// skill_auto_target_effect_master(skill_code, execute_number, effect_type, value_1, value_2, value_3; 앞의 두 열이 키). 선택이다.
+// 자동으로 메인 타겟을 정할 때(적, 메인 타겟이 쓰러졌을 때) 후보 중 누구를 고를지 정한다: 자동 타겟 서킷이 이 이펙트들을 한 바퀴 돌리고 마지막 Result가 메인 타겟이다.
+// 이 마스터에 스킬의 이펙트가 없거나 Result가 적절하지 못하면 후보 중 랜덤 1체를 고른다.
+public sealed partial class GamePack
+{
+    public const string SkillAutoTargetEffectMasterPath = "master/skill_auto_target_effect_master_v1.tsv";
+
+    /// <summary>스킬 자동 타겟 이펙트 마스터(게임팩 파일 순서). 마스터가 없으면 null.</summary>
+    public IReadOnlyList<SkillAutoTargetEffect>? SkillAutoTargetEffects { get; init; }
+
+    /// <summary>
+    /// 스킬 자동 타겟 이펙트 마스터: skill_code는 스킬 마스터에 있어야 하고 키 (스킬, 실행 번호)를 두 번 쓸 수 없다. 종류는 이름으로 적고 값 셋은 비우면 0이다.
+    /// 종류별 인자 검증은 <see cref="EffectArgs.Check"/>를 따른다. 점프 대상은 같은 스킬의, 자신보다 큰 execute_number여야 한다.
+    /// </summary>
+    static List<SkillAutoTargetEffect>? LoadSkillAutoTargetEffects(ZipArchive zip, List<SkillEntry>? skills, EffectCheck check)
+    {
+        const string file = SkillAutoTargetEffectMasterPath;
+        var text = TryReadEntry(zip, file);
+        if (text is null) return null;
+        if (skills is null) throw new PackFormatException($"{file}가 있으려면 {SkillMasterPath}도 필요합니다.");
+
+        var codes = skills.Select(s => s.Code).ToHashSet();
+        var rows = new List<SkillAutoTargetEffect>();
+        var seen = new HashSet<(long, long)>();
+        foreach (var r in Body(file, text, "skill_code", "execute_number", "effect_type", "value_1", "value_2", "value_3"))
+        {
+            var owner = ParseLong(file, "스킬 코드", r[0]);
+            var who = $"스킬 '{owner}'의";
+            var number = ParseLong(file, $"{who} 실행 번호", r[1]);
+            var where = $"{who} 실행 {number}의";
+            // 숫자("0")도 Enum.TryParse를 통과하므로 이름 목록으로 먼저 거른다.
+            if (!Enum.GetNames<AutoTargetEffectType>().Contains(r[2], StringComparer.OrdinalIgnoreCase)
+                || !Enum.TryParse<AutoTargetEffectType>(r[2], ignoreCase: true, out var type))
+                throw new PackFormatException(
+                    $"{file}: {where} 이펙트 종류 '{r[2]}'을(를) 알 수 없습니다. ({string.Join(", ", Enum.GetNames<AutoTargetEffectType>())})");
+            var value1 = r[3].Trim().Length == 0 ? 0 : ParseLong(file, $"{where} value_1", r[3]);
+            var value2 = r[4].Trim().Length == 0 ? 0 : ParseLong(file, $"{where} value_2", r[4]);
+            var value3 = r[5].Trim().Length == 0 ? 0 : ParseLong(file, $"{where} value_3", r[5]);
+
+            if (!codes.Contains(owner))
+                throw new PackFormatException($"{file}: 스킬 코드 '{owner}'가 스킬 마스터에 없습니다.");
+            if (!seen.Add((owner, number)))
+                throw new PackFormatException($"{file}: 스킬 '{owner}'의 실행 번호 '{number}'가 두 번 적혀 있습니다.");
+            if ((int)type == (int)AutoTargetEffectType.SubTargetToResult)
+            {
+                if (value1 < 0) throw new PackFormatException($"{file}: {where} value_1(후보 번호) '{value1}'는 0 이상이어야 합니다.");
+            }
+            else EffectArgs.Check(file, where, (EffectType)(int)type, value1, value2, value3, check);
+            rows.Add(new SkillAutoTargetEffect(owner, number, type, value1, value2, value3));
+        }
+
+        // 점프는 같은 스킬에 있는, 자신보다 큰 execute_number로만 갈 수 있다.
+        var numbers = rows.GroupBy(e => e.SkillCode).ToDictionary(g => g.Key, g => g.Select(e => e.ExecuteNumber).ToHashSet());
+        foreach (var e in rows)
+            if (EffectArgs.JumpTargetOf((EffectType)(int)e.EffectType, e.Value1, e.Value3) is { } target)
+            {
+                var where = $"스킬 '{e.SkillCode}'의 실행 {e.ExecuteNumber}의";
+                if (target <= e.ExecuteNumber)
+                    throw new PackFormatException($"{file}: {where} 점프 대상 '{target}'는 자신의 실행 번호보다 커야 합니다.");
+                if (!numbers[e.SkillCode].Contains(target))
+                    throw new PackFormatException($"{file}: {where} 점프 대상 '{target}'가 같은 스킬에 없습니다.");
+            }
+        return rows;
+    }
+
+    /// <summary>스킬의 자동 타겟 이펙트(실행 번호 순).</summary>
+    public IReadOnlyList<SkillAutoTargetEffect> SkillAutoTargetEffectsOf(long skillCode) =>
+        Masters.SkillAutoTargetEffectRowTable.FindBySkillCode(skillCode)
+            .OrderBy(r => r.ExecuteNumber)
+            .Select(r => new SkillAutoTargetEffect(r.SkillCode, r.ExecuteNumber, r.EffectType, r.Value1, r.Value2, r.Value3)).ToList();
+}

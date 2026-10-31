@@ -13,6 +13,32 @@ public class BattleScreenTests
         return GamePack.Load(zip);
     }
 
+    /// <summary>예시 게임팩에 마스터 파일(경로, 내용)을 더한(같은 경로면 바꾼) 게임팩.</summary>
+    static GamePack SamplePackWith(params (string Path, string Text)[] extra)
+    {
+        var root = AppContext.BaseDirectory;
+        while (!File.Exists(Path.Combine(root, "WERA.slnx"))) root = Path.GetDirectoryName(root)!;
+        var source = new MemoryStream();
+        using (var read = File.OpenRead(Path.Combine(root, "src", "Wera.Web", "wwwroot", "sample-pack.wra")))
+        using (var from = new System.IO.Compression.ZipArchive(read))
+        using (var to = new System.IO.Compression.ZipArchive(source, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (var e in from.Entries.Where(e => extra.All(x => x.Path != e.FullName)))
+            {
+                using var input = e.Open();
+                using var output = to.CreateEntry(e.FullName).Open();
+                input.CopyTo(output);
+            }
+            foreach (var (path, text) in extra)
+            {
+                using var w = new StreamWriter(to.CreateEntry(path).Open());
+                w.Write(text);
+            }
+        }
+        source.Position = 0;
+        return GamePack.Load(source);
+    }
+
     // 예시 게임팩의 전투 5001: 적 파티 1(전사 둘, 마법사 둘; 가중치 1)과 적 파티 2(전사 하나; 가중치 3).
     static GameSession Started(long roll = 0, bool twoUnits = false)
     {
@@ -665,24 +691,8 @@ public class BattleScreenTests
     public void After_hit_circuits_run_for_the_main_target_and_every_sub_target()
     {
         // 피격 후: 맞은 쪽(그 서킷의 메인 타겟)의 hp를 1 더 깎는다. 예시 팩에 피격 후 이펙트 마스터를 더해 시험한다
-        var root = AppContext.BaseDirectory;
-        while (!File.Exists(Path.Combine(root, "WERA.slnx"))) root = Path.GetDirectoryName(root)!;
-        var source = new MemoryStream();
-        using (var read = File.OpenRead(Path.Combine(root, "src", "Wera.Web", "wwwroot", "sample-pack.wra")))
-        using (var from = new System.IO.Compression.ZipArchive(read))
-        using (var to = new System.IO.Compression.ZipArchive(source, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
-        {
-            foreach (var e in from.Entries)
-            {
-                using var input = e.Open();
-                using var output = to.CreateEntry(e.FullName).Open();
-                input.CopyTo(output);
-            }
-            using var w = new StreamWriter(to.CreateEntry(GamePack.AfterHitEffectMasterPath).Open());
-            w.Write("execute_number\teffect_type\tvalue_1\tvalue_2\tvalue_3\n1\tSetCacheValue\t0\t-1\t0\n2\tFocusMainTargetCharacter\t0\t0\t0\n3\tCacheToFocusedCharacterModValue\t2\t0\t0\n");
-        }
-        source.Position = 0;
-        var s = GameSession.NewGame(GamePack.Load(source));
+        var pack = SamplePackWith((GamePack.AfterHitEffectMasterPath, "execute_number\teffect_type\tvalue_1\tvalue_2\tvalue_3\n1\tSetCacheValue\t0\t-1\t0\n2\tFocusMainTargetCharacter\t0\t0\t0\n3\tCacheToFocusedCharacterModValue\t2\t0\t0\n"));
+        var s = GameSession.NewGame(pack);
         s.NextRandom = _ => 0;
         s.Activate("105"); s.Activate("1"); s.Activate("1"); s.Activate("999");
         Assert.NotNull(s.Activate("110"));
@@ -723,5 +733,74 @@ public class BattleScreenTests
         Assert.Equal(GameSession.BattleOutcomeKind.None, s.BattleOutcome);          // 슬롯 4와 7이 남아 있다
         var firstHit = s.BattleLog.ToList().FindIndex(a => a.IsSub && a.TargetSlot == 2);
         Assert.DoesNotContain(s.BattleLog.Skip(firstHit), a => a.IsEnemy && !a.IsSub && a.Slot == 2);   // 쓰러진 뒤에는 그 슬롯의 적이 행동하지 않는다
+    }
+
+    // 자동 타겟 이펙트 마스터를 더한 예시 팩으로 시작한다(스킬 1001~1004 모두 같은 이펙트; 적 파티 2: 전사 하나가 아군 둘 중 하나를 노린다)
+    static GameSession StartedWithAutoTarget(string effects)
+    {
+        var rows = string.Concat(new[] { 1001, 1002, 1003, 1004 }.SelectMany(skill => effects.TrimEnd('\n').Split('\n').Select((row, i) => $"{skill}\t{i + 1}\t{row}\n")));
+        var pack = SamplePackWith((GamePack.SkillAutoTargetEffectMasterPath, "skill_code\texecute_number\teffect_type\tvalue_1\tvalue_2\tvalue_3\n" + rows));
+        var s = GameSession.NewGame(pack);
+        s.NextRandom = _ => 1;                                                      // 적 파티 2(전사 하나)
+        s.Activate("105"); s.Activate("1"); s.Activate("1"); s.Activate("999");
+        s.AddCharacter(7001);
+        s.Party[1] = 7001;
+        Assert.NotNull(s.Activate("110"));
+        s.NextRandom = _ => 0;                                                      // 그 뒤의 랜덤은 늘 첫 후보
+        return s;
+    }
+
+    // 아군 둘이 적 하나를 노리게 하고 실행한다(적이 쓰러지지 않도록 hp를 크게)
+    static void Go(GameSession s)
+    {
+        var slot = s.EnemyInstances.Keys.Single();
+        s.EnemyInstances[slot].Statuses[GamePack.HpStatusCode] = 9999;
+        for (var i = 0; i < 2; i++) { s.Activate("102"); s.Activate("101"); s.Activate((slot + 1).ToString()); }
+        s.Activate("107");
+    }
+
+    static IEnumerable<GameSession.BattleActed> EnemyActs(GameSession s) => s.BattleLog.Where(a => a.IsEnemy && !a.IsSub);
+
+    [Fact]
+    public void An_enemys_main_target_follows_the_auto_target_circuits_result()
+    {
+        var s = StartedWithAutoTarget("SubTargetToResult\t1\t0\t0\n");              // 후보 1번(둘째 아군)
+        Go(s);
+        var act = EnemyActs(s).Single();
+        Assert.Equal((false, 1), (act.TargetIsEnemy, act.TargetSlot));              // 랜덤이면 첫 후보인 슬롯 0이었다
+    }
+
+    [Fact]
+    public void The_circuit_can_read_candidates_to_pick_the_weakest()
+    {
+        // 후보 0과 1의 hp를 읽어 더 작은 쪽을 고른다(같으면 0번)
+        const string pickLowerHp =
+            "FocusSubTargetCharacter\t0\t0\t0\nFocusedCharacterValueToCache\t2\t0\t0\nFocusSubTargetCharacter\t1\t0\t0\nFocusedCharacterValueToCache\t2\t1\t0\n" +
+            "JumpCacheLessOrEqual\t0\t1\t8\nSubTargetToResult\t1\t0\t0\nFinish\t0\t0\t0\nSubTargetToResult\t0\t0\t0\n";
+        var s = StartedWithAutoTarget(pickLowerHp);
+        s.Characters[1].Statuses[GamePack.HpStatusCode] = 40;
+        s.Characters[7001].Statuses[GamePack.HpStatusCode] = 5;
+        Go(s);
+        Assert.Equal(1, EnemyActs(s).Single().TargetSlot);                          // hp가 더 작은 슬롯 1
+
+        var t = StartedWithAutoTarget(pickLowerHp);
+        t.Characters[1].Statuses[GamePack.HpStatusCode] = 5;
+        t.Characters[7001].Statuses[GamePack.HpStatusCode] = 40;
+        Go(t);
+        Assert.Equal(0, EnemyActs(t).Single().TargetSlot);
+    }
+
+    [Fact]
+    public void An_unsuitable_result_falls_back_to_a_random_candidate()
+    {
+        var s = StartedWithAutoTarget("SubTargetToResult\t9\t0\t0\n");               // 후보 번호가 범위 밖
+        s.NextRandom = _ => 1;                                                      // 랜덤은 늘 둘째 후보
+        Go(s);
+        Assert.Equal(1, EnemyActs(s).Single().TargetSlot);                          // 서킷이 아니라 랜덤이 골랐다
+
+        var none = StartedWithAutoTarget("None\t0\t0\t0\n");                        // Result를 놓지 않아도 랜덤
+        none.NextRandom = _ => 1;
+        Go(none);
+        Assert.Equal(1, EnemyActs(none).Single().TargetSlot);
     }
 }

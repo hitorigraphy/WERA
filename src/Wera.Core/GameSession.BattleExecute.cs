@@ -68,8 +68,7 @@ public sealed partial class GameSession
             var skills = BattleSkillsOf(enemy);
             if (skills.Count == 0) continue;
             skillOf[enemy] = skills[(int)NextRandom(skills.Count)].SkillCode;
-            var candidates = TargetCandidatesOf(enemy, SkillTargetTypeOf(skillOf[enemy]));
-            if (candidates.Count > 0) targetOf[enemy] = candidates[(int)NextRandom(candidates.Count)];
+            if (AutoTargetOf(enemy, skillOf[enemy]) is { } auto) targetOf[enemy] = auto;
         }
 
         var waiting = skillOf.Keys.Where(IsAlive).ToList();
@@ -155,8 +154,6 @@ public sealed partial class GameSession
     Combatant? ResolveBattleTarget(Combatant actor, long skillCode, Dictionary<Combatant, Combatant> targetOf)
     {
         if (targetOf.TryGetValue(actor, out var chosen) && IsAlive(chosen)) return chosen;
-        var candidates = TargetCandidatesOf(actor, SkillTargetTypeOf(skillCode));
-        if (candidates.Count == 0) return null;
-        return candidates[(int)NextRandom(candidates.Count)];
+        return AutoTargetOf(actor, skillCode);
     }
 }

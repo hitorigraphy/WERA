@@ -187,6 +187,7 @@ public sealed partial class GamePack
             skills?.Select(s => s.Code).ToHashSet());
         var skillExecuteEffects = LoadSkillExecuteEffects(zip, skills, effectCheck);
         var skillOrderEffects = LoadSkillOrderEffects(zip, skills, effectCheck);
+        var skillAutoTargetEffects = LoadSkillAutoTargetEffects(zip, skills, effectCheck);
         var afterLoadCharacterFlows = LoadAfterLoadCharacterFlows(zip, effectCheck);
         var afterLoadUniqueItemFlows = LoadAfterLoadUniqueItemFlows(zip, effectCheck);
         var afterHitEffects = LoadAfterHitEffects(zip, effectCheck);
@@ -246,6 +247,7 @@ public sealed partial class GamePack
             SkillTags = skillTags,
             SkillExecuteEffects = skillExecuteEffects,
             SkillOrderEffects = skillOrderEffects,
+            SkillAutoTargetEffects = skillAutoTargetEffects,
             AfterLoadCharacterFlows = afterLoadCharacterFlows,
             AfterLoadUniqueItemFlows = afterLoadUniqueItemFlows,
             AfterHitEffects = afterHitEffects,
@@ -265,7 +267,7 @@ public sealed partial class GamePack
                 events, eventConditions, eventFlows, advs, battles, advFlows, communicationGroups, communications,
                 communicationSoloFlows, communicationDuoFlows, communicationDefaultFlows,
                 presetUnits, presetUnitEquips, presetUnitDrops, presetParties, battleEnemies,
-                skillSlots, characterSkillSlotTags, skills, skillTags, skillExecuteEffects, skillOrderEffects,
+                skillSlots, characterSkillSlotTags, skills, skillTags, skillExecuteEffects, skillOrderEffects, skillAutoTargetEffects,
                 skillStatuses, uniqueItemStatuses, afterLoadCharacterFlows, afterLoadUniqueItemFlows,
                 afterHitEffects, afterAttackEffects, afterBattleWinEffects, afterBattleLoseEffects, afterBattleRunEffects,
                 characterAfterCreateEffects, uniqueItemAfterCreateEffects),
