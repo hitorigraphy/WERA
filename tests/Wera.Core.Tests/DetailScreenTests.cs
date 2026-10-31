@@ -78,9 +78,9 @@ public class DetailScreenTests
         var d = s.CharacterDetail!;
         Assert.Equal(s.DetailHeading!.Value.Name, d.Name);
         Assert.StartsWith("Lv.", d.LevelText);
-        Assert.Equal(GameSession.CharacterDetailExpWidth, d.Exp.Text.Length);             // Exp 바는 HP/XPP 게이지보다 길다
-        Assert.Equal(Gauge.Width, d.Hp.Text.Length);
-        Assert.Equal(Gauge.Width, d.Xp.Text.Length);
+        Assert.Equal(GameSession.CharacterDetailExpWidth, d.Exp.Text.Length);             // Exp, HP, XP 바는 모두 같은 길이
+        Assert.Equal(GameSession.CharacterDetailExpWidth, d.Hp.Text.Length);
+        Assert.Equal(GameSession.CharacterDetailExpWidth, d.Xp.Text.Length);
         Assert.Equal("이야기의 주인공. 아직 아무것도 알려지지 않았다.", d.Description);        // 샘플 팩의 캐릭터 1
         Assert.All(d.Equipment.Concat(d.Skills), l => Assert.NotEqual("", l.Value));
         s.Activate("999");
@@ -97,6 +97,8 @@ public class DetailScreenTests
         s.Activate(s.Entries.First(e => e.Code != "999").Code);
         Assert.Equal(Gauge.Render(30, 60, gray: false, GameSession.CharacterDetailExpWidth), s.CharacterDetail!.Exp);
         Assert.Equal((6L, 7L), (GamePack.ExpStatusCode, GamePack.ExpMaxStatusCode));
+        s.Characters[player] = s.Characters[player].WithStatus(GamePack.ExpStatusCode, 5).WithStatus(GamePack.HpStatusCode, 0);   // 사망이어도, 25% 미만이어도
+        Assert.Equal(GaugeColor.White, s.CharacterDetail!.Exp.Color);
         Assert.Equal(100, SampleSession().Characters[player].ExpMax);               // 샘플 팩: 새 캐릭터의 필요 경험치 100
     }
 }

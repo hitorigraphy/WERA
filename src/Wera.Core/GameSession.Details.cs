@@ -49,11 +49,11 @@ public sealed partial class GameSession
             var skills = Pack.SkillSlotTagsOf(code).Select(r => r.SkillSlotCode).Distinct().Order()
                 .Select(Pack.FindSkillSlot).OfType<SkillSlotEntry>()
                 .Select(slot => new UnitStatusLine(slot.Name, EquippedSkillName(character, slot.Code) ?? "비어 있음")).ToList();
-            var xp = XpLine(character);
+            var xp = XpLine(character, CharacterDetailExpWidth);
             return new CharacterDetailView(
                 CharacterName(code), $"Lv.{state.Level}",
-                Gauge.Render(state.Exp, state.ExpMax, gray: state.IsDead, CharacterDetailExpWidth),
-                Gauge.Render(state.Hp, state.MaxHp, gray: state.IsDead),
+                Gauge.Render(state.Exp, state.ExpMax, gray: false, CharacterDetailExpWidth) with { Color = GaugeColor.White },   // Exp 바는 색 규칙을 따르지 않고 늘 흰색
+                Gauge.Render(state.Hp, state.MaxHp, gray: state.IsDead, CharacterDetailExpWidth),
                 xp.Gauge, xp.Tag,
                 equipment, skills, Pack.FindCharacter(code)?.Description ?? "");
         }
