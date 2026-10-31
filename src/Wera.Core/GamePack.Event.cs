@@ -92,7 +92,8 @@ public sealed record EventFlow(
 public sealed record AdvEntry(long Code, string Name);
 
 /// <summary>전투 마스터의 한 행.</summary>
-public sealed record BattleEntry(long Code, string Name);
+/// <param name="CanRun">도망(전투 화면의 [106])을 칠 수 있는가. 전투 마스터의 can_run 열(없거나 비우면 true).</param>
+public sealed record BattleEntry(long Code, string Name, bool CanRun = true);
 
 // 이벤트, 이벤트 조건, 이벤트 흐름, ADV, 전투 마스터. 이 마스터들은 선택이고, 아직 게임 진행에 쓰이지 않는다.
 public sealed partial class GamePack
@@ -119,8 +120,26 @@ public sealed partial class GamePack
     static List<AdvEntry>? LoadAdvs(ZipArchive zip) =>
         LoadCodeNames(zip, AdvMasterPath, "code", "name", "ADV", (code, name) => new AdvEntry(code, name));
 
-    static List<BattleEntry>? LoadBattles(ZipArchive zip) =>
-        LoadCodeNames(zip, BattleMasterPath, "code", "name", "전투", (code, name) => new BattleEntry(code, name));
+    /// <summary>전투 마스터: code(키), name, 그리고 선택 열 can_run(도망 가능 여부, true/false 또는 1/0, 열이 없거나 칸이 비면 true).</summary>
+    static List<BattleEntry>? LoadBattles(ZipArchive zip)
+    {
+        var text = TryReadEntry(zip, BattleMasterPath);
+        if (text is null) return null;
+        var rows = Tsv.WithoutMemo(Tsv.Parse(text));
+        var withRun = rows.Count > 0 && rows[0].Length > 2 && rows[0][2] == "can_run";
+        string[] header = ["code", "name", .. withRun ? new[] { "can_run" } : []];
+        var battles = new List<BattleEntry>();
+        var seen = new HashSet<long>();
+        foreach (var r in Body(BattleMasterPath, text, header))
+        {
+            var code = ParseLong(BattleMasterPath, "전투 코드", r[0]);
+            if (!seen.Add(code))
+                throw new PackFormatException($"{BattleMasterPath}: 전투 코드 '{code}'가 중복됩니다.");
+            var canRun = !withRun || r[2].Trim() == "" || ParseBool(BattleMasterPath, $"전투 '{code}'의 can_run", r[2]);
+            battles.Add(new BattleEntry(code, r[1], canRun));
+        }
+        return battles;
+    }
 
     /// <summary>
     /// 이벤트 흐름 마스터와 흐름 조건 마스터를 읽는다.
@@ -242,7 +261,7 @@ public sealed partial class GamePack
         Masters.AdvRowTable.TryFindByCode(code, out var r) ? new AdvEntry(r.Code, r.Name) : null;
 
     public BattleEntry? FindBattle(long code) =>
-        Masters.BattleRowTable.TryFindByCode(code, out var r) ? new BattleEntry(r.Code, r.Name) : null;
+        Masters.BattleRowTable.TryFindByCode(code, out var r) ? new BattleEntry(r.Code, r.Name, r.CanRun) : null;
 
     /// <summary>이벤트의 흐름 칸 하나(조건 포함). 없으면 null.</summary>
     public EventFlow? FindEventFlow(long eventCode, long flowNumber) =>

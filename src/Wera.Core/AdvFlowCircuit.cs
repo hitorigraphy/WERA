@@ -15,7 +15,7 @@ public enum AdvStepKind
     Choice,
     /// <summary>ADV가 끝났다.</summary>
     Finished,
-    /// <summary>전투를 개시한다. <see cref="AdvStep.BattleCode"/>가 battle_code다. 전투가 끝나면 이 ADV의 다음 장면부터 이어 간다.</summary>
+    /// <summary>전투를 개시한다. <see cref="AdvStep.BattleCode"/>가 battle_code, <see cref="AdvStep.BattleResultFlag"/>(0이 아니면)가 결과를 담을 플래그 코드다. 전투가 끝나면 이 ADV의 다음 장면부터 이어 간다.</summary>
     Battle,
     /// <summary>고른 선택지(대사 로그에만 남는다). 문구는 Text다.</summary>
     Chosen,
@@ -30,7 +30,7 @@ public readonly record struct AdvChoice(long FlowNumber, string Text, long JumpT
 /// <param name="Variation">TextMe와 TextYou의 화자 이미지 variation_number.</param>
 public readonly record struct AdvStep(
     AdvStepKind Kind, long FlowNumber, string Text, IReadOnlyList<AdvChoice> Choices,
-    string SpeakerName = "", long CharacterCode = 0, long Variation = 0, long BattleCode = 0)
+    string SpeakerName = "", long CharacterCode = 0, long Variation = 0, long BattleCode = 0, long BattleResultFlag = 0)
 {
     public static readonly AdvStep Finished = new(AdvStepKind.Finished, 0, "", []);
 
@@ -148,7 +148,7 @@ public sealed class AdvFlowCircuit
                     addInventory?.Invoke(flow.Param1, flow.Param2);
                     break;
                 case AdvFlowType.Battle:
-                    return new AdvStep(AdvStepKind.Battle, flow.FlowNumber, "", [], BattleCode: flow.Param1);
+                    return new AdvStep(AdvStepKind.Battle, flow.FlowNumber, "", [], BattleCode: flow.Param1, BattleResultFlag: flow.Param2);
                 case AdvFlowType.TextMe:
                     return Line(AdvStepKind.TextMe, flow);
                 case AdvFlowType.TextYou:

@@ -822,6 +822,9 @@ public sealed partial class GameSession
             case EntryAction.EndBattle:
                 if (battlePartyBefore is { } before) CurrentPartyIndex = before;
                 battlePartyBefore = null;
+                if (battleResultFlag != 0)
+                    PlayerFlagOps.Set(PlayerFlags, battleResultFlag, BattleOutcome switch { BattleOutcomeKind.Win => 1, BattleOutcomeKind.Run => 2, _ => 3 });
+                battleResultFlag = 0;
                 Screen = entry.Target;
                 if (CurrentAdv is not null && Screen == Screen.EventPlay) ShowNextAdvStep();      // ADV의 Battle 칸 다음부터 이어 간다
                 break;

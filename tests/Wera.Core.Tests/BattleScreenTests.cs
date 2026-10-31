@@ -14,6 +14,9 @@ public class BattleScreenTests
     }
 
     /// <summary>예시 게임팩에 마스터 파일(경로, 내용)을 더한(같은 경로면 바꾼) 게임팩.</summary>
+    /// <summary>전투 5001이 도망 가능(can_run)인 예시 팩(예시 팩의 전투 5001은 도망 불가다).</summary>
+    static GamePack RunnablePack() => SamplePackWith(("master/battle_master_v1.tsv", "code\tname\tcan_run\n5001\t테스트 전투\ttrue\n"));
+
     static GamePack SamplePackWith(params (string Path, string Text)[] extra)
     {
         var root = AppContext.BaseDirectory;
@@ -40,9 +43,9 @@ public class BattleScreenTests
     }
 
     // 예시 게임팩의 전투 5001: 적 파티 1(전사 둘, 마법사 둘; 가중치 1)과 적 파티 2(전사 하나; 가중치 3).
-    static GameSession Started(long roll = 0, bool twoUnits = false)
+    static GameSession Started(long roll = 0, bool twoUnits = false, bool canRun = false)
     {
-        var s = GameSession.NewGame(SamplePack());
+        var s = GameSession.NewGame(canRun ? RunnablePack() : SamplePack());
         s.NextRandom = _ => roll;
         s.Activate("105"); s.Activate("1"); s.Activate("1"); s.Activate("999");     // 파티-A의 첫 칸에 당신(리더 태그 있음) → 리더
         if (twoUnits)
@@ -356,7 +359,7 @@ public class BattleScreenTests
     [Fact]
     public void Basic_commands_are_next_action_item_previous_move_execute_and_run()
     {
-        var s = Started();
+        var s = Started(canRun: true);
         Assert.Equal(["다음 캐릭터", "행동 설정", "아이템", "이전 캐릭터", "이동", "도망", "실행"],
             s.Entries.Where(e => e.Action != EntryAction.BattleViewUnit && e.Action != EntryAction.BattleScroll && e.Code != "999").Select(e => e.Label));
         Assert.DoesNotContain(s.Entries, e => e.Label == "상태 확인");
@@ -398,7 +401,7 @@ public class BattleScreenTests
     [Fact]
     public void Run_ends_the_battle_and_removes_the_commands()
     {
-        var s = Started();
+        var s = Started(canRun: true);
         s.Activate("106");
         Assert.Equal(GameSession.BattleOutcomeKind.Run, s.BattleOutcome);
         Assert.DoesNotContain(s.Entries, e => e.Action != EntryAction.BattleScroll && e.Action != EntryAction.BattleViewUnit && e.Code != "999");
@@ -915,14 +918,15 @@ public class BattleScreenTests
     [Fact]
     public void After_the_battle_ends_the_back_entry_returns_to_the_adv_and_continues_after_the_battle_step()
     {
-        var s = Started();
+        var s = Started(canRun: true);
         Assert.DoesNotContain(s.Entries, e => e.Code == "999");                     // 전투 중에는 돌아가기가 없다
         s.Activate("106");                                                          // 도망
         Assert.Equal(Screen.Battle, s.Screen);
         s.Activate("999");
         Assert.Equal(Screen.EventPlay, s.Screen);                                   // 전투를 시작한 화면(ADV)
         Assert.Equal(AdvStepKind.TextLog, s.CurrentAdvStep!.Value.Kind);
-        Assert.Equal("전투가 끝났습니다.", s.CurrentAdvStep!.Value.Text);              // Battle 칸 다음부터 이어 간다
+        Assert.Equal("전투에서 패배했습니다.", s.CurrentAdvStep!.Value.Text);          // Battle 칸 다음부터 이어 간다(도망은 결과 2라 승리 분기로 가지 않는다)
+        Assert.Equal(2, s.PlayerFlags[2001]);
         s.Activate("1");
         Assert.Equal(Screen.Event, s.Screen);                                       // ADV와 이벤트가 끝난다
     }
@@ -930,7 +934,7 @@ public class BattleScreenTests
     [Fact]
     public void The_battle_always_uses_the_party_that_has_the_player_and_the_viewed_party_is_restored()
     {
-        var s = GameSession.NewGame(SamplePack());
+        var s = GameSession.NewGame(RunnablePack());
         s.NextRandom = _ => 0;
         s.Activate("105"); s.Activate("1"); s.Activate("1"); s.Activate("999");     // 파티-A에 당신
         s.Activate("105"); s.Activate("12");                                        // 파티-B(1번)를 보고 있다
@@ -958,7 +962,7 @@ public class BattleScreenTests
         Assert.Single(win.BattleDropLines);
         Assert.EndsWith(" ×1", win.BattleDropLines[0]);
 
-        var run = Started(roll: 1);
+        var run = Started(roll: 1, canRun: true);
         var runBefore = run.CountInventory(3);
         run.Activate("106");
         Assert.Equal(runBefore, run.CountInventory(3));
@@ -972,6 +976,36 @@ public class BattleScreenTests
         Assert.Contains("9999", ex.Message);
         var pack = SamplePack();
         Assert.Equal(26, (int)AdvFlowType.Battle);
-        Assert.Equal(new AdvStep(AdvStepKind.Battle, 1, "", [], BattleCode: 5001), new AdvFlowCircuit(pack, 4002, new Dictionary<long, long>()).Advance());
+        Assert.Equal(new AdvStep(AdvStepKind.Battle, 1, "", [], BattleCode: 5001, BattleResultFlag: 2001), new AdvFlowCircuit(pack, 4002, new Dictionary<long, long>()).Advance());
+    }
+
+    [Fact]
+    public void A_battle_that_cannot_be_run_from_has_the_run_command_gray_and_the_result_goes_into_the_flag_for_branching()
+    {
+        var s = Started(roll: 1);                                                   // 예시 팩의 전투 5001은 도망 불가
+        Assert.False(s.BattleCanRun);
+        Assert.False(Entry(s, "106").Enabled);
+        s.Activate("106");
+        Assert.Equal(GameSession.BattleOutcomeKind.None, s.BattleOutcome);          // 눌러도 반응이 없다
+
+        FirstOnly(s);
+        var slot = s.EnemyInstances.Keys.Single();
+        s.EnemyInstances[slot].Statuses[GamePack.HpStatusCode] = 5;
+        s.Activate("102"); s.Activate("102"); s.Activate((slot + 1).ToString());
+        s.Activate("107");
+        Assert.Equal(GameSession.BattleOutcomeKind.Win, s.BattleOutcome);
+        Assert.False(s.PlayerFlags.ContainsKey(2001));                              // 돌아가기 전에는 아직
+        s.Activate("999");
+        Assert.Equal(1, s.PlayerFlags[2001]);                                       // 승리 1
+        Assert.Equal("전투에서 승리했습니다.", s.CurrentAdvStep!.Value.Text);          // JumpFlagEqual로 승리 분기
+    }
+
+    [Fact]
+    public void The_battle_master_can_run_column_is_optional_and_checked()
+    {
+        Assert.True(Started(canRun: true).BattleCanRun);
+        var bad = Assert.Throws<PackFormatException>(() => SamplePackWith(("master/battle_master_v1.tsv", "code" + (char)9 + "name" + (char)9 + "can_run" + (char)10 + "5001" + (char)9 + "전투" + (char)9 + "아니오" + (char)10)));
+        Assert.Contains("can_run", bad.Message);
+        Assert.True(SamplePackWith(("master/battle_master_v1.tsv", "code" + (char)9 + "name" + (char)10 + "5001" + (char)9 + "전투" + (char)10)).FindBattle(5001)!.CanRun);   // 열이 없으면 도망 가능
     }
 }

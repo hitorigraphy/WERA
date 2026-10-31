@@ -162,7 +162,7 @@ public sealed partial class GamePack
             AdvCode = f.AdvCode, FlowNumber = f.FlowNumber, FlowType = f.FlowType,
             Param1 = f.Param1, Param2 = f.Param2, Param3 = f.Param3, Text = f.Text, ForceName = f.ForceName,
         }).ToList());
-        builder.Append((battles ?? []).Select(b => new BattleRow { Code = b.Code, Name = b.Name }).ToList());
+        builder.Append((battles ?? []).Select(b => new BattleRow { Code = b.Code, Name = b.Name, CanRun = b.CanRun }).ToList());
 
         builder.Append((presetUnits ?? []).Select(u => new PresetUnitRow { Code = u.Code, CharacterCode = u.CharacterCode }).ToList());
         builder.Append((presetUnitEquips ?? []).Select(e => new PresetUnitEquipRow

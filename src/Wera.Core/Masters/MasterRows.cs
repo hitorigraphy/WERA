@@ -367,6 +367,7 @@ public record BattleRow
 {
     [PrimaryKey] public required long Code { get; init; }
     public required string Name { get; init; }
+    public required bool CanRun { get; init; }
 }
 
 [MemoryTable("preset_unit"), MessagePackObject(true)]

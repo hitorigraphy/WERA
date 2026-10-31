@@ -1,2 +1,2 @@
-code	name	memo
-5001	테스트 전투	테스트용
+code	name	can_run	memo
+5001	테스트 전투	false	테스트용(도망 불가)

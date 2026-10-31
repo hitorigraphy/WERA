@@ -551,6 +551,12 @@ public sealed partial class GameSession
     /// <summary>전투를 시작하기 전에 보던 파티(전투는 플레이어가 있는 파티로 하므로 끝나면 되돌린다).</summary>
     int? battlePartyBefore;
 
+    /// <summary>전투가 끝나면 결과(승리 1, 도망 2, 패배 3)를 담을 플레이어 플래그 코드(0이면 담지 않는다).</summary>
+    long battleResultFlag;
+
+    /// <summary>지금 전투에서 도망칠 수 있는가(전투 마스터의 can_run). 전투 마스터에 없는 전투면 true.</summary>
+    public bool BattleCanRun => CurrentBattleCode is not { } code || Pack.FindBattle(code)?.CanRun != false;
+
     IReadOnlyList<ScreenEntry> BattleEntries() =>
     [
         .. BattleOutcome != BattleOutcomeKind.None ? [new ScreenEntry(BackEntryCode, "돌아가기", battleReturnScreen, EntryAction.EndBattle)] : Array.Empty<ScreenEntry>(),
@@ -593,7 +599,7 @@ public sealed partial class GameSession
         yield return new ScreenEntry("103", "아이템", Screen.Battle, EntryAction.BattleOpenItems);
         yield return new ScreenEntry("104", "이전 캐릭터", Screen.Battle, EntryAction.BattleSelectCharacter, "-1");
         yield return new ScreenEntry("105", "이동", Screen.Battle, EntryAction.BattleOpenMove);
-        yield return new ScreenEntry("106", "도망", Screen.Battle, EntryAction.BattleRun);
+        yield return new ScreenEntry("106", "도망", Screen.Battle, EntryAction.BattleRun, Enabled: BattleCanRun);
         yield return new ScreenEntry("107", "실행", Screen.Battle, EntryAction.BattleExecute, Enabled: BattleAllActionsSet);
     }
 

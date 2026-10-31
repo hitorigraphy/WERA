@@ -100,6 +100,7 @@ public sealed partial class GameSession
             battlePartyBefore = CurrentPartyIndex;
             var playerParty = Array.FindIndex(Parties, p => p.IndexOf(GamePack.PlayerCharacterCode) >= 0);
             if (playerParty >= 0) CurrentPartyIndex = playerParty;
+            battleResultFlag = step.BattleResultFlag;
             BeginBattle(step.BattleCode);
             Screen = Screen.Battle;
         }
