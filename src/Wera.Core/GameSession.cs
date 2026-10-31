@@ -9,6 +9,10 @@ public enum Screen
 {
     Home,
     DungeonSelect,
+    /// <summary>던전에 데려갈 파티 고르기. 돌아가기는 던전 선택.</summary>
+    DungeonPartySelect,
+    /// <summary>던전 이동 화면: 맵과 위·아래·왼쪽·오른쪽 한 칸씩 이동. 나가기는 홈.</summary>
+    DungeonMove,
     ShopList,
     /// <summary>파티 설정(캐릭터 배치): 3×3 슬롯. 슬롯을 고르면 그 슬롯에 배치할 캐릭터 목록으로 간다.</summary>
     PartySetup,
@@ -111,6 +115,14 @@ public enum EntryAction
     RenameParty,
     /// <summary>파티 선택 버튼: Arg의 번호(0이 파티-A)의 파티를 보는 파티로 한다. 화면은 그대로다.</summary>
     SelectParty,
+    /// <summary>던전 선택 화면에서 던전(항목의 코드)을 고르고 파티 선택 화면으로 간다.</summary>
+    SelectDungeon,
+    /// <summary>던전 파티 선택 화면에서 파티(Arg의 번호)를 골라 던전의 도입 지점으로 들어간다.</summary>
+    EnterDungeon,
+    /// <summary>던전 이동 화면에서 Arg의 방향(U, D, L, R)으로 한 칸 움직이고 닿은 칸의 효과를 실행한다.</summary>
+    DungeonStep,
+    /// <summary>던전에서 나가 홈으로 돌아간다.</summary>
+    LeaveDungeon,
     /// <summary>항목의 코드에 해당하는 캐릭터를 선택한 슬롯에 배치한다(이미 배치된 캐릭터면 위치 교환).</summary>
     PlaceCharacter,
     /// <summary>선택한 슬롯의 캐릭터를 파티에서 뺀다(슬롯이 빈다).</summary>
@@ -641,8 +653,11 @@ public sealed partial class GameSession
                 case Screen.SupportSelect:
                     return SupportSelectEntries();
                 case Screen.DungeonSelect:
-                    // 던전 입장은 아직 구현되지 않았다: 돌아가기만 있다.
-                    return [new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home)];
+                    return DungeonSelectEntries();
+                case Screen.DungeonPartySelect:
+                    return DungeonPartySelectEntries();
+                case Screen.DungeonMove:
+                    return DungeonMoveEntries();
                 case Screen.Event:
                     // 조건을 만족하는 이벤트를 코드로 입력하거나 클릭하면 시작한다.
                     return AvailableEvents
@@ -775,6 +790,19 @@ public sealed partial class GameSession
                 partyRenameReturn = Screen;
                 Screen = entry.Target;
                 break;
+            case EntryAction.SelectDungeon:
+                selectedDungeonCode = CodeOf(entry);
+                Screen = entry.Target;
+                break;
+            case EntryAction.EnterDungeon:
+                EnterDungeon(int.Parse(entry.Arg!, CultureInfo.InvariantCulture));
+                break;
+            case EntryAction.DungeonStep:
+                StepDungeon(entry.Arg![0]);
+                break;
+            case EntryAction.LeaveDungeon:
+                LeaveDungeon();
+                break;
             case EntryAction.SelectParty:
                 CurrentPartyIndex = int.Parse(entry.Arg!, CultureInfo.InvariantCulture);
                 Screen = entry.Target;
@@ -827,6 +855,7 @@ public sealed partial class GameSession
                 battleResultFlag = 0;
                 Screen = entry.Target;
                 if (CurrentEvent is not null && Screen == Screen.EventPlay) ShowNextEventStep();      // 이벤트의 Battle 칸 다음부터 이어 간다
+                else if (CurrentDungeonCode is not null && Screen == Screen.DungeonMove) ContinueTileEffects();      // 던전: 남은 타일 효과를 이어 간다
                 break;
             case EntryAction.BattleOpenMove:
                 OpenBattleMove();

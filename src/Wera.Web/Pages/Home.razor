@@ -17,6 +17,21 @@
         }
     </div>;
 
+    /// <summary>던전 맵 한 칸의 CSS 클래스: 플레이어 표시, 칸의 표시용 효과들(벽, 계단 등), 이동불가.</summary>
+    static string DungeonCellClass(DungeonCellView cell)
+    {
+        if (cell.IsPlayer) return "dcell dplayer";
+        if (cell.Text == "") return "dcell dvoid";
+        var classes = new List<string> { "dcell" };
+        if (cell.Look.HasFlag(DungeonCellLook.Wall)) classes.Add("dwall");
+        if (cell.Look.HasFlag(DungeonCellLook.Stairs)) classes.Add("dstairs");
+        if (cell.Look.HasFlag(DungeonCellLook.Exit)) classes.Add("dexit");
+        if (cell.Look.HasFlag(DungeonCellLook.Battle)) classes.Add("dbattle");
+        if (cell.Look.HasFlag(DungeonCellLook.Adv)) classes.Add("dadv");
+        if (cell.Look.HasFlag(DungeonCellLook.Warp)) classes.Add("dwarp");
+        return string.Join(' ', classes);
+    }
+
     // 파티 설정 화면 아래: 구분선, 파티 선택 버튼([11] 파티-A ~ [26] 파티-P, 한 줄에 4개씩), 모드 버튼([101] 캐릭터 배치, [102] 장비 착용)을 4분할 위치에 가로로.
     // 지금 보는 파티와 지금 모드의 버튼은 파란색으로 눌리지 않고, 고를 수 있는 다른 것은 흰색이다.
     RenderFragment partyCommands = @<div class="party-commands">
@@ -230,13 +245,29 @@
 
             case Screen.DungeonSelect:
                 <h2>던전 선택</h2>
-                <ul class="dungeons">
-                    @foreach (var d in session.AvailableDungeons)
-                    {
-                        <li>[@d.Code] @d.Name</li>
-                    }
-                </ul>
                 <div class="dungeon-select">@commands</div>
+                break;
+
+            case Screen.DungeonPartySelect:
+                <h2>파티 선택</h2>
+                <div class="dungeon-select">@commands</div>
+                break;
+
+            case Screen.DungeonMove:
+                @* 던전 맵: 칸마다 맵 TSV의 글자를 그리고(칸 폭은 전각 한 글자), 현재 위치는 @로 덮는다. 벽, 계단, 출구, 전투, ADV, 이동 칸은 색으로 구분한다 *@
+                <h2>@session.DungeonTitle</h2>
+                <div class="dungeon-map">
+                    @foreach (var row in session.DungeonMapRows)
+                    {
+                        <div class="dungeon-row">
+                            @foreach (var cell in row)
+                            {
+                                <span class="@DungeonCellClass(cell)">@(cell.IsPlayer ? "@" : cell.Text)</span>
+                            }
+                        </div>
+                    }
+                </div>
+                <div class="dungeon-moves">@commands</div>
                 break;
 
             case Screen.PartySetup:

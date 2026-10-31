@@ -21,12 +21,12 @@ public class HomeMenuEnabledTests
     static bool Enabled(GameSession s, string code) => s.Entries.Single(e => e.Code == code).Enabled;
 
     [Fact]
-    public void The_dungeon_select_screen_has_only_the_back_entry()
+    public void The_dungeon_select_screen_lists_the_dungeons_and_the_back_entry()
     {
         var s = GameSession.NewGame(Pack("code\tname\n1001\t초원\n"));
         s.Activate("101");
         Assert.Equal(Screen.DungeonSelect, s.Screen);
-        Assert.Equal(["999"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["1001", "999"], s.Entries.Select(e => e.Code));
     }
 
     [Fact]

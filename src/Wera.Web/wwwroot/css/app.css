@@ -246,3 +246,17 @@ input.command { width: min(100%, 26rem); }
 .battle-log { margin: .6rem 0 0; padding-left: 1.2rem; font-size: .9rem; }   /* 이번 턴 행동 기록 */
 .battle-command-basic .entries > div:nth-child(4) { grid-column: 1; }   /* 기본 커맨드: 윗줄 세 개, 아랫줄 네 개([107] 실행은 [106] 도망의 오른쪽) */
 .slot-name.gray, .slot-name.gray .slot-level, .slot-name.gray .slot-char { color: #888; }   /* 전투에서 고를 수 없는 슬롯: 회색(리더와 선택보다 우선) */
+
+/* 던전 맵: 칸 폭은 전각 한 글자(2ch), 줄 높이는 한 줄 */
+.dungeon-map { margin: .6rem 0; line-height: 1.5; }
+.dungeon-row { display: flex; white-space: pre; }
+.dcell { display: inline-block; width: 2ch; text-align: center; color: #ccc; }
+.dvoid { color: transparent; }
+.dwall { background: #444; color: #aaa; }
+.dstairs { color: #e8c24a; }
+.dexit { color: #5ccb7a; }
+.dbattle { color: #e8605a; }
+.dadv { color: #5cc8e8; }
+.dwarp { text-decoration: underline; }
+.dplayer { background: #fff; color: #000; font-weight: bold; }
+.dungeon-moves .entries { display: flex; gap: 1.5ch; flex-wrap: wrap; }

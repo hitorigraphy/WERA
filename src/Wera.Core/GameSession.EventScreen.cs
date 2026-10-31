@@ -106,6 +106,7 @@ public sealed partial class GameSession
         if (step.Kind == AdvStepKind.Finished)
         {
             if (Screen == Screen.CommunicationPlay) EndCommunication();
+            else if (CurrentEvent is null && CurrentDungeonCode is not null) ReturnToDungeonAfterAdv();      // 던전의 Adv 효과가 연 ADV
             else ShowNextEventStep();
         }
         else

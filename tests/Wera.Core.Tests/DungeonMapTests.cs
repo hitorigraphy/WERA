@@ -128,7 +128,7 @@ public class DungeonMapTests
         Assert.Superset(new HashSet<TileEffectType>
         {
             TileEffectType.None, TileEffectType.Wall, TileEffectType.Exit,
-            TileEffectType.FixedBattle, TileEffectType.RandomBattle, TileEffectType.Adv, TileEffectType.Warp,
+            TileEffectType.FixedBattle, TileEffectType.RandomBattle, TileEffectType.Adv, TileEffectType.Warp, TileEffectType.Stairs, TileEffectType.Impassable,
         }, kinds);
     }
 
@@ -150,6 +150,8 @@ public class DungeonMapTests
         Rejects("pos_x 30", (GamePack.TileMasterPath, TileHeader + "2\tWarp\t0\t30\t0\n"));
         Rejects("Warp의 도착", (GamePack.TileMasterPath, TileHeader + "2\tWarp\t-1\t0\t0\n"));
         Assert.Equal(6, (int)TileEffectType.Warp);
+        Assert.Equal(7, (int)TileEffectType.Stairs);
+        Assert.Equal(8, (int)TileEffectType.Impassable);
         Assert.DoesNotContain("Start", Enum.GetNames<TileEffectType>());
     }
 
