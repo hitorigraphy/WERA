@@ -46,6 +46,9 @@ public record DungeonRow
 {
     [PrimaryKey] public required long Code { get; init; }
     public required string Name { get; init; }
+    public long? EntryLayerNumber { get; init; }
+    public long? EntryPosX { get; init; }
+    public long? EntryPosY { get; init; }
 }
 
 /// <summary>던전 입장 조건: 복합키는 (던전, 그룹넘버, 플래그)이고, 보조키 던전 코드로 그 던전의 조건 전부를 찾는다.</summary>

@@ -164,7 +164,12 @@ public sealed partial class GamePack
     {
         const string file = DungeonMapMasterPath;
         var text = TryReadEntry(zip, file);
-        if (text is null) return null;
+        if (text is null)
+        {
+            if (dungeons?.FirstOrDefault(d => d.Entry is not null) is { } withEntry)
+                throw new PackFormatException($"{DungeonMasterPath}: 던전 '{withEntry.Code}'에 도입 지점이 있으려면 {file}도 필요합니다.");
+            return null;
+        }
         if (dungeons is null) throw new PackFormatException($"{file}가 있으려면 {DungeonMasterPath}도 필요합니다.");
 
         var dungeonCodes = dungeons.Select(d => d.Code).ToHashSet();
@@ -191,6 +196,21 @@ public sealed partial class GamePack
                     throw new PackFormatException(
                         $"{file}: 던전 '{dungeon}'의 레이어 {layer}, pos_y {posY}, pos_x_{x}의 글자 '{cells[x]}'가 {DungeonTileMasterPath}에 없습니다.");
             rows.Add(new DungeonMapLine(dungeon, layer, posY, cells));
+        }
+
+        // 맵이 있는 던전은 도입 지점이 있어야 하고(맵이 없는 던전에는 없어야 하며), 도입 지점은 그 던전의 맵에 있는 글자 칸이어야 한다.
+        foreach (var dungeon in dungeons)
+        {
+            var hasMap = rows.Any(l => l.DungeonCode == dungeon.Code);
+            if (dungeon.Entry is not { } entry)
+            {
+                if (hasMap)
+                    throw new PackFormatException($"{DungeonMasterPath}: 던전 '{dungeon.Code}'는 {file}에 맵이 있어 도입 지점(entry_layer_number, entry_pos_x, entry_pos_y)이 필요합니다.");
+                continue;
+            }
+            if (rows.FirstOrDefault(l => l.DungeonCode == dungeon.Code && l.LayerNumber == entry.LayerNumber && l.PosY == entry.PosY) is not { } at || at.Cells[(int)entry.PosX] == "")
+                throw new PackFormatException(
+                    $"{DungeonMasterPath}: 던전 '{dungeon.Code}'의 도입 지점(레이어 {entry.LayerNumber}, pos_x {entry.PosX}, pos_y {entry.PosY})이 던전 맵에 있는 칸이 아닙니다.");
         }
 
         // Warp 타일이 그 던전의 맵 안(글자가 있는 칸)으로 옮겨 가는지 본다.

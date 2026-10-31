@@ -131,8 +131,14 @@ public sealed partial class GamePack
         var dungeonConditions = new List<FlatCondition>();
         var shopConditions = new List<FlatCondition>();
         var tradeConditions = new List<FlatCondition>();
-        var dungeons = LoadConditioned(zip, DungeonMasterPath, ["code", "name"], DungeonFlagMasterPath, "던전", "dungeon_code",
-            dungeonConditions, (code, r, groups) => new Dungeon(code, r[1], groups));
+        // 던전 마스터는 code, name에 선택 열 셋(entry_layer_number, entry_pos_x, entry_pos_y: 던전 맵의 도입 지점)을 더할 수 있다. 셋은 함께 있어야 한다.
+        var dungeonMasterText = TryReadEntry(zip, DungeonMasterPath);
+        var dungeonEntryColumns = dungeonMasterText is not null && Tsv.WithoutMemo(Tsv.Parse(dungeonMasterText)) is { Count: > 0 } dungeonRows
+            && dungeonRows[0].Length > 2 && dungeonRows[0][2] == "entry_layer_number";
+        var dungeons = LoadConditioned(zip, DungeonMasterPath,
+            dungeonEntryColumns ? ["code", "name", "entry_layer_number", "entry_pos_x", "entry_pos_y"] : ["code", "name"],
+            DungeonFlagMasterPath, "던전", "dungeon_code",
+            dungeonConditions, (code, r, groups) => new Dungeon(code, r[1], groups, dungeonEntryColumns ? ParseDungeonEntry(code, r) : null));
         var shops = LoadConditioned(zip, ShopMasterPath, ["code", "name"], ShopConditionMasterPath, "상점", "shop_code",
             shopConditions, (code, r, groups) => new Shop(code, r[1], groups));
         var itemInventory = LoadItemInventory(zip);
@@ -312,6 +318,19 @@ public sealed partial class GamePack
         return long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n)
             ? n
             : throw new PackFormatException($"{file}: {what} '{value}'이(가) 정수가 아닙니다.");
+    }
+
+    /// <summary>던전 마스터의 도입 지점 세 칸: 모두 비면 없음(null), 하나라도 있으면 셋 다 정수여야 하고 layer_number와 pos_y는 0 이상, pos_x는 0~29다.</summary>
+    static DungeonEntry? ParseDungeonEntry(long code, string[] r)
+    {
+        if (r[2] == "" && r[3] == "" && r[4] == "") return null;
+        var layer = ParseLong(DungeonMasterPath, $"던전 '{code}'의 entry_layer_number", r[2]);
+        var x = ParseLong(DungeonMasterPath, $"던전 '{code}'의 entry_pos_x", r[3]);
+        var y = ParseLong(DungeonMasterPath, $"던전 '{code}'의 entry_pos_y", r[4]);
+        if (layer < 0 || y < 0 || x < 0 || x >= DungeonMapWidth)
+            throw new PackFormatException(
+                $"{DungeonMasterPath}: 던전 '{code}'의 도입 지점(layer_number {layer}, pos_x {x}, pos_y {y})은 layer_number와 pos_y가 0 이상, pos_x가 0 이상 {DungeonMapWidth} 미만이어야 합니다.");
+        return new DungeonEntry(layer, x, y);
     }
 
     static long ParsePositive(string file, string what, string value)

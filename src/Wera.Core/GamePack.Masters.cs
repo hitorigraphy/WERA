@@ -66,7 +66,8 @@ public sealed partial class GamePack
             EffectCode = e.EffectCode, Value1 = e.Value1, Value2 = e.Value2, Value3 = e.Value3,
         }).ToList());
 
-        builder.Append((dungeons ?? []).Select(d => new DungeonRow { Code = d.Code, Name = d.Name }).ToList());
+        builder.Append((dungeons ?? []).Select(d => new DungeonRow
+            { Code = d.Code, Name = d.Name, EntryLayerNumber = d.Entry?.LayerNumber, EntryPosX = d.Entry?.PosX, EntryPosY = d.Entry?.PosY }).ToList());
         builder.Append(dungeonConditions.Select(c => new DungeonFlagRow
         { DungeonCode = c.Code, GroupNumber = c.GroupNumber,
             FlagCode = c.Condition.FlagCode, Type = c.Condition.Type, Value = c.Condition.Value,

@@ -41,8 +41,12 @@ public static class ConditionGroups
         groups.Count == 0 || groups.Any(g => g.All(c => c.IsMet(playerFlags)));
 }
 
+/// <summary>던전에 들어왔을 때 서는 도입 지점: 던전 맵 마스터의 맵(LayerNumber)의 (PosX, PosY) 칸.</summary>
+public readonly record struct DungeonEntry(long LayerNumber, long PosX, long PosY);
+
 /// <param name="Groups">그룹넘버 순으로 정렬된 조건 묶음.</param>
-public sealed record Dungeon(long Code, string Name, IReadOnlyList<IReadOnlyList<FlagCondition>> Groups)
+/// <param name="Entry">도입 지점(던전 마스터의 entry_layer_number, entry_pos_x, entry_pos_y). 던전 맵이 없는 던전은 null.</param>
+public sealed record Dungeon(long Code, string Name, IReadOnlyList<IReadOnlyList<FlagCondition>> Groups, DungeonEntry? Entry = null)
 {
     public bool IsAvailable(IReadOnlyDictionary<long, long> playerFlags) => ConditionGroups.IsMet(Groups, playerFlags);
 }

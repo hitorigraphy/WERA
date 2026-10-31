@@ -7,6 +7,8 @@ namespace Wera.Core.Tests;
 public class DungeonMapTests
 {
     const string Dungeons = "code\tname\n1001\t초원\n1002\t동굴\n";
+    // 맵이 있는 던전 1001은 도입 지점(레이어 0의 x 0, y 0)이 있어야 한다. 맵이 없는 던전 1002는 비운다.
+    const string DungeonsWithEntry = "code\tname\tentry_layer_number\tentry_pos_x\tentry_pos_y\n1001\t초원\t0\t0\t0\n1002\t동굴\t\t\t\n";
     const string Battles = "code\tname\n5001\t전투\n";
     const string Advs = "code\tname\n4001\tADV\n";
     const string TileHeader = "code\ttile_effect\tvalue_1\tvalue_2\tvalue_3\n";
@@ -21,8 +23,13 @@ public class DungeonMapTests
          (GamePack.TileMasterPath, TileHeader + "1\tNone\t0\t0\t0\n2\tWall\t0\t0\t0\n3\tStart\t0\t0\t0\n"),
          (GamePack.DungeonTileMasterPath, DungeonTileHeader + "1001\t.\t1\n1001\t#\t2\n1001\tS\t3\n")];
 
-    static GamePack Load(params (string, string)[] extra) => GamePack.Load(CoreTests.PackZip(
-        Base().Where(b => extra.All(e => e.Item1 != b.Item1)).Concat(extra).ToArray()));
+    static GamePack Load(params (string, string)[] extra)
+    {
+        var files = extra.ToList();
+        if (files.Any(e => e.Item1 == GamePack.DungeonMapMasterPath) && files.All(e => e.Item1 != GamePack.DungeonMasterPath))
+            files.Add((GamePack.DungeonMasterPath, DungeonsWithEntry));      // 맵이 있으면 던전 마스터에 도입 지점이 있어야 한다
+        return GamePack.Load(CoreTests.PackZip(Base().Where(b => files.All(e => e.Item1 != b.Item1)).Concat(files).ToArray()));
+    }
 
     static void Rejects(string message, params (string, string)[] files) =>
         Assert.Contains(message, Assert.Throws<PackFormatException>(() => Load(files)).Message);
@@ -143,6 +150,26 @@ public class DungeonMapTests
         Rejects("pos_x 30", (GamePack.TileMasterPath, TileHeader + "2\tWarp\t0\t30\t0\n"));
         Rejects("Warp의 도착", (GamePack.TileMasterPath, TileHeader + "2\tWarp\t-1\t0\t0\n"));
         Assert.Equal(7, (int)TileEffectType.Warp);
+    }
+
+    [Fact]
+    public void The_dungeon_master_entry_point_is_validated_against_the_dungeon_map()
+    {
+        var pack = Load((GamePack.DungeonMapMasterPath, MapHeader + Row(1001, 0, 0, "#")));
+        Assert.Equal(new DungeonEntry(0, 0, 0), pack.Dungeons!.Single(d => d.Code == 1001).Entry);
+        Assert.Null(pack.Dungeons!.Single(d => d.Code == 1002).Entry);                                  // 맵이 없는 던전은 도입 지점이 없다
+        const string head = "code\tname\tentry_layer_number\tentry_pos_x\tentry_pos_y\n";
+        var map = (GamePack.DungeonMapMasterPath, MapHeader + Row(1001, 0, 0, "#.") + Row(1001, 1, 2, "  #"));
+        Assert.Equal(new DungeonEntry(1, 2, 2), Load((GamePack.DungeonMasterPath, head + "1001\t초원\t1\t2\t2\n1002\t동굴\t\t\t\n"), map)
+            .Dungeons![0].Entry);
+        Rejects("도입 지점(레이어 0, pos_x 5, pos_y 0)이 던전 맵에 있는 칸이 아닙니다",
+            (GamePack.DungeonMasterPath, head + "1001\t초원\t0\t5\t0\n"), map);                         // 빈 칸
+        Rejects("도입 지점(레이어 0, pos_x 0, pos_y 3)이 던전 맵에 있는 칸이 아닙니다",
+            (GamePack.DungeonMasterPath, head + "1001\t초원\t0\t0\t3\n"), map);                         // 그 줄이 없다
+        Rejects("도입 지점(layer_number 0, pos_x 30, pos_y 0)은", (GamePack.DungeonMasterPath, head + "1001\t초원\t0\t30\t0\n"));
+        Rejects("entry_pos_x이(가) 비어 있습니다", (GamePack.DungeonMasterPath, head + "1001\t초원\t0\t\t0\n"));               // 일부만 적으면 오류
+        Rejects("맵이 있어 도입 지점", (GamePack.DungeonMasterPath, "code\tname\n1001\t초원\n"), map);               // 맵이 있는데 도입 지점이 없다
+        Rejects("도입 지점이 있으려면", (GamePack.DungeonMasterPath, head + "1001\t초원\t0\t0\t0\n"));         // 도입 지점이 있는데 맵이 없다
     }
 
     static string FindRoot()
