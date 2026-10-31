@@ -127,9 +127,6 @@ public abstract class CircuitBase
         if (owner.Instance.SkillSlots.TryGetValue(skillSlotCode, out var index)) focusedSkill = WorkOf(owner, (int)index);
     }
 
-    /// <summary>유니크 아이템 인스턴스를 포커스한다(이펙트가 방금 만든 아이템).</summary>
-    protected void FocusItem(UniqueItemInstance item) => focusedItem = WorkOf(item);
-
     /// <summary>스킬을 만들어 포커스한 캐릭터의 스킬 풀 맨 뒤에 더하고 그 스킬을 포커스한다. 포커스한 캐릭터가 없으면 false.</summary>
     protected bool AddSkillToFocusedPool(long skillCode)
     {

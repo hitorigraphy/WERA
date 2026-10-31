@@ -146,16 +146,15 @@ public sealed partial class GameSession
         for (var slot = 0; slot < party.UnitCodes.Count; slot++)
             if (party.UnitCodes[slot] is { } unitCode && Pack.FindPresetUnit(unitCode) is { } unit)
             {
-                var created = new CharacterAfterCreateCircuit(Pack, Pack.NewCharacterInstance(unit.CharacterCode, $"enemy-{slot}", slot), enemyItems, null);
-                enemyInstances[slot] = created.Execute();
-                enemyUnits[slot] = new PartyUnit(unit.CharacterCode, CreateEnemyEquipment(slot, unit.Code, created.Unit.Equipment));
+                enemyInstances[slot] = new CharacterAfterCreateCircuit(Pack, Pack.NewCharacterInstance(unit.CharacterCode, $"enemy-{slot}", slot)).Execute();
+                enemyUnits[slot] = new PartyUnit(unit.CharacterCode, CreateEnemyEquipment(slot, unit.Code));
             }
     }
 
-    /// <summary>프리셋 유닛이 장비 슬롯에 낀 것들(캐릭터 생성 후 서킷이 낀 장비 위에 덮어씀): 유니크 아이템은 임시 인스턴스를 만들고(생성 후 서킷을 돌린다), 커먼 아이템과 캐릭터는 코드로 가리킨다.</summary>
-    Dictionary<long, EquipRef> CreateEnemyEquipment(int slot, long presetUnitCode, Dictionary<long, EquipRef> created)
+    /// <summary>프리셋 유닛이 장비 슬롯에 낀 것들: 유니크 아이템은 임시 인스턴스를 만들고(생성 후 서킷을 돌린다), 커먼 아이템과 캐릭터는 코드로 가리킨다.</summary>
+    Dictionary<long, EquipRef> CreateEnemyEquipment(int slot, long presetUnitCode)
     {
-        var equipment = new Dictionary<long, EquipRef>(created);       // 생성 후 서킷이 이미 낀 장비 위에 프리셋 장비를 덮어쓴다
+        var equipment = new Dictionary<long, EquipRef>();
         foreach (var equip in Pack.PresetUnitEquipsOf(presetUnitCode))
         {
             if (!Pack.Inventory.TryGetValue(equip.ItemCode, out var entry)) continue;

@@ -6,7 +6,7 @@ namespace Wera.Core;
 /// <summary>
 /// 캐릭터 생성 후 이펙트가 하는 일의 종류. TSV에는 이름(대소문자 무시)으로 적는다. <see cref="CharacterAfterCreateCircuit"/>이 실행한다(그 캐릭터가 시전자이자 메인 타겟이고 처음부터 포커스되어 있다).
 /// 구성은 스킬 실행 이펙트(<see cref="EffectType"/>)와 같다: 번호와 이름, 인자가 같다.
-/// 숫자 값은 정해진 번호다: None 0, FocusCasterCharacter 1, FocusMainTargetCharacter 2, FocusSubTargetCharacter 3, FocusCasterEquipment 4, FocusMainTargetEquipment 5, FocusSubTargetEquipment 6, FocusCasterSkill 7, FocusMainTargetSkill 8, FocusSubTargetSkill 9, CacheToFocusedCharacterModValue 10, CacheToFocusedCharacterSetValue 11, FocusedCharacterValueToCache 12, CacheToFocusedItemModValue 13, CacheToFocusedItemSetValue 14, FocusedItemValueToCache 15, CacheToFocusedSkillModValue 16, CacheToFocusedSkillSetValue 17, FocusedSkillValueToCache 18, CacheAdd 19, CacheSubtract 20, CacheMultiply 21, CacheDivide 22, SetCacheValue 23, Jump 24, Finish 25, JumpCacheEqual 26, JumpCacheNotEqual 27, JumpCacheGreaterThan 28, JumpCacheGreaterOrEqual 29, JumpCacheLessThan 30, JumpCacheLessOrEqual 31. 생성 후에만 있는 종류: AddSkillToPool 32, AddEquipment 33, SetSkillToSlot 34, SetEquipmentToSlot 35.
+/// 숫자 값은 정해진 번호다: None 0, FocusCasterCharacter 1, FocusMainTargetCharacter 2, FocusSubTargetCharacter 3, FocusCasterEquipment 4, FocusMainTargetEquipment 5, FocusSubTargetEquipment 6, FocusCasterSkill 7, FocusMainTargetSkill 8, FocusSubTargetSkill 9, CacheToFocusedCharacterModValue 10, CacheToFocusedCharacterSetValue 11, FocusedCharacterValueToCache 12, CacheToFocusedItemModValue 13, CacheToFocusedItemSetValue 14, FocusedItemValueToCache 15, CacheToFocusedSkillModValue 16, CacheToFocusedSkillSetValue 17, FocusedSkillValueToCache 18, CacheAdd 19, CacheSubtract 20, CacheMultiply 21, CacheDivide 22, SetCacheValue 23, Jump 24, Finish 25, JumpCacheEqual 26, JumpCacheNotEqual 27, JumpCacheGreaterThan 28, JumpCacheGreaterOrEqual 29, JumpCacheLessThan 30, JumpCacheLessOrEqual 31. 생성 후에만 있는 종류: AddSkillToPool 32, SetSkillToSlot 33.
 /// </summary>
 [JsonConverter(typeof(JsonStringEnumConverter<CharacterAfterCreateEffectType>))]
 public enum CharacterAfterCreateEffectType
@@ -77,12 +77,8 @@ public enum CharacterAfterCreateEffectType
     JumpCacheLessOrEqual = 31,
     /// <summary>생성 후에만 있는 종류. 스킬을 만들어 포커스한 캐릭터의 스킬 풀 맨 뒤에 더하고 그 스킬을 포커스한다(FocusedSkill). value_1이 스킬 코드(스킬 마스터에 있어야 함)이고 나머지는 보지 않는다. 스킬의 스테이터스는 스킬 스테이터스 마스터의 초깃값이다. 포커스한 캐릭터가 없으면 아무 일도 하지 않는다.</summary>
     AddSkillToPool = 32,
-    /// <summary>생성 후에만 있는 종류. 유니크 아이템을 한 개 새로 얻어(보유하게 되고, 유니크 아이템 생성 후 서킷이 돈다) 그 아이템을 포커스한다(FocusedUniqueItemInstance). value_1이 유니크 아이템 코드(유니크 아이템 마스터에 있어야 함)이고 나머지는 보지 않는다. 슬롯에 끼우는 것은 <see cref="SetEquipmentToSlot"/>이다. 적 유닛의 캐릭터에서는 그 적의 임시 장비가 된다.</summary>
-    AddEquipment = 33,
     /// <summary>생성 후에만 있는 종류. 포커스한 스킬(포커스한 캐릭터의 스킬 풀 안)을 스킬 슬롯에 장착한다. value_1이 스킬 슬롯 코드(스킬 슬롯 마스터에 있어야 함)이고 나머지는 보지 않는다. 같은 스킬이 다른 슬롯에 있었으면 옮겨 오고 그 슬롯에 있던 스킬은 풀에 남는다. 슬롯 태그 규칙은 보지 않는다(게임팩이 정한 초기 설정이다). 포커스한 스킬이 없거나 포커스한 캐릭터의 것이 아니면 아무 일도 하지 않는다.</summary>
-    SetSkillToSlot = 34,
-    /// <summary>생성 후에만 있는 종류. 포커스한 유니크 아이템을 이 캐릭터의 유닛의 장비 슬롯에 낀다. value_1이 장비 슬롯 코드(장비 슬롯 마스터에 있어야 함)이고 나머지는 보지 않는다. 같은 아이템이 다른 슬롯에 있었으면 옮겨 오고 슬롯 태그 규칙은 보지 않는다. 포커스한 유니크 아이템이 없으면 아무 일도 하지 않는다. 유닛은 서킷이 만든 장비 없는 유닛이라, 이 장비가 남는 곳은 적 유닛뿐이다(보유 캐릭터는 파티에 들어가기 전에는 유닛이 없다).</summary>
-    SetEquipmentToSlot = 35,
+    SetSkillToSlot = 33,
 }
 
 /// <summary>캐릭터 생성 후 이펙트 마스터의 한 행: 캐릭터가 만들어지면 서킷이 character_code가 같은 행을 execute_number 순서대로 실행하는 이펙트 하나(종류와 값 셋).</summary>
