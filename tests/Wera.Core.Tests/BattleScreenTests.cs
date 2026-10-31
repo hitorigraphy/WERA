@@ -333,10 +333,10 @@ public class BattleScreenTests
     }
 
     [Fact]
-    public void Basic_commands_are_next_action_item_previous_swap_execute_and_run()
+    public void Basic_commands_are_next_action_item_previous_move_execute_and_run()
     {
         var s = Started();
-        Assert.Equal(["다음 캐릭터", "행동 설정", "아이템", "이전 캐릭터", "교체", "실행", "도망"],
+        Assert.Equal(["다음 캐릭터", "행동 설정", "아이템", "이전 캐릭터", "이동", "실행", "도망"],
             s.Entries.Where(e => e.Action != EntryAction.BattleViewUnit && e.Action != EntryAction.BattleScroll && e.Code != "999").Select(e => e.Label));
         Assert.DoesNotContain(s.Entries, e => e.Label == "상태 확인");
         Assert.True(Entry(s, "107").Enabled);                       // 도망은 행동을 정하지 않아도 누를 수 있다
@@ -575,51 +575,68 @@ public class BattleScreenTests
     }
 
     [Fact]
-    public void The_swap_command_lets_any_other_ally_slot_including_empty_ones_be_picked_by_slot_number()
+    public void The_move_command_lets_any_other_ally_slot_including_empty_ones_be_picked_by_slot_number()
     {
         var s = Started(twoUnits: true);
+        Assert.Equal("이동", Entry(s, "105").Label);
         s.Activate("105");
-        Assert.Equal(GameSession.BattleCommandMode.SwapCandidates, s.BattleCommands);
+        Assert.Equal(GameSession.BattleCommandMode.MoveCandidates, s.BattleCommands);
         Assert.Equal(["101"], s.Entries.Where(e => e.Action == EntryAction.BattleCancelActions).Select(e => e.Code));
-        Assert.Equal(["12", "13", "14", "15", "16", "17", "18", "19"], s.Entries.Where(e => e.Action == EntryAction.BattleSwapWith).Select(e => e.Code));
+        Assert.Equal(["12", "13", "14", "15", "16", "17", "18", "19"], s.Entries.Where(e => e.Action == EntryAction.BattleMoveTo).Select(e => e.Code));
         Assert.Equal(GameSession.BattleTopAllyHeavy, s.BattleTop);
 
         s.Activate("101");                                                          // 취소
         Assert.Equal(GameSession.BattleCommandMode.Basic, s.BattleCommands);
-        Assert.Equal(0, s.BattleCurrentSlot);
+        Assert.Null(s.BattleMoveOf(0));
     }
 
     [Fact]
-    public void Swapping_exchanges_the_units_and_their_set_actions_follow_them()
+    public void Moving_onto_an_occupied_slot_sets_the_other_unit_to_move_back_and_the_units_swap_on_execute()
     {
         var s = Started(twoUnits: true);
+        FirstOnly(s);
         var (first, second) = (s.PartyInstance.Units[0]!.CharacterCode, s.PartyInstance.Units[1]!.CharacterCode);
-        s.Activate("102"); s.Activate("101"); s.Activate("1");                      // 첫째 유닛이 행동을 정하고 둘째로 넘어갔다
-        s.Activate("104");
-        Assert.Equal(0, s.BattleCurrentSlot);
-        s.Activate("105"); s.Activate("12");                                        // 슬롯 1과 교체
+        s.Activate("105"); s.Activate("12");                                        // 슬롯 0이 슬롯 1로 이동
+        Assert.Equal((1, 0), (s.BattleMoveOf(0)!.Value, s.BattleMoveOf(1)!.Value));
+        Assert.True(s.BattleAllActionsSet);                                         // 둘 다 행동이 정해졌다
+        Assert.Equal(["이동", "이동"], AllyFront(s).Take(2).Select(v => v.Name));
 
+        s.Activate("106");
         Assert.Equal((second, first), (s.PartyInstance.Units[0]!.CharacterCode, s.PartyInstance.Units[1]!.CharacterCode));
-        Assert.Equal(1, s.BattleCurrentSlot);                                       // 보는 유닛은 그대로 같은 유닛
-        Assert.Equal(GameSession.BattleCommandMode.Basic, s.BattleCommands);
-        Assert.NotNull(s.BattleActionOf(1));
-        Assert.Null(s.BattleActionOf(0));
+        Assert.DoesNotContain(s.BattleLog, a => !a.IsEnemy);                        // 이동한 유닛은 스킬을 쓰지 않았다
     }
 
     [Fact]
-    public void Swapping_into_an_empty_slot_moves_the_unit_and_retargets_ally_targets()
+    public void Changing_the_action_of_a_moved_unit_resets_the_linked_unit_and_the_next_character_goes_to_it()
     {
-        var s = Started();
-        s.AddInventory(3, 1);
-        s.Activate("103"); s.Activate("101"); s.Activate("11");                     // 약초를 자신에게
-        Assert.Equal((0, false), (s.BattleTargetOf(0)!.Value, s.BattleTargetIsEnemyOf(0)!.Value));
+        var s = Started(twoUnits: true);
+        s.Activate("105"); s.Activate("12");                                        // 서로 이동으로 묶였다
+        Assert.Equal(1, s.BattleCurrentSlot);
+        s.Activate("102"); s.Activate("101"); s.Activate("1");                      // 슬롯 1이 스킬로 행동을 바꾼다
 
-        s.Activate("105"); s.Activate("19");                                        // 빈 슬롯 8로 이동
+        Assert.Null(s.BattleMoveOf(0));                                             // 묶였던 슬롯 0은 행동이 지워졌다
+        Assert.Null(s.BattleMoveOf(1));
+        Assert.NotNull(s.BattleActionOf(1));
+        Assert.False(s.BattleAllActionsSet);
+        Assert.False(Entry(s, "106").Enabled);
+        Assert.Equal(0, s.BattleCurrentSlot);                                       // 다음 캐릭터는 행동이 지워진 쪽으로 돌아온다
+    }
+
+    [Fact]
+    public void Moving_into_an_empty_slot_moves_only_that_unit_and_an_empty_target_slot_is_taken_once()
+    {
+        var s = Started(twoUnits: true);
+        FirstOnly(s);
+        s.Activate("105"); s.Activate("19");                                        // 슬롯 0이 빈 슬롯 8로 이동
+        Assert.Null(s.BattleMoveOf(1));
+        s.Activate("105");
+        Assert.DoesNotContain(s.Entries, e => e.Action == EntryAction.BattleMoveTo && e.Code == "19");     // 이미 정해진 빈 칸은 고를 수 없다
+        s.Activate("101");
+        s.Activate("102"); s.Activate("101"); s.Activate("1");                      // 슬롯 1은 스킬을 쓴다
+        Assert.True(s.BattleAllActionsSet);
+
+        s.Activate("106");
         Assert.Null(s.PartyInstance.Units[0]);
         Assert.NotNull(s.PartyInstance.Units[8]);
-        Assert.Equal(8, s.BattleCurrentSlot);
-        Assert.Equal("C3", s.BattleItemOf(8));
-        Assert.Equal((8, false), (s.BattleTargetOf(8)!.Value, s.BattleTargetIsEnemyOf(8)!.Value));
-        Assert.Null(s.BattleActionOf(0));
     }
 }

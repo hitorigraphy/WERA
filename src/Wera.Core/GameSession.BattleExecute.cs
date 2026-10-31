@@ -45,6 +45,7 @@ public sealed partial class GameSession
     {
         if (BattleOutcome != BattleOutcomeKind.None || !BattleAllActionsSet) return;
         battleLog.Clear();
+        var moved = ApplyBattleMoves();
         var store = CreateUnitStore();
 
         var skillOf = new Dictionary<Combatant, long>();
@@ -53,7 +54,7 @@ public sealed partial class GameSession
         {
             var ally = new Combatant(false, slot);
             skillOf[ally] = battleActions[slot];
-            targetOf[ally] = battleTargets[slot];
+            targetOf[ally] = battleTargets[slot] is { IsEnemy: false } t ? t with { Slot = moved.GetValueOrDefault(t.Slot, t.Slot) } : battleTargets[slot];     // 이동한 아군을 가리켰다면 새 자리로
         }
         foreach (var enemy in LivingOf(true))
         {
@@ -104,6 +105,34 @@ public sealed partial class GameSession
             if (BattleOutcome == BattleOutcomeKind.Win) new AfterBattleWinCircuit(Pack, store, PartyInstance.Units[slot]!).Execute();
             else new AfterBattleLoseCircuit(Pack, store, PartyInstance.Units[slot]!).Execute();
         BattleCommands = BattleCommandMode.Basic;
+    }
+
+    /// <summary>
+    /// 이번 턴에 정한 이동을 스킬보다 먼저 한다: 서로를 가리키는 이동은 두 유닛의 자리를 바꾸고, 홀로 빈 칸을 가리키는 이동은 그 칸으로 옮긴다.
+    /// 돌려주는 값은 자리가 바뀐 유닛의 (원래 슬롯 → 새 슬롯)이고, 이동을 정한 기록은 비워진다.
+    /// </summary>
+    Dictionary<int, int> ApplyBattleMoves()
+    {
+        var units = PartyInstance.Units;
+        var result = new Dictionary<int, int>();
+        foreach (var (from, to) in battleMoves.OrderBy(m => m.Key).ToList())
+        {
+            if (units[from] is null || result.ContainsKey(from)) continue;              // 이미 상대의 이동으로 처리됐다
+            if (battleMoves.TryGetValue(to, out var back) && back == from && units[to] is not null)
+            {
+                (units[from], units[to]) = (units[to], units[from]);
+                result[from] = to;
+                result[to] = from;
+            }
+            else if (units[to] is null)
+            {
+                units[to] = units[from];
+                units[from] = null;
+                result[from] = to;
+            }
+        }
+        battleMoves.Clear();
+        return result;
     }
 
     /// <summary>행동하는 유닛이 노릴 대상: 정해 둔 대상이 살아 있으면 그대로, 쓰러졌으면 그 스킬의 타겟 대상에 맞는 살아 있는 유닛 중 랜덤. 없으면 null.</summary>

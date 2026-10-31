@@ -87,10 +87,10 @@ public enum EntryAction
     BattleOpenActions,
     /// <summary>행동 후보에서 스킬(Arg)을 고른다.</summary>
     BattleChooseSkill,
-    /// <summary>[105] 교체: 커맨드를 대상 후보처럼 바꿔 자리를 바꿀 아군 슬롯(빈 칸 포함)을 슬롯에서 고르게 한다.</summary>
-    BattleOpenSwap,
-    /// <summary>교체 후보에서 슬롯(Arg = 슬롯 번호)을 골라 보는 캐릭터와 자리를 바꾼다.</summary>
-    BattleSwapWith,
+    /// <summary>[105] 이동: 커맨드를 대상 후보처럼 바꿔 이동할 아군 슬롯(빈 칸 포함)을 슬롯에서 고르게 한다.</summary>
+    BattleOpenMove,
+    /// <summary>이동 후보에서 슬롯(Arg = 슬롯 번호)을 골라 보는 캐릭터의 이번 턴 행동을 그 슬롯으로의 이동으로 정한다.</summary>
+    BattleMoveTo,
     /// <summary>[103] 아이템: 커맨드를 보는 캐릭터가 쓸 수 있는 아이템 후보로 바꾸고 화면을 적 3 / 아군 1로 바꾼다.</summary>
     BattleOpenItems,
     /// <summary>아이템 후보에서 아이템(Arg = "C코드"(커먼) 또는 "U인스턴스ID"(유니크))을 고른다.</summary>
@@ -826,11 +826,11 @@ public sealed partial class GameSession
                 BeginBattle();
                 Screen = entry.Target;
                 break;
-            case EntryAction.BattleOpenSwap:
-                OpenBattleSwap();
+            case EntryAction.BattleOpenMove:
+                OpenBattleMove();
                 break;
-            case EntryAction.BattleSwapWith:
-                SwapBattleUnits(int.Parse(entry.Arg!, CultureInfo.InvariantCulture));
+            case EntryAction.BattleMoveTo:
+                ChooseBattleMove(int.Parse(entry.Arg!, CultureInfo.InvariantCulture));
                 break;
             case EntryAction.BattleOpenItems:
                 OpenBattleItemCandidates();

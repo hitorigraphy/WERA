@@ -26,12 +26,12 @@ public sealed partial class GameSession
     /// <summary>작전 화면 아래의 커맨드가 지금 어떤 모습인가.</summary>
     public enum BattleCommandMode
     {
-        /// <summary>기본 커맨드: 윗줄 [101] 다음 캐릭터, [102] 행동 설정, [103] 아이템 / 아랫줄 [104] 이전 캐릭터, [105] 교체, [106] 실행, [107] 도망.</summary>
+        /// <summary>기본 커맨드: 윗줄 [101] 다음 캐릭터, [102] 행동 설정, [103] 아이템 / 아랫줄 [104] 이전 캐릭터, [105] 이동, [106] 실행, [107] 도망.</summary>
         Basic,
         /// <summary>행동 후보: 지금 보고 있는 캐릭터가 장착한 스킬들([101]부터)과 [106] 취소.</summary>
         ActionCandidates,
-        /// <summary>교체 후보: 보는 캐릭터와 자리를 바꿀 아군 슬롯(자신을 뺀 모든 칸, 빈 칸 포함)이 흰색이 되어 슬롯 번호로 고르고, 커맨드는 [101] 취소뿐이다.</summary>
-        SwapCandidates,
+        /// <summary>이동 후보: 보는 캐릭터가 이동할 아군 슬롯(자신을 뺀 모든 칸, 빈 칸 포함)이 흰색이 되어 슬롯 번호로 고르고, 커맨드는 [101] 취소뿐이다.</summary>
+        MoveCandidates,
         /// <summary>아이템 후보: 지금 보고 있는 캐릭터가 쓸 수 있는 아이템들([101]부터, skill_code가 있는 보유 아이템)과 [106] 취소.</summary>
         ItemCandidates,
         /// <summary>대상 후보: 고른 스킬의 타겟 대상(skill_master의 target_type)에 맞는 살아 있는 유닛만 슬롯이 흰색(리더는 연두색)이 되어 슬롯 번호로 고르고, 커맨드는 [101] 취소뿐이다.</summary>
@@ -102,6 +102,9 @@ public sealed partial class GameSession
     /// <summary>이번 턴에 아군 유닛(파티 슬롯 번호)마다 설정한 행동(스킬 코드). 설정하지 않은 유닛은 없다.</summary>
     readonly Dictionary<int, long> battleActions = [];
 
+    /// <summary>이번 턴에 이동하기로 한 아군 유닛(파티 슬롯 번호) → 이동할 슬롯 번호. 스킬 대신 정한 행동이다.</summary>
+    readonly Dictionary<int, int> battleMoves = [];
+
     /// <summary>이번 턴에 아군 유닛(파티 슬롯 번호)마다 고른 메인 타겟(어느 편의 몇 번 슬롯). 스킬과 함께 정해진다.</summary>
     readonly Dictionary<int, Combatant> battleTargets = [];
 
@@ -118,7 +121,7 @@ public sealed partial class GameSession
     public long? BattleActionOf(int slot) => battleActions.TryGetValue(slot, out var skill) ? skill : null;
 
     /// <summary>파티의 모든 유닛이 이번 턴의 행동을 설정했는가([106] 실행은 이때만 누를 수 있다). 장착한 스킬이 없는 유닛은 설정하지 않아도 된다.</summary>
-    public bool BattleAllActionsSet => BattleUnitSlots().Where(s => BattleSkillsOf(new Combatant(false, s)).Count > 0).All(battleActions.ContainsKey);
+    public bool BattleAllActionsSet => BattleUnitSlots().All(s => !BattleActionNeeded(s));
 
     /// <summary>아군 파티에 유닛이 있는 슬롯 번호들(칸 순서).</summary>
     List<int> BattleUnitSlots() =>
@@ -239,6 +242,7 @@ public sealed partial class GameSession
     void BeginTurn()
     {
         battleActions.Clear();
+        battleMoves.Clear();
         battleTargets.Clear();
         battleItems.Clear();
         battlePendingSkill = null;
@@ -272,45 +276,75 @@ public sealed partial class GameSession
         BattleTop = BattleTopEnemyHeavy;
     }
 
-    /// <summary>[105] 교체: 보는 캐릭터와 자리를 바꿀 아군 슬롯을 고르는 교체 후보로 바뀌고 화면은 적 1 / 아군 3으로 바뀐다.</summary>
-    void OpenBattleSwap()
+    /// <summary>[105] 이동: 보는 캐릭터가 이동할 아군 슬롯을 고르는 이동 후보로 바뀌고 화면은 적 1 / 아군 3으로 바뀐다.</summary>
+    void OpenBattleMove()
     {
         if (BattleCurrentSlot is null) return;
-        BattleCommands = BattleCommandMode.SwapCandidates;
+        BattleCommands = BattleCommandMode.MoveCandidates;
         BattleTop = BattleTopAllyHeavy;
     }
 
-    /// <summary>교체 후보에서 고를 수 있는 아군 슬롯들: 보는 캐릭터의 슬롯을 뺀 모든 칸(빈 칸 포함).</summary>
-    List<int> BattleSwapSlots() =>
-        BattleCurrentSlot is { } current ? Enumerable.Range(0, PartySlotCount).Where(i => i != current).ToList() : [];
+    /// <summary>이동 후보에서 고를 수 있는 아군 슬롯들: 보는 캐릭터의 슬롯을 뺀 모든 칸. 빈 칸은 다른 유닛이 이미 이동하기로 한 칸이면 뺀다.</summary>
+    List<int> BattleMoveSlots()
+    {
+        if (BattleCurrentSlot is not { } current) return [];
+        return Enumerable.Range(0, PartySlotCount)
+            .Where(i => i != current && (PartyInstance.Units[i] is not null || !battleMoves.Any(m => m.Key != current && m.Value == i))).ToList();
+    }
+
+    /// <summary>슬롯의 아군 유닛이 이번 턴에 이동하기로 한 슬롯. 이동으로 정하지 않았으면 null.</summary>
+    public int? BattleMoveOf(int slot) => battleMoves.TryGetValue(slot, out var to) ? to : null;
 
     /// <summary>
-    /// 보는 캐릭터의 유닛과 고른 슬롯의 유닛(빈 칸이면 그 칸으로 옮김)의 자리를 바꾼다. 바로 실행되고 행동을 쓰지 않으며,
-    /// 이번 턴에 정한 행동·아이템·타겟은 유닛과 함께 따라가고 아군을 가리킨 타겟도 새 자리로 바뀐다. 보는 캐릭터는 그대로 같은 유닛이다.
+    /// 슬롯의 아군 유닛이 정해 둔 행동(스킬, 아이템, 타겟 또는 이동)을 지운다. 이동이었다면 그 이동으로 함께 정해진
+    /// 맞은편 유닛(서로를 가리키는 이동)의 행동도 지워져 그 유닛은 다시 행동을 정해야 한다.
     /// </summary>
-    void SwapBattleUnits(int other)
+    void ClearBattleAction(int slot)
     {
-        if (BattleCurrentSlot is not { } current || !BattleSwapSlots().Contains(other)) return;
-        var units = PartyInstance.Units;
-        (units[current], units[other]) = (units[other], units[current]);
-
-        int Moved(int slot) => slot == current ? other : slot == other ? current : slot;
-        Dictionary<int, T> Remap<T>(Dictionary<int, T> map, Func<T, T> value) =>
-            map.ToDictionary(kv => Moved(kv.Key), kv => value(kv.Value));
-        Combatant Retarget(Combatant c) => c.IsEnemy ? c : c with { Slot = Moved(c.Slot) };
-        var actions = Remap(battleActions, v => v);
-        var items = Remap(battleItems, v => v);
-        var targets = Remap(battleTargets, Retarget);
-        battleActions.Clear(); battleItems.Clear(); battleTargets.Clear();
-        foreach (var (k, v) in actions) battleActions[k] = v;
-        foreach (var (k, v) in items) battleItems[k] = v;
-        foreach (var (k, v) in targets) battleTargets[k] = v;
-
-        BattleCurrentSlot = other;
-        battlePendingSkill = null;
-        battlePendingItem = null;
-        BattleCommands = BattleCommandMode.Basic;
+        if (battleMoves.Remove(slot, out var to) && battleMoves.TryGetValue(to, out var back) && back == slot)
+            ClearBattleAction(to);
+        battleActions.Remove(slot);
+        battleTargets.Remove(slot);
+        battleItems.Remove(slot);
     }
+
+    /// <summary>
+    /// 이동 후보에서 슬롯을 고르면 보는 캐릭터의 이번 턴 행동이 그 슬롯으로의 이동이 된다(스킬은 쓰지 않음). 이미 유닛이 있는 슬롯이면 그 유닛의 행동도
+    /// 보는 캐릭터의 슬롯으로의 이동(자리 바꿈)으로 함께 바뀌고, 그 유닛이 정해 둔 행동은 사라진다. 그 뒤 다음 캐릭터로 넘어간다.
+    /// 이동은 [106] 실행에서 스킬보다 먼저 일어난다.
+    /// </summary>
+    void ChooseBattleMove(int to)
+    {
+        if (BattleCurrentSlot is not { } current || !BattleMoveSlots().Contains(to)) return;
+        ClearBattleAction(current);
+        battleMoves[current] = to;
+        if (PartyInstance.Units[to] is not null)
+        {
+            ClearBattleAction(to);
+            battleMoves[to] = current;
+        }
+        AdvanceBattleCharacter();
+    }
+
+    /// <summary>
+    /// 행동을 정한 뒤 다음 캐릭터로 넘어간다: 행동을 정해야 하는데 아직 정하지 않은 유닛(다른 유닛의 이동으로 행동이 지워진 유닛 포함)이 있으면
+    /// 칸 순서로 다음에 오는 그 유닛으로, 없으면 그냥 다음 캐릭터로 간다.
+    /// </summary>
+    void AdvanceBattleCharacter()
+    {
+        var slots = BattleUnitSlots();
+        var at = BattleCurrentSlot is { } current ? slots.IndexOf(current) : -1;
+        for (var step = 1; step <= slots.Count; step++)
+        {
+            var slot = slots[((at + step) % slots.Count + slots.Count) % slots.Count];
+            if (BattleActionNeeded(slot)) { SelectBattleCharacter(step); return; }
+        }
+        SelectBattleCharacter(1);
+    }
+
+    /// <summary>슬롯의 유닛이 행동을 정해야 하는데 아직 정하지 않았는가(장착한 스킬이 없는 유닛은 정하지 않아도 된다).</summary>
+    bool BattleActionNeeded(int slot) =>
+        !battleActions.ContainsKey(slot) && !battleMoves.ContainsKey(slot) && BattleSkillsOf(new Combatant(false, slot)).Count > 0;
 
     /// <summary>[103] 아이템: 커맨드가 보는 캐릭터의 아이템 후보로 바뀌고 화면은 적 3 / 아군 1로 바뀐다.</summary>
     void OpenBattleItemCandidates()
@@ -344,10 +378,12 @@ public sealed partial class GameSession
         var target = new Combatant(arg[0] == 'E', int.Parse(arg.AsSpan(1), CultureInfo.InvariantCulture));
         if (BattleCurrentSlot is { } slot && battlePendingSkill is { } skill && BattleTargets().Contains(target))
         {
+            ClearBattleAction(slot);                                                    // 이동으로 정했던 행동이었다면 맞은편 유닛의 행동도 지워진다
             battleActions[slot] = skill;
             battleTargets[slot] = target;
             if (battlePendingItem is { } item) battleItems[slot] = item;
-            else battleItems.Remove(slot);
+            AdvanceBattleCharacter();
+            return;
         }
         SelectBattleCharacter(1);
     }
@@ -393,12 +429,12 @@ public sealed partial class GameSession
         bool Gray(bool isEnemy, int slot) => BattleCommands switch
         {
             BattleCommandMode.ActionCandidates or BattleCommandMode.ItemCandidates => true,
-            BattleCommandMode.SwapCandidates => isEnemy || !BattleSwapSlots().Contains(slot),
+            BattleCommandMode.MoveCandidates => isEnemy || !BattleMoveSlots().Contains(slot),
             BattleCommandMode.TargetCandidates => !targets.Contains(new Combatant(isEnemy, slot)),
             _ => false,
         };
         var enemySlots = Enumerable.Range(0, PartySlotCount).Select(EnemySlotView).Select(v => v with { IsGray = Gray(true, v.Slot) }).ToList();
-        var allySlots = PartySlotViews.Select(v => v with { IsSelected = v.Slot == BattleCurrentSlot, IsGray = Gray(false, v.Slot), Name = BattleActionOf(v.Slot) is { } skill ? SkillName(skill) : v.Name }).ToList();     // 보는 캐릭터의 이름은 파란색
+        var allySlots = PartySlotViews.Select(v => v with { IsSelected = v.Slot == BattleCurrentSlot, IsGray = Gray(false, v.Slot), Name = BattleActionOf(v.Slot) is { } skill ? SkillName(skill) : BattleMoveOf(v.Slot) is not null ? "이동" : v.Name }).ToList();     // 보는 캐릭터의 이름은 파란색
 
         BattleRowView Row(bool isEnemy, int rowInSide) => new(
             BattleRowKind.Slots, isEnemy, BattleRowTitle(rowInSide),
@@ -451,7 +487,7 @@ public sealed partial class GameSession
             yield return new ScreenEntry("106", "취소", Screen.Battle, EntryAction.BattleCancelActions);
             yield break;
         }
-        if (BattleCommands is BattleCommandMode.TargetCandidates or BattleCommandMode.SwapCandidates)
+        if (BattleCommands is BattleCommandMode.TargetCandidates or BattleCommandMode.MoveCandidates)
         {
             yield return new ScreenEntry("101", "취소", Screen.Battle, EntryAction.BattleCancelActions);
             yield break;
@@ -460,7 +496,7 @@ public sealed partial class GameSession
         yield return new ScreenEntry("102", "행동 설정", Screen.Battle, EntryAction.BattleOpenActions);
         yield return new ScreenEntry("103", "아이템", Screen.Battle, EntryAction.BattleOpenItems);
         yield return new ScreenEntry("104", "이전 캐릭터", Screen.Battle, EntryAction.BattleSelectCharacter, "-1");
-        yield return new ScreenEntry("105", "교체", Screen.Battle, EntryAction.BattleOpenSwap);
+        yield return new ScreenEntry("105", "이동", Screen.Battle, EntryAction.BattleOpenMove);
         yield return new ScreenEntry("106", "실행", Screen.Battle, EntryAction.BattleExecute, Enabled: BattleAllActionsSet);
         yield return new ScreenEntry("107", "도망", Screen.Battle, EntryAction.BattleRun);
     }

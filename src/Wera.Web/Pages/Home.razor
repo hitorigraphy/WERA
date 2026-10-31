@@ -557,7 +557,7 @@
                     }
                     @* 구분선 아래: 왼쪽 네 칸 중 세 칸에 커맨드(윗줄 [101]~[103], 아랫줄 [104]~[106]), 윗줄 오른쪽 끝에 구성 전환([1000] ▲, [1001] ▼) *@
                     <div class="battle-commands">
-                        <div class="battle-command-list @(session.BattleCommands == GameSession.BattleCommandMode.Basic ? "battle-command-basic" : "")">@entryList(session.Entries.Where(e => e.Action != EntryAction.BattleScroll && e.Action != EntryAction.BattleViewUnit && e.Action != EntryAction.BattleChooseTarget && e.Action != EntryAction.BattleSwapWith))</div>
+                        <div class="battle-command-list @(session.BattleCommands == GameSession.BattleCommandMode.Basic ? "battle-command-basic" : "")">@entryList(session.Entries.Where(e => e.Action != EntryAction.BattleScroll && e.Action != EntryAction.BattleViewUnit && e.Action != EntryAction.BattleChooseTarget && e.Action != EntryAction.BattleMoveTo))</div>
                         <div class="battle-scroll">@entryList(session.Entries.Where(e => e.Action == EntryAction.BattleScroll))</div>
                     </div>
                 }
