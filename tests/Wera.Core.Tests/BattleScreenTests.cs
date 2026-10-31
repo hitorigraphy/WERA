@@ -655,4 +655,37 @@ public class BattleScreenTests
         Assert.Equal(0, hp[4] - s.EnemyInstances[4].Hp);                            // 다른 줄은 영향 없음
         Assert.Equal(0, hp[7] - s.EnemyInstances[7].Hp);
     }
+
+    [Fact]
+    public void After_hit_circuits_run_for_the_main_target_and_every_sub_target()
+    {
+        // 피격 후: 맞은 쪽(그 서킷의 메인 타겟)의 hp를 1 더 깎는다. 예시 팩에 피격 후 이펙트 마스터를 더해 시험한다
+        var root = AppContext.BaseDirectory;
+        while (!File.Exists(Path.Combine(root, "WERA.slnx"))) root = Path.GetDirectoryName(root)!;
+        var source = new MemoryStream();
+        using (var read = File.OpenRead(Path.Combine(root, "src", "Wera.Web", "wwwroot", "sample-pack.wra")))
+        using (var from = new System.IO.Compression.ZipArchive(read))
+        using (var to = new System.IO.Compression.ZipArchive(source, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (var e in from.Entries)
+            {
+                using var input = e.Open();
+                using var output = to.CreateEntry(e.FullName).Open();
+                input.CopyTo(output);
+            }
+            using var w = new StreamWriter(to.CreateEntry(GamePack.AfterHitEffectMasterPath).Open());
+            w.Write("execute_number\teffect_type\tvalue_1\tvalue_2\tvalue_3\n1\tSetCacheValue\t0\t-1\t0\n2\tFocusMainTargetCharacter\t0\t0\t0\n3\tCacheToFocusedCharacterModValue\t2\t0\t0\n");
+        }
+        source.Position = 0;
+        var s = GameSession.NewGame(GamePack.Load(source));
+        s.NextRandom = _ => 0;
+        s.Activate("105"); s.Activate("1"); s.Activate("1"); s.Activate("999");
+        Assert.NotNull(s.Activate("110"));
+        var hp = s.EnemyInstances.ToDictionary(kv => kv.Key, kv => kv.Value.Hp);
+        s.Activate("102"); s.Activate("102"); s.Activate("1");
+        s.Activate("107");
+        Assert.Equal(21, hp[0] - s.EnemyInstances[0].Hp);                           // 메인: 불꽃 20 + 피격 후 1
+        Assert.Equal(11, hp[2] - s.EnemyInstances[2].Hp);                           // 서브 0번: 불꽃 10 + 피격 후 1
+        Assert.Equal(0, hp[4] - s.EnemyInstances[4].Hp);
+    }
 }

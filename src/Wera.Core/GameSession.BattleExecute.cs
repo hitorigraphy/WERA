@@ -97,6 +97,7 @@ public sealed partial class GameSession
             var subs = SubTargetsOf(victim, skillOf[actor]).Select(c => UnitOf(c)!).ToList();
             new SkillExecuteCircuit(Pack, store, skillOf[actor], caster, main, subs).Execute();
             new AfterHitCircuit(Pack, store, caster, main).Execute();
+            foreach (var sub in subs) new AfterHitCircuit(Pack, store, caster, sub).Execute();     // 서브 타겟도 피격자다(공격 후는 시전자가 한 번만)
             new AfterAttackCircuit(Pack, store, caster, main).Execute();
             if (!actor.IsEnemy && battleItems.TryGetValue(actor.Slot, out var usedItem) && usedItem[0] == 'C')     // 쓴 커먼 아이템은 하나 줄어든다(유니크는 남는다)
                 ChangeCommonItem(long.Parse(usedItem.AsSpan(1), CultureInfo.InvariantCulture), -1);
