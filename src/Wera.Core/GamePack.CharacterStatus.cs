@@ -2,7 +2,7 @@ using System.IO.Compression;
 
 namespace Wera.Core;
 
-// 스테이터스: 스테이터스 종류(status_master: level, hp, xp 등)와 캐릭터별 레벨별 값(character_status_master).
+// 스테이터스: 스테이터스 종류(status_master: level, hp, xpp 등)와 캐릭터별 레벨별 값(character_status_master).
 public sealed partial class GamePack
 {
     public const string StatusMasterPath = "master/status_master_v1.tsv";
@@ -16,11 +16,11 @@ public sealed partial class GamePack
     /// <summary>HP: 초깃값이 현재 HP, 최댓값이 최대 HP.</summary>
     public const long HpStatusCode = 2;
     /// <summary>경험치: 초깃값이 현재 경험치, 최댓값이 다음 레벨까지 필요한 경험치.</summary>
-    public const long XpStatusCode = 3;
+    public const long XppStatusCode = 3;
     /// <summary>최대 HP: 초깃값이 새 캐릭터의 최대 HP. 마스터에 이 스테이터스의 행이 없으면 hp 행의 최댓값을 쓴다.</summary>
     public const long MaxHpStatusCode = 4;
-    /// <summary>다음 레벨까지 필요한 경험치: 초깃값이 새 캐릭터의 필요 경험치. 마스터에 이 스테이터스의 행이 없으면 xp 행의 최댓값을 쓴다(그것도 없으면 0).</summary>
-    public const long XpMaxStatusCode = 5;
+    /// <summary>다음 레벨까지 필요한 경험치: 초깃값이 새 캐릭터의 필요 경험치. 마스터에 이 스테이터스의 행이 없으면 xpp 행의 최댓값을 쓴다(그것도 없으면 0).</summary>
+    public const long XppMaxStatusCode = 5;
 
     /// <summary>스테이터스 마스터가 없으면 null.</summary>
     public IReadOnlyList<StatusEntry>? Statuses { get; init; }
@@ -124,8 +124,8 @@ public sealed partial class GamePack
 
     /// <summary>
     /// 새로 얻는 캐릭터의 상태. 레벨이 정해지기 전이므로 레벨 0의 행으로 채운다: 마스터에 그 캐릭터의 행이 있는 모든 스테이터스를 초깃값으로
-    /// <see cref="CharacterInstance.Statuses"/>에 넣는다. 예약된 다섯 코드(level 1, hp 2, xp 3, max_hp 4, xp_max 5)는 늘 들어간다:
-    /// 행이 없으면 level 1, hp 1, xp 0이고, max_hp는 hp 행의 최댓값(없으면 1), xp_max는 xp 행의 최댓값(없으면 0)이다.
+    /// <see cref="CharacterInstance.Statuses"/>에 넣는다. 예약된 다섯 코드(level 1, hp 2, xpp 3, max_hp 4, xpp_max 5)는 늘 들어간다:
+    /// 행이 없으면 level 1, hp 1, xpp 0이고, max_hp는 hp 행의 최댓값(없으면 1), xpp_max는 xpp 행의 최댓값(없으면 0)이다.
     /// 캐릭터 스테이터스 마스터가 있으면 level과 hp의 레벨 0 행이 반드시 있다(로드 때 검증). 스킬은 아직 하나도 익히지 않았다.
     /// </summary>
     public CharacterInstance NewCharacterInstance(long characterCode, string instanceId = "", long orderNumber = 0)
@@ -136,9 +136,9 @@ public sealed partial class GamePack
                 statuses[code] = row.InitialValue;
         statuses.TryAdd(LevelStatusCode, 1);
         statuses.TryAdd(HpStatusCode, 1);
-        statuses.TryAdd(XpStatusCode, 0);
+        statuses.TryAdd(XppStatusCode, 0);
         statuses.TryAdd(MaxHpStatusCode, InitialCharacterStatus(characterCode, HpStatusCode)?.MaxValue ?? 1);
-        statuses.TryAdd(XpMaxStatusCode, InitialCharacterStatus(characterCode, XpStatusCode)?.MaxValue ?? 0);
+        statuses.TryAdd(XppMaxStatusCode, InitialCharacterStatus(characterCode, XppStatusCode)?.MaxValue ?? 0);
         return new CharacterInstance { InstanceId = instanceId, CharacterCode = characterCode, OrderNumber = orderNumber, Statuses = statuses }.Clamped();
     }
 }

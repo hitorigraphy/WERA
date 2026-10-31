@@ -2,7 +2,7 @@ using Wera.Core;
 
 namespace Wera.Core.Tests;
 
-// status_master: 스테이터스 종류. level(1)과 hp(2)는 엔진이 예약한 코드라 반드시 있어야 하고, xp(3)는 선택이다.
+// status_master: 스테이터스 종류. level(1)과 hp(2)는 엔진이 예약한 코드라 반드시 있어야 하고, xpp(3)는 선택이다.
 // character_status_master: 캐릭터 × 스테이터스 × 레벨별 (초깃값, 최솟값, 최댓값). 레벨 0 행은 폴백이자 캐릭터 생성 시의 값.
 public class CharacterStatusTests
 {
@@ -66,7 +66,7 @@ public class CharacterStatusTests
     {
         var pack = Load("status_code\tstatus_name\n1\t레벨\n2\t체력\n", null);
         Assert.Equal("체력", pack.FindStatus(GamePack.HpStatusCode)!.Name);
-        Assert.Null(pack.FindStatus(GamePack.XpStatusCode));
+        Assert.Null(pack.FindStatus(GamePack.XppStatusCode));
     }
 
     // ---- 캐릭터 스테이터스 마스터: 키와 폴백 ----
@@ -99,7 +99,7 @@ public class CharacterStatusTests
     public void A_status_without_any_row_has_no_value_at_any_level()
     {
         var pack = Load(Statuses, Base);
-        Assert.Null(pack.CharacterStatusAt(7001, 3, 5));          // xp 행이 없다
+        Assert.Null(pack.CharacterStatusAt(7001, 3, 5));          // xpp 행이 없다
         Assert.Null(pack.CharacterStatusAt(7001, 3, 0));
         Assert.Null(pack.CharacterStatusAt(9999, 2, 5));
     }

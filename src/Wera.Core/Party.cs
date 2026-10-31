@@ -17,8 +17,8 @@ public sealed record SkillInstance(long SkillCode, Dictionary<long, long>? Statu
 /// <summary>
 /// 보유 캐릭터 인스턴스: 인스턴스 ID(ULID 문자열)와 마스터 코드(캐릭터 인벤토리 코드)를 함께 가지고, 목록 순서(OrderNumber)와 현재 상태를 가진다.
 /// 얻을 때 OrderNumber는 소지 캐릭터 수(0부터 시작)이고(순서를 바꿀 때는 OrderNumber를 조작한다), 목록은 OrderNumber순, 같으면 InstanceId순이다.
-/// 상태는 <see cref="Statuses"/>(스테이터스 코드 → 값)에 있다: 예약된 코드는 level(1), hp(2), xp(3), max_hp(4), xp_max(5)이고
-/// <see cref="Level"/>, <see cref="Hp"/>, <see cref="MaxHp"/>, <see cref="Xp"/>, <see cref="XpMax"/>는 그 값을 읽는 편의 속성이다.
+/// 상태는 <see cref="Statuses"/>(스테이터스 코드 → 값)에 있다: 예약된 코드는 level(1), hp(2), xpp(3), max_hp(4), xpp_max(5)이고
+/// <see cref="Level"/>, <see cref="Hp"/>, <see cref="MaxHp"/>, <see cref="Xpp"/>, <see cref="XppMax"/>는 그 값을 읽는 편의 속성이다.
 /// 스킬은 <see cref="SkillPool"/>(익힌 스킬들)에 있고 <see cref="SkillSlots"/>가 스킬 슬롯 코드 → SkillPool의 번호(0부터)로 어느 슬롯에 어느 스킬을 넣어 두었는지 가진다.
 /// 값을 바꿀 때는 <see cref="WithStatus"/>처럼 새 인스턴스를 만들어 돌려주는 메서드를 쓴다(딕셔너리를 직접 고치면 복사본과 공유한다).
 /// </summary>
@@ -37,27 +37,27 @@ public sealed record CharacterInstance
     /// <summary>스킬 슬롯 코드 → <see cref="SkillPool"/>의 번호.</summary>
     public Dictionary<long, long> SkillSlots { get; init; } = [];
 
-    // 예전 세이브의 고정 필드(Level, Hp, MaxHp, Xp, XpMax). 읽을 때만 쓰고 세이브에는 쓰지 않는다(불러오면 Statuses로 옮긴다).
+    // 예전 세이브의 고정 필드(Level, Hp, MaxHp, Xpp, XppMax). 읽을 때만 쓰고 세이브에는 쓰지 않는다(불러오면 Statuses로 옮긴다).
     [JsonPropertyName("Level")] public long? LegacyLevel { get; init; }
     [JsonPropertyName("Hp")] public long? LegacyHp { get; init; }
     [JsonPropertyName("MaxHp")] public long? LegacyMaxHp { get; init; }
-    [JsonPropertyName("Xp")] public long? LegacyXp { get; init; }
-    [JsonPropertyName("XpMax")] public long? LegacyXpMax { get; init; }
+    [JsonPropertyName("Xpp")] public long? LegacyXpp { get; init; }
+    [JsonPropertyName("XppMax")] public long? LegacyXppMax { get; init; }
 
     [JsonIgnore] public long Level => Statuses.GetValueOrDefault(GamePack.LevelStatusCode);
     [JsonIgnore] public long Hp => Statuses.GetValueOrDefault(GamePack.HpStatusCode);
     [JsonIgnore] public long MaxHp => Statuses.GetValueOrDefault(GamePack.MaxHpStatusCode);
-    [JsonIgnore] public long Xp => Statuses.GetValueOrDefault(GamePack.XpStatusCode);
-    [JsonIgnore] public long XpMax => Statuses.GetValueOrDefault(GamePack.XpMaxStatusCode);
+    [JsonIgnore] public long Xpp => Statuses.GetValueOrDefault(GamePack.XppStatusCode);
+    [JsonIgnore] public long XppMax => Statuses.GetValueOrDefault(GamePack.XppMaxStatusCode);
 
     /// <summary>상태만 아는 인스턴스(시험, 임베디드 이펙트): ID는 비어 있고 코드와 순서는 0이다. 세션은 보유할 때 ID와 코드를 채운다.</summary>
-    public static CharacterInstance Stats(long level, long hp, long maxHp, long xp, long xpMax) =>
+    public static CharacterInstance Stats(long level, long hp, long maxHp, long xpp, long xppMax) =>
         new()
         {
             Statuses = new Dictionary<long, long>
             {
                 [GamePack.LevelStatusCode] = level, [GamePack.HpStatusCode] = hp, [GamePack.MaxHpStatusCode] = maxHp,
-                [GamePack.XpStatusCode] = xp, [GamePack.XpMaxStatusCode] = xpMax,
+                [GamePack.XppStatusCode] = xpp, [GamePack.XppMaxStatusCode] = xppMax,
             },
         };
 
@@ -67,18 +67,18 @@ public sealed record CharacterInstance
     public CharacterInstance WithStatus(long statusCode, long value) =>
         this with { Statuses = new Dictionary<long, long>(Statuses) { [statusCode] = value } };
 
-    /// <summary>세이브가 받아들이는 범위로 맞춘다: 레벨 1 이상, 최대 HP와 필요 XP 0 이상, HP 0~최대 HP, XP 0~필요 XP.</summary>
+    /// <summary>세이브가 받아들이는 범위로 맞춘다: 레벨 1 이상, 최대 HP와 필요 XPP 0 이상, HP 0~최대 HP, XPP 0~필요 XPP.</summary>
     public CharacterInstance Clamped()
     {
         var maxHp = Math.Max(0, MaxHp);
-        var xpMax = Math.Max(0, XpMax);
+        var xppMax = Math.Max(0, XppMax);
         var statuses = new Dictionary<long, long>(Statuses)
         {
             [GamePack.LevelStatusCode] = Math.Max(1, Level),
             [GamePack.MaxHpStatusCode] = maxHp,
             [GamePack.HpStatusCode] = Math.Clamp(Hp, 0, maxHp),
-            [GamePack.XpMaxStatusCode] = xpMax,
-            [GamePack.XpStatusCode] = Math.Clamp(Xp, 0, xpMax),
+            [GamePack.XppMaxStatusCode] = xppMax,
+            [GamePack.XppStatusCode] = Math.Clamp(Xpp, 0, xppMax),
         };
         return this with { Statuses = statuses };
     }
@@ -109,7 +109,7 @@ public sealed record GaugeView(string Text, GaugeColor Color);
 
 public static class Gauge
 {
-    /// <summary>"HP : " 같은 앞머리를 뺀 게이지 칸 수.</summary>
+    /// <summary>"HP  : " 같은 앞머리를 뺀 게이지 칸 수.</summary>
     public const int Width = 13;
 
     /// <summary>
@@ -157,7 +157,7 @@ public sealed record StatusBadge(long StatusEffectCode, string Name);
 /// Badges(속성)와 StatusBadges(상태이상)가 4번째(아이콘) 줄을 이룬다.
 /// </summary>
 public sealed record PartySlotView(
-    int Slot, long? CharacterCode, string LevelText, string Name, GaugeView Hp, GaugeView Xp,
+    int Slot, long? CharacterCode, string LevelText, string Name, GaugeView Hp, GaugeView Xpp,
     IReadOnlyList<AttributeBadge> Badges, IReadOnlyList<StatusBadge> StatusBadges, bool IsLeader = false, bool IsSelected = false, bool IsGray = false)
 {
     public const string EmptyName = "빈 슬롯";

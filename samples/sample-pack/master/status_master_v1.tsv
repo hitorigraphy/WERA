@@ -1,8 +1,8 @@
 status_code	status_name	memo
 1	level	필수: 예약 코드 1(level)
 2	hp	필수: 예약 코드 2(hp)
-3	xp	
+3	xpp	
 4	max_hp	예약 코드 4(최대 HP; 행이 없으면 hp 행의 최댓값)
-5	xp_max	예약 코드 5(필요 경험치; 행이 없으면 xp 행의 최댓값)
+5	xpp_max	예약 코드 5(필요 경험치; 행이 없으면 xpp 행의 최댓값)
 6	skill_level	스킬/아이템 스테이터스 예시
 7	durability	유니크 아이템 스테이터스 예시

@@ -154,7 +154,7 @@ public class MainCurrencyTests
     public void A_save_giving_the_main_currency_tag_to_a_character_or_an_instance_is_rejected()
     {
         var pack = Session().Pack;
-        const string head = "{\"Version\":1,\"PackId\":\"demo\",\"Characters\":{\"1\":{\"Level\":1,\"Hp\":1,\"MaxHp\":1,\"Xp\":0,\"XpMax\":0},\"7001\":{\"Level\":1,\"Hp\":1,\"MaxHp\":1,\"Xp\":0,\"XpMax\":0}}";
+        const string head = "{\"Version\":1,\"PackId\":\"demo\",\"Characters\":{\"1\":{\"Level\":1,\"Hp\":1,\"MaxHp\":1,\"Xpp\":0,\"XppMax\":0},\"7001\":{\"Level\":1,\"Hp\":1,\"MaxHp\":1,\"Xpp\":0,\"XppMax\":0}}";
         Assert.Throws<SaveFormatException>(() => GameSession.FromSaveJson(pack, head + ",\"CharacterTags\":{\"1\":[1],\"7001\":[3]}}"));
         Assert.Throws<SaveFormatException>(() => GameSession.FromSaveJson(pack,
             head + ",\"UniqueItems\":{\"01H00000000000000000000001\":{\"ItemCode\":8001,\"Tags\":[3]}}}"));

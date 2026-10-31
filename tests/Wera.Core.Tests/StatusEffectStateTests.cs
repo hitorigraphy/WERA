@@ -258,7 +258,7 @@ public class StatusEffectStateTests
     // ---- 로드 검증 ----
 
     const string Head = "{\"Version\":1,\"PackId\":\"demo\",";
-    const string Owned7001 = "\"Characters\":{\"7001\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xp\":0,\"XpMax\":10}},";
+    const string Owned7001 = "\"Characters\":{\"7001\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xpp\":0,\"XppMax\":10}},";
     const string Eff = "{\"Trigger\":\"AfterTurnEnd\",\"Priority\":1,\"EffectCode\":1,\"Value1\":-3,\"Value2\":3,\"Value3\":0}";
 
     static string Status(string statusJson, string characterKey = "7001")

@@ -133,7 +133,7 @@ public class MultiPartyTests
     public void An_old_single_party_save_becomes_party_A()
     {
         var s = Session();
-        var json = "{\"Version\":1,\"PackId\":\"demo\",\"Characters\":{\"7001\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xp\":0,\"XpMax\":10}},"
+        var json = "{\"Version\":1,\"PackId\":\"demo\",\"Characters\":{\"7001\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xpp\":0,\"XppMax\":10}},"
             + "\"PartyInstance\":{\"Name\":\"옛 파티\",\"Units\":[{\"CharacterCode\":7001,\"Equipment\":{}}]}}";
         var loaded = GameSession.FromSaveJson(s.Pack, json);
         Assert.Equal("옛 파티", loaded.Parties[0].Name);

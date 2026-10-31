@@ -80,8 +80,8 @@
             {
                 <div class="@SlotNameClass(item.View)"><span class="slot-level">@item.View.LevelText</span><span class="slot-char">@item.View.Name</span></div>
             }
-            <div class="gauge-line">HP : <span class="gauge gauge-@item.View.Hp.Color.ToString().ToLowerInvariant()">@item.View.Hp.Text</span></div>
-            <div class="gauge-line">XP : <span class="gauge gauge-@item.View.Xp.Color.ToString().ToLowerInvariant()">@item.View.Xp.Text</span></div>
+            <div class="gauge-line">HP  : <span class="gauge gauge-@item.View.Hp.Color.ToString().ToLowerInvariant()">@item.View.Hp.Text</span></div>
+            <div class="gauge-line">XPP : <span class="gauge gauge-@item.View.Xpp.Color.ToString().ToLowerInvariant()">@item.View.Xpp.Text</span></div>
             <div class="icon-line">
                 <span class="icons-left">
                     @foreach (var badge in item.View.Badges)
@@ -134,8 +134,8 @@
                     <button class="@(slot.IsLeader ? "slot-name leader" : "slot-name")" disabled="@(!enabled)" @onclick="() => Activate(slotCode)">
                         <span class="slot-level">@slot.LevelText</span><span class="slot-char">[@slotCode] @slot.Name</span>
                     </button>
-                    <div class="gauge-line">HP : <span class="gauge gauge-@slot.Hp.Color.ToString().ToLowerInvariant()">@slot.Hp.Text</span></div>
-                    <div class="gauge-line">XP : <span class="gauge gauge-@slot.Xp.Color.ToString().ToLowerInvariant()">@slot.Xp.Text</span></div>
+                    <div class="gauge-line">HP  : <span class="gauge gauge-@slot.Hp.Color.ToString().ToLowerInvariant()">@slot.Hp.Text</span></div>
+                    <div class="gauge-line">XPP : <span class="gauge gauge-@slot.Xpp.Color.ToString().ToLowerInvariant()">@slot.Xpp.Text</span></div>
                     <div class="icon-line">
                         <span class="icons-left">
                             @foreach (var badge in slot.Badges)
@@ -517,7 +517,7 @@
                 break;
 
             case Screen.CharacterDetail:
-                @* 캐릭터 상세: 좌측 하단에 250×750 이미지 칸, 오른쪽에 이름/레벨, Exp 바, HP/XP, 상태값(미정), 장비, 스킬, 설명문을 구분선으로 나눠 놓는다 *@
+                @* 캐릭터 상세: 좌측 하단에 250×750 이미지 칸, 오른쪽에 이름/레벨, Exp 바, HP/XPP, 상태값(미정), 장비, 스킬, 설명문을 구분선으로 나눠 놓는다 *@
                 @if (session.CharacterDetail is { } detail)
                 {
                     <div class="char-detail">
@@ -526,8 +526,8 @@
                             <div class="char-head"><span class="char-name">@detail.Name</span><span class="char-level">@detail.LevelText</span></div>
                             <div class="gauge-line">Exp : <span class="gauge gauge-@detail.Exp.Color.ToString().ToLowerInvariant()">@detail.Exp.Text</span></div>
                             <hr />
-                            <div class="gauge-line">HP : <span class="gauge gauge-@detail.Hp.Color.ToString().ToLowerInvariant()">@detail.Hp.Text</span></div>
-                            <div class="gauge-line">XP : <span class="gauge gauge-@detail.Xp.Color.ToString().ToLowerInvariant()">@detail.Xp.Text</span></div>
+                            <div class="gauge-line">HP  : <span class="gauge gauge-@detail.Hp.Color.ToString().ToLowerInvariant()">@detail.Hp.Text</span></div>
+                            <div class="gauge-line">XPP : <span class="gauge gauge-@detail.Xpp.Color.ToString().ToLowerInvariant()">@detail.Xpp.Text</span></div>
                             <hr />
                             <div class="char-statuses"></div>
                             <hr />
@@ -568,8 +568,8 @@
                     @foreach (var (r, entry) in session.Companions.Zip(session.Entries))
                     {
                         var code = entry.Code;
-                        @* 코드 칸은 반각 8칸, 이름 칸은 32칸, Lv/Hp/Xp 칸은 8칸씩 고정 너비(ch)라 글꼴에서 한글 폭이 달라도 칸이 맞는다 *@
-                        <li><button class="textlink row-link" @onclick="() => Activate(code)"><span class="companion-cell" style="width: @(GameSession.CompanionCodeColumns)ch">@r.Order</span> <span class="companion-cell" style="width: @(GameSession.CompanionNameColumns)ch">@r.Name</span> <span class="companion-cell" style="width: @(GameSession.CompanionStatColumns)ch">@r.Level</span> <span class="companion-cell" style="width: @(GameSession.CompanionStatColumns)ch">@r.Hp</span> <span class="companion-cell" style="width: @(GameSession.CompanionStatColumns)ch">@r.Xp</span></button></li>
+                        @* 코드 칸은 반각 8칸, 이름 칸은 32칸, Lv/Hp/Xpp 칸은 8칸씩 고정 너비(ch)라 글꼴에서 한글 폭이 달라도 칸이 맞는다 *@
+                        <li><button class="textlink row-link" @onclick="() => Activate(code)"><span class="companion-cell" style="width: @(GameSession.CompanionCodeColumns)ch">@r.Order</span> <span class="companion-cell" style="width: @(GameSession.CompanionNameColumns)ch">@r.Name</span> <span class="companion-cell" style="width: @(GameSession.CompanionStatColumns)ch">@r.Level</span> <span class="companion-cell" style="width: @(GameSession.CompanionStatColumns)ch">@r.Hp</span> <span class="companion-cell" style="width: @(GameSession.CompanionStatColumns)ch">@r.Xpp</span></button></li>
                     }
                 </ul>
                 break;
@@ -668,8 +668,8 @@
                 @if (session.UnitStatus is { } unitStatus)
                 {
                     <h2>@unitStatus.Name <span class="slot-level">@unitStatus.LevelText</span></h2>
-                    <div class="gauge-line">HP : <span class="gauge gauge-@unitStatus.Hp.Color.ToString().ToLowerInvariant()">@unitStatus.Hp.Text</span></div>
-                    <div class="gauge-line">XP : <span class="gauge gauge-@unitStatus.Xp.Color.ToString().ToLowerInvariant()">@unitStatus.Xp.Text</span></div>
+                    <div class="gauge-line">HP  : <span class="gauge gauge-@unitStatus.Hp.Color.ToString().ToLowerInvariant()">@unitStatus.Hp.Text</span></div>
+                    <div class="gauge-line">XPP : <span class="gauge gauge-@unitStatus.Xpp.Color.ToString().ToLowerInvariant()">@unitStatus.Xpp.Text</span></div>
                     <h3>스테이터스</h3>
                     <ul class="companions">
                         @foreach (var line in unitStatus.Statuses)

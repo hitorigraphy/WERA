@@ -131,7 +131,7 @@ public class PartyTests
             Assert.Equal("빈 슬롯", v.Name);
             Assert.Equal("", v.LevelText);
             Assert.Equal(new GaugeView("-----0/0-----", GaugeColor.Gray), v.Hp);
-            Assert.Equal(new GaugeView("-----0/0-----", GaugeColor.Gray), v.Xp);
+            Assert.Equal(new GaugeView("-----0/0-----", GaugeColor.Gray), v.Xpp);
         });
         Assert.Equal(Enumerable.Range(0, 9), views.Select(v => v.Slot));
     }
@@ -166,7 +166,7 @@ public class PartyTests
         Assert.Equal("Lv.5", v.LevelText);
         Assert.Equal("용사", v.Name);
         Assert.Equal(new GaugeView("****36/40***-", GaugeColor.White), v.Hp);   // 90%
-        Assert.Equal(new GaugeView("*----3/30----", GaugeColor.Red), v.Xp);     // 10%
+        Assert.Equal(new GaugeView("*----3/30----", GaugeColor.Red), v.Xpp);     // 10%
         Assert.True(s.PartySlotViews[1].IsEmpty);
     }
 
@@ -207,7 +207,7 @@ public class PartyTests
         s.Party[8] = 7003;
         var v = s.PartySlotViews[8];
         Assert.Equal(GaugeColor.Gray, v.Hp.Color);
-        Assert.Equal(GaugeColor.Gray, v.Xp.Color);
+        Assert.Equal(GaugeColor.Gray, v.Xpp.Color);
         Assert.Equal("전사", v.Name);
     }
 
@@ -481,7 +481,7 @@ public class PartyTests
     {
         var s = GameSession.FromSaveJson(Pack(),
             "{\"Version\":1,\"PackId\":\"demo\"," +
-            "\"Characters\":{\"7001\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xp\":0,\"XpMax\":10}}," +
+            "\"Characters\":{\"7001\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xpp\":0,\"XppMax\":10}}," +
             "\"Party\":[null,7001]}");
         Assert.Equal(9, s.Party.Length);
         Assert.Null(s.Party[0]);
@@ -489,15 +489,15 @@ public class PartyTests
     }
 
     const string Header = "{\"Version\":1,\"PackId\":\"demo\",";
-    const string Owned7001 = "\"Characters\":{\"7001\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xp\":0,\"XpMax\":10}}";
+    const string Owned7001 = "\"Characters\":{\"7001\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xpp\":0,\"XppMax\":10}}";
 
     [Theory]
-    [InlineData("\"Characters\":{\"9999\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xp\":0,\"XpMax\":10}}")]   // 마스터에 없는 캐릭터
-    [InlineData("\"Characters\":{\"7001\":{\"Level\":0,\"Hp\":5,\"MaxHp\":5,\"Xp\":0,\"XpMax\":10}}")]   // 레벨 0
-    [InlineData("\"Characters\":{\"7001\":{\"Level\":1,\"Hp\":6,\"MaxHp\":5,\"Xp\":0,\"XpMax\":10}}")]   // HP > MaxHp
-    [InlineData("\"Characters\":{\"7001\":{\"Level\":1,\"Hp\":-1,\"MaxHp\":5,\"Xp\":0,\"XpMax\":10}}")]  // HP 음수
-    [InlineData("\"Characters\":{\"7001\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xp\":11,\"XpMax\":10}}")]  // XP > XpMax
-    [InlineData("\"Characters\":{\"7001\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xp\":-1,\"XpMax\":10}}")]  // XP 음수
+    [InlineData("\"Characters\":{\"9999\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xpp\":0,\"XppMax\":10}}")]   // 마스터에 없는 캐릭터
+    [InlineData("\"Characters\":{\"7001\":{\"Level\":0,\"Hp\":5,\"MaxHp\":5,\"Xpp\":0,\"XppMax\":10}}")]   // 레벨 0
+    [InlineData("\"Characters\":{\"7001\":{\"Level\":1,\"Hp\":6,\"MaxHp\":5,\"Xpp\":0,\"XppMax\":10}}")]   // HP > MaxHp
+    [InlineData("\"Characters\":{\"7001\":{\"Level\":1,\"Hp\":-1,\"MaxHp\":5,\"Xpp\":0,\"XppMax\":10}}")]  // HP 음수
+    [InlineData("\"Characters\":{\"7001\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xpp\":11,\"XppMax\":10}}")]  // XPP > XppMax
+    [InlineData("\"Characters\":{\"7001\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xpp\":-1,\"XppMax\":10}}")]  // XPP 음수
     [InlineData(Owned7001 + ",\"Party\":[7002]")]                                                    // 보유하지 않은 캐릭터를 배치
     [InlineData(Owned7001 + ",\"Party\":[7001,7001]")]                                           // 같은 캐릭터 중복 배치
     [InlineData(Owned7001 + ",\"Party\":[7001,null,null,null,null,null,null,null,null,null]")]     // 10칸

@@ -198,8 +198,8 @@ public class TagInstanceTests
 
     const string Head = "{\"Version\":1,\"PackId\":\"demo\",";
     const string Chars =
-        "\"Characters\":{\"7001\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xp\":0,\"XpMax\":10}," +
-        "\"7002\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xp\":0,\"XpMax\":10}},";
+        "\"Characters\":{\"7001\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xpp\":0,\"XppMax\":10}," +
+        "\"7002\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xpp\":0,\"XppMax\":10}},";
 
     [Fact]
     public void Missing_tags_in_a_save_are_copied_from_the_masters()

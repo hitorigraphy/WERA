@@ -503,7 +503,7 @@ public sealed partial class GameSession
         return new PartySlotView(
             slot, state.CharacterCode, $"Lv.{state.Level}", CharacterName(state.CharacterCode),
             Gauge.Render(state.Hp, state.MaxHp, gray: state.IsDead),
-            Gauge.Render(state.Xp, state.XpMax, gray: state.IsDead),
+            Gauge.Render(state.Xpp, state.XppMax, gray: state.IsDead),
             AttributeBadges(state.CharacterCode), [], IsLeader: enemyUnits[slot]?.IsLeader == true);
     }
 

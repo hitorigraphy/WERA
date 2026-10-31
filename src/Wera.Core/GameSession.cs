@@ -369,15 +369,15 @@ public sealed partial class GameSession
     /// <summary>동료 확인 이름 칸의 너비(반각 칸 수; 한글 등 전각 문자는 2칸).</summary>
     public const int CompanionNameColumns = 32;
 
-    /// <summary>동료 확인 Lv, Hp, Xp 칸 하나의 너비(반각 칸 수). 칸 안에는 "Lv 12"처럼 이름표와 값이 왼쪽 맞춤으로 들어간다.</summary>
+    /// <summary>동료 확인 Lv, Hp, Xpp 칸 하나의 너비(반각 칸 수). 칸 안에는 "Lv 12"처럼 이름표와 값이 왼쪽 맞춤으로 들어간다.</summary>
     public const int CompanionStatColumns = 8;
 
-    /// <summary>동료 확인 화면의 한 줄: 코드 칸("[순서 번호]"), 이름, 그리고 "Lv 값", "Hp 값", "Xp 값" 칸.</summary>
-    public sealed record CompanionRow(string Order, string Name, string Level, string Hp, string Xp);
+    /// <summary>동료 확인 화면의 한 줄: 코드 칸("[순서 번호]"), 이름, 그리고 "Lv 값", "Hp 값", "Xpp 값" 칸.</summary>
+    public sealed record CompanionRow(string Order, string Name, string Level, string Hp, string Xpp);
 
     /// <summary>
-    /// 동료 확인 화면의 줄들: <see cref="OwnedCharacters"/> 순서대로 "[OrderNumber] 이름 Lv 레벨 Hp HP Xp XP".
-    /// 코드 칸은 반각 <see cref="CompanionCodeColumns"/>칸, 이름 칸은 반각 <see cref="CompanionNameColumns"/>칸, Lv, Hp, Xp 칸은 반각 <see cref="CompanionStatColumns"/>칸씩이고 모두 왼쪽 맞춤이다
+    /// 동료 확인 화면의 줄들: <see cref="OwnedCharacters"/> 순서대로 "[OrderNumber] 이름 Lv 레벨 Hp HP Xpp XPP".
+    /// 코드 칸은 반각 <see cref="CompanionCodeColumns"/>칸, 이름 칸은 반각 <see cref="CompanionNameColumns"/>칸, Lv, Hp, Xpp 칸은 반각 <see cref="CompanionStatColumns"/>칸씩이고 모두 왼쪽 맞춤이다
     /// (코드와 이름 사이는 공백으로 채운다). 화면은 이 칸 수(ch) 고정 너비로 그려서 글꼴과 상관없이 칸이 맞는다.
     /// </summary>
     public IReadOnlyList<CompanionRow> Companions
@@ -389,14 +389,14 @@ public sealed partial class GameSession
                 Pack.FindCharacter(c.CharacterCode)?.Name ?? Text(c.CharacterCode),
                 $"Lv {c.Level.ToString(CultureInfo.InvariantCulture)}",
                 $"Hp {c.Hp.ToString(CultureInfo.InvariantCulture)}",
-                $"Xp {c.Xp.ToString(CultureInfo.InvariantCulture)}")).ToList();
+                $"Xpp {c.Xpp.ToString(CultureInfo.InvariantCulture)}")).ToList();
         }
     }
 
     /// <summary>동료 확인 화면의 줄들을 글로 쓴 것(각 칸을 정해진 칸 수까지 공백으로 채움). 화면은 <see cref="Companions"/>로 같은 줄을 그린다.</summary>
     public IReadOnlyList<string> CompanionLines =>
         Companions.Select(r => $"{PadColumns(r.Order, CompanionCodeColumns)} {PadColumns(r.Name, CompanionNameColumns)} {PadColumns(r.Level, CompanionStatColumns)} " +
-                               $"{PadColumns(r.Hp, CompanionStatColumns)} {PadColumns(r.Xp, CompanionStatColumns)}").ToList();
+                               $"{PadColumns(r.Hp, CompanionStatColumns)} {PadColumns(r.Xpp, CompanionStatColumns)}").ToList();
 
     /// <summary>아이템 확인 수량 칸의 너비(반각 칸 수). 칸 안에는 "수량 99"처럼 이름표와 값이 왼쪽 맞춤으로 들어간다.</summary>
     public const int ItemAmountColumns = 16;
@@ -486,7 +486,7 @@ public sealed partial class GameSession
         return new PartySlotView(
             slot, code, $"Lv.{state.Level}", CharacterName(code),
             Gauge.Render(state.Hp, state.MaxHp, gray: state.IsDead),
-            Gauge.Render(state.Xp, state.XpMax, gray: state.IsDead),
+            Gauge.Render(state.Xpp, state.XppMax, gray: state.IsDead),
             AttributeBadges(code),
             StatusBadges(code));
     }
@@ -1331,29 +1331,29 @@ public sealed partial class GameSession
             else if (!Ulid.TryParse(s.InstanceId, out var ulid))
                 throw new SaveFormatException($"세이브의 캐릭터 '{code}'의 인스턴스 ID '{s.InstanceId}'가 ULID가 아닙니다.");
             else instanceId = ulid.ToString();
-            // 고정 필드(Level, Hp, MaxHp, Xp, XpMax)로 저장한 예전 세이브는 Statuses로 옮긴다.
+            // 고정 필드(Level, Hp, MaxHp, Xpp, XppMax)로 저장한 예전 세이브는 Statuses로 옮긴다.
             // (JSON에 없는 항목은 null로 올 수 있다)
             var statuses = new Dictionary<long, long>((Dictionary<long, long>?)s.Statuses ?? []);
-            if (s.LegacyLevel is not null || s.LegacyHp is not null || s.LegacyMaxHp is not null || s.LegacyXp is not null || s.LegacyXpMax is not null)
+            if (s.LegacyLevel is not null || s.LegacyHp is not null || s.LegacyMaxHp is not null || s.LegacyXpp is not null || s.LegacyXppMax is not null)
             {
                 statuses.TryAdd(GamePack.LevelStatusCode, s.LegacyLevel ?? 1);
                 statuses.TryAdd(GamePack.HpStatusCode, s.LegacyHp ?? 0);
                 statuses.TryAdd(GamePack.MaxHpStatusCode, s.LegacyMaxHp ?? 0);
-                statuses.TryAdd(GamePack.XpStatusCode, s.LegacyXp ?? 0);
-                statuses.TryAdd(GamePack.XpMaxStatusCode, s.LegacyXpMax ?? 0);
+                statuses.TryAdd(GamePack.XppStatusCode, s.LegacyXpp ?? 0);
+                statuses.TryAdd(GamePack.XppMaxStatusCode, s.LegacyXppMax ?? 0);
             }
             var loaded = s with
             {
                 InstanceId = instanceId, CharacterCode = code, Statuses = statuses,
                 SkillPool = (List<SkillInstance>?)s.SkillPool ?? [], SkillSlots = (Dictionary<long, long>?)s.SkillSlots ?? [],
-                LegacyLevel = null, LegacyHp = null, LegacyMaxHp = null, LegacyXp = null, LegacyXpMax = null,
+                LegacyLevel = null, LegacyHp = null, LegacyMaxHp = null, LegacyXpp = null, LegacyXppMax = null,
             };
             if (loaded.Level < 1 || loaded.MaxHp < 0 || loaded.Hp < 0 || loaded.Hp > loaded.MaxHp
-                || loaded.XpMax < 0 || loaded.Xp < 0 || loaded.Xp > loaded.XpMax)
+                || loaded.XppMax < 0 || loaded.Xpp < 0 || loaded.Xpp > loaded.XppMax)
                 throw new SaveFormatException(
-                    $"세이브의 캐릭터 '{code}' 상태가 올바르지 않습니다 (Lv {loaded.Level}, HP {loaded.Hp}/{loaded.MaxHp}, XP {loaded.Xp}/{loaded.XpMax}).");
+                    $"세이브의 캐릭터 '{code}' 상태가 올바르지 않습니다 (Lv {loaded.Level}, HP {loaded.Hp}/{loaded.MaxHp}, XPP {loaded.Xpp}/{loaded.XppMax}).");
             foreach (var status in loaded.Statuses.Keys)
-                if (pack.FindStatus(status) is null && pack.Statuses is not null && status > GamePack.XpMaxStatusCode)
+                if (pack.FindStatus(status) is null && pack.Statuses is not null && status > GamePack.XppMaxStatusCode)
                     throw new SaveFormatException($"세이브의 캐릭터 '{code}'의 스테이터스 '{status}'가 스테이터스 마스터에 없습니다.");
             loaded = loaded with { SkillPool = loaded.SkillPool.Select(skill =>
             {

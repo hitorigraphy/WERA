@@ -13,7 +13,7 @@ public class EffectTests
     {
         public override long EffectCode => 2;
         public override void Execute() => Target.State = Target.State
-            .WithStatus(GamePack.XpStatusCode, Target.State.Xp + Value1)
+            .WithStatus(GamePack.XppStatusCode, Target.State.Xpp + Value1)
             .WithStatus(GamePack.LevelStatusCode, Target.State.Level + Value2)
             .WithStatus(GamePack.MaxHpStatusCode, Target.State.MaxHp + Value3);
     }
@@ -342,9 +342,9 @@ public class EffectTests
         Assert.Equal(0, s.Characters[7001].Hp);
         Assert.True(s.Characters[7001].IsDead);
 
-        s.ApplyEffect(2, 7001, 100, -100, -100);               // XP 넘침, 레벨 1 미만, 최대 HP 0 미만
+        s.ApplyEffect(2, 7001, 100, -100, -100);               // XPP 넘침, 레벨 1 미만, 최대 HP 0 미만
         var c = s.Characters[7001];
-        Assert.Equal(30, c.Xp);                                // 필요 XP 30까지
+        Assert.Equal(30, c.Xpp);                                // 필요 XPP 30까지
         Assert.Equal(1, c.Level);
         Assert.Equal(0, c.MaxHp);
     }

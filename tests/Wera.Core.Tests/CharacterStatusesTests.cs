@@ -35,30 +35,30 @@ public class CharacterStatusesTests
         Assert.Equal(
             new Dictionary<long, long> { [1] = 1, [2] = 25, [3] = 4, [4] = 60, [5] = 80, [6] = 12 }.OrderBy(kv => kv.Key),
             c.Statuses.OrderBy(kv => kv.Key));
-        Assert.Equal((1L, 25L, 60L, 4L, 80L), (c.Level, c.Hp, c.MaxHp, c.Xp, c.XpMax));
+        Assert.Equal((1L, 25L, 60L, 4L, 80L), (c.Level, c.Hp, c.MaxHp, c.Xpp, c.XppMax));
         Assert.Empty(c.SkillPool);
         Assert.Empty(c.SkillSlots);
     }
 
     [Fact]
-    public void Max_hp_and_xp_max_fall_back_to_the_hp_and_xp_row_maximums_and_then_to_defaults()
+    public void Max_hp_and_xpp_max_fall_back_to_the_hp_and_xpp_row_maximums_and_then_to_defaults()
     {
         var pack = FullPack();
-        var c = pack.NewCharacterInstance(7002);                                 // max_hp, xp, xp_max 행이 없다
-        Assert.Equal((1L, 20L, 20L, 0L, 0L), (c.Level, c.Hp, c.MaxHp, c.Xp, c.XpMax));
+        var c = pack.NewCharacterInstance(7002);                                 // max_hp, xpp, xpp_max 행이 없다
+        Assert.Equal((1L, 20L, 20L, 0L, 0L), (c.Level, c.Hp, c.MaxHp, c.Xpp, c.XppMax));
         Assert.Equal([1L, 2L, 3L, 4L, 5L], c.Statuses.Keys.Order());
 
         var bare = GamePack.Load(CoreTests.PackZip(("pack.tsv", "id\tdemo\ntitle\t데모\n"))).NewCharacterInstance(7001);
-        Assert.Equal((1L, 1L, 1L, 0L, 0L), (bare.Level, bare.Hp, bare.MaxHp, bare.Xp, bare.XpMax));
+        Assert.Equal((1L, 1L, 1L, 0L, 0L), (bare.Level, bare.Hp, bare.MaxHp, bare.Xpp, bare.XppMax));
     }
 
     [Fact]
     public void Reserved_codes_are_five_and_the_clamp_uses_the_max_status()
     {
         Assert.Equal([1L, 2L, 3L, 4L, 5L],
-            [GamePack.LevelStatusCode, GamePack.HpStatusCode, GamePack.XpStatusCode, GamePack.MaxHpStatusCode, GamePack.XpMaxStatusCode]);
+            [GamePack.LevelStatusCode, GamePack.HpStatusCode, GamePack.XppStatusCode, GamePack.MaxHpStatusCode, GamePack.XppMaxStatusCode]);
         var c = CharacterInstance.Stats(0, 99, 10, 99, 20).Clamped();
-        Assert.Equal((1L, 10L, 10L, 20L, 20L), (c.Level, c.Hp, c.MaxHp, c.Xp, c.XpMax));
+        Assert.Equal((1L, 10L, 10L, 20L, 20L), (c.Level, c.Hp, c.MaxHp, c.Xpp, c.XppMax));
         var healed = CharacterInstance.Stats(1, 5, 10, 0, 0).WithStatus(GamePack.HpStatusCode, 7);
         Assert.Equal(7, healed.Hp);
     }
@@ -100,16 +100,16 @@ public class CharacterStatusesTests
         var pack = FullPack();
         var s = GameSession.NewGame(pack);
         s.AddCharacter(7001);
-        // 7001의 항목을 예전 형식(Level, Hp, MaxHp, Xp, XpMax만 있고 Statuses가 없음)으로 바꿔 끼운다.
+        // 7001의 항목을 예전 형식(Level, Hp, MaxHp, Xpp, XppMax만 있고 Statuses가 없음)으로 바꿔 끼운다.
         var root = System.Text.Json.Nodes.JsonNode.Parse(s.ToSaveJson())!;
         root["Characters"]!["7001"] = new System.Text.Json.Nodes.JsonObject
         {
             ["InstanceId"] = s.Characters[7001].InstanceId, ["CharacterCode"] = 7001, ["OrderNumber"] = 1,
-            ["Level"] = 5, ["Hp"] = 30, ["MaxHp"] = 44, ["Xp"] = 3, ["XpMax"] = 77,
+            ["Level"] = 5, ["Hp"] = 30, ["MaxHp"] = 44, ["Xpp"] = 3, ["XppMax"] = 77,
         };
         var loaded = GameSession.FromSaveJson(pack, root.ToJsonString());
         var c = loaded.Characters[7001];
-        Assert.Equal((5L, 30L, 44L, 3L, 77L), (c.Level, c.Hp, c.MaxHp, c.Xp, c.XpMax));
+        Assert.Equal((5L, 30L, 44L, 3L, 77L), (c.Level, c.Hp, c.MaxHp, c.Xpp, c.XppMax));
         Assert.Equal(5, c.Statuses[GamePack.LevelStatusCode]);
         Assert.Null(c.LegacyLevel);
         Assert.DoesNotContain("\"Hp\"", loaded.ToSaveJson());                       // 다시 저장하면 새 형식이다

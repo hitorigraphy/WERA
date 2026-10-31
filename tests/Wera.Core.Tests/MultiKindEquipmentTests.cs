@@ -216,7 +216,7 @@ public class MultiKindEquipmentTests
 
     const string Head = "{\"Version\":1,\"PackId\":\"demo\",";
     const string Chars =
-        "\"Characters\":{\"7001\":{\"Level\":5,\"Hp\":36,\"MaxHp\":40,\"Xp\":3,\"XpMax\":30},\"7002\":{\"Level\":1,\"Hp\":10,\"MaxHp\":10,\"Xp\":0,\"XpMax\":30}},";
+        "\"Characters\":{\"7001\":{\"Level\":5,\"Hp\":36,\"MaxHp\":40,\"Xpp\":3,\"XppMax\":30},\"7002\":{\"Level\":1,\"Hp\":10,\"MaxHp\":10,\"Xpp\":0,\"XppMax\":30}},";
 
     [Theory]
     [InlineData("\"EquippedItems\":{\"7001\":{\"3\":{\"Kind\":\"Character\",\"Code\":7003}}}")]               // 보유하지 않은 캐릭터를 낌

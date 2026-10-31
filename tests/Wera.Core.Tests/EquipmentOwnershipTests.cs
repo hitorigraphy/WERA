@@ -354,8 +354,8 @@ public class EquipmentOwnershipTests
 
     const string Head = "{\"Version\":1,\"PackId\":\"demo\",";
     const string Chars =
-        "\"Characters\":{\"7001\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xp\":0,\"XpMax\":10}," +
-        "\"7002\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xp\":0,\"XpMax\":10}},";
+        "\"Characters\":{\"7001\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xpp\":0,\"XppMax\":10}," +
+        "\"7002\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xpp\":0,\"XppMax\":10}},";
 
     [Theory]
     [InlineData(@"""UniqueItems"":{""01H00000000000000000000001"":{""ItemCode"":99999}}")]                                      // 유니크 아이템 마스터에 없는 아이템

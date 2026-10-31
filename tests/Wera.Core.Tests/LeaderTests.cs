@@ -144,8 +144,8 @@ public class LeaderTests
 
         // 리더 정보가 없던 예전 세이브: 리더가 없는 파티로 읽는다(리더 지정에서 다시 지정한다)
         var old = GameSession.FromSaveJson(s.Pack,
-            "{\"Version\":1,\"PackId\":\"demo\",\"Characters\":{\"7001\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xp\":0,\"XpMax\":10}," +
-            "\"7002\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xp\":0,\"XpMax\":10},\"7003\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xp\":0,\"XpMax\":10}}," +
+            "{\"Version\":1,\"PackId\":\"demo\",\"Characters\":{\"7001\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xpp\":0,\"XppMax\":10}," +
+            "\"7002\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xpp\":0,\"XppMax\":10},\"7003\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xpp\":0,\"XppMax\":10}}," +
             "\"Party\":[7002,7003,7001]}");
         Assert.Equal([false, false, false], old.PartyInstance.Units.Take(3).Select(u => u!.IsLeader));
         Assert.False(old.IsDispatchable(0));

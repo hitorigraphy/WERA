@@ -72,17 +72,17 @@ public class CharacterInstanceTests
         var s = GameSession.NewGame(Pack());
         s.AddCharacter(7001);
         s.AddCharacter(7002);
-        s.Characters[7001] = s.Characters[7001].WithStatus(GamePack.LevelStatusCode, 12).WithStatus(GamePack.HpStatusCode, 100).WithStatus(GamePack.XpStatusCode, 5);
-        s.Characters[7002] = s.Characters[7002].WithStatus(GamePack.LevelStatusCode, 3).WithStatus(GamePack.HpStatusCode, 7).WithStatus(GamePack.XpStatusCode, 250) with { OrderNumber = 10 };
+        s.Characters[7001] = s.Characters[7001].WithStatus(GamePack.LevelStatusCode, 12).WithStatus(GamePack.HpStatusCode, 100).WithStatus(GamePack.XppStatusCode, 5);
+        s.Characters[7002] = s.Characters[7002].WithStatus(GamePack.LevelStatusCode, 3).WithStatus(GamePack.HpStatusCode, 7).WithStatus(GamePack.XppStatusCode, 250) with { OrderNumber = 10 };
         Assert.Equal((8, 32, 8), (GameSession.CompanionCodeColumns, GameSession.CompanionNameColumns, GameSession.CompanionStatColumns));
 
         var rows = s.Companions;
         var wizard = rows.Single(r => r.Name == "마법사");
-        Assert.Equal(("[10]", "Lv 3", "Hp 7", "Xp 250"), (wizard.Order, wizard.Level, wizard.Hp, wizard.Xp));
+        Assert.Equal(("[10]", "Lv 3", "Hp 7", "Xpp 250"), (wizard.Order, wizard.Level, wizard.Hp, wizard.Xpp));
         Assert.Equal("[1]", rows.Single(r => r.Name == "용사").Order);
         Assert.Equal("[0]", rows.Single(r => r.Name == "당신").Order);
 
-        // 글로 쓴 줄: 코드 8칸 + 공백 + 이름 32칸 + 공백 + Lv 8칸 + 공백 + Hp 8칸 + 공백 + Xp 8칸(한글은 2칸)
+        // 글로 쓴 줄: 코드 8칸 + 공백 + 이름 32칸 + 공백 + Lv 8칸 + 공백 + Hp 8칸 + 공백 + Xpp 8칸(한글은 2칸)
         static int Width(string text) => text.Sum(ch => ch is >= '가' and <= '힣' ? 2 : 1);
         foreach (var line in s.CompanionLines)
         {
@@ -90,8 +90,8 @@ public class CharacterInstanceTests
             Assert.Equal(8 + 1 + 32 + 1, Width(line[..line.IndexOf("Lv ", StringComparison.Ordinal)]));          // Lv 칸은 모든 줄에서 같은 자리에서 시작
             Assert.Equal(8 + 1, Width(line[..line.IndexOfAny(['당', '용', '마'])]));                               // 이름은 코드 8칸 뒤에서 시작
         }
-        Assert.Contains(s.CompanionLines, l => l.Contains("Lv 12    Hp 100   Xp 5    "));
-        Assert.Contains(s.CompanionLines, l => l.Contains("Lv 3     Hp 7     Xp 250  "));
+        Assert.Contains(s.CompanionLines, l => l.Contains("Lv 12    Hp 100   Xpp 5   "));
+        Assert.Contains(s.CompanionLines, l => l.Contains("Lv 3     Hp 7     Xpp 250 "));
     }
 
     [Fact]
@@ -109,8 +109,8 @@ public class CharacterInstanceTests
     public void An_old_save_without_ids_gets_new_ones_in_code_order()
     {
         var json = "{\"Version\":1,\"PackId\":\"demo\",\"Characters\":{" +
-            "\"7002\":{\"Level\":3,\"Hp\":10,\"MaxHp\":20,\"Xp\":0,\"XpMax\":30}," +
-            "\"7001\":{\"Level\":2,\"Hp\":10,\"MaxHp\":20,\"Xp\":0,\"XpMax\":30}}}";
+            "\"7002\":{\"Level\":3,\"Hp\":10,\"MaxHp\":20,\"Xpp\":0,\"XppMax\":30}," +
+            "\"7001\":{\"Level\":2,\"Hp\":10,\"MaxHp\":20,\"Xpp\":0,\"XppMax\":30}}}";
         var s = GameSession.FromSaveJson(Pack(), json);
         Assert.Equal([1L, 7001L, 7002L], s.Characters.Keys.Order());
         Assert.All(s.Characters, kv =>
@@ -127,8 +127,8 @@ public class CharacterInstanceTests
     {
         var id = Ulid.NewUlid().ToString();
         string Save(string a, string b) => "{\"Version\":1,\"PackId\":\"demo\",\"Characters\":{" +
-            $"\"7001\":{{{a},\"Level\":1,\"Hp\":1,\"MaxHp\":1,\"Xp\":0,\"XpMax\":0}}," +
-            $"\"7002\":{{{b},\"Level\":1,\"Hp\":1,\"MaxHp\":1,\"Xp\":0,\"XpMax\":0}}}}}}";
+            $"\"7001\":{{{a},\"Level\":1,\"Hp\":1,\"MaxHp\":1,\"Xpp\":0,\"XppMax\":0}}," +
+            $"\"7002\":{{{b},\"Level\":1,\"Hp\":1,\"MaxHp\":1,\"Xpp\":0,\"XppMax\":0}}}}}}";
         Assert.Contains("키와 다릅니다", Assert.Throws<SaveFormatException>(() =>
             GameSession.FromSaveJson(Pack(), Save("\"CharacterCode\":7002", "\"CharacterCode\":7002"))).Message);
         Assert.Contains("ULID가 아닙니다", Assert.Throws<SaveFormatException>(() =>

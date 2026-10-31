@@ -177,7 +177,7 @@ public class PlayerCharacterTests
 
     const string Head = "{\"Version\":1,\"PackId\":\"demo\",";
     const string Chars =
-        "\"Characters\":{\"1\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xp\":0,\"XpMax\":10},\"7001\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xp\":0,\"XpMax\":10}}";
+        "\"Characters\":{\"1\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xpp\":0,\"XppMax\":10},\"7001\":{\"Level\":1,\"Hp\":5,\"MaxHp\":5,\"Xpp\":0,\"XppMax\":10}}";
 
     [Fact]
     public void A_save_with_the_player_tag_in_place_loads_and_a_missing_one_is_copied_from_the_master()

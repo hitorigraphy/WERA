@@ -78,9 +78,9 @@ public class DetailScreenTests
         var d = s.CharacterDetail!;
         Assert.Equal(s.DetailHeading!.Value.Name, d.Name);
         Assert.StartsWith("Lv.", d.LevelText);
-        Assert.Equal(GameSession.CharacterDetailExpWidth, d.Exp.Text.Length);             // Exp 바는 HP/XP 게이지보다 길다
+        Assert.Equal(GameSession.CharacterDetailExpWidth, d.Exp.Text.Length);             // Exp 바는 HP/XPP 게이지보다 길다
         Assert.Equal(Gauge.Width, d.Hp.Text.Length);
-        Assert.Equal(Gauge.Width, d.Xp.Text.Length);
+        Assert.Equal(Gauge.Width, d.Xpp.Text.Length);
         Assert.Equal("이야기의 주인공. 아직 아무것도 알려지지 않았다.", d.Description);        // 샘플 팩의 캐릭터 1
         Assert.All(d.Equipment.Concat(d.Skills), l => Assert.NotEqual("", l.Value));
         s.Activate("999");
