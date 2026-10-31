@@ -78,4 +78,12 @@ public sealed partial class GamePack
 
     /// <summary>새로 익히는 스킬: 스킬 스테이터스 마스터의 초깃값을 <see cref="SkillInstance.Statuses"/>로 복사한다.</summary>
     public SkillInstance NewSkillInstance(long skillCode) => new(skillCode, MasterStatusesOfSkill(skillCode));
+
+    /// <summary>
+    /// 유니크 아이템 인스턴스를 새로 만든다: 태그와 스테이터스는 마스터에서 복사하고, 마스터에 skill_code가 있으면 그 스킬의 인스턴스(스테이터스는 스킬 스테이터스 마스터의 초깃값)를 아이템이 가진다.
+    /// 생성 후 서킷은 돌리지 않는다.
+    /// </summary>
+    public UniqueItemInstance NewUniqueItemInstance(string instanceId, long itemCode, long orderNumber) =>
+        new(instanceId, itemCode, orderNumber, MasterTagsOfUniqueItem(itemCode).ToList(), MasterStatusesOfUniqueItem(itemCode),
+            FindUniqueItem(itemCode)?.SkillCode is { } skill ? NewSkillInstance(skill) : null);
 }

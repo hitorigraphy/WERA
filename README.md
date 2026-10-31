@@ -18,7 +18,7 @@ TSV 파일 묶음(zip 형식)이고 확장자는 **`.wra`**입니다(zip 압축 
 | `master/dungeon_flag_master_v1.tsv` | (선택) `dungeon_code`, `group_number`, `flag_code`, `condition_type`, `condition_value` |
 | `master/shop_master_v1.tsv` | (선택) `code`, `name` |
 | `master/shop_condition_master_v1.tsv` | (선택) `shop_code`, `group_number`, `flag_code`, `condition_type`, `condition_value` |
-| `master/common_item_inventory_master_v1.tsv` | **(필수)** `inventory_code`, `item_name`, `carry_limit` |
+| `master/common_item_inventory_master_v1.tsv` | **(필수)** `inventory_code`, `item_name`, `carry_limit`, (선택 열) `skill_code` |
 | `master/bunch_item_inventory_master_v1.tsv` | (선택) `inventory_code`, `item_name`, `part_item_code`, `part_amount` |
 | `master/character_inventory_master_v1.tsv` | **(필수)** `inventory_code`, `character_name`, `carry_limit`, `advantage_attribute_code`, `disadvantage_attribute_code` |
 | `master/status_master_v1.tsv` | **(필수)** `status_code`, `status_name` |
@@ -35,7 +35,7 @@ TSV 파일 묶음(zip 형식)이고 확장자는 **`.wra`**입니다(zip 압축 
 | `master/status_effect_effect_master_v1.tsv` | (선택, 상태이상 마스터가 있어야 함) `status_effect_code`, `trigger_type`, `priority`, `effect_code`, `effect_value_1`, `effect_value_2`, `effect_value_3` |
 | `master/equipment_slot_master_v1.tsv` | (선택) `equipment_slot_code`, `equipment_slot_name` |
 | `master/tag_master_v1.tsv` | **(필수)** `tag_code`, `tag_name` |
-| `master/unique_item_inventory_master_v1.tsv` | (선택) `inventory_code`, `item_name` |
+| `master/unique_item_inventory_master_v1.tsv` | (선택) `inventory_code`, `item_name`, (선택 열) `skill_code` |
 | `master/unique_item_status_master_v1.tsv` | (선택, 유니크 아이템 인벤토리/스테이터스 마스터 필요) `item_code`, `status_code`, `initial_value`, `min_value`, `max_value` |
 | `master/after_load_character_flow_master_v1.tsv` | (선택) `execute_number`(키), `flow_type`, `value_1`, `value_2`, `value_3` |
 | `master/after_load_unique_item_flow_master_v1.tsv` | (선택) `execute_number`(키), `flow_type`, `value_1`, `value_2`, `value_3` |
@@ -97,7 +97,8 @@ TSV 파일 묶음(zip 형식)이고 확장자는 **`.wra`**입니다(zip 압축 
 **필수 마스터 방침:** 엔진이 검증하는 마스터(예약 코드나 필수 항목이 있는 마스터)는 로드할 때 존재부터 확인합니다. 없으면 "`...`가 반드시 필요합니다" 오류로 로드되지 않습니다. 필수 마스터는 `attribute_master`, `tag_master`(예약 태그 1 플레이어, 2 리더), `status_master`(예약 스테이터스 1 level, 2 hp), `character_inventory_master`(캐릭터 1 = 플레이어), `character_tag_master`(캐릭터 1의 플레이어 태그), `character_status_master`(모든 캐릭터의 level/hp 레벨 0 행), `time_slot_master`와 `turn_master`(시간대 FK, 시작 턴 한 행 이상), `common_item_inventory_master`와 `common_item_tag_master`(메인 통화)입니다. 나머지는 선택이고, 선택 마스터가 있으면 가리키는 상위 마스터도 있어야 합니다.
 
 ### 아이템과 상점 교환
-- **커먼 아이템 인벤토리**(`common_item_inventory_master`)는 아이템 코드, 이름, 소지제한(`carry_limit`, 한 번에 소지할 수 있는 최대 수량, 1 이상의 정수)입니다.
+- **커먼 아이템 인벤토리**(`common_item_inventory_master`)는 아이템 코드, 이름, 소지제한(`carry_limit`, 한 번에 소지할 수 있는 최대 수량, 1 이상의 정수)입니다. **선택 열 `skill_code`**(`carry_limit` 다음)는 아이템을 쓸 때 실행할 스킬의 코드이고 비우거나 열이 없으면 없습니다. 값이 있으면 스킬 마스터에 있어야 합니다(없으면 로드 오류). 커먼 아이템은 인스턴스가 없어 코드만 가집니다(`GamePack.FindItem(code).SkillCode`).
+- **유니크 아이템 인벤토리**(`unique_item_inventory_master`)에도 같은 **선택 열 `skill_code`**(`item_name` 다음)가 있고 같은 규칙입니다. 유니크 아이템 인스턴스(`UniqueItemInstance`)는 그 스킬의 **스킬 인스턴스**(`Skill`: 스킬 코드와, 스킬 스테이터스 마스터 초깃값에서 복사한 스테이터스)를 가집니다(skill_code가 없으면 null). 아이템을 얻을 때 `GamePack.NewUniqueItemInstance`로 만들어지고(`AddUniqueItem`, 적의 임시 장비 포함) 인스턴스의 같음 비교에 스킬도 들어갑니다. 아이템 사용(스킬 실행)에는 아직 연결되어 있지 않습니다.
 - **번치 인벤토리**(`bunch_item_inventory_master`)는 여러 아이템을 묶은 것으로, 같은 `inventory_code`의 행들이 하나의 번치가 됩니다(행마다 `item_name`은 같아야 함). `part_item_code`는 아이템 인벤토리의 아이템만 가리킬 수 있고, 번치에는 소지제한이 없으며, `part_amount`는 1 이상입니다.
 - **인벤토리 코드는 하나의 코드 공간**입니다: 커먼 아이템, 유니크 아이템, 번치 아이템, 캐릭터 인벤토리 마스터의 코드 열은 모두 `inventory_code`이고, 게임팩을 읽을 때 네 마스터를 `inventory_code`로 찾는 하나의 사전(`GamePack.Inventory`: 코드 → 종류와 이름)으로 합칩니다. **같은 코드가 두 마스터에 있으면(같은 마스터 안에서도) 읽지 못합니다.** 캐릭터 1은 플레이어이므로 아이템은 1번을 쓸 수 없습니다. **커먼 아이템 2는 메인 통화**입니다(기본 게임팩에서는 "금화", 이름은 게임팩 마음대로): 커먼 아이템 인벤토리에 반드시 있어야 하고 `common_item_tag_master`에서 **메인 통화 태그(3)를 반드시 가집니다.** 메인 통화 태그는 아이템 2만 가질 수 있어(다른 커먼 아이템, 유니크 아이템, 캐릭터가 가지면 로드 오류, 게임 중에도 더할 수 없고 세이브도 거부) 메인 통화는 둘 이상일 수 없습니다.
 - 인벤토리 계통은 **커먼 아이템 / 유니크 아이템 / 번치 아이템 / 캐릭터** 네 종류입니다(`common_item_inventory_master`, `unique_item_inventory_master`, `bunch_item_inventory_master`, `character_inventory_master`).

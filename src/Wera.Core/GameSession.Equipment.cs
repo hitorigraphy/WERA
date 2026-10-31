@@ -26,8 +26,7 @@ public sealed partial class GameSession
     {
         if (Pack.FindUniqueItem(itemCode) is null) return null;
         var id = NewInstanceId();
-        UniqueItemInstances[id] = new UniqueItemAfterCreateCircuit(Pack, new UniqueItemInstance(id, itemCode, UniqueItemInstances.Count,
-            Pack.MasterTagsOfUniqueItem(itemCode).ToList(), Pack.MasterStatusesOfUniqueItem(itemCode))).Execute();
+        UniqueItemInstances[id] = new UniqueItemAfterCreateCircuit(Pack, Pack.NewUniqueItemInstance(id, itemCode, UniqueItemInstances.Count)).Execute();
         return id;
     }
 

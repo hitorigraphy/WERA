@@ -1,4 +1,4 @@
-inventory_code	item_name	carry_limit	memo
-2	금화	99999	필수: 메인 통화(아이템 2, 이름은 자유)
-3	약초	99	
-4	철광석	99	
+inventory_code	item_name	carry_limit	skill_code	memo
+2	금화	99999		필수: 메인 통화(아이템 2, 이름은 자유)
+3	약초	99	1003	
+4	철광석	99		

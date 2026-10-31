@@ -78,7 +78,7 @@ public sealed partial class GamePack
         }).ToList());
 
         builder.Append((items ?? []).Select(x => new ItemInventoryRow
-            { Code = x.Code, Name = x.Name, CarryLimit = x.CarryLimit }).ToList());
+            { Code = x.Code, Name = x.Name, CarryLimit = x.CarryLimit, SkillCode = x.SkillCode }).ToList());
 
         builder.Append((bunches ?? []).SelectMany(b => b.Parts.Select(p => new BunchInventoryRow
             { ItemCode = b.Code, PartItemCode = p.ItemCode, ItemName = b.Name, PartAmount = p.Amount })).ToList());
@@ -103,7 +103,7 @@ public sealed partial class GamePack
         builder.Append((equipmentSlots ?? []).Select(s => new EquipmentSlotRow { Code = s.Code, Name = s.Name }).ToList());
         builder.Append((tags ?? []).Select(t => new TagRow { Code = t.Code, Name = t.Name }).ToList());
         builder.Append((uniqueItems ?? []).Select(e => new UniqueItemRow
-            { ItemCode = e.ItemCode, ItemName = e.ItemName }).ToList());
+            { ItemCode = e.ItemCode, ItemName = e.ItemName, SkillCode = e.SkillCode }).ToList());
         builder.Append((uniqueItemTags ?? []).Select(t => new UniqueItemTagRow
             { ItemCode = t.ItemCode, TagCode = t.TagCode }).ToList());
         builder.Append((commonItemTags ?? []).Select(t => new CommonItemTagRow
@@ -239,7 +239,7 @@ public sealed partial class GamePack
     public ItemEntry MainCurrency => FindItem(MainCurrencyItemCode)!;
 
     public ItemEntry? FindItem(long code) =>
-        Masters.ItemInventoryRowTable.TryFindByCode(code, out var r) ? new ItemEntry(r.Code, r.Name, r.CarryLimit) : null;
+        Masters.ItemInventoryRowTable.TryFindByCode(code, out var r) ? new ItemEntry(r.Code, r.Name, r.CarryLimit, r.SkillCode) : null;
 
     /// <summary>번치(부품은 부품 아이템 코드 순). 없으면 null.</summary>
     public BunchEntry? FindBunch(long code)
@@ -254,7 +254,7 @@ public sealed partial class GamePack
         Masters.EquipmentSlotRowTable.TryFindByCode(code, out var r) ? new EquipmentSlotEntry(r.Code, r.Name) : null;
 
     public UniqueItem? FindUniqueItem(long itemCode) =>
-        Masters.UniqueItemRowTable.TryFindByItemCode(itemCode, out var r) ? new UniqueItem(r.ItemCode, r.ItemName) : null;
+        Masters.UniqueItemRowTable.TryFindByItemCode(itemCode, out var r) ? new UniqueItem(r.ItemCode, r.ItemName, r.SkillCode) : null;
 
     /// <summary>상태이상이 가진 이펙트 행들(키 순서: 트리거, 이펙트 코드).</summary>
     public IReadOnlyList<StatusEffectEffect> StatusEffectEffectsOf(long statusEffectCode) =>

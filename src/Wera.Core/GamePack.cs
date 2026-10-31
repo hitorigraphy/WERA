@@ -179,6 +179,9 @@ public sealed partial class GamePack
         var characterSkillSlotTags = LoadCharacterSkillSlotTags(zip, characterInventory, skillSlots, tags);
         var skills = LoadSkills(zip);
         var skillTags = LoadSkillTags(zip, skills, tags);
+        CheckItemSkills(
+            (itemInventory ?? []).Select(i => (CommonItemInventoryMasterPath, $"아이템 '{i.Code}'", i.SkillCode))
+                .Concat((uniqueItems ?? []).Select(u => (UniqueItemInventoryMasterPath, $"유니크 아이템 '{u.ItemCode}'", u.SkillCode))), skills);
         var effectCheck = new EffectCheck(
             statuses?.Select(s => s.Code).ToHashSet(), equipmentSlots?.Select(e => e.Code).ToHashSet(), skillSlots?.Select(s => s.Code).ToHashSet(),
             skills?.Select(s => s.Code).ToHashSet());
@@ -468,9 +471,14 @@ public sealed partial class GamePack
     static long OptionalLong(string file, string what, string value) =>
         value.Length == 0 ? 0 : ParseLong(file, what, value);
 
-    static List<ItemEntry>? LoadItemInventory(ZipArchive zip) =>
-        LoadLimitedInventory(zip, CommonItemInventoryMasterPath, "아이템", ["inventory_code", "item_name", "carry_limit"],
-            (code, r, limit) => new ItemEntry(code, r[1], limit));
+    /// <summary>커먼 아이템 인벤토리 마스터: inventory_code, item_name, carry_limit과 선택 열 skill_code(아이템을 쓸 때 실행하는 스킬; 비우거나 열이 없으면 없음).</summary>
+    static List<ItemEntry>? LoadItemInventory(ZipArchive zip)
+    {
+        var withSkill = TryReadEntry(zip, CommonItemInventoryMasterPath) is { } text && HasSkillColumn(text, 3);
+        string[] header = withSkill ? ["inventory_code", "item_name", "carry_limit", "skill_code"] : ["inventory_code", "item_name", "carry_limit"];
+        return LoadLimitedInventory(zip, CommonItemInventoryMasterPath, "아이템", header,
+            (code, r, limit) => new ItemEntry(code, r[1], limit, withSkill ? OptionalSkillCode(CommonItemInventoryMasterPath, $"아이템 '{code}'", r[3]) : null));
+    }
 
     /// <summary>캐릭터마다 유리속성과 불리속성이 있어야 하고, 둘 다 속성 마스터에 있어야 하며 서로 달라야 한다.</summary>
     static List<CharacterEntry>? LoadCharacterInventory(ZipArchive zip, List<AttributeEntry>? attributes)

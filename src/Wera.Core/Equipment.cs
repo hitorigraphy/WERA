@@ -7,7 +7,7 @@ public sealed record EquipmentSlotEntry(long Code, string Name);
 public sealed record TagEntry(long Code, string Name);
 
 /// <summary>유니크 아이템 마스터의 한 행. 유니크 아이템의 코드 공간은 아이템 인벤토리와 따로다.</summary>
-public sealed record UniqueItem(long ItemCode, string ItemName);
+public sealed record UniqueItem(long ItemCode, string ItemName, long? SkillCode = null);
 
 /// <summary>유니크 아이템 태그 마스터의 한 행: 유니크 아이템(ItemCode)이 가진 태그.</summary>
 public sealed record UniqueItemTag(long ItemCode, long TagCode);
@@ -54,13 +54,13 @@ public readonly record struct EquipRef(
 /// OrderNumber는 목록의 순서다: 얻을 때 소지 유니크 아이템 수(0부터 시작)이고, 순서를 바꿀 때 이 값을 조작한다. 목록은 OrderNumber순, 같으면 InstanceId순이다.
 /// </summary>
 public sealed record UniqueItemInstance(string InstanceId, long ItemCode, long OrderNumber = 0, List<long>? Tags = null,
-    Dictionary<long, long>? Statuses = null)
+    Dictionary<long, long>? Statuses = null, SkillInstance? Skill = null)
 {
     /// <summary>Statuses(스테이터스 코드 → 값)는 유니크 아이템 스테이터스 마스터의 초깃값에서 복사해 가지고 게임 중에 바뀔 수 있다. 세이브에 없으면(null) 마스터에서 복사한다.</summary>
     public bool Equals(UniqueItemInstance? other) =>
         other is not null && InstanceId == other.InstanceId && ItemCode == other.ItemCode && OrderNumber == other.OrderNumber
         && (Tags is null) == (other.Tags is null) && (Tags ?? []).SequenceEqual(other.Tags ?? [])
-        && StatusesEqual(Statuses, other.Statuses);
+        && StatusesEqual(Statuses, other.Statuses) && Equals(Skill, other.Skill);
 
     public override int GetHashCode() => HashCode.Combine(InstanceId, ItemCode, OrderNumber);
 

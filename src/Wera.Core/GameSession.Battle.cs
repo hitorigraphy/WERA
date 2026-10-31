@@ -174,8 +174,7 @@ public sealed partial class GameSession
             {
                 case InventoryKind.UniqueItem:
                     var id = $"enemy-{slot}-{equip.EquipmentSlotCode.ToString(CultureInfo.InvariantCulture)}";
-                    enemyItems[id] = new UniqueItemAfterCreateCircuit(Pack, new UniqueItemInstance(id, equip.ItemCode, 0,
-                        Pack.MasterTagsOfUniqueItem(equip.ItemCode).ToList(), Pack.MasterStatusesOfUniqueItem(equip.ItemCode))).Execute();
+                    enemyItems[id] = new UniqueItemAfterCreateCircuit(Pack, Pack.NewUniqueItemInstance(id, equip.ItemCode, 0)).Execute();
                     equipment[equip.EquipmentSlotCode] = EquipRef.Unique(id);
                     break;
                 case InventoryKind.CommonItem:

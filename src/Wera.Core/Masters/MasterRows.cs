@@ -89,6 +89,7 @@ public record ItemInventoryRow
     [PrimaryKey] public required long Code { get; init; }
     public required string Name { get; init; }
     public required long CarryLimit { get; init; }
+    public required long? SkillCode { get; init; }
 }
 
 /// <summary>번치 아이템 인벤토리: 한 행이 번치의 부품 하나다. 같은 (번치, 부품)은 한 번만 쓸 수 있다.</summary>
@@ -162,6 +163,7 @@ public record UniqueItemRow
 {
     [PrimaryKey] public required long ItemCode { get; init; }
     public required string ItemName { get; init; }
+    public required long? SkillCode { get; init; }
 }
 
 /// <summary>유니크 아이템 태그 마스터: 같은 (아이템, 태그)는 한 번만 쓸 수 있다. 보조키로 아이템의 태그 전부를 찾는다.</summary>

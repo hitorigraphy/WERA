@@ -143,9 +143,49 @@ public sealed partial class GamePack
         return tags;
     }
 
-    static List<UniqueItem>? LoadUniqueItems(ZipArchive zip) =>
-        LoadCodeNames(zip, UniqueItemInventoryMasterPath, "inventory_code", "item_name", "유니크 아이템",
-            (code, name) => new UniqueItem(code, name));
+    /// <summary>유니크 아이템 인벤토리 마스터: inventory_code, item_name과 선택 열 skill_code(아이템을 쓸 때 실행하는 스킬; 비우거나 열이 없으면 없음).</summary>
+    static List<UniqueItem>? LoadUniqueItems(ZipArchive zip)
+    {
+        const string file = UniqueItemInventoryMasterPath;
+        var text = TryReadEntry(zip, file);
+        if (text is null) return null;
+        var withSkill = HasSkillColumn(text, 2);
+        string[] header = withSkill ? ["inventory_code", "item_name", "skill_code"] : ["inventory_code", "item_name"];
+
+        var items = new List<UniqueItem>();
+        var seen = new HashSet<long>();
+        foreach (var r in Body(file, text, header))
+        {
+            var code = ParseLong(file, "유니크 아이템 코드", r[0]);
+            if (!seen.Add(code))
+                throw new PackFormatException($"{file}: 유니크 아이템 코드 '{code}'가 중복됩니다.");
+            items.Add(new UniqueItem(code, r[1], withSkill ? OptionalSkillCode(file, $"유니크 아이템 '{code}'", r[2]) : null));
+        }
+        return items;
+    }
+
+    /// <summary>헤더(memo 열을 뺀)의 index번째 열이 skill_code인가.</summary>
+    static bool HasSkillColumn(string tsv, int index)
+    {
+        var rows = Tsv.WithoutMemo(Tsv.Parse(tsv));
+        return rows.Count > 0 && rows[0].Length > index && rows[0][index] == "skill_code";
+    }
+
+    /// <summary>skill_code 셀: 비어 있으면 없음(null), 아니면 정수.</summary>
+    static long? OptionalSkillCode(string file, string who, string cell) =>
+        cell.Trim().Length == 0 ? null : ParseLong(file, $"{who}의 skill_code", cell);
+
+    /// <summary>아이템의 skill_code는 스킬 마스터에 있어야 한다(스킬 마스터가 없으면 skill_code도 쓸 수 없다).</summary>
+    static void CheckItemSkills(IEnumerable<(string File, string Who, long? SkillCode)> items, List<SkillEntry>? skills)
+    {
+        var codes = skills?.Select(s => s.Code).ToHashSet();
+        foreach (var (file, who, skill) in items)
+        {
+            if (skill is not { } code) continue;
+            if (codes is null) throw new PackFormatException($"{file}: {who}의 skill_code가 있으려면 {SkillMasterPath}도 필요합니다.");
+            if (!codes.Contains(code)) throw new PackFormatException($"{file}: {who}의 skill_code '{code}'가 스킬 마스터에 없습니다.");
+        }
+    }
 
     /// <summary>
     /// 대상(유니크 아이템, 커먼 아이템, 캐릭터) 태그 마스터를 읽는다: (대상 코드, 태그 코드) 두 열.
