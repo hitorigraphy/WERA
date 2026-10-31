@@ -167,6 +167,12 @@ public class DungeonFlowTests
     {
         Walk(s, "RRDDRRUURRDDR");
         Assert.Equal(Screen.Battle, s.Screen);
+        FinishLosing(s, hero);
+    }
+
+    /// <summary>전투 화면에서 적 체력을 높이고 리더 체력을 1로 해 한 턴 만에 지게 한다.</summary>
+    static void FinishLosing(GameSession s, long hero)
+    {
         s.NextRandom = _ => 0;
         foreach (var enemy in s.EnemyInstances.Values)
         {
@@ -209,6 +215,24 @@ public class DungeonFlowTests
         s.Activate("999");
         Assert.Equal(Screen.Home, s.Screen);
         Assert.Null(s.CurrentDungeonCode);
+    }
+
+    [Fact]
+    public void The_event_game_over_flow_ends_the_event_and_goes_to_the_game_over_screen()
+    {
+        const string flows = "event_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\n"
+            + "3002\t1\tBattle\t5001\t2001\t0\n3002\t2\tJumpFlagEqual\t2001\t3\t4\n3002\t3\tFinish\t0\t0\t0\n3002\t4\tGameOver\t0\t0\t0\n";
+        var s = GameSession.NewGame(SamplePackWith(("master/event_flow_master_v1.tsv", flows)));
+        s.NextRandom = _ => 1;
+        s.Activate("105"); s.Activate("1"); s.Activate("1"); s.Activate("999");
+        s.Activate("103"); s.Activate("3002");
+        Assert.Equal(Screen.Battle, s.Screen);
+        FinishLosing(s, 1);
+        s.Activate("999");                                                                    // 패배(플래그 3) → GameOver 칸
+        Assert.Equal(Screen.GameOver, s.Screen);
+        Assert.Null(s.CurrentEvent);
+        Assert.Equal(Screen.Load, s.Activate("999")!.Target);
+        Assert.Empty(s.Entries);
     }
 
     [Fact]

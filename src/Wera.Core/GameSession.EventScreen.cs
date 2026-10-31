@@ -74,6 +74,14 @@ public sealed partial class GameSession
             Screen = Screen.Event;
             return;
         }
+        if (step.Kind == EventStepKind.GameOver)
+        {
+            CurrentEvent = null;
+            CurrentStep = null;
+            gameOver = true;
+            Screen = Screen.GameOver;
+            return;
+        }
         CurrentStep = step;
         Screen = Screen.EventPlay;
         if (step.Kind == EventStepKind.Adv)

@@ -7,6 +7,8 @@ public enum EventStepKind
     Adv,
     /// <summary>전투를 개시한다. <see cref="EventStep.Code"/>가 battle_code다.</summary>
     Battle,
+    /// <summary>게임 오버: 이벤트를 끝내고 게임 오버 화면으로 간다.</summary>
+    GameOver,
     /// <summary>이벤트가 끝났다.</summary>
     Finished,
 }
@@ -121,6 +123,9 @@ public sealed class EventFlowCircuit
                     return new EventStep(EventStepKind.Adv, flow.FlowNumber, flow.Param1);
                 case EventFlowType.Battle:
                     return new EventStep(EventStepKind.Battle, flow.FlowNumber, flow.Param1, flow.Param2);
+                case EventFlowType.GameOver:
+                    IsFinished = true;
+                    return new EventStep(EventStepKind.GameOver, flow.FlowNumber, 0);
                 // None: 아무 일도 하지 않고 다음 칸으로
             }
         }
