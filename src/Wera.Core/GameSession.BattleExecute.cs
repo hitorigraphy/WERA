@@ -126,7 +126,31 @@ public sealed partial class GameSession
         foreach (var slot in BattleUnitSlots())
             if (BattleOutcome == BattleOutcomeKind.Win) new AfterBattleWinCircuit(Pack, store, PartyInstance.Units[slot]!).Execute();
             else new AfterBattleLoseCircuit(Pack, store, PartyInstance.Units[slot]!).Execute();
+        if (BattleOutcome == BattleOutcomeKind.Win) DropBattleItems();
         BattleCommands = BattleCommandMode.Basic;
+    }
+
+    /// <summary>이번 전투의 아이템 드롭(승리 후 서킷 다음)을 소지품에 넣은 결과 줄들: "이름 ×수량"(소지 한도로 못 받은 만큼은 빠진다).</summary>
+    public IReadOnlyList<string> BattleDropLines { get; private set; } = [];
+
+    /// <summary>
+    /// 승리하면 만났던 적 파티의 유닛마다(쓰러진 순서와 상관없이 처음 편성 슬롯 순) 프리셋 유닛 드롭 마스터대로 아이템을 얻는다.
+    /// 드롭은 전투 승리 → 승리 후 서킷 → 아이템 드롭 → 이전 화면 복귀 순서의 세 번째다.
+    /// </summary>
+    void DropBattleItems()
+    {
+        var lines = new List<string>();
+        if (CurrentEnemyPartyCode is { } partyCode && Pack.FindPresetParty(partyCode) is { } party)
+            foreach (var original in enemyInstances.Values.Select(c => c.OrderNumber).Order())
+                if (original < party.UnitCodes.Count && party.UnitCodes[(int)original] is { } unitCode)
+                    foreach (var drop in Pack.PresetUnitDropsOf(unitCode))
+                    {
+                        var before = CountInventory(drop.ItemCode);
+                        AddInventory(drop.ItemCode, drop.Amount);
+                        var gained = CountInventory(drop.ItemCode) - before;
+                        if (gained > 0) lines.Add($"{Pack.ItemName(drop.ItemCode)} ×{gained}");
+                    }
+        BattleDropLines = lines;
     }
 
     /// <summary>

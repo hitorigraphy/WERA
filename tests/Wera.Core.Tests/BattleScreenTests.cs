@@ -928,4 +928,26 @@ public class BattleScreenTests
         s.Activate("999");
         Assert.Equal(Screen.Home, s.Screen);                                        // 전투를 시작한 화면
     }
+
+    [Fact]
+    public void A_win_drops_the_defeated_enemies_items_after_the_win_circuits_and_a_run_drops_nothing()
+    {
+        var win = Started(roll: 1);                                                 // 적 파티 2: 전사 하나(프리셋 유닛 1: 약초 1개)
+        FirstOnly(win);
+        var before = win.CountInventory(3);
+        var slot = win.EnemyInstances.Keys.Single();
+        win.EnemyInstances[slot].Statuses[GamePack.HpStatusCode] = 5;
+        win.Activate("102"); win.Activate("102"); win.Activate((slot + 1).ToString());
+        win.Activate("107");
+        Assert.Equal(GameSession.BattleOutcomeKind.Win, win.BattleOutcome);
+        Assert.Equal(before + 1, win.CountInventory(3));
+        Assert.Single(win.BattleDropLines);
+        Assert.EndsWith(" ×1", win.BattleDropLines[0]);
+
+        var run = Started(roll: 1);
+        var runBefore = run.CountInventory(3);
+        run.Activate("106");
+        Assert.Equal(runBefore, run.CountInventory(3));
+        Assert.Empty(run.BattleDropLines);
+    }
 }

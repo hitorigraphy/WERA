@@ -181,6 +181,7 @@ public sealed partial class GameSession
         CurrentEnemyPartyCode = null;
         BattleOutcome = BattleOutcomeKind.None;
         battleLog.Clear();
+        BattleDropLines = [];
         enemyInstances.Clear();
         enemyItems.Clear();
         Array.Clear(enemyUnits);
