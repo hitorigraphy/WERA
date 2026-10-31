@@ -18,8 +18,9 @@ public sealed partial class GameSession
     /// <summary>
     /// 실행한 행동 한 건: 시전자 쪽(적 여부)과 슬롯, 스킬 코드, 대상 쪽(적 여부)과 슬롯, 그때의 OrderPoint, 대상이 입은 피해(행동 전후 대상의 hp 차이; 음수면 회복).
     /// 이동(<paramref name="IsMove"/>)이면 아군 유닛이 Slot에서 TargetSlot으로 옮겨 간 것이고 나머지 값은 쓰지 않는다.
+    /// 서브 타겟(<paramref name="IsSub"/>)이면 같은 행동으로 맞은 서브 타겟 하나의 기록이고 대상과 피해는 그 서브 타겟의 것이다(메인 타겟의 기록 바로 뒤에 서브 타겟 순서로 이어진다).
     /// </summary>
-    public readonly record struct BattleActed(bool IsEnemy, int Slot, long SkillCode, bool TargetIsEnemy, int TargetSlot, decimal OrderPoint, long Damage, bool IsMove = false);
+    public readonly record struct BattleActed(bool IsEnemy, int Slot, long SkillCode, bool TargetIsEnemy, int TargetSlot, decimal OrderPoint, long Damage, bool IsMove = false, bool IsSub = false);
 
     /// <summary>이번 턴 행동 기록을 화면에 보여 줄 한 줄씩("시전자 → 대상 : 스킬N (피해 N)", 행동한 순서). 적의 이름 앞에는 "적 "이 붙는다.</summary>
     public IReadOnlyList<string> BattleLogLines => battleLog.Select(a =>
@@ -29,6 +30,7 @@ public sealed partial class GameSession
         string Name(bool enemy, int slot) => (enemy ? "적 " : "") +
             (UnitOf(new Combatant(enemy, slot)) is { } unit ? CharacterName(unit.CharacterCode) : "?");
         var result = a.Damage > 0 ? $"피해 {a.Damage}" : a.Damage < 0 ? $"회복 {-a.Damage}" : "피해 없음";
+        if (a.IsSub) return $"↳ {Name(a.TargetIsEnemy, a.TargetSlot)} ({result})";
         return $"{Name(a.IsEnemy, a.Slot)} → {Name(a.TargetIsEnemy, a.TargetSlot)} : {SkillName(a.SkillCode)} ({result})";
     }).ToList();
 
@@ -94,7 +96,9 @@ public sealed partial class GameSession
             var caster = UnitOf(actor)!;
             var main = UnitOf(victim)!;
             var hpBefore = store.CharacterOf(main)!.Hp;
-            var subs = SubTargetsOf(victim, skillOf[actor]).Select(c => UnitOf(c)!).ToList();
+            var subCombatants = SubTargetsOf(victim, skillOf[actor]);
+            var subs = subCombatants.Select(c => UnitOf(c)!).ToList();
+            var subHpBefore = subs.Select(u => store.CharacterOf(u)!.Hp).ToList();
             new SkillExecuteCircuit(Pack, store, skillOf[actor], caster, main, subs).Execute();
             new AfterHitCircuit(Pack, store, caster, main).Execute();
             foreach (var sub in subs) new AfterHitCircuit(Pack, store, caster, sub).Execute();     // 서브 타겟도 피격자다(공격 후는 시전자가 한 번만)
@@ -102,6 +106,8 @@ public sealed partial class GameSession
             if (!actor.IsEnemy && battleItems.TryGetValue(actor.Slot, out var usedItem) && usedItem[0] == 'C')     // 쓴 커먼 아이템은 하나 줄어든다(유니크는 남는다)
                 ChangeCommonItem(long.Parse(usedItem.AsSpan(1), CultureInfo.InvariantCulture), -1);
             battleLog.Add(new BattleActed(actor.IsEnemy, actor.Slot, skillOf[actor], victim.IsEnemy, victim.Slot, best, hpBefore - store.CharacterOf(main)!.Hp));
+            for (var i = 0; i < subs.Count; i++)
+                battleLog.Add(new BattleActed(actor.IsEnemy, actor.Slot, skillOf[actor], subCombatants[i].IsEnemy, subCombatants[i].Slot, best, subHpBefore[i] - store.CharacterOf(subs[i])!.Hp, IsSub: true));
 
             if (LivingOf(true).Count == 0) BattleOutcome = BattleOutcomeKind.Win;
             else if (LivingOf(false).Count == 0) BattleOutcome = BattleOutcomeKind.Lose;

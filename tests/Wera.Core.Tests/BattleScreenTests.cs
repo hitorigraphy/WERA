@@ -296,13 +296,14 @@ public class BattleScreenTests
         s.Activate("107");
 
         Assert.Equal(s.BattleLog.Count, s.BattleLogLines.Count);
-        Assert.All(s.BattleLogLines, l => Assert.Contains(" → ", l));
+        Assert.All(s.BattleLogLines.Where(l => !l.StartsWith("↳")), l => Assert.Contains(" → ", l));
         Assert.Contains("당신 → 적 ", s.BattleLogLines[0] + s.BattleLogLines[1] + s.BattleLogLines[2]);
         Assert.Contains(s.BattleLog, x => !x.IsEnemy && x.Slot == 0 && x.Damage == 10);   // 스킬1은 피해 10
         Assert.Contains(s.BattleLogLines, l => l.EndsWith("(피해 10)"));
         Assert.Equal(GameSession.BattleOutcomeKind.None, s.BattleOutcome);
-        Assert.Equal(2 + enemyCount, s.BattleLog.Count);             // 전원이 1회씩
-        Assert.Equal(s.BattleLog.OrderByDescending(a => a.OrderPoint).Select(a => (a.IsEnemy, a.Slot)), s.BattleLog.Select(a => (a.IsEnemy, a.Slot)));
+        var acts = s.BattleLog.Where(a => !a.IsSub).ToList();         // 서브 타겟 기록은 행동 기록 뒤에 따로 이어진다
+        Assert.Equal(2 + enemyCount, acts.Count);                    // 전원이 1회씩
+        Assert.Equal(acts.OrderByDescending(a => a.OrderPoint).Select(a => (a.IsEnemy, a.Slot)), acts.Select(a => (a.IsEnemy, a.Slot)));
         Assert.True(s.EnemyInstances[0].Hp < s.EnemyInstances[0].MaxHp);   // 스킬 피해가 들어갔다
         Assert.Null(s.BattleActionOf(0));                            // 다음 턴: 행동은 지워지고 첫 유닛부터
         Assert.Equal(0, s.BattleCurrentSlot);
@@ -654,6 +655,10 @@ public class BattleScreenTests
         Assert.Equal(10, hp[2] - s.EnemyInstances[2].Hp);                           // 같은 줄(전위)의 슬롯 2가 서브 타겟 0번
         Assert.Equal(0, hp[4] - s.EnemyInstances[4].Hp);                            // 다른 줄은 영향 없음
         Assert.Equal(0, hp[7] - s.EnemyInstances[7].Hp);
+        var i = s.BattleLog.ToList().FindIndex(a => !a.IsEnemy && a.Slot == 0 && !a.IsSub && a.SkillCode == 1002);
+        Assert.True(s.BattleLog[i + 1].IsSub);                                      // 메인 타겟의 기록 바로 뒤에 서브 타겟의 기록
+        Assert.Equal((true, 2, 10L), (s.BattleLog[i + 1].TargetIsEnemy, s.BattleLog[i + 1].TargetSlot, s.BattleLog[i + 1].Damage));
+        Assert.Equal("↳ 적 전사 (피해 10)", s.BattleLogLines[i + 1]);
     }
 
     [Fact]
