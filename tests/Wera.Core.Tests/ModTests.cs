@@ -78,7 +78,7 @@ public class ModTests
         PickSword(s);
         s.Activate("2");                                                                     // 개조 슬롯 2
         Assert.Equal(Screen.EquipmentModSlot, s.Screen);
-        Assert.Equal([("4", true), ("3", false), ("999", true)], s.Entries.Select(e => (e.Code, e.Enabled)));   // 약초는 없어서 회색
+        Assert.Equal([("4", true), ("3", false), ("998", false), ("999", true)], s.Entries.Select(e => (e.Code, e.Enabled)));   // 약초는 없어서 회색
         s.Activate("999");
         Assert.Equal(Screen.EquipmentEnhanceTarget, s.Screen);
     }
@@ -139,5 +139,23 @@ public class ModTests
         Assert.Contains("개조 슬롯", Assert.Throws<SaveFormatException>(() => GameSession.FromSaveJson(s.Pack, s.ToSaveJson())).Message);
         s.UniqueItemInstances[id] = s.UniqueItemInstances[id] with { Mods = new Dictionary<long, long> { [1] = 999 } };
         Assert.Contains("개조 아이템", Assert.Throws<SaveFormatException>(() => GameSession.FromSaveJson(s.Pack, s.ToSaveJson())).Message);
+    }
+
+    [Fact]
+    public void Removing_returns_the_item_and_takes_its_bonus_back()
+    {
+        var s = ModScreen(ore: 3);
+        PickSword(s);
+        s.Activate("1");
+        Assert.False(s.Entries.First(e => e.Code == GameSession.RemoveModEntryCode).Enabled);   // 낀 것이 없으면 회색
+        s.Activate("4");
+        Assert.Equal(13, Atk(s));
+        s.Activate("1");
+        s.Activate(GameSession.RemoveModEntryCode);
+        Assert.Equal(Screen.EquipmentEnhanceTarget, s.Screen);
+        Assert.Equal("뺐습니다: 철검 개조 슬롯 1 철광석", s.Message);
+        Assert.Equal(3, s.CountInventory(4));
+        Assert.Equal(10, Atk(s));
+        Assert.Equal("비어 있음", s.EquipmentDetail!.Parts[0].Value);
     }
 }

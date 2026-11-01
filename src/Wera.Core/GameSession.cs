@@ -191,6 +191,8 @@ public enum EntryAction
     SelectModSlot,
     /// <summary>끼울 아이템(Arg=아이템 코드)을 골라 개조 슬롯에 끼운다: 인벤토리에서 1개를 쓰고 이미 낀 것은 인벤토리로 돌아온다.</summary>
     InstallMod,
+    /// <summary>개조 슬롯에 낀 아이템을 빼서 인벤토리로 돌려준다.</summary>
+    RemoveMod,
 }
 
 /// <summary>장비 강화 화면에서 먼저 골라 두는 작업.</summary>
@@ -258,6 +260,8 @@ public sealed partial class GameSession
     public const string LoadEntryCode = "300";
     public const string DebugEntryCode = "400";
     public const string BackEntryCode = "999";
+    /// <summary>개조 슬롯의 아이템 목록에서 낀 아이템을 빼는 항목의 코드.</summary>
+    public const string RemoveModEntryCode = "998";
 
     /// <summary>캐릭터 선택 화면의 "[0] 비우기": 선택한 슬롯에 캐릭터가 있을 때만 나온다.</summary>
     public const string ClearEntryCode = "0";
@@ -860,6 +864,10 @@ public sealed partial class GameSession
                 break;
             case EntryAction.SelectModSlot:
                 ModSlotCode = long.Parse(entry.Arg!, CultureInfo.InvariantCulture);
+                Screen = entry.Target;
+                break;
+            case EntryAction.RemoveMod:
+                Message = RemoveMod();
                 Screen = entry.Target;
                 break;
             case EntryAction.InstallMod:

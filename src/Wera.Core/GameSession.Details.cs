@@ -158,6 +158,8 @@ public sealed partial class GameSession
             .. items.Select(code => new ScreenEntry(code.ToString(CultureInfo.InvariantCulture),
                 (Pack.FindItem(code)?.Name ?? Text(code)) + (code == installed ? " (장착 중)" : ""), Screen.EquipmentEnhanceTarget, EntryAction.InstallMod,
                 code.ToString(CultureInfo.InvariantCulture), Enabled: code != installed && CountInventory(code) >= 1)),
+            new ScreenEntry(RemoveModEntryCode, "빼기", Screen.EquipmentEnhanceTarget, EntryAction.RemoveMod,
+                Enabled: installed is { } held && Pack.FindItem(held) is { } info && CountInventory(held) < info.CarryLimit),
             new ScreenEntry(BackEntryCode, "돌아가기", Screen.EquipmentEnhanceTarget),
         ];
     }
@@ -181,6 +183,20 @@ public sealed partial class GameSession
         UniqueItemInstances[target.InstanceId] = Pack.WithEnhanceStatuses(target with { Mods = mods });
         RevalidateEquipment();
         return $"개조했습니다: {Pack.FindUniqueItem(target.ItemCode)?.ItemName ?? Text(target.ItemCode)} {Pack.FindModSlot(slot)?.Name} {Pack.FindItem(itemCode)?.Name ?? Text(itemCode)}";
+    }
+
+    /// <summary>고른 개조 슬롯에 낀 아이템을 빼서 인벤토리로 돌려주고 스테이터스를 다시 정한다. 낀 것이 없거나 돌려받으면 소지 한도를 넘으면 아무것도 바꾸지 않고 빈 문자열을 돌려준다.</summary>
+    string RemoveMod()
+    {
+        if (SynthesisTarget is not { } target || ModSlotCode is not { } slot) return "";
+        if (target.Mods is not { } current || !current.TryGetValue(slot, out var old)) return "";
+        if (Pack.FindItem(old) is not { } info || CountInventory(old) >= info.CarryLimit) return "";
+        AddInventory(old, 1);
+        var mods = new Dictionary<long, long>(current);
+        mods.Remove(slot);
+        UniqueItemInstances[target.InstanceId] = Pack.WithEnhanceStatuses(target with { Mods = mods });
+        RevalidateEquipment();
+        return $"뺐습니다: {Pack.FindUniqueItem(target.ItemCode)?.ItemName ?? Text(target.ItemCode)} {Pack.FindModSlot(slot)?.Name} {info.Name}";
     }
 
     /// <summary>지금 보는 캐릭터 상세 화면의 내용. 캐릭터 상세 화면이 아니거나 보유하지 않은 캐릭터면 null.</summary>
