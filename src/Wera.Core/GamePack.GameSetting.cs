@@ -13,6 +13,14 @@ public enum GameSettingType
 {
     /// <summary>아무 설정도 아니다(자리 표시). 엔진은 이 값을 읽지 않는다.</summary>
     None = 0,
+    /// <summary>유리속성으로 때릴 때의 배율(Decimal, 0 이상, 기본 1.5). 유리와 불리가 겹치면 두 배율을 곱한다.</summary>
+    AttributeAdvantageMultiplier = 1,
+    /// <summary>불리속성으로 때릴 때의 배율(Decimal, 0 이상, 기본 0.5).</summary>
+    AttributeDisadvantageMultiplier = 2,
+    /// <summary>목록 화면 한 페이지에 보이는 항목 수(Long, 1 이상, 기본 20).</summary>
+    ListPageSize = 3,
+    /// <summary>유니크 아이템 1개를 강화하려면 제물로 바쳐야 하는 같은 유니크 아이템의 수(Long, 1 이상, 기본 1).</summary>
+    EnhanceSacrificeCount = 4,
 }
 
 /// <summary>게임 설정 한 행이 쓰는 값의 종류. 종류에 맞는 열(long_value, decimal_value, text_value)이 그 설정의 값이다.</summary>
@@ -37,6 +45,32 @@ public sealed partial class GamePack
 
     /// <summary>게임 설정 마스터(게임팩 파일 순서). 마스터가 없으면 null.</summary>
     public IReadOnlyList<GameSettingEntry>? GameSettings { get; init; }
+
+    public const decimal DefaultAttributeAdvantageMultiplier = 1.5m;
+    public const decimal DefaultAttributeDisadvantageMultiplier = 0.5m;
+    public const long DefaultListPageSize = 20;
+    public const long DefaultEnhanceSacrificeCount = 1;
+
+    /// <summary>유리속성 배율(설정 AttributeAdvantageMultiplier, 기본 1.5).</summary>
+    public decimal AttributeAdvantageMultiplier => GameSettingDecimal(GameSettingType.AttributeAdvantageMultiplier, DefaultAttributeAdvantageMultiplier);
+
+    /// <summary>불리속성 배율(설정 AttributeDisadvantageMultiplier, 기본 0.5).</summary>
+    public decimal AttributeDisadvantageMultiplier => GameSettingDecimal(GameSettingType.AttributeDisadvantageMultiplier, DefaultAttributeDisadvantageMultiplier);
+
+    /// <summary>목록 한 페이지의 항목 수(설정 ListPageSize, 기본 20).</summary>
+    public int ListPageSize => (int)Math.Min(GameSettingLong(GameSettingType.ListPageSize, DefaultListPageSize), int.MaxValue);
+
+    /// <summary>강화 제물 수(설정 EnhanceSacrificeCount, 기본 1).</summary>
+    public long EnhanceSacrificeCount => GameSettingLong(GameSettingType.EnhanceSacrificeCount, DefaultEnhanceSacrificeCount);
+
+    /// <summary>설정 종류마다 정해진 값 종류와 최솟값. None은 아무 종류나 허용한다.</summary>
+    static readonly Dictionary<GameSettingType, (GameSettingValueType ValueType, decimal Min)> SettingRules = new()
+    {
+        [GameSettingType.AttributeAdvantageMultiplier] = (GameSettingValueType.Decimal, 0),
+        [GameSettingType.AttributeDisadvantageMultiplier] = (GameSettingValueType.Decimal, 0),
+        [GameSettingType.ListPageSize] = (GameSettingValueType.Long, 1),
+        [GameSettingType.EnhanceSacrificeCount] = (GameSettingValueType.Long, 1),
+    };
 
     public GameSettingEntry? FindGameSetting(GameSettingType type) => GameSettings?.FirstOrDefault(s => s.SettingType == type);
 
@@ -92,6 +126,14 @@ public sealed partial class GamePack
                         throw new PackFormatException($"{file}: {who} text_value가 비어 있습니다.");
                     textValue = r[4];
                     break;
+            }
+            if (SettingRules.TryGetValue(type, out var rule))
+            {
+                if (valueType != rule.ValueType)
+                    throw new PackFormatException($"{file}: {who} 값 종류는 {rule.ValueType}여야 합니다 ('{r[1]}').");
+                var value = valueType == GameSettingValueType.Long ? longValue : decimalValue;
+                if (value < rule.Min)
+                    throw new PackFormatException($"{file}: {who} 값 '{value}'은(는) {rule.Min} 이상이어야 합니다.");
             }
             rows.Add(new GameSettingEntry(type, valueType, longValue, decimalValue, textValue));
         }

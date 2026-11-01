@@ -1,0 +1,5 @@
+setting_type	value_type	long_value	decimal_value	text_value
+AttributeAdvantageMultiplier	Decimal		1.5	
+AttributeDisadvantageMultiplier	Decimal		0.5	
+ListPageSize	Long	20		
+EnhanceSacrificeCount	Long	1		

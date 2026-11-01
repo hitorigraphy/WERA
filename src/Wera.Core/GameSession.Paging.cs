@@ -14,7 +14,7 @@ public sealed record PagerButton(string Text, string? Code, bool Current)
 public sealed partial class GameSession
 {
     /// <summary>목록 한 페이지에 나오는 항목 수.</summary>
-    public const int ListPageSize = 20;
+    public int ListPageSize => Pack.ListPageSize;
 
     /// <summary>목록 화면에서 보고 있는 페이지(0부터). 목록 화면에 들어올 때마다 0으로 돌아가고, 상세 화면에서 돌아올 때는 그대로다.</summary>
     public int ListPage { get; private set; }
@@ -45,7 +45,7 @@ public sealed partial class GameSession
         || e.Code == ClearEntryCode && Screen is Screen.CharacterSelect or Screen.SupportSelect or Screen.EquipmentSelect or Screen.SkillSlotSelect or Screen.SkillCharacter;
 
     /// <summary>항목이 count개일 때의 페이지 수(항목이 없어도 1).</summary>
-    public static int PageCountOf(int count) => Math.Max(1, (count + ListPageSize - 1) / ListPageSize);
+    public int PageCountOf(int count) => Math.Max(1, (count + ListPageSize - 1) / ListPageSize);
 
     int ClampedPage(int count) => ListPage = Math.Clamp(ListPage, 0, PageCountOf(count) - 1);
 

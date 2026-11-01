@@ -488,7 +488,7 @@
             case Screen.EquipmentEnhance:
                 <h2>장비 강화</h2>
                 @* 위는 가진 장비 표(누르면 장비 상세)로, 항목이 적어도 20줄 자리를 비워 두어 구분선과 강화/개조의 위치가 늘 같다. 구분선 아래는 강화/개조(아직 동작 없음, 회색) *@
-                @entryTable(new TableSpec(ListEntries(e => e.Code is not (GameSession.EnhanceEntryCode or GameSession.ModifyEntryCode)), CodeNameWidths, [.. GameSession.EquipmentColumnNames], e => [e.Code, e.Label], GameSession.ListPageSize))
+                @entryTable(new TableSpec(ListEntries(e => e.Code is not (GameSession.EnhanceEntryCode or GameSession.ModifyEntryCode)), CodeNameWidths, [.. GameSession.EquipmentColumnNames], e => [e.Code, e.Label], session.ListPageSize))
                 <div class="menu-separator"></div>
                 @* 고른 작업(강화/개조)은 굵게 보인다 *@
                 <div class="entries">
