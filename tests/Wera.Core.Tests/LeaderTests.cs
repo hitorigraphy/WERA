@@ -115,7 +115,7 @@ public class LeaderTests
         var s = Session();
         s.Pick("105"); s.Pick("1"); s.Pick("7001");
         s.Pick("2"); s.Pick("7003");
-        Assert.True(s.RemoveCharacterTag(7001, GamePack.LeaderTagCode));
+        Assert.True(s.RemoveCharacterTag(7001, ReservedTags.DefaultLeader));
         Assert.False(s.PartyInstance.Units[0]!.IsLeader);
         Assert.False(s.PartyInstance.Units[1]!.IsLeader);          // 다른 유닛이 대신 리더가 되지는 않는다
         Assert.False(s.IsDispatchable(0));
@@ -154,7 +154,7 @@ public class LeaderTests
     [Fact]
     public void The_leader_tag_is_a_reserved_tag_the_tag_master_must_define()
     {
-        Assert.Equal(2, GamePack.LeaderTagCode);
+        Assert.Equal(2, ReservedTags.DefaultLeader);
         var ex = Assert.Throws<PackFormatException>(() => GamePack.Load(CoreTests.PackZip(
             ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
             ("master/tag_master_v1.tsv", "tag_code\ttag_name\n1\t플레이어\n3\t메인 통화\n"))));

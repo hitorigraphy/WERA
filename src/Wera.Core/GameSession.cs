@@ -1289,10 +1289,10 @@ public sealed partial class GameSession
         PartyInstance.Units.All(u => u is null) || PartyInstance.Units[slot]?.IsLeader == true;
 
     /// <summary>이 캐릭터가 리더 태그(<see cref="GamePack.LeaderTagCode"/>)를 가졌는가(캐릭터 코드의 첫 인스턴스의 지금 태그 기준).</summary>
-    public bool HasLeaderTag(long characterCode) => CharacterTags(characterCode).Contains(GamePack.LeaderTagCode);
+    public bool HasLeaderTag(long characterCode) => CharacterTags(characterCode).Contains(Pack.LeaderTagCode);
 
     /// <summary>이 캐릭터 인스턴스가 리더 태그를 가졌는가.</summary>
-    public bool HasLeaderTag(string instanceId) => CharacterTags(instanceId).Contains(GamePack.LeaderTagCode);
+    public bool HasLeaderTag(string instanceId) => CharacterTags(instanceId).Contains(Pack.LeaderTagCode);
 
     /// <summary>이 파티의 리더 수.</summary>
     static int LeaderCount(PartyInstance party) => party.Units.Count(u => u is { IsLeader: true });

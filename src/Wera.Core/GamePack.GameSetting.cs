@@ -29,6 +29,50 @@ public enum GameSettingType
     /// <summary>아지트 방어전의 위협도를 담는 플레이어 플래그 코드(Long, 1 이상). 플래그 값이 위협도이고, 방어전 적 파티가 등장하면 그 소모량만큼 줄어든다.
     /// 방어전 적 파티 마스터가 있으려면 이 설정이 필요하다. 행이 없으면 위협도가 없다.</summary>
     ThreatFlagCode = 7,
+    /// <summary>플레이어 태그의 코드(Long, 1 이상, 행이 없으면 1). 캐릭터 1만 가지고 반드시 가진다. 태그 마스터가 있으면 거기에 있어야 한다.</summary>
+    PlayerTagCode = 8,
+    /// <summary>리더 태그의 코드(Long, 1 이상, 행이 없으면 2). 태그 마스터가 있으면 거기에 있어야 한다.</summary>
+    LeaderTagCode = 9,
+    /// <summary>메인 통화 태그의 코드(Long, 1 이상, 행이 없으면 3). 메인 통화 아이템(커먼 아이템 2)만 가지고 반드시 가진다. 태그 마스터가 있으면 거기에 있어야 한다.</summary>
+    MainCurrencyTagCode = 10,
+    /// <summary>[구금] 태그 중 구금된 적을 뜻하는 것의 코드(Long, 1 이상, 행이 없으면 구금된 적 기능이 없다). 태그 마스터에 있어야 한다.</summary>
+    CapturedEnemyTagCode = 11,
+    /// <summary>[구금] 태그 중 구금된 아군을 뜻하는 것의 코드(Long, 1 이상, 행이 없으면 구금된 아군 기능이 없다). 태그 마스터에 있어야 한다.</summary>
+    CapturedAllyTagCode = 12,
+}
+
+/// <summary>
+/// 엔진이 뜻을 부여한 태그들의 코드(게임 설정으로 게임팩이 정한다). 플레이어·리더·메인 통화는 설정이 없으면 1, 2, 3이고,
+/// 구금된 적·구금된 아군은 설정이 없으면 null(기능 없음)이다. 다섯 코드는 서로 달라야 한다.
+/// </summary>
+public sealed record ReservedTags(long Player, long Leader, long MainCurrency, long? CapturedEnemy, long? CapturedAlly)
+{
+    public const long DefaultPlayer = 1;
+    public const long DefaultLeader = 2;
+    public const long DefaultMainCurrency = 3;
+
+    public static ReservedTags Default { get; } = new(DefaultPlayer, DefaultLeader, DefaultMainCurrency, null, null);
+
+    /// <summary>게임 설정 목록에서 읽는다(없는 설정은 기본값).</summary>
+    public static ReservedTags From(IEnumerable<GameSettingEntry>? settings)
+    {
+        long? Find(GameSettingType type) =>
+            settings?.FirstOrDefault(s => s.SettingType == type) is { ValueType: GameSettingValueType.Long } s ? s.LongValue : null;
+        return new ReservedTags(Find(GameSettingType.PlayerTagCode) ?? DefaultPlayer, Find(GameSettingType.LeaderTagCode) ?? DefaultLeader,
+            Find(GameSettingType.MainCurrencyTagCode) ?? DefaultMainCurrency, Find(GameSettingType.CapturedEnemyTagCode), Find(GameSettingType.CapturedAllyTagCode));
+    }
+
+    /// <summary>예약 태그 코드가 서로 겹치면 오류 메시지를 돌려준다(겹치지 않으면 null).</summary>
+    public string? Duplicate()
+    {
+        var named = new (string Name, long? Code)[]
+        {
+            ("PlayerTagCode", Player), ("LeaderTagCode", Leader), ("MainCurrencyTagCode", MainCurrency),
+            ("CapturedEnemyTagCode", CapturedEnemy), ("CapturedAllyTagCode", CapturedAlly),
+        }.Where(n => n.Code is not null).ToList();
+        var dup = named.GroupBy(n => n.Code).FirstOrDefault(g => g.Count() > 1);
+        return dup is null ? null : $"{string.Join(", ", dup.Select(n => n.Name))}가 같은 태그 코드 '{dup.Key}'를 가리킵니다(서로 달라야 합니다).";
+    }
 }
 
 /// <summary>게임 설정 한 행이 쓰는 값의 종류. 종류에 맞는 열(long_value, decimal_value, text_value)이 그 설정의 값이다.</summary>
@@ -97,6 +141,11 @@ public sealed partial class GamePack
         [GameSettingType.EnhanceLevelMax] = (GameSettingValueType.Long, 0),
         [GameSettingType.SmeltStoneItemCode] = (GameSettingValueType.Long, 1),
         [GameSettingType.ThreatFlagCode] = (GameSettingValueType.Long, 1),
+        [GameSettingType.PlayerTagCode] = (GameSettingValueType.Long, 1),
+        [GameSettingType.LeaderTagCode] = (GameSettingValueType.Long, 1),
+        [GameSettingType.MainCurrencyTagCode] = (GameSettingValueType.Long, 1),
+        [GameSettingType.CapturedEnemyTagCode] = (GameSettingValueType.Long, 1),
+        [GameSettingType.CapturedAllyTagCode] = (GameSettingValueType.Long, 1),
     };
 
     public GameSettingEntry? FindGameSetting(GameSettingType type) => GameSettings?.FirstOrDefault(s => s.SettingType == type);

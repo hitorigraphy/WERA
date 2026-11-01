@@ -11,9 +11,9 @@ public class ReservedTagTests
     [Fact]
     public void The_reserved_codes_are_one_two_and_three()
     {
-        Assert.Equal(1, GamePack.PlayerTagCode);
-        Assert.Equal(2, GamePack.LeaderTagCode);
-        Assert.Equal(3, GamePack.MainCurrencyTagCode);
+        Assert.Equal(1, ReservedTags.DefaultPlayer);
+        Assert.Equal(2, ReservedTags.DefaultLeader);
+        Assert.Equal(3, ReservedTags.DefaultMainCurrency);
     }
 
     [Fact]
@@ -54,7 +54,7 @@ public class ReservedTagTests
         while (!File.Exists(Path.Combine(root, "WERA.slnx"))) root = Path.GetDirectoryName(root)!;
         using var zip = File.OpenRead(Path.Combine(root, "src", "Wera.Web", "wwwroot", "sample-pack.wra"));
         var pack = GamePack.Load(zip);
-        Assert.Equal("플레이어", pack.Tags!.Single(t => t.Code == GamePack.PlayerTagCode).Name);
-        Assert.Equal("리더", pack.Tags!.Single(t => t.Code == GamePack.LeaderTagCode).Name);
+        Assert.Equal("플레이어", pack.Tags!.Single(t => t.Code == ReservedTags.DefaultPlayer).Name);
+        Assert.Equal("리더", pack.Tags!.Single(t => t.Code == ReservedTags.DefaultLeader).Name);
     }
 }

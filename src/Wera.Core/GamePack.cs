@@ -158,12 +158,14 @@ public sealed partial class GamePack
         var statusEffects = LoadStatusEffects(zip);
         var statusEffectEffects = LoadStatusEffectEffects(zip, statusEffects, embeddedEffects);
         var equipmentSlots = LoadEquipmentSlots(zip);
-        var tags = LoadTags(zip);
-        var uniqueItemTags = LoadUniqueItemTags(zip, uniqueItems, tags);
-        var commonItemTags = LoadCommonItemTags(zip, itemInventory, tags);
-        var characterTags = LoadCharacterTags(zip, characterInventory, tags);
-        CheckPlayerCharacter(tags, characterInventory, characterTags);
-        CheckMainCurrency(itemInventory, commonItemTags);
+        var reserved = ReservedTags.From(gameSettings);
+        if (reserved.Duplicate() is { } duplicate) throw new PackFormatException($"{GameSettingMasterPath}: {duplicate}");
+        var tags = LoadTags(zip, reserved);
+        var uniqueItemTags = LoadUniqueItemTags(zip, uniqueItems, tags, reserved);
+        var commonItemTags = LoadCommonItemTags(zip, itemInventory, tags, reserved);
+        var characterTags = LoadCharacterTags(zip, characterInventory, tags, reserved);
+        CheckPlayerCharacter(tags, characterInventory, characterTags, reserved);
+        CheckMainCurrency(itemInventory, commonItemTags, reserved);
         CheckTrades(trades, shops, itemInventory, bunchInventory, uniqueItems, characterInventory);
         var equipmentSlotTags = LoadEquipmentSlotTags(zip, characterInventory, equipmentSlots, tags);
         var statuses = LoadStatuses(zip);
@@ -314,6 +316,7 @@ public sealed partial class GamePack
             CharacterAfterCreateEffects = characterAfterCreateEffects,
             XpTypes = xpTypes,
             GameSettings = gameSettings,
+            Reserved = reserved,
             PartSlots = partSlots,
             PartSlotTags = partSlotTags,
             XpCalculateEffects = xppChangedEffects,

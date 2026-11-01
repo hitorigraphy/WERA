@@ -91,7 +91,7 @@ public class PlayerCharacterTests
         using var zip = File.OpenRead(Path.Combine(root, "src", "Wera.Web", "wwwroot", "sample-pack.wra"));
         var pack = GamePack.Load(zip);
         Assert.Equal("당신", pack.FindCharacter(1)!.Name);
-        Assert.Contains(GamePack.PlayerTagCode, pack.MasterTagsOfCharacter(1));
+        Assert.Contains(ReservedTags.DefaultPlayer, pack.MasterTagsOfCharacter(1));
     }
 
     // ---- 게임 중 ----

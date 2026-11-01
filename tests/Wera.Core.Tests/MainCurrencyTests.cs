@@ -35,7 +35,7 @@ public class MainCurrencyTests
     public void The_reserved_codes_are_item_two_and_tag_three()
     {
         Assert.Equal(2, GamePack.MainCurrencyItemCode);
-        Assert.Equal(3, GamePack.MainCurrencyTagCode);
+        Assert.Equal(3, ReservedTags.DefaultMainCurrency);
     }
 
     [Fact]
@@ -101,18 +101,26 @@ public class MainCurrencyTests
         Assert.Contains("메인 통화 태그(3)는 커먼 아이템 2만", Message(character));
     }
 
+    static GamePack DefaultPack()
+    {
+        var root = AppContext.BaseDirectory;
+        while (!File.Exists(Path.Combine(root, "WERA.slnx"))) root = Path.GetDirectoryName(root)!;
+        using var zip = File.OpenRead(Path.Combine(root, "src", "Wera.Web", "wwwroot", "sample-pack.wra"));
+        return GamePack.Load(zip);
+    }
+
     [Fact]
     public void The_player_tag_still_belongs_to_character_one_only_and_nothing_else_is_exclusive()
     {
-        Assert.True(GamePack.MayHoldTag(GamePack.PlayerTagCode, InventoryKind.Character, 1));
-        Assert.False(GamePack.MayHoldTag(GamePack.PlayerTagCode, InventoryKind.Character, 7001));
-        Assert.False(GamePack.MayHoldTag(GamePack.PlayerTagCode, InventoryKind.CommonItem, 1));
-        Assert.True(GamePack.MayHoldTag(GamePack.MainCurrencyTagCode, InventoryKind.CommonItem, 2));
-        Assert.False(GamePack.MayHoldTag(GamePack.MainCurrencyTagCode, InventoryKind.CommonItem, 3));
-        Assert.False(GamePack.MayHoldTag(GamePack.MainCurrencyTagCode, InventoryKind.UniqueItem, 2));
-        Assert.False(GamePack.MayHoldTag(GamePack.MainCurrencyTagCode, InventoryKind.Character, 2));
-        Assert.True(GamePack.MayHoldTag(4, InventoryKind.UniqueItem, 8001));            // 그 밖의 태그는 누구나
-        Assert.True(GamePack.MayHoldTag(GamePack.LeaderTagCode, InventoryKind.Character, 7001));
+        Assert.True(DefaultPack().MayHoldTag(ReservedTags.DefaultPlayer, InventoryKind.Character, 1));
+        Assert.False(DefaultPack().MayHoldTag(ReservedTags.DefaultPlayer, InventoryKind.Character, 7001));
+        Assert.False(DefaultPack().MayHoldTag(ReservedTags.DefaultPlayer, InventoryKind.CommonItem, 1));
+        Assert.True(DefaultPack().MayHoldTag(ReservedTags.DefaultMainCurrency, InventoryKind.CommonItem, 2));
+        Assert.False(DefaultPack().MayHoldTag(ReservedTags.DefaultMainCurrency, InventoryKind.CommonItem, 3));
+        Assert.False(DefaultPack().MayHoldTag(ReservedTags.DefaultMainCurrency, InventoryKind.UniqueItem, 2));
+        Assert.False(DefaultPack().MayHoldTag(ReservedTags.DefaultMainCurrency, InventoryKind.Character, 2));
+        Assert.True(DefaultPack().MayHoldTag(4, InventoryKind.UniqueItem, 8001));            // 그 밖의 태그는 누구나
+        Assert.True(DefaultPack().MayHoldTag(ReservedTags.DefaultLeader, InventoryKind.Character, 7001));
     }
 
     [Fact]
@@ -171,8 +179,8 @@ public class MainCurrencyTests
 
         Assert.Equal("금화", pack.MainCurrency.Name);
         Assert.Equal(2, pack.MainCurrency.Code);
-        Assert.Contains(GamePack.MainCurrencyTagCode, pack.MasterTagsOfCommonItem(2));
-        Assert.Equal("메인 통화", pack.Tags!.Single(t => t.Code == GamePack.MainCurrencyTagCode).Name);
-        Assert.DoesNotContain(pack.CommonItemTags!, t => t.ItemCode != 2 && t.TagCode == GamePack.MainCurrencyTagCode);
+        Assert.Contains(ReservedTags.DefaultMainCurrency, pack.MasterTagsOfCommonItem(2));
+        Assert.Equal("메인 통화", pack.Tags!.Single(t => t.Code == ReservedTags.DefaultMainCurrency).Name);
+        Assert.DoesNotContain(pack.CommonItemTags!, t => t.ItemCode != 2 && t.TagCode == ReservedTags.DefaultMainCurrency);
     }
 }

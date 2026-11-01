@@ -6,3 +6,8 @@ SynthesisSacrificeCount	Long	1			합성 제물 수
 EnhanceLevelMax	Long	20			강화 레벨 상한
 SmeltStoneItemCode	Long	5			제련석 아이템(커먼 아이템 5)
 ThreatFlagCode	Long	100			방어전 위협도 플래그
+PlayerTagCode	Long	1			플레이어 태그
+LeaderTagCode	Long	2			리더 태그
+MainCurrencyTagCode	Long	3			메인 통화 태그
+CapturedEnemyTagCode	Long	10			[구금] 태그: 구금된 적
+CapturedAllyTagCode	Long	11			[구금] 태그: 구금된 아군
