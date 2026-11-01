@@ -43,7 +43,8 @@ public class PagerTests
         s.Activate("106");                                                          // 마지막 페이지
         Assert.Equal(5, s.PageOf(s.Companions).Count);                              // 나머지 5명
         Assert.Equal(5, s.Entries.Count(e => e.Action == EntryAction.OpenDetail));
-        Assert.Equal(s.PageOf(s.Companions).Select(c => c.Order.Trim('[', ']')), s.Entries.Where(e => e.Action == EntryAction.OpenDetail).Select(e => e.Code));
+        Assert.Equal(["1", "2", "3", "4", "5"], s.Entries.Where(e => e.Action == EntryAction.OpenDetail).Select(e => e.Code));   // 줄 번호는 페이지마다 1부터
+        Assert.Equal(s.PageOf(s.Companions).Select(c => c.Order.Trim('[', ']')), s.Entries.Where(e => e.Action == EntryAction.OpenDetail).Select(e => e.DataCode));
         Assert.Equal("[101] 1 [103] 2 3", Layout(s));
     }
 
@@ -69,19 +70,30 @@ public class PagerTests
     }
 
     [Fact]
-    public void A_page_button_code_typed_wins_over_an_item_with_the_same_code_but_clicking_the_item_still_opens_it()
+    public void Row_numbers_are_the_position_in_the_page_so_they_never_meet_the_pager_codes()
     {
-        var s = SessionWith(120);                                                    // 동료 번호 0~119, 6쪽(100~119)에는 101~106도 항목이다
+        var s = SessionWith(120);                                                    // 동료 번호 0~119, 6쪽(100~119)
         s.Activate("201");
         s.Activate("106");
         Assert.Equal(5, s.ListPage);
-        Assert.Contains(s.Entries, e => e.Action == EntryAction.OpenDetail && e.Code == "103");
-        s.Activate("103", typed: false);                                             // 눌렀을 때는 103번 동료의 상세
+        Assert.Equal(Enumerable.Range(1, 20).Select(n => n.ToString()), s.Entries.Where(e => e.Action == EntryAction.OpenDetail).Select(e => e.Code));
+        Assert.Equal("100", s.Entries.First(e => e.Action == EntryAction.OpenDetail).DataCode);   // 원래 코드는 DataCode에
+        s.Activate("3");                                                             // 이 쪽의 3번째 줄(동료 102)의 상세
         Assert.Equal(Screen.CharacterDetail, s.Screen);
         s.Activate("999");
-        s.Activate("103");                                                           // 입력했을 때는 페이지 버튼: 5-1... 지금(6)-1 = 5쪽
+        Assert.Equal(5, s.ListPage);                                                 // 상세에서 돌아오면 보던 쪽
+        s.Activate("103");                                                           // 103은 페이지 버튼: 지금(6)-1 = 5쪽
         Assert.Equal(Screen.CompanionCheck, s.Screen);
         Assert.Equal(4, s.ListPage);
+    }
+
+    [Fact]
+    public void The_list_page_size_setting_is_capped_at_one_hundred()
+    {
+        GamePack Load(string size) => GamePack.Load(CoreTests.PackZip(("pack.tsv", "id\tdemo\ntitle\t데모\n"),
+            (GamePack.GameSettingMasterPath, "setting_type\tvalue_type\tlong_value\tdecimal_value\ttext_value\nListPageSize\tLong\t" + size + "\t\t\n")));
+        Assert.Equal(100, Load("100").ListPageSize);
+        Assert.Contains("100 이하", Assert.Throws<PackFormatException>(() => Load("101")).Message);
     }
 
     [Fact]
@@ -110,8 +122,8 @@ public class PagerTests
         Assert.Equal(20, s.PageOf(s.SupportList).Count);
         Assert.Equal("1 [104] 2 [106] 3", Layout(s));
         s.Activate("104");
-        Assert.Equal(s.PageOf(s.SupportList).Where(c => c.Selectable).Select(c => c.Code.ToString()),
-            s.Entries.Where(e => e.Action == EntryAction.SetSupport).Select(e => e.Code));
+        Assert.Equal(s.PageOf(s.SupportList).Select((c, i) => (c, number: i + 1)).Where(x => x.c.Selectable).Select(x => x.number.ToString()),
+            s.Entries.Where(e => e.Action == EntryAction.SetSupport).Select(e => e.Code));                       // 번호는 페이지 안의 위치(선택할 수 없는 줄도 센다)
         Assert.NotEmpty(s.Entries.Where(e => e.Action == EntryAction.SetSupport));
     }
 

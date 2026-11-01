@@ -50,18 +50,18 @@
             var clearCode = clear.Code;
             <li><button class="textlink row-link" @onclick="() => Activate(clearCode)"><span class="companion-cell" style="width: @(GameSession.CompanionCodeColumns)ch">[@clear.Code]</span> <span class="companion-cell" style="width: @(GameSession.CompanionNameColumns)ch">@clear.Label</span></button></li>
         }
-        @foreach (var c in t.Items)
+        @foreach (var (c, number) in t.Items.Select((item, i) => (item, i + 1)))
         {
-            var pickCode = c.Code.ToString();
+            var pickCode = number.ToString();
             var colorClass = "char-" + c.Color.ToString().ToLowerInvariant();
             <li>
                 @if (c.Selectable)
                 {
-                    <button class="textlink row-link @colorClass" @onclick="() => Activate(pickCode)"><span class="companion-cell" style="width: @(GameSession.CompanionCodeColumns)ch">[@c.Code]</span> <span class="companion-cell" style="width: @(GameSession.CompanionNameColumns)ch">@c.Name</span></button>
+                    <button class="textlink row-link @colorClass" @onclick="() => Activate(pickCode)"><span class="companion-cell" style="width: @(GameSession.CompanionCodeColumns)ch">[@number]</span> <span class="companion-cell" style="width: @(GameSession.CompanionNameColumns)ch">@c.Name</span></button>
                 }
                 else
                 {
-                    <span class="row-link @colorClass"><span class="companion-cell" style="width: @(GameSession.CompanionCodeColumns)ch">[@c.Code]</span> <span class="companion-cell" style="width: @(GameSession.CompanionNameColumns)ch">@c.Name</span></span>
+                    <span class="row-link @colorClass"><span class="companion-cell" style="width: @(GameSession.CompanionCodeColumns)ch">[@number]</span> <span class="companion-cell" style="width: @(GameSession.CompanionNameColumns)ch">@c.Name</span></span>
                 }
             </li>
         }
@@ -408,9 +408,9 @@
                 }
                 <ul class="companions">
                     <li class="companions-head">@columnHead((SlotWidths, new[] { "#", "이름", "장착" }))</li>
-                    @foreach (var r in session.PageOf(session.SkillPoolRows))
+                    @foreach (var (r, number) in session.PageOf(session.SkillPoolRows).Select((row, i) => (row, i + 1)))
                     {
-                        <li><span class="row-link"><span class="companion-cell" style="width: @(SlotWidths[0])ch">@(r.Index + 1)</span> <span class="companion-cell" style="width: @(SlotWidths[1])ch">@r.Name</span> <span class="companion-cell" style="width: @(SlotWidths[2])ch">@r.EquippedSlotName</span></span></li>
+                        <li><span class="row-link"><span class="companion-cell" style="width: @(SlotWidths[0])ch">@number</span> <span class="companion-cell" style="width: @(SlotWidths[1])ch">@r.Name</span> <span class="companion-cell" style="width: @(SlotWidths[2])ch">@r.EquippedSlotName</span></span></li>
                     }
                 </ul>
                 break;
@@ -756,7 +756,7 @@
                     {
                         var code = entry.Code;
                         @* 코드 칸은 반각 8칸, 이름 칸은 32칸, Lv/Hp/Xpp 칸은 8칸씩 고정 너비(ch)라 글꼴에서 한글 폭이 달라도 칸이 맞는다 *@
-                        <li><button class="textlink row-link" @onclick="() => Activate(code)"><span class="companion-cell" style="width: @(GameSession.CompanionCodeColumns)ch">@r.Order</span> <span class="companion-cell" style="width: @(GameSession.CompanionNameColumns)ch">@r.Name</span> <span class="companion-cell" style="width: @(GameSession.CompanionStatColumns)ch">@r.Level</span> <span class="companion-cell" style="width: @(GameSession.CompanionStatColumns)ch">@r.Hp</span> <span class="companion-cell" style="width: @(GameSession.CompanionStatColumns)ch">@r.Xpp</span></button></li>
+                        <li><button class="textlink row-link" @onclick="() => Activate(code)"><span class="companion-cell" style="width: @(GameSession.CompanionCodeColumns)ch">[@entry.Code]</span> <span class="companion-cell" style="width: @(GameSession.CompanionNameColumns)ch">@r.Name</span> <span class="companion-cell" style="width: @(GameSession.CompanionStatColumns)ch">@r.Level</span> <span class="companion-cell" style="width: @(GameSession.CompanionStatColumns)ch">@r.Hp</span> <span class="companion-cell" style="width: @(GameSession.CompanionStatColumns)ch">@r.Xpp</span></button></li>
                     }
                 </ul>
                 break;
@@ -769,7 +769,7 @@
                     @foreach (var (e, entry) in session.PageOf(session.Equipments).Zip(session.Entries))
                     {
                         var code = entry.Code;
-                        <li><button class="textlink row-link" @onclick="() => Activate(code)"><span class="companion-cell" style="width: @(GameSession.CompanionCodeColumns)ch">@e.Order</span> <span class="companion-cell" style="width: @(GameSession.CompanionNameColumns)ch">@e.Name</span></button></li>
+                        <li><button class="textlink row-link" @onclick="() => Activate(code)"><span class="companion-cell" style="width: @(GameSession.CompanionCodeColumns)ch">[@entry.Code]</span> <span class="companion-cell" style="width: @(GameSession.CompanionNameColumns)ch">@e.Name</span></button></li>
                     }
                 </ul>
                 break;
@@ -782,7 +782,7 @@
                     @foreach (var (r, entry) in session.PageOf(session.Items).Zip(session.Entries))
                     {
                         var code = entry.Code;
-                        <li><button class="textlink row-link" @onclick="() => Activate(code)"><span class="companion-cell" style="width: @(GameSession.CompanionCodeColumns)ch">@r.Code</span> <span class="companion-cell" style="width: @(GameSession.CompanionNameColumns)ch">@r.Name</span> <span class="companion-cell" style="width: @(GameSession.ItemAmountColumns)ch">@r.Amount</span></button></li>
+                        <li><button class="textlink row-link" @onclick="() => Activate(code)"><span class="companion-cell" style="width: @(GameSession.CompanionCodeColumns)ch">[@entry.Code]</span> <span class="companion-cell" style="width: @(GameSession.CompanionNameColumns)ch">@r.Name</span> <span class="companion-cell" style="width: @(GameSession.ItemAmountColumns)ch">@r.Amount</span></button></li>
                     }
                 </ul>
                 break;

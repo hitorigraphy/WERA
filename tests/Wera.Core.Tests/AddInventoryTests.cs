@@ -33,8 +33,8 @@ public class AddInventoryTests
     static GameSession Play(bool viaAdv, params (long Code, long Amount)[] ops)
     {
         var s = Session(viaAdv, ops);
-        s.Activate("103");
-        s.Activate("3001");
+        s.Pick("103");
+        s.Pick("3001");
         return s;
     }
 

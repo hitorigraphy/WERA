@@ -17,14 +17,14 @@ public class DetailScreenTests
     public void A_companion_row_opens_the_character_detail_and_back_returns_to_the_list()
     {
         var s = SampleSession();
-        s.Activate("201");
-        var rows = s.Entries.Where(e => e.Code != "999").ToList();
+        s.Pick("201");
+        var rows = s.DataEntries.Where(e => e.Code != "999").ToList();
         Assert.Equal(s.Companions.Count, rows.Count);
         Assert.All(rows, r => Assert.Equal(EntryAction.OpenDetail, r.Action));
-        Assert.Equal(Screen.CharacterDetail, s.Activate(rows[0].Code)!.Target);
+        Assert.Equal(Screen.CharacterDetail, s.Pick(rows[0].Code)!.Target);
         Assert.NotNull(s.DetailCharacterCode);
         Assert.Equal("캐릭터 상세", s.DetailHeading!.Value.Title);
-        Assert.Equal(Screen.CompanionCheck, s.Activate("999")!.Target);
+        Assert.Equal(Screen.CompanionCheck, s.Pick("999")!.Target);
     }
 
     [Fact]
@@ -36,20 +36,20 @@ public class DetailScreenTests
         s.AddInventory(unique, 1);
         s.AddInventory(common, 1);
 
-        s.Activate("202");
-        var equipment = s.Entries.First(e => e.Code != "999");
-        Assert.Equal(Screen.EquipmentDetail, s.Activate(equipment.Code)!.Target);
+        s.Pick("202");
+        var equipment = s.DataEntries.First(e => e.Code != "999");
+        Assert.Equal(Screen.EquipmentDetail, s.Pick(equipment.Code)!.Target);
         Assert.NotNull(s.DetailEquipmentId);
         Assert.Equal("장비 상세", s.DetailHeading!.Value.Title);
-        Assert.Equal(Screen.EquipmentCheck, s.Activate("999")!.Target);
-        s.Activate("999");
+        Assert.Equal(Screen.EquipmentCheck, s.Pick("999")!.Target);
+        s.Pick("999");
 
-        s.Activate("203");
-        Assert.Equal(Screen.ItemDetail, s.Activate(common.ToString())!.Target);
+        s.Pick("203");
+        Assert.Equal(Screen.ItemDetail, s.Pick(common.ToString())!.Target);
         Assert.Equal(common, s.DetailItemCode);
         Assert.Equal("아이템 상세", s.DetailHeading!.Value.Title);
-        Assert.Equal(Screen.ItemCheck, s.Activate("999")!.Target);
-        Assert.Equal(Screen.Home, s.Activate("999")!.Target);
+        Assert.Equal(Screen.ItemCheck, s.Pick("999")!.Target);
+        Assert.Equal(Screen.Home, s.Pick("999")!.Target);
     }
 
     [Fact]
@@ -58,19 +58,19 @@ public class DetailScreenTests
         var s = SampleSession();
         s.AddInventory(3, 5);
         s.AddInventory(4, 1);
-        s.Activate("203");
-        s.Activate("3");
+        s.Pick("203");
+        s.Pick("3");
         var d = s.ItemDetail!;
         Assert.Equal(("약초", "수량 5", "99"), (d.Name, d.AmountText, d.CarryLimit));
         Assert.Equal(s.Pack.FindItem(3)!.Description, d.Description);
         Assert.NotEqual("", d.Description);
         Assert.Equal($"스킬 : {s.Pack.FindSkill(1003)!.Name}", $"{d.Skills.Single().Label} : {d.Skills.Single().Value}");
-        Assert.Equal(Screen.SkillDetail, s.Activate("101")!.Target);                       // 스킬 줄을 누르면 스킬 상세로
+        Assert.Equal(Screen.SkillDetail, s.Pick("101")!.Target);                       // 스킬 줄을 누르면 스킬 상세로
         Assert.Equal("치유", s.SkillDetail!.Name);
-        Assert.Equal(Screen.ItemDetail, s.Activate("999")!.Target);
-        s.Activate("999");
-        s.Activate("4");
-        Assert.False(s.Entries.First(e => e.Code == "101").Enabled);                       // 스킬이 없으면 고를 수 없다
+        Assert.Equal(Screen.ItemDetail, s.Pick("999")!.Target);
+        s.Pick("999");
+        s.Pick("4");
+        Assert.False(s.DataEntries.First(e => e.Code == "101").Enabled);                       // 스킬이 없으면 고를 수 없다
         Assert.Equal("없음", s.ItemDetail!.Skills.Single().Value);                          // 스킬이 없는 아이템
         Assert.Null(s.EquipmentDetail);
     }
@@ -80,9 +80,9 @@ public class DetailScreenTests
     {
         var s = SampleSession();
         s.AddInventory(8001, 1);
-        s.Activate("202");
-        s.Activate(s.Entries.First(e => e.Label == "철검").Code);
-        s.Activate("101");                                                                 // 장비 상세의 스킬 줄(베기)
+        s.Pick("202");
+        s.Pick(s.DataEntries.First(e => e.Label == "철검").Code);
+        s.Pick("101");                                                                 // 장비 상세의 스킬 줄(베기)
         Assert.Equal(Screen.SkillDetail, s.Screen);
         var d = s.SkillDetail!;
         Assert.Equal(("베기", "적"), (d.Name, d.Target));
@@ -103,25 +103,25 @@ public class DetailScreenTests
     public void The_status_check_shows_the_party_slots_and_only_occupied_slots_open_the_character_detail()
     {
         var s = SampleSession();
-        s.Activate("105"); s.Activate("1"); s.Activate("1"); s.Activate("999");     // 파티-A의 1번 슬롯에 첫 캐릭터
-        s.Activate("101"); s.Activate("1999"); s.Activate("11");                     // 던전에 들어가
-        Assert.Equal(Screen.StatusCheck, s.Activate("201")!.Target);                 // 오른쪽 패널의 스테이터스 확인
-        Assert.Equal(Enumerable.Range(1, 9).Select(i => i.ToString()).Append("999"), s.Entries.Select(e => e.Code));
-        Assert.True(s.Entries.First(e => e.Code == "1").Enabled);
-        Assert.False(s.Entries.First(e => e.Code == "9").Enabled);
-        s.Activate("9");                                                 // 빈 슬롯은 눌러도 그대로
+        s.Pick("105"); s.Pick("1"); s.Pick("1"); s.Pick("999");     // 파티-A의 1번 슬롯에 첫 캐릭터
+        s.Pick("101"); s.Pick("1999"); s.Pick("11");                     // 던전에 들어가
+        Assert.Equal(Screen.StatusCheck, s.Pick("201")!.Target);                 // 오른쪽 패널의 스테이터스 확인
+        Assert.Equal(Enumerable.Range(1, 9).Select(i => i.ToString()).Append("999"), s.DataEntries.Select(e => e.Code));
+        Assert.True(s.DataEntries.First(e => e.Code == "1").Enabled);
+        Assert.False(s.DataEntries.First(e => e.Code == "9").Enabled);
+        s.Pick("9");                                                 // 빈 슬롯은 눌러도 그대로
         Assert.Equal(Screen.StatusCheck, s.Screen);
-        Assert.Equal(Screen.CharacterDetail, s.Activate("1")!.Target);
-        Assert.Equal(Screen.StatusCheck, s.Activate("999")!.Target);
-        Assert.Equal(Screen.DungeonMove, s.Activate("999")!.Target);                 // 던전에서 연 화면은 던전으로
+        Assert.Equal(Screen.CharacterDetail, s.Pick("1")!.Target);
+        Assert.Equal(Screen.StatusCheck, s.Pick("999")!.Target);
+        Assert.Equal(Screen.DungeonMove, s.Pick("999")!.Target);                 // 던전에서 연 화면은 던전으로
     }
 
     [Fact]
     public void The_character_detail_shows_name_level_bars_equipment_and_skill_slots_and_the_description()
     {
         var s = SampleSession();
-        s.Activate("201");
-        s.Activate(s.Entries.First(e => e.Code != "999").Code);
+        s.Pick("201");
+        s.Pick(s.DataEntries.First(e => e.Code != "999").Code);
         var d = s.CharacterDetail!;
         Assert.Equal(s.DetailHeading!.Value.Name, d.Name);
         Assert.StartsWith("Lv.", d.LevelText);
@@ -130,7 +130,7 @@ public class DetailScreenTests
         Assert.Equal(GameSession.CharacterDetailExpWidth, d.Xp.Text.Length);
         Assert.Equal("이야기의 주인공. 아직 아무것도 알려지지 않았다.", d.Description);        // 샘플 팩의 캐릭터 1
         Assert.All(d.Equipment.Concat(d.Skills), l => Assert.NotEqual("", l.Value));
-        s.Activate("999");
+        s.Pick("999");
         Assert.Null(s.CharacterDetail);
     }
 
@@ -138,8 +138,8 @@ public class DetailScreenTests
     public void The_detail_lists_the_specs_with_a_display_order_smallest_first()
     {
         var s = SampleSession();
-        s.Activate("201");
-        s.Activate(s.Entries.First(e => e.Code != "999").Code);
+        s.Pick("201");
+        s.Pick(s.DataEntries.First(e => e.Code != "999").Code);
         Assert.Equal(["STR", "CON", "INT", "WIS", "DEX", "AGL", "ATK", "DEF", "SPC", "RSI", "HIT", "SPD"], s.CharacterDetail!.Specs.Select(l => l.Label));
         Assert.Equal("10", s.CharacterDetail!.Specs[0].Value);
     }
@@ -148,35 +148,35 @@ public class DetailScreenTests
     public void Equipment_and_skill_rows_of_the_character_detail_open_their_details_and_back_returns_step_by_step()
     {
         var s = SampleSession();
-        s.Activate("201");
-        s.Activate(s.Entries.First(e => e.Code != "999").Code);
+        s.Pick("201");
+        s.Pick(s.DataEntries.First(e => e.Code != "999").Code);
         var player = s.DetailCharacterCode;
-        var skills = s.Entries.Where(e => e.Target == Screen.SkillDetail).ToList();
+        var skills = s.DataEntries.Where(e => e.Target == Screen.SkillDetail).ToList();
         Assert.Equal(s.CharacterDetail!.Skills.Count, skills.Count);
-        Assert.Equal(s.CharacterDetail!.Equipment.Count + s.CharacterDetail!.Skills.Count + 1, s.Entries.Count);
-        Assert.All(s.Entries.Where(e => e.Target == Screen.EquipmentDetail), e => Assert.True(e.Enabled));
+        Assert.Equal(s.CharacterDetail!.Equipment.Count + s.CharacterDetail!.Skills.Count + 1, s.DataEntries.Count);
+        Assert.All(s.DataEntries.Where(e => e.Target == Screen.EquipmentDetail), e => Assert.True(e.Enabled));
 
         var filled = skills.First(e => e.Enabled);                                       // 주인공이 장착한 스킬
-        Assert.Equal(Screen.SkillDetail, s.Activate(filled.Code)!.Target);
+        Assert.Equal(Screen.SkillDetail, s.Pick(filled.Code)!.Target);
         Assert.Equal("스킬 상세", s.DetailHeading!.Value.Title);
         Assert.NotNull(s.DetailSkillCode);
-        Assert.Equal(Screen.CharacterDetail, s.Activate("999")!.Target);                 // 보던 캐릭터 상세로 돌아온다
+        Assert.Equal(Screen.CharacterDetail, s.Pick("999")!.Target);                 // 보던 캐릭터 상세로 돌아온다
         Assert.Equal(player, s.DetailCharacterCode);
         Assert.Null(s.DetailSkillCode);
 
-        s.Activate("999");                                                               // 동료 확인으로
+        s.Pick("999");                                                               // 동료 확인으로
         s.AddCharacter(7001);
         s.Party[0] = 7001;                                                               // 용사는 슬롯 1에 검을 낄 수 있다
         var sword = s.Pack.Inventory.Values.Where(i => i.Kind == InventoryKind.UniqueItem).Select(i => i.Code).First(c => s.Pack.CanEquip(7001, 1, c));
         var id = s.AddUniqueItem(sword)!;
         Assert.True(s.Equip(7001, 1, EquipRef.Unique(id)));
-        s.Activate("201");
-        s.Activate(s.Entries.First(e => e.Label == "용사").Code);
-        Assert.Equal(Screen.EquipmentDetail, s.Activate("1")!.Target);                    // 첫 장비 슬롯 줄
+        s.Pick("201");
+        s.Pick(s.DataEntries.First(e => e.Label == "용사").Code);
+        Assert.Equal(Screen.EquipmentDetail, s.Pick("1")!.Target);                    // 첫 장비 슬롯 줄
         Assert.Equal(id, s.DetailEquipmentId);
-        Assert.Equal(Screen.CharacterDetail, s.Activate("999")!.Target);
+        Assert.Equal(Screen.CharacterDetail, s.Pick("999")!.Target);
         Assert.Equal(7001, s.DetailCharacterCode);
-        Assert.Equal(Screen.CompanionCheck, s.Activate("999")!.Target);
+        Assert.Equal(Screen.CompanionCheck, s.Pick("999")!.Target);
     }
 
     [Fact]
@@ -185,8 +185,8 @@ public class DetailScreenTests
         var s = SampleSession();
         var player = GamePack.PlayerCharacterCode;
         s.Characters[player] = s.Characters[player].WithStatus(GamePack.ExpStatusCode, 30).WithStatus(GamePack.ExpMaxStatusCode, 60).WithStatus(GamePack.XppStatusCode, 5);
-        s.Activate("201");
-        s.Activate(s.Entries.First(e => e.Code != "999").Code);
+        s.Pick("201");
+        s.Pick(s.DataEntries.First(e => e.Code != "999").Code);
         Assert.Equal(Gauge.Render(30, 60, gray: false, GameSession.CharacterDetailExpWidth), s.CharacterDetail!.Exp);
         Assert.Equal((6L, 7L), (GamePack.ExpStatusCode, GamePack.ExpMaxStatusCode));
         s.Characters[player] = s.Characters[player].WithStatus(GamePack.ExpStatusCode, 5).WithStatus(GamePack.HpStatusCode, 0);   // 사망이어도, 25% 미만이어도

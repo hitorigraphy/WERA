@@ -49,15 +49,15 @@ public class ModTests
         s.AddUniqueItem(8001);
         s.AddInventory(4, ore);
         s.AddInventory(3, herb);
-        s.Activate(GameSession.EquipmentEnhanceEntryCode);
-        s.Activate("903");                                                                   // 개조
+        s.Pick(GameSession.EquipmentEnhanceEntryCode);
+        s.Pick("903");                                                                   // 개조
         return s;
     }
 
     static string Sword(GameSession s) => s.UniqueItemInstances.Values.Single(i => i.ItemCode == 8001).InstanceId;
     static long Atk(GameSession s) => s.UniqueItemInstances[Sword(s)].Statuses![40];
 
-    static void PickSword(GameSession s) => s.Activate(s.Entries.First(e => e.Label.StartsWith("철검")).Code);
+    static void PickSword(GameSession s) => s.Pick(s.DataEntries.First(e => e.Label.StartsWith("철검")).Code);
 
     [Fact]
     public void Picking_an_equipment_in_modify_mode_opens_a_detail_with_its_mod_slots()
@@ -66,8 +66,8 @@ public class ModTests
         PickSword(s);
         Assert.Equal(Screen.EquipmentEnhanceTarget, s.Screen);
         Assert.Equal(["개조 슬롯 1 : 비어 있음", "개조 슬롯 2 : 비어 있음"], s.EquipmentDetail!.Parts.Select(l => $"{l.Label} : {l.Value}"));
-        Assert.Equal(["1", "2", "999"], s.Entries.Select(e => e.Code));
-        s.Activate("999");
+        Assert.Equal(["1", "2", "999"], s.DataEntries.Select(e => e.Code));
+        s.Pick("999");
         Assert.Equal(Screen.EquipmentEnhance, s.Screen);
     }
 
@@ -76,10 +76,10 @@ public class ModTests
     {
         var s = ModScreen(ore: 3, herb: 0);
         PickSword(s);
-        s.Activate("2");                                                                     // 개조 슬롯 2
+        s.Pick("2");                                                                     // 개조 슬롯 2
         Assert.Equal(Screen.EquipmentModSlot, s.Screen);
-        Assert.Equal([("4", true), ("3", false), ("998", false), ("999", true)], s.Entries.Select(e => (e.Code, e.Enabled)));   // 약초는 없어서 회색
-        s.Activate("999");
+        Assert.Equal([("4", true), ("3", false), ("998", false), ("999", true)], s.DataEntries.Select(e => (e.Code, e.Enabled)));   // 약초는 없어서 회색
+        s.Pick("999");
         Assert.Equal(Screen.EquipmentEnhanceTarget, s.Screen);
     }
 
@@ -89,22 +89,22 @@ public class ModTests
         var s = ModScreen(ore: 3, herb: 1);
         Assert.Equal(10, Atk(s));
         PickSword(s);
-        s.Activate("2");
-        s.Activate("4");                                                                     // 슬롯 2에 철광석: +1
+        s.Pick("2");
+        s.Pick("4");                                                                     // 슬롯 2에 철광석: +1
         Assert.Equal(Screen.EquipmentEnhanceTarget, s.Screen);
         Assert.Equal("개조했습니다: 철검 개조 슬롯 2 철광석", s.Message);
         Assert.Equal(2, s.CountInventory(4));
         Assert.Equal(11, Atk(s));
         Assert.Equal("철광석", s.EquipmentDetail!.Parts[1].Value);
 
-        s.Activate("1");
-        s.Activate("4");                                                                     // 슬롯 1에 철광석: +3 (두 슬롯의 합)
+        s.Pick("1");
+        s.Pick("4");                                                                     // 슬롯 1에 철광석: +3 (두 슬롯의 합)
         Assert.Equal(14, Atk(s));
 
-        s.Activate("2");
-        Assert.False(s.Entries.First(e => e.Code == "4").Enabled);                           // 낀 아이템은 회색
-        Assert.Equal("철광석 (장착 중)", s.Entries.First(e => e.Code == "4").Label);
-        s.Activate("3");                                                                     // 슬롯 2를 약초로 바꾼다: 철광석은 돌아오고 +2
+        s.Pick("2");
+        Assert.False(s.DataEntries.First(e => e.Code == "4").Enabled);                           // 낀 아이템은 회색
+        Assert.Equal("철광석 (장착 중)", s.DataEntries.First(e => e.Code == "4").Label);
+        s.Pick("3");                                                                     // 슬롯 2를 약초로 바꾼다: 철광석은 돌아오고 +2
         Assert.Equal(2, s.CountInventory(4) - 0);                                            // 1개 돌려받아 1+1
         Assert.Equal(0, s.CountInventory(3));
         Assert.Equal(15, Atk(s));
@@ -115,8 +115,8 @@ public class ModTests
     {
         var s = ModScreen();
         PickSword(s);
-        s.Activate("1");
-        s.Activate("4");
+        s.Pick("1");
+        s.Pick("4");
         var id = Sword(s);
         s.UniqueItemInstances[id] = SamplePackEnhanced(s, s.UniqueItemInstances[id]);
         var enhanced = s.UniqueItemInstances[id].Statuses![40];
@@ -146,12 +146,12 @@ public class ModTests
     {
         var s = ModScreen(ore: 3);
         PickSword(s);
-        s.Activate("1");
-        Assert.False(s.Entries.First(e => e.Code == GameSession.RemoveModEntryCode).Enabled);   // 낀 것이 없으면 회색
-        s.Activate("4");
+        s.Pick("1");
+        Assert.False(s.DataEntries.First(e => e.Code == GameSession.RemoveModEntryCode).Enabled);   // 낀 것이 없으면 회색
+        s.Pick("4");
         Assert.Equal(13, Atk(s));
-        s.Activate("1");
-        s.Activate(GameSession.RemoveModEntryCode);
+        s.Pick("1");
+        s.Pick(GameSession.RemoveModEntryCode);
         Assert.Equal(Screen.EquipmentEnhanceTarget, s.Screen);
         Assert.Equal("뺐습니다: 철검 개조 슬롯 1 철광석", s.Message);
         Assert.Equal(3, s.CountInventory(4));
@@ -164,13 +164,13 @@ public class ModTests
     {
         var s = ModScreen(ore: 1);
         PickSword(s);
-        s.Activate("1");
-        s.Activate("4");                                                                     // 철광석 1개를 끼움
+        s.Pick("1");
+        s.Pick("4");                                                                     // 철광석 1개를 끼움
         s.AddInventory(4, 99);                                                               // 소지 한도(99)까지 채움
         Assert.Equal(99, s.CountInventory(4));
-        s.Activate("1");
-        Assert.True(s.Entries.First(e => e.Code == GameSession.RemoveModEntryCode).Enabled);
-        s.Activate(GameSession.RemoveModEntryCode);
+        s.Pick("1");
+        Assert.True(s.DataEntries.First(e => e.Code == GameSession.RemoveModEntryCode).Enabled);
+        s.Pick(GameSession.RemoveModEntryCode);
         Assert.Equal(99, s.CountInventory(4));                                               // 넘친 1개는 사라진다
         Assert.Equal(10, Atk(s));
     }
@@ -203,14 +203,14 @@ public class ModTests
         var s = ModScreen(ore: 3);
         PickSword(s);
         Assert.Equal(1001, SkillOf(s));                                                      // 기본 스킬
-        s.Activate("1"); s.Activate("4");                                                    // 슬롯 1(우선순위 2): 불꽃
+        s.Pick("1"); s.Pick("4");                                                    // 슬롯 1(우선순위 2): 불꽃
         Assert.Equal(1002, SkillOf(s));
-        s.Activate("2"); s.Activate("4");                                                    // 슬롯 2(우선순위 1): 집중이 우선
+        s.Pick("2"); s.Pick("4");                                                    // 슬롯 2(우선순위 1): 집중이 우선
         Assert.Equal(1004, SkillOf(s));
         Assert.Equal("집중", s.EquipmentDetail!.Skills[0].Value);
-        s.Activate("2"); s.Activate(GameSession.RemoveModEntryCode);                         // 슬롯 2를 비우면 다시 불꽃
+        s.Pick("2"); s.Pick(GameSession.RemoveModEntryCode);                         // 슬롯 2를 비우면 다시 불꽃
         Assert.Equal(1002, SkillOf(s));
-        s.Activate("1"); s.Activate(GameSession.RemoveModEntryCode);                         // 다 비우면 기본 스킬
+        s.Pick("1"); s.Pick(GameSession.RemoveModEntryCode);                         // 다 비우면 기본 스킬
         Assert.Equal(1001, SkillOf(s));
     }
 
@@ -219,14 +219,14 @@ public class ModTests
     {
         var s = ModScreen(ore: 3);
         PickSword(s);
-        s.Activate("1"); s.Activate("4");
+        s.Pick("1"); s.Pick("4");
         var id = Sword(s);
         var item = s.UniqueItemInstances[id];
         s.UniqueItemInstances[id] = item with { Skill = new SkillInstance(1002, new Dictionary<long, long> { [777] = 42 }) };   // 불꽃이 경험치를 쌓았다
-        s.Activate("1"); s.Activate(GameSession.RemoveModEntryCode);
+        s.Pick("1"); s.Pick(GameSession.RemoveModEntryCode);
         Assert.Equal(1001, SkillOf(s));
         Assert.Equal([1001L, 1002L], s.UniqueItemInstances[id].SkillPool!.Select(p => p.SkillCode));   // 불꽃은 풀에 남는다
-        s.Activate("1"); s.Activate("4");
+        s.Pick("1"); s.Pick("4");
         Assert.Equal(1002, SkillOf(s));
         Assert.Equal(42, s.UniqueItemInstances[id].Skill!.Statuses![777]);                   // 다시 붙이면 쌓은 값 그대로
 

@@ -81,7 +81,7 @@ public class MemoColumnTests
         var s = GameSession.NewGame(pack);
         Assert.Equal(["테스트 던전"], s.AvailableDungeons.Select(d => d.Name));
         Assert.Equal(["테스트 상점"], s.AvailableShops.Select(x => x.Name));
-        Assert.Equal(["101", "102", "103", "104", "105", "106", "107", "201", "202", "203", "200", "300", "400"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["101", "102", "103", "104", "105", "106", "107", "201", "202", "203", "200", "300", "400"], s.DataEntries.Select(e => e.Code));
     }
 
     [Fact]
@@ -89,17 +89,17 @@ public class MemoColumnTests
     {
         var s = GameSession.NewGame(Sample());
         s.InventoryItems[2] = new InventoryItem(200);
-        s.Activate("104"); s.Activate("2999");
+        s.Pick("104"); s.Pick("2999");
         Assert.Equal(
             ["금화 ×1 → 약초 ×1", "금화 ×10 → 철검 ×1", "금화 ×100 → 도적 ×1", "철검 ×1 → 금화 ×5"],
             s.CurrentShopTrades.Select(t => t.Text));
 
         Assert.Single(s.UniqueItemInstances);                             // 디버깅용으로 처음부터 가진 순례자의 은단검
-        s.Activate("5992");                                               // 철검(유니크 아이템)을 받는다
+        s.Pick("5992");                                               // 철검(유니크 아이템)을 받는다
         Assert.Equal(2, s.UniqueItemInstances.Count);
-        s.Activate("5993");                                               // 도적(캐릭터)을 받는다
+        s.Pick("5993");                                               // 도적(캐릭터)을 받는다
         Assert.True(s.Characters.ContainsKey(7004));
-        s.Activate("5994");                                               // 철검을 내고 금화를 받는다
+        s.Pick("5994");                                               // 철검을 내고 금화를 받는다
         Assert.Equal([8007L], s.UniqueItemInstances.Values.Select(i => i.ItemCode));      // 철검만 나가고 은단검은 그대로
     }
 

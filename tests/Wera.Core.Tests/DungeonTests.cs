@@ -124,16 +124,16 @@ public class DungeonTests
         var s = GameSession.NewGame(pack);
 
         Assert.Equal(Screen.Home, s.Screen);
-        Assert.False(s.Entries.Single(e => e.Code == "101").Enabled);
-        var disabled = s.Activate("101");
+        Assert.False(s.DataEntries.Single(e => e.Code == "101").Enabled);
+        var disabled = s.Pick("101");
         Assert.NotNull(disabled);
         Assert.Equal(Screen.Home, s.Screen);
         Assert.Null(s.Message);
 
         s.PlayerFlags[1001] = 1;
-        Assert.True(s.Entries.Single(e => e.Code == "101").Enabled);
-        Assert.Contains(new ScreenEntry("101", "던전", Screen.DungeonSelect), s.Entries);
-        Assert.NotNull(s.Activate("101"));
+        Assert.True(s.DataEntries.Single(e => e.Code == "101").Enabled);
+        Assert.Contains(new ScreenEntry("101", "던전", Screen.DungeonSelect), s.DataEntries);
+        Assert.NotNull(s.Pick("101"));
         Assert.Equal(Screen.DungeonSelect, s.Screen);
     }
 
@@ -142,7 +142,7 @@ public class DungeonTests
     {
         // 1001은 튜토리얼 필요, 1002는 조건 없음 → 처음부터 버튼이 보인다.
         var s = GameSession.NewGame(Pack(TwoDungeons, TutorialFlags));
-        Assert.Contains(s.Entries, e => e.Code == "101");
+        Assert.Contains(s.DataEntries, e => e.Code == "101");
         Assert.Equal([1002L], s.AvailableDungeons.Select(d => d.Code));
     }
 
@@ -150,10 +150,10 @@ public class DungeonTests
     public void Activating_101_opens_dungeon_select_and_999_goes_back()
     {
         var s = GameSession.NewGame(Pack(TwoDungeons, null));
-        Assert.NotNull(s.Activate(" 101 "));
+        Assert.NotNull(s.Pick(" 101 "));
         Assert.Equal(Screen.DungeonSelect, s.Screen);
-        Assert.Null(s.Activate("101"));   // 던전 선택 화면에는 101 항목이 없다
-        Assert.NotNull(s.Activate("999"));
+        Assert.Null(s.Pick("101"));   // 던전 선택 화면에는 101 항목이 없다
+        Assert.NotNull(s.Pick("999"));
         Assert.Equal(Screen.Home, s.Screen);
     }
 
@@ -162,7 +162,7 @@ public class DungeonTests
     {
         var s = GameSession.NewGame(Pack(null, null));
         Assert.Equal(Screen.Home, s.Screen);
-        Assert.False(s.Entries.Single(e => e.Code == "101").Enabled);
+        Assert.False(s.DataEntries.Single(e => e.Code == "101").Enabled);
     }
 
     [Fact]
@@ -171,15 +171,15 @@ public class DungeonTests
         // 던전이 없어도 아지트(102), 이벤트(103), 파티 설정(105), 장비 강화(106), 교류(107), 동료/장비/아이템 확인(201~203), 세이브(200), 로드(300), 디버그(400)는 항상 있고, 던전/상점(101, 104)도 항상 있고 열려 있지 않으면 비활성.
         Assert.Equal(["101", "102", "103", "104", "105", "106", "107", "201", "202", "203", "200", "300", "400"], GameSession.NewGame(Pack(null, null)).Entries.Select(e => e.Code));
         var s = GameSession.NewGame(Pack(TwoDungeons, null));
-        Assert.Equal(["101", "102", "103", "104", "105", "106", "107", "201", "202", "203", "200", "300", "400"], s.Entries.Select(e => e.Code));
-        Assert.Equal(["던전", "아지트", "이벤트", "상점", "파티 설정", "장비 강화", "교류", "동료 확인", "장비 확인", "아이템 확인", "세이브", "로드", "디버그"], s.Entries.Select(e => e.Label));
+        Assert.Equal(["101", "102", "103", "104", "105", "106", "107", "201", "202", "203", "200", "300", "400"], s.DataEntries.Select(e => e.Code));
+        Assert.Equal(["던전", "아지트", "이벤트", "상점", "파티 설정", "장비 강화", "교류", "동료 확인", "장비 확인", "아이템 확인", "세이브", "로드", "디버그"], s.DataEntries.Select(e => e.Label));
     }
 
     [Fact]
     public void Save_200_does_not_change_screen_and_reports_save_action()
     {
         var s = GameSession.NewGame(Pack(TwoDungeons, null));
-        var entry = s.Activate("200");
+        var entry = s.Pick("200");
         Assert.Equal(EntryAction.Save, entry!.Action);
         Assert.Equal(Screen.Home, s.Screen);
     }
@@ -188,11 +188,11 @@ public class DungeonTests
     public void Load_300_opens_load_screen_and_999_goes_back()
     {
         var s = GameSession.NewGame(Pack(null, null));
-        Assert.NotNull(s.Activate("300"));
+        Assert.NotNull(s.Pick("300"));
         Assert.Equal(Screen.Load, s.Screen);
-        Assert.Equal(["999"], s.Entries.Select(e => e.Code));
-        Assert.Null(s.Activate("200"));   // 로드 화면에는 세이브 항목이 없다
-        Assert.NotNull(s.Activate("999"));
+        Assert.Equal(["999"], s.DataEntries.Select(e => e.Code));
+        Assert.Null(s.Pick("200"));   // 로드 화면에는 세이브 항목이 없다
+        Assert.NotNull(s.Pick("999"));
         Assert.Equal(Screen.Home, s.Screen);
     }
 
@@ -202,7 +202,7 @@ public class DungeonTests
         var pack = Pack(TwoDungeons, TutorialFlags);
         var s = GameSession.NewGame(pack);
         s.PlayerFlags[1001] = 1;
-        s.Activate("101");
+        s.Pick("101");
 
         var json = s.ToSaveJson();
         Assert.Contains("\"DungeonSelect\"", json);

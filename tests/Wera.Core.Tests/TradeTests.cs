@@ -181,7 +181,7 @@ public class TradeTests
                 "5003\t2002\t3\t3\t9001\t1\n",
             tradeConditions: CondHeader + "5002\t1\t1001\tGreaterOrEqual\t1\n");
         var s = GameSession.NewGame(pack);
-        s.Activate("104");
+        s.Pick("104");
         return s;
     }
 
@@ -189,9 +189,9 @@ public class TradeTests
     public void Picking_a_shop_opens_its_trade_list_with_item_names()
     {
         var s = Session();
-        Assert.Equal(["2001", "2002", "999"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["2001", "2002", "999"], s.DataEntries.Select(e => e.Code));
 
-        Assert.NotNull(s.Activate("2002"));
+        Assert.NotNull(s.Pick("2002"));
         Assert.Equal(Screen.ShopTrades, s.Screen);
         Assert.Equal(2002L, s.CurrentShopCode);
         Assert.Equal("무기점", s.CurrentShop!.Name);
@@ -203,7 +203,7 @@ public class TradeTests
     public void Trade_list_shows_only_trades_whose_conditions_are_met()
     {
         var s = Session();
-        s.Activate("2001");
+        s.Pick("2001");
         Assert.Equal([5001L], s.CurrentShopTrades.Select(t => t.Code));    // 5002는 튜토리얼 필요
 
         s.PlayerFlags[1001] = 1;
@@ -215,15 +215,15 @@ public class TradeTests
     public void Trade_list_back_goes_to_shop_list_then_home()
     {
         var s = Session();
-        s.Activate("2001");
-        Assert.Equal(["5001", "999"], s.Entries.Select(e => e.Code));   // 교환 + 돌아가기
+        s.Pick("2001");
+        Assert.Equal(["5001", "999"], s.DataEntries.Select(e => e.Code));   // 교환 + 돌아가기
 
-        Assert.NotNull(s.Activate("999"));
+        Assert.NotNull(s.Pick("999"));
         Assert.Equal(Screen.ShopList, s.Screen);
         Assert.Null(s.CurrentShopCode);
         Assert.Empty(s.CurrentShopTrades);
 
-        Assert.NotNull(s.Activate("999"));
+        Assert.NotNull(s.Pick("999"));
         Assert.Equal(Screen.Home, s.Screen);
     }
 
@@ -232,15 +232,15 @@ public class TradeTests
     {
         var pack = Pack(trades: TradeHeader + "5001\t2001\t11\t1\t2\t1\n");
         var s = GameSession.NewGame(pack);
-        s.Activate("104");
-        s.Activate("2002");                                   // 2002에는 교환이 없다
+        s.Pick("104");
+        s.Pick("2002");                                   // 2002에는 교환이 없다
         Assert.Equal(Screen.ShopTrades, s.Screen);
         Assert.Empty(s.CurrentShopTrades);
     }
 
     // ---- 교환 실행 ----
 
-    static bool EntryEnabled(GameSession s, string tradeCode) => s.Entries.Single(e => e.Code == tradeCode).Enabled;
+    static bool EntryEnabled(GameSession s, string tradeCode) => s.DataEntries.Single(e => e.Code == tradeCode).Enabled;
 
     // 회색 교환: 항목은 비활성, 눌러도 메시지도 변화도 없다. 막힌 이유를 돌려준다.
     static string? PressBlocked(GameSession s, string tradeCode)
@@ -248,7 +248,7 @@ public class TradeTests
         Assert.False(EntryEnabled(s, tradeCode));
         Assert.False(s.CanTrade(long.Parse(tradeCode)));
         var before = s.ToSaveJson();
-        Assert.NotNull(s.Activate(tradeCode));
+        Assert.NotNull(s.Pick(tradeCode));
         Assert.Null(s.Message);
         Assert.Equal(before, s.ToSaveJson());
         return s.TradeBlockedReason(long.Parse(tradeCode));
@@ -260,7 +260,7 @@ public class TradeTests
     {
         var s = Session();                      // 이미 상점가 화면
         foreach (var (item, amount) in inventory) s.InventoryItems[item] = new InventoryItem(amount);
-        s.Activate(shopCode.ToString());
+        s.Pick(shopCode.ToString());
         return s;
     }
 
@@ -268,19 +268,19 @@ public class TradeTests
     public void Trade_entries_are_the_available_trades_plus_back()
     {
         var s = InShop(2001);
-        Assert.Equal(["5001", "999"], s.Entries.Select(e => e.Code));
-        Assert.Equal("금화 ×100 → 약초 ×5", s.Entries[0].Label);
-        Assert.Equal(EntryAction.Trade, s.Entries[0].Action);
+        Assert.Equal(["5001", "999"], s.DataEntries.Select(e => e.Code));
+        Assert.Equal("금화 ×100 → 약초 ×5", s.DataEntries[0].Label);
+        Assert.Equal(EntryAction.Trade, s.DataEntries[0].Action);
 
         s.PlayerFlags[1001] = 1;                 // 5002가 열린다
-        Assert.Equal(["5001", "5002", "999"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["5001", "5002", "999"], s.DataEntries.Select(e => e.Code));
     }
 
     [Fact]
     public void Trade_pays_cost_and_gives_receive_and_stays_on_the_screen()
     {
         var s = InShop(2001, (11, 150));
-        var entry = s.Activate("5001");
+        var entry = s.Pick("5001");
 
         Assert.Equal(EntryAction.Trade, entry!.Action);
         Assert.Equal(Screen.ShopTrades, s.Screen);
@@ -294,8 +294,8 @@ public class TradeTests
     public void Trade_can_be_repeated_and_removes_an_item_that_reaches_zero()
     {
         var s = InShop(2001, (11, 200));
-        s.Activate("5001");
-        s.Activate("5001");
+        s.Pick("5001");
+        s.Pick("5001");
         Assert.False(s.InventoryItems.ContainsKey(11));     // 0개가 되면 항목을 지운다
         Assert.Equal(10, Have(s, 2));
 
@@ -328,12 +328,12 @@ public class TradeTests
     public void Trade_with_unmet_conditions_cannot_be_run_even_by_typing_its_code()
     {
         var s = InShop(2001, (2, 50));
-        Assert.Null(s.Activate("5002"));
+        Assert.Null(s.Pick("5002"));
         Assert.Null(s.Message);
         Assert.Equal(50, Have(s, 2));
 
         s.PlayerFlags[1001] = 1;
-        Assert.NotNull(s.Activate("5002"));                  // 약초 ×10 → 금화 ×30
+        Assert.NotNull(s.Pick("5002"));                  // 약초 ×10 → 금화 ×30
         Assert.Equal(40, Have(s, 2));
         Assert.Equal(30, Have(s, 11));
     }
@@ -342,7 +342,7 @@ public class TradeTests
     public void Receiving_a_bunch_item_gives_its_parts()
     {
         var s = InShop(2002, (3, 5));                    // 철광석 ×3 → 초보자 세트 ×1 (약초 ×3, 철광석 ×1)
-        s.Activate("5003");
+        s.Pick("5003");
 
         Assert.Equal("교환 완료: 철광석 ×3 → 초보자 세트 ×1", s.Message);
         Assert.Equal(3, Have(s, 3));                       // 5 - 3 + 1
@@ -355,8 +355,8 @@ public class TradeTests
     {
         var pack = Pack(bunch: Bunch, trades: TradeHeader + "5101\t2001\t9001\t2\t11\t50\n");
         var s = GameSession.NewGame(pack);
-        s.Activate("104");
-        s.Activate("2001");
+        s.Pick("104");
+        s.Pick("2001");
         s.InventoryItems[2] = new InventoryItem(6);        // 필요: 약초 6, 철광석 2
         s.InventoryItems[3] = new InventoryItem(1);
 
@@ -364,7 +364,7 @@ public class TradeTests
         Assert.Equal(6, Have(s, 2));
 
         s.InventoryItems[3] = new InventoryItem(2);
-        s.Activate("5101");
+        s.Pick("5101");
         Assert.False(s.InventoryItems.ContainsKey(2));
         Assert.False(s.InventoryItems.ContainsKey(3));
         Assert.Equal(50, Have(s, 11));
@@ -375,15 +375,15 @@ public class TradeTests
     {
         var pack = Pack(trades: TradeHeader + "5201\t2001\t11\t100\t11\t30\n");   // 금화 100 → 금화 30
         var s = GameSession.NewGame(pack);
-        s.Activate("104");
-        s.Activate("2001");
+        s.Pick("104");
+        s.Pick("2001");
 
         s.InventoryItems[11] = new InventoryItem(99);
         Assert.Contains("교환 실패", PressBlocked(s, "5201"));
         Assert.Equal(99, Have(s, 11));
 
         s.InventoryItems[11] = new InventoryItem(100);
-        s.Activate("5201");
+        s.Pick("5201");
         Assert.Equal(30, Have(s, 11));
     }
 
@@ -400,7 +400,7 @@ public class TradeTests
     public void Trade_may_reach_exactly_the_carry_limit()
     {
         var s = InShop(2001, (11, 100), (2, 94));       // 94 + 5 = 99
-        s.Activate("5001");
+        s.Pick("5001");
 
         Assert.StartsWith("교환 완료", s.Message);
         Assert.Equal(99, Have(s, 2));
@@ -421,11 +421,11 @@ public class TradeTests
     {
         // 이미 한도를 넘게 들고 있어도(예: 마스터를 나중에 낮춘 경우) 줄이는 교환은 막지 않는다.
         var s = InShop(2001, (11, 100), (2, 150));
-        s.Activate("5002");                                  // 5002는 튜토리얼 필요 → 코드로는 실행되지 않음
+        s.Pick("5002");                                  // 5002는 튜토리얼 필요 → 코드로는 실행되지 않음
         Assert.Null(s.Message);
 
         s.PlayerFlags[1001] = 1;
-        s.Activate("5002");                                  // 약초 ×10 → 금화 ×30: 약초는 줄기만 한다
+        s.Pick("5002");                                  // 약초 ×10 → 금화 ×30: 약초는 줄기만 한다
         Assert.Equal(140, Have(s, 2));
         Assert.Equal(130, Have(s, 11));
     }
@@ -439,8 +439,8 @@ public class TradeTests
             bunch: "inventory_code\titem_name\tpart_item_code\tpart_amount\n9\t바위산\t2\t8000000000\n",
             trades: TradeHeader + "5301\t2001\t11\t1\t9\t3000000000\n");
         var s = GameSession.NewGame(pack);
-        s.Activate("104");
-        s.Activate("2001");
+        s.Pick("104");
+        s.Pick("2001");
         s.InventoryItems[11] = new InventoryItem(5);
 
         Assert.StartsWith("교환 실패 - 수량이 너무 커서", PressBlocked(s, "5301"));
@@ -452,21 +452,21 @@ public class TradeTests
     public void Typed_codes_ignore_leading_zeros_and_spaces()
     {
         var s = InShop(2001, (11, 150));
-        Assert.NotNull(s.Activate("  005001 "));
+        Assert.NotNull(s.Pick("  005001 "));
         Assert.Equal(50, Have(s, 11));
-        Assert.Null(s.Activate("+5001"));                      // 부호는 받지 않는다
-        Assert.Null(s.Activate("5001.0"));
+        Assert.Null(s.Pick("+5001"));                      // 부호는 받지 않는다
+        Assert.Null(s.Pick("5001.0"));
     }
 
     [Fact]
     public void Message_is_cleared_by_the_next_activation()
     {
         var s = InShop(2001, (11, 100));
-        s.Activate("5001");
+        s.Pick("5001");
         Assert.NotNull(s.Message);
-        s.Activate("999");
+        s.Pick("999");
         Assert.Null(s.Message);
-        Assert.Null(s.Activate("nonsense"));
+        Assert.Null(s.Pick("nonsense"));
         Assert.Null(s.Message);
     }
 
@@ -474,7 +474,7 @@ public class TradeTests
     public void Inventory_after_trades_survives_save_and_load()
     {
         var s = InShop(2001, (11, 150));
-        s.Activate("5001");
+        s.Pick("5001");
         var loaded = GameSession.FromSaveJson(s.Pack, s.ToSaveJson());
         Assert.Equal(50, Have(loaded, 11));
         Assert.Equal(5, Have(loaded, 2));

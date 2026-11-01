@@ -30,7 +30,7 @@ public class CommunicationPlayTests
             s.SetSupport(SupportRole.Partner, 7001);
             s.SetSupport(SupportRole.Assist, 7002);
         }
-        s.Activate("107");
+        s.Pick("107");
         return s;
     }
 
@@ -45,48 +45,48 @@ public class CommunicationPlayTests
     public void The_selected_groups_communications_are_listed_by_code_after_the_groups_and_before_back()
     {
         var s = Session(Greeting);
-        Assert.Equal(["100", "200", "11", "12", "13", "999"], s.Entries.Select(e => e.Code));
-        Assert.Equal(["대화", "선물", "인사하기", "칭찬하기", "빈 교류", "돌아가기"], s.Entries.Select(e => e.Label));
-        Assert.Equal(EntryAction.StartCommunication, s.Entries[2].Action);
+        Assert.Equal(["100", "200", "11", "12", "13", "999"], s.DataEntries.Select(e => e.Code));
+        Assert.Equal(["대화", "선물", "인사하기", "칭찬하기", "빈 교류", "돌아가기"], s.DataEntries.Select(e => e.Label));
+        Assert.Equal(EntryAction.StartCommunication, s.DataEntries[2].Action);
 
-        s.Activate("200");                                                          // 다른 그룹을 고르면 그 그룹의 교류가 나온다
-        Assert.Equal(["100", "200", "21", "999"], s.Entries.Select(e => e.Code));
-        s.Activate("100");
-        Assert.Equal(["100", "200", "11", "12", "13", "999"], s.Entries.Select(e => e.Code));
+        s.Pick("200");                                                          // 다른 그룹을 고르면 그 그룹의 교류가 나온다
+        Assert.Equal(["100", "200", "21", "999"], s.DataEntries.Select(e => e.Code));
+        s.Pick("100");
+        Assert.Equal(["100", "200", "11", "12", "13", "999"], s.DataEntries.Select(e => e.Code));
     }
 
     [Fact]
     public void Choosing_a_communication_plays_its_flow_in_place_of_the_list()
     {
         var s = Session(Greeting);
-        Assert.NotNull(s.Activate("11"));
+        Assert.NotNull(s.Pick("11"));
         Assert.Equal(Screen.CommunicationPlay, s.Screen);
         Assert.Equal(11, s.CurrentCommunicationCode);
         Assert.True(s.AdvanceOnAnyKey);                                              // 아무 키나 누르면 다음으로
-        Assert.Equal(["1"], s.Entries.Select(e => e.Code));                          // 코드 1은 다음
+        Assert.Equal(["1"], s.DataEntries.Select(e => e.Code));                          // 코드 1은 다음
 
         // Text는 파트너(교류가 is_assist가 아니므로)의 대사로 나온다
         var first = s.AdvLog.Single();
         Assert.Equal((AdvStepKind.TextYou, "안녕", "용사", 7001L), (first.Kind, first.Text, first.SpeakerName, first.CharacterCode));
 
-        s.Activate("1");
-        s.Activate("1");
+        s.Pick("1");
+        s.Pick("1");
         Assert.Equal([AdvStepKind.TextYou, AdvStepKind.TextLog, AdvStepKind.TextPlain], s.AdvLog.Select(l => l.Kind));
 
-        s.Activate("1");                                                             // 끝: 교류 화면으로 돌아온다(고른 그룹 그대로)
+        s.Pick("1");                                                             // 끝: 교류 화면으로 돌아온다(고른 그룹 그대로)
         Assert.Equal(Screen.Interaction, s.Screen);
         Assert.Null(s.CurrentCommunicationCode);
         Assert.Empty(s.AdvLog);
         Assert.Equal(1, s.CurrentCommunicationGroupCode);
-        Assert.Equal(["100", "200", "11", "12", "13", "999"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["100", "200", "11", "12", "13", "999"], s.DataEntries.Select(e => e.Code));
     }
 
     [Fact]
     public void An_assist_communication_is_spoken_by_the_assist()
     {
         var s = Session(Greeting);
-        s.Activate("200");
-        s.Activate("21");
+        s.Pick("200");
+        s.Pick("21");
         var line = s.AdvLog.Single();
         Assert.Equal(("마법사", 7002L), (line.SpeakerName, line.CharacterCode));
     }
@@ -95,7 +95,7 @@ public class CommunicationPlayTests
     public void An_empty_slot_makes_the_speaker_unknown()
     {
         var s = Session(Greeting, withSupport: false);
-        s.Activate("11");
+        s.Pick("11");
         Assert.Equal(("???", 0L), (s.AdvLog.Single().SpeakerName, s.AdvLog.Single().CharacterCode));
     }
 
@@ -103,7 +103,7 @@ public class CommunicationPlayTests
     public void A_communication_without_a_flow_stays_on_the_list_with_a_message()
     {
         var s = Session(Greeting);
-        Assert.NotNull(s.Activate("13"));
+        Assert.NotNull(s.Pick("13"));
         Assert.Equal(Screen.Interaction, s.Screen);
         Assert.Equal("교류 내용이 없습니다.", s.Message);
     }
@@ -116,16 +116,16 @@ public class CommunicationPlayTests
             "11\t2\tChoice\t1\t4\t\t싫어\n" +
             "11\t3\tText\t\t\t\t고마워\n" +
             "11\t4\tFinish\t\t\t\t\n");
-        s.Activate("11");
+        s.Pick("11");
         Assert.False(s.AdvanceOnAnyKey);
-        Assert.Equal(["1", "2"], s.Entries.Select(e => e.Code));
-        Assert.Equal(["좋아", "싫어"], s.Entries.Select(e => e.Label));
-        Assert.All(s.Entries, e => Assert.Equal(Screen.CommunicationPlay, e.Target));
+        Assert.Equal(["1", "2"], s.DataEntries.Select(e => e.Code));
+        Assert.Equal(["좋아", "싫어"], s.DataEntries.Select(e => e.Label));
+        Assert.All(s.DataEntries, e => Assert.Equal(Screen.CommunicationPlay, e.Target));
 
-        s.Activate("1");
+        s.Pick("1");
         Assert.Equal([AdvStepKind.Chosen, AdvStepKind.TextYou], s.AdvLog.Select(l => l.Kind));
         Assert.Equal(Screen.CommunicationPlay, s.Screen);
-        s.Activate("1");
+        s.Pick("1");
         Assert.Equal(Screen.Interaction, s.Screen);
     }
 
@@ -139,7 +139,7 @@ public class CommunicationPlayTests
             "11\t4\tAddInventory\t2\t3\t\t\n" +
             "11\t5\tText\t\t\t\t도착\n");
         var coin = s.CountInventory(2);
-        s.Activate("11");
+        s.Pick("11");
         Assert.Equal(["도착"], s.AdvLog.Select(l => l.Text));
         Assert.Equal(1, s.PlayerFlags[5]);
         Assert.Equal(coin + 3, s.CountInventory(2));
@@ -149,10 +149,10 @@ public class CommunicationPlayTests
     public void The_slots_stay_inert_during_playback()
     {
         var s = Session(Greeting);
-        s.Activate("11");
+        s.Pick("11");
         Assert.Equal(Screen.CommunicationPlay, s.Screen);
         Assert.Equal(7001, s.PartnerCode);
-        s.Activate("1");
+        s.Pick("1");
         Assert.Equal(Screen.CommunicationPlay, s.Screen);
         Assert.Equal(7001, s.PartnerCode);
         Assert.Null(s.CurrentSupportRole);
@@ -162,13 +162,13 @@ public class CommunicationPlayTests
     public void Entering_the_screen_again_after_playing_selects_the_smallest_group()
     {
         var s = Session(Greeting);
-        s.Activate("200");
-        s.Activate("21");
-        s.Activate("1");
+        s.Pick("200");
+        s.Pick("21");
+        s.Pick("1");
         Assert.Equal(Screen.Interaction, s.Screen);
         Assert.Equal(2, s.CurrentCommunicationGroupCode);                           // 끝난 뒤에는 고른 그룹 그대로
-        s.Activate("999");
-        s.Activate("107");
+        s.Pick("999");
+        s.Pick("107");
         Assert.Equal(1, s.CurrentCommunicationGroupCode);
     }
 
@@ -180,19 +180,19 @@ public class CommunicationPlayTests
         var s = Session(Greeting);
         Assert.Empty(s.CommunicationHistory);                                        // 처음 선택된 그룹은 커맨드가 아니다
 
-        s.Activate("200");                                                           // 그룹 고르기
-        s.Activate("100");
+        s.Pick("200");                                                           // 그룹 고르기
+        s.Pick("100");
         Assert.Equal(["대화", "선물"], s.CommunicationHistory);
 
-        s.Activate("11");                                                            // 교류 시작
+        s.Pick("11");                                                            // 교류 시작
         Assert.Equal(["인사하기", "대화", "선물"], s.CommunicationHistory);
-        s.Activate("1");                                                             // "다음"은 커맨드가 아니다
-        s.Activate("1");
-        s.Activate("1");
+        s.Pick("1");                                                             // "다음"은 커맨드가 아니다
+        s.Pick("1");
+        s.Pick("1");
         Assert.Equal(Screen.Interaction, s.Screen);
         Assert.Equal(["인사하기", "대화", "선물"], s.CommunicationHistory);
 
-        s.Activate("200");                                                           // 4개째부터는 가장 오래된 것이 밀려난다
+        s.Pick("200");                                                           // 4개째부터는 가장 오래된 것이 밀려난다
         Assert.Equal(["선물", "인사하기", "대화"], s.CommunicationHistory);
     }
 
@@ -201,8 +201,8 @@ public class CommunicationPlayTests
     {
         var s = Session(
             "11\t1\tChoice\t1\t3\t\t[b]좋아[/b]\n11\t2\tChoice\t1\t3\t\t싫어\n11\t3\tFinish\t\t\t\t\n");
-        s.Activate("11");
-        s.Activate("1");
+        s.Pick("11");
+        s.Pick("1");
         Assert.Equal(["좋아", "인사하기"], s.CommunicationHistory);
     }
 
@@ -210,12 +210,12 @@ public class CommunicationPlayTests
     public void Back_and_inert_clicks_are_not_commands_and_entering_again_clears_the_history()
     {
         var s = Session(Greeting);
-        s.Activate("100");                                                           // 이미 고른 그룹: 반응 없음
+        s.Pick("100");                                                           // 이미 고른 그룹: 반응 없음
         Assert.Empty(s.CommunicationHistory);
-        s.Activate("200");
-        s.Activate("999");
+        s.Pick("200");
+        s.Pick("999");
         Assert.Equal(Screen.Home, s.Screen);
-        s.Activate("107");
+        s.Pick("107");
         Assert.Empty(s.CommunicationHistory);
     }
 }

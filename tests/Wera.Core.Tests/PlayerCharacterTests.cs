@@ -163,11 +163,11 @@ public class PlayerCharacterTests
         var s = GameSession.NewGame(pack);
         s.AddCharacter(1);
 
-        s.Activate("104"); s.Activate("2001");
-        Assert.False(s.Entries.Single(e => e.Code == "5001").Enabled);
+        s.Pick("104"); s.Pick("2001");
+        Assert.False(s.DataEntries.Single(e => e.Code == "5001").Enabled);
         Assert.False(s.CanTrade(5001));
         Assert.Contains("플레이어는 낼 수 없습니다", s.TradeBlockedReason(5001));
-        s.Activate("5001");
+        s.Pick("5001");
         Assert.Null(s.Message);
         Assert.True(s.Characters.ContainsKey(1));
         Assert.False(s.InventoryItems.ContainsKey(3));
@@ -230,9 +230,9 @@ public class PlayerCharacterTests
         Assert.False(s.SetSupport(SupportRole.Assist, 1));
         Assert.True(s.SetSupport(SupportRole.Partner, 7001));
 
-        s.Activate("1");                                                  // 파트너 선택 화면
+        s.Pick("1");                                                  // 파트너 선택 화면
         Assert.DoesNotContain(s.SupportList, c => c.Code == 1);          // 플레이어는 목록에 없다
-        Assert.Null(s.Activate("1"));                                     // 목록의 1번 코드(플레이어)는 고를 수 없다
+        Assert.Null(s.Pick("1"));                                     // 목록의 1번 코드(플레이어)는 고를 수 없다
         Assert.Equal(Screen.SupportSelect, s.Screen);
     }
 

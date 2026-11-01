@@ -13,7 +13,7 @@ public class CommunicationGroupTests
     static GameSession Interaction(string? groups)
     {
         var s = GameSession.NewGame(Pack(groups));
-        s.Activate("107");
+        s.Pick("107");
         Assert.Equal(Screen.Interaction, s.Screen);
         return s;
     }
@@ -48,21 +48,21 @@ public class CommunicationGroupTests
              new ScreenEntry("200", "선물", Screen.Interaction, EntryAction.SelectCommunicationGroup),
              new ScreenEntry("300", "교환", Screen.Interaction, EntryAction.SelectCommunicationGroup),
              new ScreenEntry("999", "돌아가기", Screen.Home)],
-            s.Entries);
+            s.DataEntries);
     }
 
     [Fact]
     public void Choosing_a_group_selects_it_and_stays_on_the_screen_and_the_chosen_one_is_inert()
     {
         var s = Interaction("code\tname\n1\t대화\n2\t선물\n");
-        Assert.NotNull(s.Activate("200"));
+        Assert.NotNull(s.Pick("200"));
         Assert.Equal(Screen.Interaction, s.Screen);
         Assert.Equal(2, s.CurrentCommunicationGroupCode);
-        Assert.Equal([true, false], s.Entries.Where(e => e.Action == EntryAction.SelectCommunicationGroup).Select(e => e.Enabled));
+        Assert.Equal([true, false], s.DataEntries.Where(e => e.Action == EntryAction.SelectCommunicationGroup).Select(e => e.Enabled));
 
-        s.Activate("200");                                                          // 이미 고른 그룹은 눌러도 그대로
+        s.Pick("200");                                                          // 이미 고른 그룹은 눌러도 그대로
         Assert.Equal(2, s.CurrentCommunicationGroupCode);
-        s.Activate("100");
+        s.Pick("100");
         Assert.Equal(1, s.CurrentCommunicationGroupCode);
     }
 
@@ -70,9 +70,9 @@ public class CommunicationGroupTests
     public void Entering_again_selects_the_smallest_group_again()
     {
         var s = Interaction("code\tname\n1\t대화\n2\t선물\n");
-        s.Activate("200");
-        s.Activate("999");
-        s.Activate("107");
+        s.Pick("200");
+        s.Pick("999");
+        s.Pick("107");
         Assert.Equal(1, s.CurrentCommunicationGroupCode);
     }
 
@@ -80,8 +80,8 @@ public class CommunicationGroupTests
     public void The_slots_cannot_be_changed_on_this_screen()
     {
         var s = Interaction("code\tname\n1\t대화\n");
-        Assert.Null(s.Activate("1"));                                               // 홈에서는 [1] 파트너, [2] 어시스트
-        Assert.Null(s.Activate("2"));
+        Assert.Null(s.Pick("1"));                                               // 홈에서는 [1] 파트너, [2] 어시스트
+        Assert.Null(s.Pick("2"));
         Assert.Equal(Screen.Interaction, s.Screen);
         Assert.Null(s.CurrentSupportRole);
     }
@@ -91,7 +91,7 @@ public class CommunicationGroupTests
     {
         var s = Interaction(null);
         Assert.Null(s.CurrentCommunicationGroupCode);
-        Assert.Equal(["999"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["999"], s.DataEntries.Select(e => e.Code));
     }
 
     [Fact]
@@ -102,8 +102,8 @@ public class CommunicationGroupTests
         using var zip = File.OpenRead(Path.Combine(root, "src", "Wera.Web", "wwwroot", "sample-pack.wra"));
         var s = GameSession.NewGame(GamePack.Load(zip));
         Assert.Equal([new CommunicationGroupEntry(1, "대화")], s.Pack.CommunicationGroups);
-        s.Activate("107");
-        Assert.Equal("100", s.Entries[0].Code);
-        Assert.Equal("대화", s.Entries[0].Label);
+        s.Pick("107");
+        Assert.Equal("100", s.DataEntries[0].Code);
+        Assert.Equal("대화", s.DataEntries[0].Label);
     }
 }

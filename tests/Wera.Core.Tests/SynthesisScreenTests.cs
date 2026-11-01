@@ -17,30 +17,30 @@ public class SynthesisScreenTests
     {
         var s = GameSession.NewGame(pack);
         foreach (var _ in ids) s.AddUniqueItem(8001);
-        s.Activate(GameSession.EquipmentEnhanceEntryCode);
-        s.Activate("901");                                                                 // 합성
+        s.Pick(GameSession.EquipmentEnhanceEntryCode);
+        s.Pick("901");                                                                 // 합성
         return s;
     }
 
-    static string Labels(GameSession s) => string.Join(",", s.Entries.Where(e => e.Action != EntryAction.ListPage).Select(e => $"{e.Label}{(e.Enabled ? "" : "x")}"));
+    static string Labels(GameSession s) => string.Join(",", s.DataEntries.Where(e => e.Action != EntryAction.ListPage).Select(e => $"{e.Label}{(e.Enabled ? "" : "x")}"));
 
     [Fact]
     public void Picking_a_target_enables_only_the_sacrifices_then_execute_applies_the_synthesis()
     {
         var s = EnhanceScreen(SamplePack(), "a", "b");
-        var swords = s.Entries.Where(e => e.Label == "철검").ToList();
+        var swords = s.DataEntries.Where(e => e.Label == "철검").ToList();
         Assert.Equal(2, swords.Count);
-        Assert.Equal(["합성", "제련", "개조"], s.Entries.Where(e => e.Action == EntryAction.SelectEnhanceMode).Select(e => e.Label));
-        s.Activate(swords[0].Code);                                                       // 타겟
+        Assert.Equal(["합성", "제련", "개조"], s.DataEntries.Where(e => e.Action == EntryAction.SelectEnhanceMode).Select(e => e.Label));
+        s.Pick(swords[0].Code);                                                       // 타겟
         Assert.Equal(Screen.EquipmentEnhance, s.Screen);
         Assert.Equal(["순례자의 은단검x", "철검 (대상)x", "철검", "실행x", "취소", "돌아가기"], Labels(s).Split(','));
-        Assert.Equal(["901", "902"], s.Entries.Where(e => e.Code is "901" or "902").Select(e => e.Code));
-        Assert.Equal(Screen.EquipmentEnhance, s.Activate("901")!.Target);                  // 실행은 아직 눌리지 않는다
+        Assert.Equal(["901", "902"], s.DataEntries.Where(e => e.Code is "901" or "902").Select(e => e.Code));
+        Assert.Equal(Screen.EquipmentEnhance, s.Pick("901")!.Target);                  // 실행은 아직 눌리지 않는다
 
         var targetId = s.EnhanceTargetId!;
-        s.Activate(swords[1].Code);                                                       // 제물 하나(제물 수 기본 1)로 다 찼다
+        s.Pick(swords[1].Code);                                                       // 제물 하나(제물 수 기본 1)로 다 찼다
         Assert.Equal(["순례자의 은단검x", "철검 (대상)x", "철검 (제물)x", "실행", "취소", "돌아가기"], Labels(s).Split(','));
-        s.Activate("901");
+        s.Pick("901");
         Assert.Equal("합성했습니다: 철검", s.Message);
         Assert.Equal([targetId], s.UniqueItemInstances.Where(kv => kv.Value.ItemCode == 8001).Select(kv => kv.Key));   // 제물은 없어졌다
         var item = s.UniqueItemInstances[targetId];
@@ -48,7 +48,7 @@ public class SynthesisScreenTests
         Assert.Equal(15, item.Statuses[40]);                                              // 강화 레벨 1의 값 5가 초깃값 10에 더해졌다
         Assert.Null(s.EnhanceTargetId);
         Assert.Empty(s.SynthesisSacrificeIds);
-        Assert.Equal(["합성", "제련", "개조"], s.Entries.Where(e => e.Action == EntryAction.SelectEnhanceMode).Select(e => e.Label));
+        Assert.Equal(["합성", "제련", "개조"], s.DataEntries.Where(e => e.Action == EntryAction.SelectEnhanceMode).Select(e => e.Label));
     }
 
     [Fact]
@@ -59,23 +59,23 @@ public class SynthesisScreenTests
             (GamePack.UniqueItemInventoryMasterPath, "inventory_code\titem_name\n8001\t철검\n"),
             (GamePack.GameSettingMasterPath, "setting_type\tvalue_type\tlong_value\tdecimal_value\ttext_value\nSynthesisSacrificeCount\tLong\t2\t\t\n")));
         var s = EnhanceScreen(pack, "a", "b", "c");
-        var swords = s.Entries.Where(e => e.Label == "철검").ToList();
+        var swords = s.DataEntries.Where(e => e.Label == "철검").ToList();
         Assert.All(swords, e => Assert.True(e.Enabled));                                   // 같은 코드가 셋이라 제물 둘이 있다
-        s.Activate(swords[0].Code);
-        s.Activate(swords[1].Code);                                                       // 제물 하나 더 필요하다
+        s.Pick(swords[0].Code);
+        s.Pick(swords[1].Code);                                                       // 제물 하나 더 필요하다
         Assert.Equal(["철검 (대상)x", "철검 (제물)x", "철검", "실행x", "취소", "돌아가기"], Labels(s).Split(','));
-        Assert.False(s.Entries.First(e => e.Code == "901").Enabled);
-        s.Activate("902");                                                                // 취소
+        Assert.False(s.DataEntries.First(e => e.Code == "901").Enabled);
+        s.Pick("902");                                                                // 취소
         Assert.Null(s.EnhanceTargetId);
         Assert.Empty(s.SynthesisSacrificeIds);
         Assert.Equal(EnhanceMode.Synthesis, s.EnhanceMode);
 
-        s.Activate(swords[0].Code);
-        s.Activate(swords[1].Code);
-        s.Activate(swords[2].Code);                                                       // 다 골랐다
-        Assert.True(s.Entries.First(e => e.Code == "901").Enabled);
-        Assert.All(s.Entries.Where(e => e.Action == EntryAction.SelectSacrifice), e => Assert.False(e.Enabled));
-        s.Activate("902");                                                                // 다 골라도 취소하면 리셋
+        s.Pick(swords[0].Code);
+        s.Pick(swords[1].Code);
+        s.Pick(swords[2].Code);                                                       // 다 골랐다
+        Assert.True(s.DataEntries.First(e => e.Code == "901").Enabled);
+        Assert.All(s.DataEntries.Where(e => e.Action == EntryAction.SelectSacrifice), e => Assert.False(e.Enabled));
+        s.Pick("902");                                                                // 다 골라도 취소하면 리셋
         Assert.Empty(s.SynthesisSacrificeIds);
         Assert.Equal(3, s.UniqueItemInstances.Count(kv => kv.Value.ItemCode == 8001));
     }

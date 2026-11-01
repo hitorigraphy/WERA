@@ -310,8 +310,8 @@ public class EquipmentTests
         s.Party[4] = 7002;
         foreach (var item in new long[] { 9001, 9002, 9003, 9004, 9005 }) s.AddUniqueItem(item);   // 장비는 하나씩 보유
         s.Party[8] = 7003;
-        s.Activate("105");
-        s.Activate("102");
+        s.Pick("105");
+        s.Pick("102");
         return s;
     }
 
@@ -319,30 +319,30 @@ public class EquipmentTests
     public void Equipment_list_shows_the_characters_equipment_slots_as_selectable_entries()
     {
         var s = Session();
-        s.Activate("1");                                          // 용사
+        s.Pick("1");                                          // 용사
 
         Assert.Equal(Screen.EquipmentList, s.Screen);
         Assert.Equal(7001, s.CurrentCharacterCode);
         Assert.Equal(
             [new ScreenEntry("1", "무기 : (없음)", Screen.EquipmentSelect), new ScreenEntry("2", "방어구 : (없음)", Screen.EquipmentSelect),
              new ScreenEntry("999", "돌아가기", Screen.EquipmentSetup)],
-            s.Entries);
+            s.DataEntries);
     }
 
     [Fact]
     public void A_character_without_slot_rules_still_lists_every_slot()
     {
         var s = Session();
-        s.Activate("9");                                          // 도적: 슬롯 태그 행이 없어도 슬롯은 모두 있다
-        Assert.Equal(["1", "2", "999"], s.Entries.Select(e => e.Code));
+        s.Pick("9");                                          // 도적: 슬롯 태그 행이 없어도 슬롯은 모두 있다
+        Assert.Equal(["1", "2", "999"], s.DataEntries.Select(e => e.Code));
     }
 
     [Fact]
     public void Picking_an_equipment_slot_lists_the_equipment_that_fits_it()
     {
         var s = Session();
-        s.Activate("1");
-        Assert.NotNull(s.Activate("1"));                          // 무기
+        s.Pick("1");
+        Assert.NotNull(s.Pick("1"));                          // 무기
 
         Assert.Equal(Screen.EquipmentSelect, s.Screen);
         Assert.Equal(1, s.CurrentEquipmentSlotCode);
@@ -355,11 +355,11 @@ public class EquipmentTests
     public void Different_slots_and_characters_list_different_equipment()
     {
         var s = Session();
-        s.Activate("1"); s.Activate("2");
+        s.Pick("1"); s.Pick("2");
         Assert.Equal(["판금갑옷", "천 옷"], s.EquippableItems.Select(i => i.Name));
-        s.Activate("999"); s.Activate("999");                     // 장비 슬롯 목록 → 장비 착용 화면
+        s.Pick("999"); s.Pick("999");                     // 장비 슬롯 목록 → 장비 착용 화면
 
-        s.Activate("5"); s.Activate("1");                         // 마법사의 무기
+        s.Pick("5"); s.Pick("1");                         // 마법사의 무기
         Assert.Equal(["지팡이"], s.EquippableItems.Select(i => i.Name));
     }
 
@@ -367,20 +367,20 @@ public class EquipmentTests
     public void Back_walks_equipment_select_to_equipment_list_to_equipment_setup_to_home()
     {
         var s = Session();
-        s.Activate("1"); s.Activate("1");
-        Assert.Equal(["0", "2", "999"], s.Entries.Select(e => e.Code));   // 낄 수 있는 보유 장비(철검, 지팡이: OrderNumber 0, 2) + 돌아가기
+        s.Pick("1"); s.Pick("1");
+        Assert.Equal(["0", "2", "999"], s.DataEntries.Select(e => e.Code));   // 낄 수 있는 보유 장비(철검, 지팡이: OrderNumber 0, 2) + 돌아가기
 
-        s.Activate("999");
+        s.Pick("999");
         Assert.Equal(Screen.EquipmentList, s.Screen);
         Assert.Equal(7001, s.CurrentCharacterCode);               // 같은 캐릭터를 계속 본다
         Assert.Null(s.CurrentEquipmentSlotCode);
-        Assert.Equal(2, s.Entries.Count(e => e.Target == Screen.EquipmentSelect));
+        Assert.Equal(2, s.DataEntries.Count(e => e.Target == Screen.EquipmentSelect));
 
-        s.Activate("999");
+        s.Pick("999");
         Assert.Equal(Screen.EquipmentSetup, s.Screen);
         Assert.Null(s.CurrentSlot);
 
-        s.Activate("999");
+        s.Pick("999");
         Assert.Equal(Screen.Home, s.Screen);
     }
 
@@ -388,9 +388,9 @@ public class EquipmentTests
     public void Slot_codes_of_other_screens_do_not_work_inside_equipment_select()
     {
         var s = Session();
-        s.Activate("1"); s.Activate("1");
-        Assert.Null(s.Activate("3"));                             // 다른 장비 슬롯으로 바로 갈 수 없다
-        Assert.Null(s.Activate("5"));
+        s.Pick("1"); s.Pick("1");
+        Assert.Null(s.Pick("3"));                             // 다른 장비 슬롯으로 바로 갈 수 없다
+        Assert.Null(s.Pick("5"));
         Assert.Equal(Screen.EquipmentSelect, s.Screen);
         Assert.Equal(1, s.CurrentEquipmentSlotCode);
     }
@@ -399,7 +399,7 @@ public class EquipmentTests
     public void Save_taken_while_choosing_equipment_loads_into_home_with_the_selection_cleared()
     {
         var s = Session();
-        s.Activate("1"); s.Activate("1");
+        s.Pick("1"); s.Pick("1");
         Assert.Contains("\"EquipmentSelect\"", s.ToSaveJson());
 
         var loaded = GameSession.FromSaveJson(s.Pack, s.ToSaveJson());

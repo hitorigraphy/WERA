@@ -47,10 +47,10 @@ public class DungeonFlowTests
     {
         var s = GameSession.NewGame(pack ?? SamplePackWith());
         s.NextRandom = _ => 99;
-        s.Activate("105"); s.Activate("1"); s.Activate("1"); s.Activate("999");
-        s.Activate("101");
-        s.Activate("1999");
-        s.Activate("11");
+        s.Pick("105"); s.Pick("1"); s.Pick("1"); s.Pick("999");
+        s.Pick("101");
+        s.Pick("1999");
+        s.Pick("11");
         return s;
     }
 
@@ -66,20 +66,20 @@ public class DungeonFlowTests
     public void The_dungeon_entry_flows_through_dungeon_select_party_select_and_the_entry_point()
     {
         var s = GameSession.NewGame(SamplePackWith());
-        s.Activate("105"); s.Activate("1"); s.Activate("1"); s.Activate("999");
-        Assert.Equal(Screen.DungeonSelect, s.Activate("101")!.Target);
-        var dungeons = s.Entries.Where(e => e.Action == EntryAction.SelectDungeon).ToList();
+        s.Pick("105"); s.Pick("1"); s.Pick("1"); s.Pick("999");
+        Assert.Equal(Screen.DungeonSelect, s.Pick("101")!.Target);
+        var dungeons = s.DataEntries.Where(e => e.Action == EntryAction.SelectDungeon).ToList();
         Assert.Equal(["1999"], dungeons.Select(e => e.Code));                                 // 입장 조건을 만족하는 던전(1001, 1002는 플래그가 필요)
         Assert.True(dungeons[0].Enabled);
-        s.Activate("1999");
+        s.Pick("1999");
         Assert.Equal(Screen.DungeonPartySelect, s.Screen);
-        var parties = s.Entries.Where(e => e.Action == EntryAction.EnterDungeon).ToList();
+        var parties = s.DataEntries.Where(e => e.Action == EntryAction.EnterDungeon).ToList();
         Assert.Equal(["11"], parties.Select(e => e.Code));                                    // 리더가 있는 파티-A만 나온다(출격할 수 없는 파티는 표시하지 않는다)
         Assert.True(parties[0].Enabled);
-        Assert.Equal(["11", "999"], s.Entries.Select(e => e.Code));
-        Assert.Null(s.Activate("12"));                                                        // 나오지 않는 파티는 고를 수 없다
+        Assert.Equal(["11", "999"], s.DataEntries.Select(e => e.Code));
+        Assert.Null(s.Pick("12"));                                                        // 나오지 않는 파티는 고를 수 없다
         Assert.Equal(Screen.DungeonPartySelect, s.Screen);
-        s.Activate("11");
+        s.Pick("11");
         Assert.Equal(Screen.DungeonMove, s.Screen);
         Assert.Equal(1999, s.CurrentDungeonCode);
         Assert.Equal((0L, 1L, 1L), At(s));
@@ -90,7 +90,7 @@ public class DungeonFlowTests
     public void Steps_are_wasd_keys_one_cell_at_a_time_and_blocked_by_impassable_cells()
     {
         var s = Entered();
-        Assert.DoesNotContain(s.Entries, e => e.Code is "1" or "2" or "3" or "4" or "999");   // [1]위 같은 이동 표시도, 나가기도 없다
+        Assert.DoesNotContain(s.DataEntries, e => e.Code is "1" or "2" or "3" or "4" or "999");   // [1]위 같은 이동 표시도, 나가기도 없다
         s.PressDungeonKey('w');
         s.PressDungeonKey('A');
         Assert.Equal((0L, 1L, 1L), At(s));                                                    // 위(벽)와 왼쪽(벽)으로는 갈 수 없다
@@ -113,21 +113,21 @@ public class DungeonFlowTests
         var s = Entered();
         Assert.Equal("테스트 던전", s.DungeonName);
         Assert.Equal("1층", s.DungeonLayerName);
-        Assert.Equal(["201", "203", "200"], s.Entries.Select(e => e.Code));
-        Assert.Equal(["스테이터스 확인", "아이템 확인", "세이브"], s.Entries.Select(e => e.Label));
+        Assert.Equal(["201", "203", "200"], s.DataEntries.Select(e => e.Code));
+        Assert.Equal(["스테이터스 확인", "아이템 확인", "세이브"], s.DataEntries.Select(e => e.Label));
         Walk(s, "DDDD");
         Assert.Equal("2층", s.DungeonLayerName);                                              // 층이 바뀌면 층 이름도 바뀐다
         Assert.Equal("테스트 던전", s.DungeonName);
 
-        Assert.Equal(Screen.StatusCheck, s.Activate("201")!.Target);
-        Assert.Equal("999", s.Entries[^1].Code);
-        Assert.Equal(Screen.DungeonMove, s.Activate("999")!.Target);                          // 확인 화면의 돌아가기는 던전으로
+        Assert.Equal(Screen.StatusCheck, s.Pick("201")!.Target);
+        Assert.Equal("999", s.DataEntries[^1].Code);
+        Assert.Equal(Screen.DungeonMove, s.Pick("999")!.Target);                          // 확인 화면의 돌아가기는 던전으로
         Assert.Equal((1L, 2L, 1L), At(s));                                                    // 서 있던 자리 그대로
-        Assert.Equal(Screen.ItemCheck, s.Activate("203")!.Target);
+        Assert.Equal(Screen.ItemCheck, s.Pick("203")!.Target);
         s.PressDungeonKey('d');                                                               // 다른 화면에서 이동 키는 아무 일도 없다
-        Assert.Equal(Screen.DungeonMove, s.Activate("999")!.Target);
+        Assert.Equal(Screen.DungeonMove, s.Pick("999")!.Target);
         Assert.Equal((1L, 2L, 1L), At(s));
-        Assert.Equal(EntryAction.Save, s.Activate("200")!.Action);                            // 세이브: 화면은 그대로
+        Assert.Equal(EntryAction.Save, s.Pick("200")!.Action);                            // 세이브: 화면은 그대로
         Assert.Equal(Screen.DungeonMove, s.Screen);
         Assert.NotNull(s.CurrentDungeonCode);
     }
@@ -210,8 +210,8 @@ public class DungeonFlowTests
         Assert.Equal(Screen.Battle, s.Screen);
         Assert.Equal(5001, s.CurrentBattleCode);
         Assert.Equal((0L, 8L, 3L), At(s));
-        s.Activate("106");                                                                    // 도망
-        s.Activate("999");
+        s.Pick("106");                                                                    // 도망
+        s.Pick("999");
         Assert.Equal(Screen.DungeonMove, s.Screen);                                           // 도망은 이동 화면으로 돌아와 계속한다
         Assert.Equal((0L, 8L, 3L), At(s));
     }
@@ -237,8 +237,8 @@ public class DungeonFlowTests
             enemy.Statuses[GamePack.MaxHpStatusCode] = 100;
         }
         s.Characters[hero].Statuses[GamePack.HpStatusCode] = 1;
-        s.Activate("102"); s.Activate("101"); s.Activate((s.EnemyInstances.Keys.First() + 1).ToString());
-        s.Activate("107");
+        s.Pick("102"); s.Pick("101"); s.Pick((s.EnemyInstances.Keys.First() + 1).ToString());
+        s.Pick("107");
         Assert.Equal(GameSession.BattleOutcomeKind.Lose, s.BattleOutcome);
     }
 
@@ -247,13 +247,13 @@ public class DungeonFlowTests
     {
         var s = Entered(SamplePackWith(("master/battle_master_v1.tsv", RunnableBattle)));
         LoseTheFixedBattle(s, 1);
-        s.Activate("999");
+        s.Pick("999");
         Assert.Equal(Screen.GameOver, s.Screen);
         Assert.Null(s.CurrentDungeonCode);
-        Assert.Equal(Screen.Load, s.Activate("999")!.Target);
+        Assert.Equal(Screen.Load, s.Pick("999")!.Target);
         Assert.Equal(Screen.Load, s.Screen);
-        Assert.Empty(s.Entries);                                                              // 게임 오버 뒤의 로드 화면에는 돌아가기가 없다
-        Assert.Null(s.Activate("999"));
+        Assert.Empty(s.DataEntries);                                                              // 게임 오버 뒤의 로드 화면에는 돌아가기가 없다
+        Assert.Null(s.Pick("999"));
         Assert.Equal(Screen.Load, s.Screen);
     }
 
@@ -261,15 +261,15 @@ public class DungeonFlowTests
     public void Losing_a_dungeon_battle_without_the_player_in_the_party_returns_home()
     {
         var s = GameSession.NewGame(SamplePackWith(("master/battle_master_v1.tsv", RunnableBattle)));
-        s.Activate("105"); s.Activate("1"); s.Activate("1"); s.Activate("999");
+        s.Pick("105"); s.Pick("1"); s.Pick("1"); s.Pick("999");
         s.AddCharacter(7001);
         s.Parties[1].Units[0] = s.Parties[0].Units[0]! with { CharacterCode = 7001 };       // 파티-B: 리더 용사 혼자
-        s.Activate("101"); s.Activate("1999");
-        Assert.Equal(["11", "12", "999"], s.Entries.Select(e => e.Code));                     // 파견할 수 있는 두 파티
-        s.Activate("12");
+        s.Pick("101"); s.Pick("1999");
+        Assert.Equal(["11", "12", "999"], s.DataEntries.Select(e => e.Code));                     // 파견할 수 있는 두 파티
+        s.Pick("12");
         Assert.Equal(Screen.DungeonMove, s.Screen);
         LoseTheFixedBattle(s, 7001);
-        s.Activate("999");
+        s.Pick("999");
         Assert.Equal(Screen.Home, s.Screen);
         Assert.Null(s.CurrentDungeonCode);
     }
@@ -281,15 +281,15 @@ public class DungeonFlowTests
             + "3002\t1\tBattle\t5001\t2001\t0\n3002\t2\tJumpFlagEqual\t2001\t3\t4\n3002\t3\tFinish\t0\t0\t0\n3002\t4\tGameOver\t0\t0\t0\n";
         var s = GameSession.NewGame(SamplePackWith(("master/event_flow_master_v1.tsv", flows)));
         s.NextRandom = _ => 1;
-        s.Activate("105"); s.Activate("1"); s.Activate("1"); s.Activate("999");
-        s.Activate("103"); s.Activate("3002");
+        s.Pick("105"); s.Pick("1"); s.Pick("1"); s.Pick("999");
+        s.Pick("103"); s.Pick("3002");
         Assert.Equal(Screen.Battle, s.Screen);
         FinishLosing(s, 1);
-        s.Activate("999");                                                                    // 패배(플래그 3) → GameOver 칸
+        s.Pick("999");                                                                    // 패배(플래그 3) → GameOver 칸
         Assert.Equal(Screen.GameOver, s.Screen);
         Assert.Null(s.CurrentEvent);
-        Assert.Equal(Screen.Load, s.Activate("999")!.Target);
-        Assert.Empty(s.Entries);
+        Assert.Equal(Screen.Load, s.Pick("999")!.Target);
+        Assert.Empty(s.DataEntries);
     }
 
     [Fact]
@@ -297,10 +297,10 @@ public class DungeonFlowTests
     {
         var s = GameSession.NewGame(SamplePackWith());
         s.NextRandom = _ => 1;
-        s.Activate("105"); s.Activate("1"); s.Activate("1"); s.Activate("999");
-        s.Activate("103"); s.Activate("3002");
+        s.Pick("105"); s.Pick("1"); s.Pick("1"); s.Pick("999");
+        s.Pick("103"); s.Pick("3002");
         FinishLosing(s, 1);
-        s.Activate("999");
+        s.Pick("999");
         Assert.Equal(Screen.GameOver, s.Screen);
     }
 
@@ -355,8 +355,8 @@ public class DungeonFlowTests
         s.NextRandom = _ => 0;
         Walk(s, "R");
         Assert.Equal(Screen.Battle, s.Screen);
-        s.Activate("106");
-        s.Activate("999");
+        s.Pick("106");
+        s.Pick("999");
         Assert.Equal(Screen.DungeonMove, s.Screen);                                           // 같은 걸음에서 다시 인카운트하지 않는다
         Assert.Equal((0L, 2L, 1L), At(s));
     }
@@ -389,8 +389,8 @@ public class DungeonFlowTests
         s.InteractDungeon();
         Assert.Equal(Screen.Battle, s.Screen);
         Assert.Equal(5001, s.CurrentBattleCode);
-        s.Activate("106");
-        s.Activate("999");
+        s.Pick("106");
+        s.Pick("999");
         Assert.Equal(Screen.DungeonMove, s.Screen);                                           // 이동 화면으로 돌아와 계속한다(Enter의 전투 뒤에 인카운트 판정은 없다)
         Assert.Equal((0L, 8L, 3L), At(s));
     }
@@ -420,7 +420,7 @@ public class DungeonFlowTests
         Assert.Equal(Screen.EventPlay, s.Screen);
         Assert.Equal(7, s.PlayerFlags[3003]);
         Assert.Equal("전투에서 승리했습니다.", s.CurrentAdvStep!.Value.Text);
-        s.Activate("1");
+        s.Pick("1");
         Assert.Equal(Screen.DungeonMove, s.Screen);                                           // 이벤트가 끝나면 이동 화면으로
         Assert.Null(s.CurrentEvent);
         Assert.Equal(1999, s.CurrentDungeonCode);
@@ -450,7 +450,7 @@ public class DungeonFlowTests
         Assert.Equal(Screen.Battle, s.Screen);
         Assert.Equal(0, s.CurrentPartyIndex);
         FinishLosing(s, 1);
-        s.Activate("999");
+        s.Pick("999");
         Assert.Equal(2001, s.PlayerFlags.Keys.Single(k => k == 2001));
         Assert.Equal(3, s.PlayerFlags[2001]);
         Assert.Equal(Screen.GameOver, s.Screen);                                              // 패배 분기가 GameOver 칸으로 간다
@@ -459,8 +459,8 @@ public class DungeonFlowTests
         var win = Entered(WithFloorEvent("6002\t1\tBattle\t5001\t2001\t0\n6002\t2\tFinish\t0\t0\t0\n"));
         win.NextRandom = _ => 1;
         Walk(win, "R");
-        win.Activate("106");                                                                  // 도망
-        win.Activate("999");
+        win.Pick("106");                                                                  // 도망
+        win.Pick("999");
         Assert.Equal(Screen.DungeonMove, win.Screen);                                         // 이벤트가 끝나 던전으로 돌아온다
         Assert.Equal(2, win.PlayerFlags[2001]);
     }
@@ -477,7 +477,7 @@ public class DungeonFlowTests
         s.InteractDungeon();
         Assert.Equal(Screen.EventPlay, s.Screen);
         Assert.Equal("전투에서 승리했습니다.", s.CurrentAdvStep!.Value.Text);
-        s.Activate("1");
+        s.Pick("1");
         Assert.Equal(Screen.DungeonMove, s.Screen);
         Assert.Equal(1, s.PlayerFlags[2002]);
         s.InteractDungeon();                                                                  // 두 번째는 이미 열어 ADV 없이 끝난다
@@ -493,7 +493,7 @@ public class DungeonFlowTests
         Assert.Equal(Screen.EventPlay, s.Screen);
         Assert.Equal("전투에서 승리했습니다.", s.CurrentAdvStep!.Value.Text);
         Assert.Equal("ADV: 승리 ADV", s.CurrentStepText);
-        s.Activate("1");
+        s.Pick("1");
         Assert.Equal(Screen.DungeonMove, s.Screen);
         Assert.Equal((0L, 6L, 5L), At(s));
         Assert.Null(s.CurrentAdv);
@@ -517,7 +517,7 @@ public class DungeonFlowTests
         Assert.False(t.CanInteractDungeon);                                                   // 출구가 아닌 칸에서는 Enter가 아무 일도 하지 않는다
         t.InteractDungeon();
         Assert.Equal(Screen.DungeonMove, t.Screen);
-        Assert.Null(t.Activate("999"));                                                       // 던전에서 나가는 [999]는 없다
+        Assert.Null(t.Pick("999"));                                                       // 던전에서 나가는 [999]는 없다
         Assert.Equal(Screen.DungeonMove, t.Screen);
         Assert.NotNull(t.CurrentDungeonCode);
         Walk(t, "L");

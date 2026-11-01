@@ -155,32 +155,32 @@ public class AdvScreenTests
         var s = Session(
             "4001\t1\tTextMe\t1\t0\t0\t안녕\n4001\t2\tChoice\t1\t4\t0\t네\n4001\t3\tChoice\t1\t5\t0\t아니오\n" +
             "4001\t4\tTextYou\t0\t0\t0\t좋아요\n4001\t5\tTextPlain\t0\t0\t0\t침묵\n");
-        s.Activate("103");
-        s.Activate("3001");                                               // 첫 ADV(4002)는 보여 줄 것이 없어 건너뛰고 둘째 ADV로 간다
+        s.Pick("103");
+        s.Pick("3001");                                               // 첫 ADV(4002)는 보여 줄 것이 없어 건너뛰고 둘째 ADV로 간다
 
         Assert.Equal(Screen.EventPlay, s.Screen);
         Assert.Equal("ADV: 인사", s.CurrentStepText);
         Assert.Equal(AdvStepKind.TextMe, s.CurrentAdvStep!.Value.Kind);
         Assert.Equal("안녕", s.CurrentAdvStep!.Value.Text);
         Assert.Equal("당신", s.CurrentAdvStep!.Value.SpeakerName);
-        Assert.Equal(["1"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["1"], s.DataEntries.Select(e => e.Code));
 
-        s.Activate("1");                                                  // 선택지: [1] 네, [2] 아니오
+        s.Pick("1");                                                  // 선택지: [1] 네, [2] 아니오
         Assert.Equal(AdvStepKind.Choice, s.CurrentAdvStep!.Value.Kind);
-        Assert.Equal(["네", "아니오"], s.Entries.Select(e => e.Label));
-        Assert.Equal(["1", "2"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["네", "아니오"], s.DataEntries.Select(e => e.Label));
+        Assert.Equal(["1", "2"], s.DataEntries.Select(e => e.Code));
 
-        s.Activate("2");
+        s.Pick("2");
         Assert.Equal("침묵", s.CurrentAdvStep!.Value.Text);
 
-        s.Activate("1");                                                  // 이 ADV가 끝나면 이벤트의 다음 칸(같은 ADV 4001을 다시)
+        s.Pick("1");                                                  // 이 ADV가 끝나면 이벤트의 다음 칸(같은 ADV 4001을 다시)
         Assert.Equal("ADV: 인사", s.CurrentStepText);
         Assert.Equal("안녕", s.CurrentAdvStep!.Value.Text);
 
-        s.Activate("1");
-        s.Activate("1");                                                  // 선택지 [1] 네 → 좋아요 → 끝
-        s.Activate("1");
-        s.Activate("1");
+        s.Pick("1");
+        s.Pick("1");                                                  // 선택지 [1] 네 → 좋아요 → 끝
+        s.Pick("1");
+        s.Pick("1");
         Assert.Equal(Screen.Event, s.Screen);                             // 이벤트가 끝나 목록으로 돌아온다
         Assert.Null(s.CurrentAdv);
         Assert.Null(s.CurrentAdvStep);
@@ -271,16 +271,16 @@ public class AdvanceOnAnyKeyTests
         };
         var s = GameSession.NewGame(GamePack.Load(CoreTests.PackZip(files)));
         Assert.False(s.AdvanceOnAnyKey);                                  // 홈
-        s.Activate("103");
+        s.Pick("103");
         Assert.False(s.AdvanceOnAnyKey);                                  // 이벤트 목록
 
-        s.Activate("3001");
+        s.Pick("3001");
         Assert.True(s.AdvanceOnAnyKey);                                   // 대사
-        s.Activate("1");
+        s.Pick("1");
         Assert.False(s.AdvanceOnAnyKey);                                  // 선택지
-        s.Activate("1");
+        s.Pick("1");
         Assert.True(s.AdvanceOnAnyKey);
-        s.Activate("1");                                                  // 이벤트가 끝나 목록으로
+        s.Pick("1");                                                  // 이벤트가 끝나 목록으로
         Assert.False(s.AdvanceOnAnyKey);
     }
 }
@@ -307,15 +307,15 @@ public class AdvLogTests
     public void Lines_of_one_adv_pile_up_and_the_choice_list_is_not_part_of_the_log()
     {
         var s = Session();
-        s.Activate("103");
-        s.Activate("3001");
+        s.Pick("103");
+        s.Pick("3001");
         Assert.Equal(["하나"], s.AdvLog.Select(l => l.Text));
-        s.Activate("1");
+        s.Pick("1");
         Assert.Equal(["하나", "둘"], s.AdvLog.Select(l => l.Text));
-        s.Activate("1");                                                  // 선택지 장면: 대사들은 그대로 남는다
+        s.Pick("1");                                                  // 선택지 장면: 대사들은 그대로 남는다
         Assert.Equal(AdvStepKind.Choice, s.CurrentAdvStep!.Value.Kind);
         Assert.Equal(["하나", "둘"], s.AdvLog.Select(l => l.Text));
-        s.Activate("1");                                                  // 선택지를 고르면 고른 선택지가 로그에 남는다
+        s.Pick("1");                                                  // 선택지를 고르면 고른 선택지가 로그에 남는다
         Assert.Equal(["하나", "둘", "선택", "셋"], s.AdvLog.Select(l => l.Text));
         Assert.Equal(
             [AdvStepKind.TextPlain, AdvStepKind.TextMe, AdvStepKind.Chosen, AdvStepKind.TextYou], s.AdvLog.Select(l => l.Kind));
@@ -325,14 +325,14 @@ public class AdvLogTests
     public void A_new_adv_or_the_end_of_the_event_clears_the_log()
     {
         var s = Session();
-        s.Activate("103");
-        s.Activate("3001");
-        s.Activate("1");
-        s.Activate("1");
-        s.Activate("1");
-        s.Activate("1");                                                  // 첫째 ADV가 끝나고 둘째 ADV의 첫 대사
+        s.Pick("103");
+        s.Pick("3001");
+        s.Pick("1");
+        s.Pick("1");
+        s.Pick("1");
+        s.Pick("1");                                                  // 첫째 ADV가 끝나고 둘째 ADV의 첫 대사
         Assert.Equal(["다른 ADV"], s.AdvLog.Select(l => l.Text));
-        s.Activate("1");                                                  // 이벤트 끝
+        s.Pick("1");                                                  // 이벤트 끝
         Assert.Empty(s.AdvLog);
         Assert.Equal(Screen.Event, s.Screen);
     }
@@ -358,13 +358,13 @@ public class AdvChoiceMarkupTests
     public void Choice_text_may_use_markup_and_the_entry_carries_the_html_and_the_plain_label()
     {
         var s = Session("[b]강하게[/b] [color=red]나선다[/color]");
-        s.Activate("103");
-        s.Activate("3001");
-        var entry = s.Entries.Single();
+        s.Pick("103");
+        s.Pick("3001");
+        var entry = s.DataEntries.Single();
         Assert.Equal("강하게 나선다", entry.Label);
         Assert.Equal("<b>강하게</b> <span style=\"color:#ff5555\">나선다</span>", entry.LabelHtml);
 
-        s.Activate("1");                                                  // 고른 선택지도 같은 꾸밈으로 로그에 남는다
+        s.Pick("1");                                                  // 고른 선택지도 같은 꾸밈으로 로그에 남는다
         var chosen = s.AdvLog[0];
         Assert.Equal(AdvStepKind.Chosen, chosen.Kind);
         Assert.Equal(entry.LabelHtml, chosen.Rich.ToHtml());
@@ -438,8 +438,8 @@ public class AdvFlagFlowTests
     public void Playing_an_adv_applies_the_flag_flows_to_the_session_and_they_are_saved()
     {
         var s = Session("4001\t1\tSetFlag\t1001\t1\t0\t\t\n4001\t2\tTextPlain\t0\t0\t0\t안녕\t\n");
-        s.Activate("103");
-        s.Activate("3001");
+        s.Pick("103");
+        s.Pick("3001");
         Assert.Equal(1, s.PlayerFlags[1001]);
         Assert.Equal(["안녕"], s.AdvLog.Select(l => l.Text));              // 플래그 칸은 로그에 남지 않는다
         Assert.Equal(1, GameSession.FromSaveJson(s.Pack, s.ToSaveJson()).PlayerFlags[1001]);

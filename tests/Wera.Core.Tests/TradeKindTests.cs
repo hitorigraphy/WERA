@@ -49,19 +49,19 @@ public class TradeKindTests
 
     static string Trade(GameSession s, string tradeCode)
     {
-        s.Activate("104"); s.Activate("2001"); s.Activate(tradeCode);
+        s.Pick("104"); s.Pick("2001"); s.Pick(tradeCode);
         return s.Message!;
     }
 
     // 지금 할 수 없는 교환: 항목은 회색이고, 눌러도 아무 일 없으며(메시지도 없다), 막힌 이유는 TradeBlockedReason으로 본다.
     static string Blocked(GameSession s, string tradeCode)
     {
-        s.Activate("104"); s.Activate("2001");
+        s.Pick("104"); s.Pick("2001");
         var code = long.Parse(tradeCode);
-        Assert.False(s.Entries.Single(e => e.Code == tradeCode).Enabled);
+        Assert.False(s.DataEntries.Single(e => e.Code == tradeCode).Enabled);
         Assert.False(s.CanTrade(code));
         var before = s.ToSaveJson();
-        var entry = s.Activate(tradeCode);
+        var entry = s.Pick(tradeCode);
         Assert.NotNull(entry);
         Assert.False(entry!.Enabled);
         Assert.Null(s.Message);
@@ -107,7 +107,7 @@ public class TradeKindTests
     public void The_trade_list_shows_names_of_every_kind()
     {
         var s = Session();
-        s.Activate("104"); s.Activate("2001");
+        s.Pick("104"); s.Pick("2001");
         Assert.Equal(
             ["금화 ×100 → 철검 ×1", "철검 ×1 → 금화 ×50", "금화 ×500 → 마법사 ×1", "마법사 ×1 → 금화 ×300"],
             s.CurrentShopTrades.Select(t => t.Text));
@@ -214,7 +214,7 @@ public class TradeKindTests
         Assert.StartsWith("교환 실패 - 파티에 편성된 캐릭터: 마법사", Blocked(s, "5004"));
         Assert.True(s.Characters.ContainsKey(7002));
 
-        s.Activate("105"); s.Activate("12");                          // 다른 파티를 보고 있어도 마찬가지다
+        s.Pick("105"); s.Pick("12");                          // 다른 파티를 보고 있어도 마찬가지다
         Assert.StartsWith("교환 실패 - 파티에 편성된 캐릭터: 마법사", Blocked(s, "5004"));
 
         s.Parties[0].Units[4] = null;                                 // 파티에서 빼면 낼 수 있다
@@ -259,7 +259,7 @@ public class TradeKindTests
         var s = GameSession.NewGame(pack);
         s.AddCharacter(7002);
         s.Characters[7002] = CharacterInstance.Stats(9, 5, 50, 10, 99);
-        s.Activate("104"); s.Activate("2001"); s.Activate("5001");
+        s.Pick("104"); s.Pick("2001"); s.Pick("5001");
         Assert.StartsWith("교환 완료", s.Message);
         Assert.Equal(CharacterInstance.Stats(1, 1, 1, 0, 0), s.Characters[7002].StatsOnly());     // 새 캐릭터로 다시 시작
     }

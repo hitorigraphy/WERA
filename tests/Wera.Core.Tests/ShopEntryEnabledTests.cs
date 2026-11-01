@@ -16,12 +16,12 @@ public class ShopEntryEnabledTests
             ("master/common_item_inventory_master_v1.tsv", "inventory_code\titem_name\tcarry_limit\n11\t금화\t99999\n2\t약초\t99\n"),
             ("master/shop_trade_master_v1.tsv", TradeHeader + "5001\t2001\t11\t100\t2\t5\n5002\t2001\t2\t5\t11\t100\n")));
         var s = GameSession.NewGame(pack);
-        s.Activate("104");
-        s.Activate("2001");
+        s.Pick("104");
+        s.Pick("2001");
         return s;
     }
 
-    static ScreenEntry Entry(GameSession s, string code) => s.Entries.Single(e => e.Code == code);
+    static ScreenEntry Entry(GameSession s, string code) => s.DataEntries.Single(e => e.Code == code);
 
     [Fact]
     public void Possible_trades_are_enabled_and_impossible_ones_are_not()
@@ -56,10 +56,10 @@ public class ShopEntryEnabledTests
         s.AddInventory(2, 3);                               // 5002에는 약초 5개가 필요
         var before = s.ToSaveJson();
 
-        var entry = s.Activate("5002");
+        var entry = s.Pick("5002");
 
         Assert.NotNull(entry);
-        Assert.Equal("5002", entry!.Code);
+        Assert.Equal("5002", entry!.DataCode);
         Assert.False(entry.Enabled);
         Assert.Null(s.Message);
         Assert.Equal(Screen.ShopTrades, s.Screen);
@@ -81,7 +81,7 @@ public class ShopEntryEnabledTests
         Assert.Null(s.TradeBlockedReason(5001));
         Assert.Equal(100, s.InventoryItems[11].Amount);     // 확인만으로는 아무것도 바뀌지 않는다
 
-        var entry = s.Activate("5001");                     // 실제로 교환해 금화를 다 쓴다
+        var entry = s.Pick("5001");                     // 실제로 교환해 금화를 다 쓴다
         Assert.True(entry!.Enabled);
         Assert.StartsWith("교환 완료", s.Message);
         Assert.False(s.CanTrade(5001));

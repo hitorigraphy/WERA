@@ -108,8 +108,8 @@ public class PartSlotTests
         s.Party[0] = 7001;
         var id = s.AddUniqueItem(8001)!;
         Assert.True(s.Equip(7001, 1, EquipRef.Unique(id)));
-        s.Activate("202");
-        s.Activate(s.Entries.First(e => e.Label == "철검").Code);
+        s.Pick("202");
+        s.Pick(s.DataEntries.First(e => e.Label == "철검").Code);
         return (s, id);
     }
 
@@ -142,22 +142,22 @@ public class PartSlotTests
         var s = GameSession.NewGame(SamplePack());
         var id = s.AddUniqueItem(8001)!;
         s.UniqueItemInstances[id] = s.UniqueItemInstances[id] with { Parts = new Dictionary<long, long> { [1] = 4 } };
-        s.Activate("202");
-        s.Activate(s.Entries.First(e => e.Label == "철검").Code);
+        s.Pick("202");
+        s.Pick(s.DataEntries.First(e => e.Label == "철검").Code);
         var d = s.EquipmentDetail!;
         Assert.Equal(GaugeColor.Gray, d.Hp.Color);
         Assert.Equal(GaugeColor.Gray, d.Xp.Color);
 
-        Assert.True(s.Entries.First(e => e.Code == "1").Enabled);
-        Assert.False(s.Entries.First(e => e.Code == "2").Enabled);                         // 빈 부품 슬롯은 고를 수 없다
-        Assert.Equal(Screen.ItemDetail, s.Activate("1")!.Target);
+        Assert.True(s.DataEntries.First(e => e.Code == "1").Enabled);
+        Assert.False(s.DataEntries.First(e => e.Code == "2").Enabled);                         // 빈 부품 슬롯은 고를 수 없다
+        Assert.Equal(Screen.ItemDetail, s.Pick("1")!.Target);
         Assert.Equal(4, s.DetailItemCode);
-        Assert.Equal(Screen.EquipmentDetail, s.Activate("999")!.Target);                   // 보던 장비 상세로
+        Assert.Equal(Screen.EquipmentDetail, s.Pick("999")!.Target);                   // 보던 장비 상세로
         Assert.Equal(id, s.DetailEquipmentId);
-        Assert.Equal(Screen.SkillDetail, s.Activate("101")!.Target);
+        Assert.Equal(Screen.SkillDetail, s.Pick("101")!.Target);
         Assert.Equal("베기", s.DetailHeading!.Value.Name);
-        Assert.Equal(Screen.EquipmentDetail, s.Activate("999")!.Target);
-        Assert.Equal(Screen.EquipmentCheck, s.Activate("999")!.Target);
+        Assert.Equal(Screen.EquipmentDetail, s.Pick("999")!.Target);
+        Assert.Equal(Screen.EquipmentCheck, s.Pick("999")!.Target);
     }
 
     [Fact]
@@ -183,28 +183,28 @@ public class PartSlotTests
     {
         var s = GameSession.NewGame(SamplePack());
         var id = s.AddUniqueItem(8001)!;
-        s.Activate(GameSession.EquipmentEnhanceEntryCode);
-        Assert.Equal(["순례자의 은단검", "철검", "합성", "제련", "개조", "돌아가기"], s.Entries.Select(e => e.Label));
-        Assert.Equal(["901", "902", "903"], s.Entries.Where(e => e.Action == EntryAction.SelectEnhanceMode).Select(e => e.Code));
+        s.Pick(GameSession.EquipmentEnhanceEntryCode);
+        Assert.Equal(["순례자의 은단검", "철검", "합성", "제련", "개조", "돌아가기"], s.DataEntries.Select(e => e.Label));
+        Assert.Equal(["901", "902", "903"], s.DataEntries.Where(e => e.Action == EntryAction.SelectEnhanceMode).Select(e => e.Code));
         Assert.Null(s.EnhanceMode);
-        var sword = s.Entries.First(e => e.Label == "철검");
+        var sword = s.DataEntries.First(e => e.Label == "철검");
         Assert.False(sword.Enabled);                                                        // 작업을 고르기 전에는 장비를 못 누른다
-        s.Activate(sword.Code);
+        s.Pick(sword.Code);
         Assert.Equal(Screen.EquipmentEnhance, s.Screen);
 
-        s.Activate("902");
+        s.Pick("902");
         Assert.Equal(EnhanceMode.Smelt, s.EnhanceMode);
-        s.Activate("903");
+        s.Pick("903");
         Assert.Equal(EnhanceMode.Modify, s.EnhanceMode);                                    // 다른 쪽을 누르면 바뀐다
-        Assert.True(s.Entries.First(e => e.Label == "철검").Enabled);
-        s.Activate(sword.Code);
+        Assert.True(s.DataEntries.First(e => e.Label == "철검").Enabled);
+        s.Pick(sword.Code);
         Assert.Equal(Screen.EquipmentEnhanceTarget, s.Screen);
         Assert.Equal(id, s.EnhanceTargetId);
         Assert.Equal("철검", s.EquipmentName(s.EnhanceTargetId));
-        Assert.Equal(Screen.EquipmentEnhance, s.Activate("999")!.Target);
+        Assert.Equal(Screen.EquipmentEnhance, s.Pick("999")!.Target);
         Assert.Equal(EnhanceMode.Modify, s.EnhanceMode);                                    // 돌아와도 고른 작업은 그대로
-        s.Activate("999");
-        s.Activate(GameSession.EquipmentEnhanceEntryCode);
+        s.Pick("999");
+        s.Pick(GameSession.EquipmentEnhanceEntryCode);
         Assert.Null(s.EnhanceMode);                                                         // 새로 들어오면 비어 있다
     }
 
@@ -213,28 +213,28 @@ public class PartSlotTests
     {
         var s = GameSession.NewGame(SamplePack());                                          // 제물 수 기본 1
         s.AddUniqueItem(8001);
-        s.Activate(GameSession.EquipmentEnhanceEntryCode);
-        s.Activate("901");
-        Assert.All(s.Entries.Where(e => e.Action == EntryAction.PickEnhanceEquipment), e => Assert.False(e.Enabled));   // 같은 코드가 하나뿐
+        s.Pick(GameSession.EquipmentEnhanceEntryCode);
+        s.Pick("901");
+        Assert.All(s.DataEntries.Where(e => e.Action == EntryAction.PickEnhanceEquipment), e => Assert.False(e.Enabled));   // 같은 코드가 하나뿐
 
         s.AddUniqueItem(8001);
-        var swords = s.Entries.Where(e => e.Label == "철검").ToList();
+        var swords = s.DataEntries.Where(e => e.Label == "철검").ToList();
         Assert.Equal(2, swords.Count);
         Assert.All(swords, e => Assert.True(e.Enabled));                                    // 서로가 제물이 된다
-        Assert.False(s.Entries.First(e => e.Label != "철검" && e.Action == EntryAction.PickEnhanceEquipment).Enabled);   // 다른 코드는 그대로 회색
+        Assert.False(s.DataEntries.First(e => e.Label != "철검" && e.Action == EntryAction.PickEnhanceEquipment).Enabled);   // 다른 코드는 그대로 회색
 
         var worn = s.UniqueItemInstances.Values.Where(i => i.ItemCode == 8001).Select(i => i.InstanceId).ToList();
         s.AddCharacter(7001);
         s.Party[0] = 7001;
         Assert.True(s.Equip(7001, 1, EquipRef.Unique(worn[0])));                            // 한 개를 장착하면 그 개체는 제물이 못 된다
-        var swordsNow = s.Entries.Where(e => e.Label == "철검").ToList();
+        var swordsNow = s.DataEntries.Where(e => e.Label == "철검").ToList();
         Assert.Equal([true, false], swordsNow.Select(e => e.Enabled).OrderByDescending(x => x));   // 장착한 개체는 합성할 수 있고(제물은 안 낀 쪽), 안 낀 쪽은 제물이 없어 회색
         s.AddUniqueItem(8001);
-        Assert.All(s.Entries.Where(e => e.Label == "철검"), e => Assert.True(e.Enabled));   // 안 낀 개체가 둘이면 모두 가능
+        Assert.All(s.DataEntries.Where(e => e.Label == "철검"), e => Assert.True(e.Enabled));   // 안 낀 개체가 둘이면 모두 가능
 
-        s.Activate("902");                                                                  // 제련은 제물 대신 제련석이 필요하다
-        Assert.All(s.Entries.Where(e => e.Action == EntryAction.PickEnhanceEquipment), e => Assert.False(e.Enabled));
+        s.Pick("902");                                                                  // 제련은 제물 대신 제련석이 필요하다
+        Assert.All(s.DataEntries.Where(e => e.Action == EntryAction.PickEnhanceEquipment), e => Assert.False(e.Enabled));
         s.AddInventory(5, 1);
-        Assert.All(s.Entries.Where(e => e.Action == EntryAction.PickEnhanceEquipment), e => Assert.True(e.Enabled));
+        Assert.All(s.DataEntries.Where(e => e.Action == EntryAction.PickEnhanceEquipment), e => Assert.True(e.Enabled));
     }
 }

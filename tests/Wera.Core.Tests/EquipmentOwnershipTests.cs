@@ -23,7 +23,7 @@ public class EquipmentOwnershipTests
     static GameSession InSelect(string partySlot, string equipmentSlot, params (long item, long count)[] owned)
     {
         var s = Session(owned);
-        s.Activate("105"); s.Activate("102"); s.Activate(partySlot); s.Activate(equipmentSlot);
+        s.Pick("105"); s.Pick("102"); s.Pick(partySlot); s.Pick(equipmentSlot);
         return s;
     }
 
@@ -151,8 +151,8 @@ public class EquipmentOwnershipTests
     {
         var s = Session((9001, 1));
         s.Equip(7001, 1, 9001);
-        s.Activate("105"); s.Activate("5");                      // 슬롯 5(칸 4, 마법사)를 고르고
-        s.Activate("7001");                                      // 용사를 고르면 서로 바뀐다
+        s.Pick("105"); s.Pick("5");                      // 슬롯 5(칸 4, 마법사)를 고르고
+        s.Pick("7001");                                      // 용사를 고르면 서로 바뀐다
         Assert.Equal(7001, s.Party[4]);
         Assert.Equal(7002, s.Party[0]);
         Assert.Equal(9001, s.EquippedUniqueCode(7001, 1));       // 장비는 유닛(용사)과 함께 이동했다
@@ -192,9 +192,9 @@ public class EquipmentOwnershipTests
     {
         var s = Session((9001, 1));
         s.Equip(7001, 1, 9001);
-        s.Activate("105"); s.Activate("102"); s.Activate("1");
+        s.Pick("105"); s.Pick("102"); s.Pick("1");
 
-        Assert.Equal(["무기 : 철검", "방어구 : (없음)", "돌아가기"], s.Entries.Select(e => e.Label));
+        Assert.Equal(["무기 : 철검", "방어구 : (없음)", "돌아가기"], s.DataEntries.Select(e => e.Label));
     }
 
     [Fact]
@@ -202,9 +202,9 @@ public class EquipmentOwnershipTests
     {
         var s = InSelect("1", "1", (9001, 1), (9003, 1), (9002, 1), (9004, 1));   // 대검(불가), 판금갑옷(불가)도 보유
 
-        Assert.Equal(["0", "1", "999"], s.Entries.Select(e => e.Code));   // 번호는 OrderNumber(얻은 순서)
-        Assert.Equal(["철검", "지팡이", "돌아가기"], s.Entries.Select(e => e.Label));
-        Assert.All(s.Entries.Take(2), e => Assert.Equal(EntryAction.EquipItem, e.Action));
+        Assert.Equal(["0", "1", "999"], s.DataEntries.Select(e => e.Code));   // 번호는 OrderNumber(얻은 순서)
+        Assert.Equal(["철검", "지팡이", "돌아가기"], s.DataEntries.Select(e => e.Label));
+        Assert.All(s.DataEntries.Take(2), e => Assert.Equal(EntryAction.EquipItem, e.Action));
         Assert.Equal(["철검", "지팡이"], s.EquippableItems.Select(i => i.Name));
     }
 
@@ -212,16 +212,16 @@ public class EquipmentOwnershipTests
     public void The_select_screen_is_sorted_by_order_number_each_time_and_uses_it_as_the_code()
     {
         var s = InSelect("1", "1", (9001, 1), (9003, 1));
-        Assert.Equal(["철검", "지팡이"], s.Entries.Where(e => e.Action == EntryAction.EquipItem).Select(e => e.Label));
+        Assert.Equal(["철검", "지팡이"], s.DataEntries.Where(e => e.Action == EntryAction.EquipItem).Select(e => e.Label));
 
         var ids = s.UniqueItemInstances.Keys.ToList();                       // 철검, 지팡이 순으로 얻음
         s.UniqueItemInstances[ids[0]] = s.UniqueItemInstances[ids[0]] with { OrderNumber = 5 };
-        var items = s.Entries.Where(e => e.Action == EntryAction.EquipItem).ToList();
+        var items = s.DataEntries.Where(e => e.Action == EntryAction.EquipItem).ToList();
         Assert.Equal(["지팡이", "철검"], items.Select(e => e.Label));       // 순서를 바꾸면 다시 열 때 그 순서
         Assert.Equal(["1", "5"], items.Select(e => e.Code));
 
         s.UniqueItemInstances[ids[0]] = s.UniqueItemInstances[ids[0]] with { OrderNumber = 1 };   // 같은 번호는 다음 빈 번호
-        Assert.Equal(["1", "2"], s.Entries.Where(e => e.Action == EntryAction.EquipItem).Select(e => e.Code));
+        Assert.Equal(["1", "2"], s.DataEntries.Where(e => e.Action == EntryAction.EquipItem).Select(e => e.Code));
     }
 
     [Fact]
@@ -229,8 +229,8 @@ public class EquipmentOwnershipTests
     {
         var s = InSelect("1", "1", (9004, 1));
         Assert.Empty(s.EquippableItems);
-        Assert.Equal(["999"], s.Entries.Select(e => e.Code));
-        Assert.Null(s.Activate("1"));
+        Assert.Equal(["999"], s.DataEntries.Select(e => e.Code));
+        Assert.Null(s.Pick("1"));
     }
 
     [Fact]
@@ -238,7 +238,7 @@ public class EquipmentOwnershipTests
     {
         var s = InSelect("1", "1", (9001, 1));
 
-        var entry = s.Activate("0");
+        var entry = s.Pick("0");
 
         Assert.Equal(EntryAction.EquipItem, entry!.Action);
         Assert.Equal(Screen.EquipmentList, s.Screen);
@@ -246,20 +246,20 @@ public class EquipmentOwnershipTests
         Assert.Null(s.CurrentEquipmentSlotCode);
         Assert.Equal(9001, s.EquippedUniqueCode(7001, 1));
         Assert.Equal("장착: 용사의 무기 ← 철검", s.Message);
-        Assert.Equal("무기 : 철검", s.Entries[0].Label);
+        Assert.Equal("무기 : 철검", s.DataEntries[0].Label);
     }
 
     [Fact]
     public void Choosing_another_item_replaces_the_equipped_one_and_says_so()
     {
         var s = InSelect("1", "1", (9001, 1), (9003, 1));
-        s.Activate("0");
-        s.Activate("1");                                          // 다시 무기 슬롯
+        s.Pick("0");
+        s.Pick("1");                                          // 다시 무기 슬롯
 
-        Assert.Equal(["0", "1", "2", "999"], s.Entries.Select(e => e.Code));   // 0번 해제 + 두 장비(OrderNumber 0, 1이 1, 2로 밀림)
-        Assert.Equal(["해제", "철검 (장착중)", "지팡이", "돌아가기"], s.Entries.Select(e => e.Label));
+        Assert.Equal(["0", "1", "2", "999"], s.DataEntries.Select(e => e.Code));   // 0번 해제 + 두 장비(OrderNumber 0, 1이 1, 2로 밀림)
+        Assert.Equal(["해제", "철검 (장착중)", "지팡이", "돌아가기"], s.DataEntries.Select(e => e.Label));
 
-        s.Activate("2");
+        s.Pick("2");
         Assert.Equal("장착: 용사의 무기 철검 → 지팡이", s.Message);
         Assert.Equal(9003, s.EquippedUniqueCode(7001, 1));
         Assert.Equal(1, s.FreeCopies(9001));
@@ -269,9 +269,9 @@ public class EquipmentOwnershipTests
     public void Choosing_the_item_already_in_the_slot_changes_nothing()
     {
         var s = InSelect("1", "1", (9001, 1));
-        s.Activate("0");
-        s.Activate("1");
-        s.Activate("1");                                          // 해제가 0번이라 철검은 1번
+        s.Pick("0");
+        s.Pick("1");
+        s.Pick("1");                                          // 해제가 0번이라 철검은 1번
 
         Assert.Equal("이미 장착 중: 용사의 무기 = 철검", s.Message);
         Assert.Equal(1, s.EquippedCount(9001));
@@ -281,13 +281,13 @@ public class EquipmentOwnershipTests
     public void The_clear_entry_appears_only_when_something_is_equipped_and_unequips()
     {
         var s = InSelect("1", "1", (9001, 1));
-        Assert.DoesNotContain(s.Entries, e => e.Action == EntryAction.Unequip);   // 아직 낀 것이 없다: 장비 번호는 0부터
-        Assert.Equal("0", s.Entries[0].Code);
+        Assert.DoesNotContain(s.DataEntries, e => e.Action == EntryAction.Unequip);   // 아직 낀 것이 없다: 장비 번호는 0부터
+        Assert.Equal("0", s.DataEntries[0].Code);
 
-        s.Activate("0");
-        s.Activate("1");
-        Assert.Equal(["0", "1", "999"], s.Entries.Select(e => e.Code));          // 해제가 생기면 0번이 해제, 장비는 1부터
-        var entry = s.Activate("0");
+        s.Pick("0");
+        s.Pick("1");
+        Assert.Equal(["0", "1", "999"], s.DataEntries.Select(e => e.Code));          // 해제가 생기면 0번이 해제, 장비는 1부터
+        var entry = s.Pick("0");
 
         Assert.Equal(EntryAction.Unequip, entry!.Action);
         Assert.Equal(Screen.EquipmentList, s.Screen);
@@ -302,21 +302,21 @@ public class EquipmentOwnershipTests
         // 지팡이 한 개를 마법사가 끼면, 용사의 목록에서는 사라진다.
         var s = Session((9003, 1), (9001, 1));
         s.Equip(7002, 1, 9003);
-        s.Activate("105"); s.Activate("102"); s.Activate("1"); s.Activate("1");
+        s.Pick("105"); s.Pick("102"); s.Pick("1"); s.Pick("1");
         Assert.Equal(["철검"], s.EquippableItems.Select(i => i.Name));
-        Assert.Null(s.Activate("2"));
+        Assert.Null(s.Pick("2"));
 
         // 마법사 본인의 목록에는 낀 채로 남는다.
-        s.Activate("999"); s.Activate("999"); s.Activate("5"); s.Activate("1");
+        s.Pick("999"); s.Pick("999"); s.Pick("5"); s.Pick("1");
         Assert.Equal(["지팡이"], s.EquippableItems.Select(i => i.Name));
-        Assert.Contains(s.Entries, e => e.Label == "지팡이 (장착중)");
+        Assert.Contains(s.DataEntries, e => e.Label == "지팡이 (장착중)");
     }
 
     [Fact]
     public void Back_from_the_select_screen_keeps_the_character_and_shows_no_message()
     {
         var s = InSelect("1", "1", (9001, 1));
-        s.Activate("999");
+        s.Pick("999");
         Assert.Equal(Screen.EquipmentList, s.Screen);
         Assert.Equal(7001, s.CurrentCharacterCode);
         Assert.Null(s.Message);

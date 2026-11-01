@@ -38,8 +38,8 @@ public class HomeMenuTests
     public void The_flat_entries_are_the_groups_in_order()
     {
         var s = Session();
-        Assert.Equal(s.HomeMenu.SelectMany(g => g.Entries).Select(e => e.Code), s.Entries.Select(e => e.Code));
-        Assert.Equal(["101", "102", "103", "104", "105", "106", "107", "201", "202", "203", "200", "300", "400"], s.Entries.Select(e => e.Code));
+        Assert.Equal(s.HomeMenu.SelectMany(g => g.Entries).Select(e => e.Code), s.DataEntries.Select(e => e.Code));
+        Assert.Equal(["101", "102", "103", "104", "105", "106", "107", "201", "202", "203", "200", "300", "400"], s.DataEntries.Select(e => e.Code));
     }
 
     [Fact]
@@ -47,9 +47,9 @@ public class HomeMenuTests
     {
         var s = Session();
         Assert.Equal("105", GameSession.PartyEntryCode);
-        Assert.Equal(Screen.Event, s.Activate("103")!.Target);
-        s.Activate("999");
-        Assert.Equal(Screen.PartySetup, s.Activate("105")!.Target);
+        Assert.Equal(Screen.Event, s.Pick("103")!.Target);
+        s.Pick("999");
+        Assert.Equal(Screen.PartySetup, s.Pick("105")!.Target);
         Assert.Equal(Screen.PartySetup, s.Screen);
     }
 
@@ -64,10 +64,10 @@ public class HomeMenuTests
     public void The_menu_entries_open_their_screens_and_back_returns_home(string code, Screen screen)
     {
         var s = Session();
-        s.Activate(code);
+        s.Pick(code);
         Assert.Equal(screen, s.Screen);
-        Assert.Equal("999", s.Entries[^1].Code);      // 줄을 누르면 상세 화면으로 가고, 맨 끝은 돌아가기
-        s.Activate("999");
+        Assert.Equal("999", s.DataEntries[^1].Code);      // 줄을 누르면 상세 화면으로 가고, 맨 끝은 돌아가기
+        s.Pick("999");
         Assert.Equal(Screen.Home, s.Screen);
     }
 
@@ -75,19 +75,19 @@ public class HomeMenuTests
     public void The_system_group_keeps_save_and_load()
     {
         var s = Session();
-        Assert.Equal(EntryAction.Save, s.Activate("200")!.Action);
+        Assert.Equal(EntryAction.Save, s.Pick("200")!.Action);
         Assert.Equal(Screen.Home, s.Screen);
-        Assert.Equal(Screen.Load, s.Activate("300")!.Target);
+        Assert.Equal(Screen.Load, s.Pick("300")!.Target);
     }
 
     [Fact]
     public void The_old_codes_no_longer_mean_what_they_did()
     {
         var s = Session();
-        s.Activate("202");                                              // 예전 파티 설정 → 지금은 장비 확인
+        s.Pick("202");                                              // 예전 파티 설정 → 지금은 장비 확인
         Assert.Equal(Screen.EquipmentCheck, s.Screen);
-        s.Activate("999");
-        s.Activate("205");                                              // 예전 아이템 확인 코드는 이제 없다
+        s.Pick("999");
+        s.Pick("205");                                              // 예전 아이템 확인 코드는 이제 없다
         Assert.Equal(Screen.Home, s.Screen);
     }
 
@@ -95,9 +95,9 @@ public class HomeMenuTests
     public void The_shop_entry_is_labelled_shop_and_still_needs_an_open_shop()
     {
         var s = Session();
-        var shop = s.Entries.Single(e => e.Code == "104");
+        var shop = s.DataEntries.Single(e => e.Code == "104");
         Assert.False(shop.Enabled);
-        Assert.Equal(shop, s.Activate("104"));
+        Assert.Equal(shop, s.Pick("104"));
         Assert.Equal(Screen.Home, s.Screen);
         Assert.Null(s.Message);
 
@@ -109,7 +109,7 @@ public class HomeMenuTests
     public void The_old_party_code_does_not_open_the_party_setup_any_more()
     {
         var s = Session();
-        s.Activate("103");
+        s.Pick("103");
         Assert.NotEqual(Screen.PartySetup, s.Screen);
     }
 
@@ -117,7 +117,7 @@ public class HomeMenuTests
     public void The_new_screens_survive_the_save_as_home()
     {
         var s = Session();
-        s.Activate("203");
+        s.Pick("203");
         var json = s.ToSaveJson();
         Assert.Contains("\"ItemCheck\"", json);
         Assert.Equal(Screen.Home, GameSession.FromSaveJson(s.Pack, json).Screen);       // 불러오기는 늘 홈으로 간다
@@ -137,16 +137,16 @@ public class HomeMenuTests
         var s = GameSession.NewGame(pack);
         s.AddCharacter(7001);                                            // 마법사(7002)와 전사(7003)는 보유하지 않았다
 
-        s.Activate("105"); s.Activate("1");
+        s.Pick("105"); s.Pick("1");
         Assert.Equal([1L, 7001L], s.CharacterList.Select(c => c.Code).Order());      // 파티 슬롯 목록
-        Assert.Equal(["1", "7001", "999"], s.Entries.Select(e => e.Code));              // 마스터 순서(플레이어가 먼저), 비우기는 빈 슬롯이라 없다
-        Assert.Null(s.Activate("7002"));                                               // 목록에 없으니 코드를 쳐도 안 된다
-        s.Activate("999"); s.Activate("999");
+        Assert.Equal(["1", "7001", "999"], s.DataEntries.Select(e => e.Code));              // 마스터 순서(플레이어가 먼저), 비우기는 빈 슬롯이라 없다
+        Assert.Null(s.Pick("7002"));                                               // 목록에 없으니 코드를 쳐도 안 된다
+        s.Pick("999"); s.Pick("999");
 
-        s.Activate("1");                                                               // 파트너 슬롯 목록
+        s.Pick("1");                                                               // 파트너 슬롯 목록
         Assert.Equal([7001L], s.SupportList.Select(c => c.Code));                       // 플레이어도 목록에 없다
         Assert.DoesNotContain(s.SupportList, c => c.Code is 7002 or 7003);
-        Assert.Null(s.Activate("7003"));
+        Assert.Null(s.Pick("7003"));
     }
 
     [Fact]
@@ -158,12 +158,12 @@ public class HomeMenuTests
                 "inventory_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n" +
                 "1\t당신\t1\t1\t2\n7001\t용사\t1\t1\t2\n")));
         var s = GameSession.NewGame(pack);
-        s.Activate("1");
+        s.Pick("1");
         Assert.DoesNotContain(s.SupportList, c => c.Code == 7001);
-        s.Activate("999");
+        s.Pick("999");
 
         s.AddCharacter(7001);
-        s.Activate("1");
+        s.Pick("1");
         Assert.Contains(s.SupportList, c => c.Code == 7001);
     }
 }

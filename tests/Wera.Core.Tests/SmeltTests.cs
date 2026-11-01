@@ -80,12 +80,12 @@ public class SmeltTests
         };
         s.AddInventory(5, stones);
         s.NextRandom = _ => roll;
-        s.Activate(GameSession.EquipmentEnhanceEntryCode);
-        s.Activate("902");                                                                   // 제련
+        s.Pick(GameSession.EquipmentEnhanceEntryCode);
+        s.Pick("902");                                                                   // 제련
         return s;
     }
 
-    static ScreenEntry Row(GameSession s) => s.Entries.First(e => e.Label.StartsWith("철검"));
+    static ScreenEntry Row(GameSession s) => s.DataEntries.First(e => e.Label.StartsWith("철검"));
 
     [Fact]
     public void Smelt_rows_need_a_stone_and_picking_a_target_shows_execute_and_cancel()
@@ -95,13 +95,13 @@ public class SmeltTests
 
         var s = SmeltScreen(stones: 2, roll: 99);
         Assert.True(Row(s).Enabled);
-        s.Activate(Row(s).Code);
+        s.Pick(Row(s).Code);
         Assert.Equal(Screen.EquipmentEnhance, s.Screen);
-        Assert.Contains(s.Entries, e => e.Label == "철검 (대상)");
-        Assert.All(s.Entries.Where(e => e.Action == EntryAction.SelectSacrifice), e => Assert.False(e.Enabled));
-        Assert.Equal(["실행", "취소"], s.Entries.Where(e => e.Code is "901" or "902").Select(e => e.Label));
-        Assert.True(s.Entries.First(e => e.Code == "901").Enabled);                          // 제물이 없어 바로 실행할 수 있다
-        s.Activate("902");                                                                   // 취소
+        Assert.Contains(s.DataEntries, e => e.Label == "철검 (대상)");
+        Assert.All(s.DataEntries.Where(e => e.Action == EntryAction.SelectSacrifice), e => Assert.False(e.Enabled));
+        Assert.Equal(["실행", "취소"], s.DataEntries.Where(e => e.Code is "901" or "902").Select(e => e.Label));
+        Assert.True(s.DataEntries.First(e => e.Code == "901").Enabled);                          // 제물이 없어 바로 실행할 수 있다
+        s.Pick("902");                                                                   // 취소
         Assert.Null(s.EnhanceTargetId);
         Assert.Equal(2, s.CountInventory(5));                                                // 제련석은 그대로
     }
@@ -110,8 +110,8 @@ public class SmeltTests
     public void Executing_a_smelt_spends_a_stone_and_reports_success_failure_or_great_failure()
     {
         var win = SmeltScreen(stones: 3, roll: 99, swordEnhance: 2);
-        win.Activate(Row(win).Code);
-        win.Activate("901");
+        win.Pick(Row(win).Code);
+        win.Pick("901");
         Assert.Equal("제련 성공: 철검 +3", win.Message);
         Assert.Equal(2, win.CountInventory(5));
         Assert.Equal(3, win.UniqueItemInstances.Values.Single(i => i.ItemCode == 8001).Statuses![GamePack.EnhanceCountStatusCode]);
@@ -119,15 +119,15 @@ public class SmeltTests
         Assert.Equal(EnhanceMode.Smelt, win.EnhanceMode);
 
         var fail = SmeltScreen(stones: 3, roll: 30, swordEnhance: 2);
-        fail.Activate(Row(fail).Code);
-        fail.Activate("901");
+        fail.Pick(Row(fail).Code);
+        fail.Pick("901");
         Assert.Equal("제련 실패: 철검", fail.Message);
         Assert.Equal(2, fail.CountInventory(5));
         Assert.Equal(2, fail.UniqueItemInstances.Values.Single(i => i.ItemCode == 8001).Statuses![GamePack.EnhanceCountStatusCode]);
 
         var great = SmeltScreen(stones: 3, roll: 5, swordEnhance: 2);
-        great.Activate(Row(great).Code);
-        great.Activate("901");
+        great.Pick(Row(great).Code);
+        great.Pick("901");
         Assert.Equal("제련 대실패: 철검이(가) 사라졌습니다", great.Message);
         Assert.Equal(2, great.CountInventory(5));
         Assert.DoesNotContain(great.UniqueItemInstances.Values, i => i.ItemCode == 8001);    // 타겟이 삭제됐다
@@ -168,8 +168,8 @@ public class SmeltTests
                     Statuses = new Dictionary<long, long>(s.UniqueItemInstances[id].Statuses!) { [GamePack.EnhanceCountStatusCode] = enhance },
                 };
             }
-            s.Activate(GameSession.EquipmentEnhanceEntryCode);
-            s.Activate("901");
+            s.Pick(GameSession.EquipmentEnhanceEntryCode);
+            s.Pick("901");
             return s;
         }
         Assert.All(Synth(20).Entries.Where(e => e.Label.StartsWith("철검")), e => Assert.False(e.Enabled));

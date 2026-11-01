@@ -64,13 +64,43 @@ public sealed partial class GameSession
     /// <summary>지금 화면의 목록 항목 수: 목록 화면이 아니면 -1.</summary>
     int ListCount => IsPagedScreen(Screen) ? PageKeys(RawEntries).Count : IsDebugListScreen(Screen) ? DebugList.Count : -1;
 
-    IReadOnlyList<ScreenEntry> Paginate(IReadOnlyList<ScreenEntry> raw)
+    /// <summary>
+    /// 줄 번호가 페이지 안의 위치인 모든 목록 화면: 번호가 페이지마다 1부터 <see cref="ListPageSize"/>까지라 101~106(페이지 버튼), 901~903, 998, 999와 겹칠 일이 없다
+    /// (ListPageSize의 상한은 <see cref="GamePack.MaxListPageSize"/>). 입력한 번호도 지금 보는 페이지의 줄이다. 고정 항목([0] 비우기/해제, 돌아가기, 합성/제련/개조)의 코드는 그대로다.
+    /// </summary>
+    IReadOnlyList<ScreenEntry> Paginate(IReadOnlyList<ScreenEntry> raw, bool renumber = true)
     {
         if (!IsPagedScreen(Screen)) return raw;
         var keys = PageKeys(raw);
-        var onPage = PageOf(keys).ToHashSet();
-        var back = raw.Where(e => e.Code == BackEntryCode);
-        return [.. raw.Where(e => e.Code != BackEntryCode && (IsFixedEntry(e) || onPage.Contains(e.Code))), .. PagerEntries(keys.Count), .. back];
+        var entries = new List<ScreenEntry>();
+        if (!renumber)
+        {
+            var onPage = PageOf(keys).ToHashSet();
+            return [.. raw.Where(e => e.Code != BackEntryCode && (IsFixedEntry(e) || onPage.Contains(e.Code))), .. PagerEntries(keys.Count), .. raw.Where(e => e.Code == BackEntryCode)];
+        }
+        if (Screen is Screen.CharacterSelect or Screen.SupportSelect or Screen.SkillPoolList)
+        {
+            // 목록 전체(선택할 수 없는 줄 포함)에서의 위치가 번호다: 항목 코드(캐릭터 코드 등)가 키.
+            var position = PageOf(keys).Select((key, i) => (key, number: i + 1)).ToDictionary(x => x.key, x => x.number);
+            foreach (var e in raw)
+            {
+                if (e.Code == BackEntryCode) continue;
+                if (IsFixedEntry(e)) entries.Add(e);
+                else if (position.TryGetValue(e.Code, out var number)) entries.Add(e with { Code = Text(number), DataCode = e.Code });
+            }
+        }
+        else
+        {
+            var shown = new HashSet<ScreenEntry>(PageOf(raw.Where(e => e.Code != BackEntryCode && !IsFixedEntry(e)).ToList()), ReferenceEqualityComparer.Instance);
+            var number = 0;
+            foreach (var e in raw)
+            {
+                if (e.Code == BackEntryCode) continue;
+                if (IsFixedEntry(e)) entries.Add(e);
+                else if (shown.Contains(e)) entries.Add(e with { Code = Text(++number), DataCode = e.Code });
+            }
+        }
+        return [.. entries, .. PagerEntries(keys.Count), .. raw.Where(e => e.Code == BackEntryCode)];
     }
 
     /// <summary>
@@ -119,4 +149,21 @@ public sealed partial class GameSession
     /// </summary>
     ScreenEntry? PagerEntryFor(string code) =>
         ListCount is var count and >= 0 ? PagerEntries(count).FirstOrDefault(e => e.Code == code) : null;
+
+    /// <summary>
+    /// (테스트용) 목록 화면에서 항목 코드(예: 이벤트 코드, 캐릭터 코드)로 그 항목을 가리키는 방법: 그 항목이 있는 페이지로 넘기고, 그 페이지에서의 줄 번호(1부터)를 돌려준다.
+    /// 목록 화면이 아니거나 그 코드의 항목이 목록에 없으면 코드를 그대로 돌려준다.
+    /// </summary>
+    /// <summary>(테스트용) 지금 페이지의 항목을 줄 번호가 아니라 항목 코드 그대로 담은 <see cref="GameSession.Entries"/>.</summary>
+    internal IReadOnlyList<ScreenEntry> DataEntries => Paginate(RawEntries, renumber: false);
+
+    internal string DisplayCodeOf(string code)
+    {
+        if (!IsPagedScreen(Screen)) return code;
+        code = Normalize(code);
+        var index = PageKeys(RawEntries).ToList().IndexOf(code);
+        if (index < 0) return code;
+        ListPage = index / ListPageSize;
+        return Text(index % ListPageSize + 1);
+    }
 }

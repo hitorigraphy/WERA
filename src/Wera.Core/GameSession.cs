@@ -201,10 +201,11 @@ public enum EnhanceMode { Synthesis, Smelt, Modify }
 /// <summary>화면에 나오는 클릭 가능한 텍스트. 클릭하거나 Code를 입력하면 Action을 수행한다.</summary>
 /// <param name="Arg">항목이 가리키는 추가 값(파티 슬롯 항목에서는 슬롯 번호 0~8).</param>
 /// <param name="LabelHtml">꾸밈 문법(굵게, 색)이 적용된 문구의 HTML. 없으면 Label을 그대로 보여 준다(ADV 선택지가 쓴다).</param>
+/// <param name="DataCode">목록 화면에서 Code가 페이지 안의 줄 번호일 때 그 항목 원래의 코드(이벤트 코드, 캐릭터 코드 등). 항목의 동작은 이 코드를 쓴다.</param>
 /// <param name="Enabled">false면 회색으로 보이고 눌러도(코드를 입력해도) 아무 일도 없다(지금 할 수 없는 상점 교환).</param>
 public sealed record ScreenEntry(
     string Code, string Label, Screen Target, EntryAction Action = EntryAction.Navigate, string? Arg = null, string? LabelHtml = null,
-    bool Enabled = true);
+    bool Enabled = true, string? DataCode = null);
 
 /// <param name="Version">릴리스 전이라 1로 유지한다. 지시가 있을 때까지 올리지 않는다.</param>
 public sealed record SaveData(
@@ -820,7 +821,7 @@ public sealed partial class GameSession
         Message = null;
         if (Screen == Screen.PartyRename && code.Trim() != BackEntryCode) return RenamePartyTo(code);   // 쓴 글이 새 이름이다
         code = Normalize(code);
-        var entry = (typed ? PagerEntryFor(code) : null) ?? RawEntries.Concat(HomeSlotEntries).FirstOrDefault(e => e.Code == code) ?? PagerEntryFor(code);
+        var entry = (typed ? PagerEntryFor(code) : null) ?? (IsPagedScreen(Screen) ? Entries : RawEntries).Concat(HomeSlotEntries).FirstOrDefault(e => e.Code == code) ?? PagerEntryFor(code);
         if (entry is { Enabled: false }) return entry;       // 회색 항목은 눌러도 아무 반응이 없다
         RecordCommunicationCommand(entry);
         switch (entry?.Action)
@@ -1081,7 +1082,7 @@ public sealed partial class GameSession
 
     static string Text(long code) => code.ToString(CultureInfo.InvariantCulture);
 
-    static long CodeOf(ScreenEntry entry) => long.Parse(entry.Code, CultureInfo.InvariantCulture);
+    static long CodeOf(ScreenEntry entry) => long.Parse(entry.DataCode ?? entry.Code, CultureInfo.InvariantCulture);
 
     /// <summary>입력을 다듬는다. 앞뒤 공백을 없애고, 숫자면 앞자리 0을 없앤다("007001" → "7001").</summary>
     static string Normalize(string typed)

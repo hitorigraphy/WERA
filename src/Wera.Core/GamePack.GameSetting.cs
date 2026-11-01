@@ -54,6 +54,9 @@ public sealed partial class GamePack
     public const decimal DefaultAttributeAdvantageMultiplier = 1.5m;
     public const decimal DefaultAttributeDisadvantageMultiplier = 0.5m;
     public const long DefaultListPageSize = 20;
+
+    /// <summary>ListPageSize의 상한: 줄 번호는 페이지마다 1부터 ListPageSize까지라 100을 넘으면 페이지 버튼 코드 101~106과 겹친다.</summary>
+    public const long MaxListPageSize = 100;
     public const long DefaultSynthesisSacrificeCount = 1;
 
     /// <summary>유리속성 배율(설정 AttributeAdvantageMultiplier, 기본 1.5).</summary>
@@ -151,6 +154,8 @@ public sealed partial class GamePack
                 var value = valueType == GameSettingValueType.Long ? longValue : decimalValue;
                 if (value < rule.Min)
                     throw new PackFormatException($"{file}: {who} 값 '{value}'은(는) {rule.Min} 이상이어야 합니다.");
+                if (type == GameSettingType.ListPageSize && value > MaxListPageSize)
+                    throw new PackFormatException($"{file}: {who} 값 '{value}'은(는) {MaxListPageSize} 이하여야 합니다(줄 번호가 페이지 버튼 코드 101~106과 겹치지 않도록).");
             }
             rows.Add(new GameSettingEntry(type, valueType, longValue, decimalValue, textValue));
         }

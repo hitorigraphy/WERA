@@ -18,15 +18,15 @@ public class HomeMenuEnabledTests
         return GamePack.Load(CoreTests.PackZip(files.ToArray()));
     }
 
-    static bool Enabled(GameSession s, string code) => s.Entries.Single(e => e.Code == code).Enabled;
+    static bool Enabled(GameSession s, string code) => s.DataEntries.Single(e => e.Code == code).Enabled;
 
     [Fact]
     public void The_dungeon_select_screen_lists_the_dungeons_and_the_back_entry()
     {
         var s = GameSession.NewGame(Pack("code\tname\n1001\t초원\n"));
-        s.Activate("101");
+        s.Pick("101");
         Assert.Equal(Screen.DungeonSelect, s.Screen);
-        Assert.Equal(["1001", "999"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["1001", "999"], s.DataEntries.Select(e => e.Code));
     }
 
     [Fact]
@@ -35,7 +35,7 @@ public class HomeMenuEnabledTests
         var s = GameSession.NewGame(Pack());
         Assert.False(Enabled(s, "101"));
         Assert.False(Enabled(s, "104"));
-        foreach (var e in s.Entries.Where(e => e.Code is not ("101" or "104")))
+        foreach (var e in s.DataEntries.Where(e => e.Code is not ("101" or "104")))
             Assert.True(e.Enabled, e.Code);
         Assert.Equal(["101", "102", "103", "104", "105", "106", "107"], s.HomeMenu[0].Entries.Select(e => e.Code));
     }
@@ -77,7 +77,7 @@ public class HomeMenuEnabledTests
         var s = GameSession.NewGame(Pack());
         foreach (var code in new[] { "101", "104" })
         {
-            Assert.NotNull(s.Activate(code));
+            Assert.NotNull(s.Pick(code));
             Assert.Equal(Screen.Home, s.Screen);
             Assert.Null(s.Message);
         }
@@ -92,6 +92,6 @@ public class HomeMenuEnabledTests
         var s = GameSession.NewGame(GamePack.Load(zip));
         Assert.True(Enabled(s, "101"));
         Assert.True(Enabled(s, "104"));
-        Assert.All(s.Entries, e => Assert.True(e.Enabled));
+        Assert.All(s.DataEntries, e => Assert.True(e.Enabled));
     }
 }

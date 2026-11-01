@@ -227,24 +227,24 @@ public class EventScreenTests
     public void The_event_screen_lists_only_events_whose_conditions_are_met()
     {
         var s = Session("3001\t1\tAdv\t4001\t0\t0\n", "3002\t1\t1001\tGreaterOrEqual\t1\n");
-        s.Activate("103");
-        Assert.Equal(["3001", "999"], s.Entries.Select(e => e.Code));
+        s.Pick("103");
+        Assert.Equal(["3001", "999"], s.DataEntries.Select(e => e.Code));
         s.PlayerFlags[1001] = 1;
-        Assert.Equal(["3001", "3002", "999"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["3001", "3002", "999"], s.DataEntries.Select(e => e.Code));
     }
 
     [Fact]
     public void Playing_an_event_shows_each_scene_and_returns_to_the_list_when_finished()
     {
         var s = Session("3001\t1\tAdv\t4001\t0\t0\n3001\t2\tBattle\t5001\t0\t0\n");
-        s.Activate("103");
-        s.Activate("3001");
+        s.Pick("103");
+        s.Pick("3001");
 
         Assert.Equal(Screen.EventPlay, s.Screen);
         Assert.Equal("ADV: 인사", s.CurrentStepText);
-        Assert.Equal(["1"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["1"], s.DataEntries.Select(e => e.Code));
 
-        s.Activate("1");
+        s.Pick("1");
         Assert.Equal(Screen.Battle, s.Screen);                       // Battle 칸은 전투 화면으로 간다(끝나면 이벤트의 다음 칸부터)
         Assert.Equal(5001, s.CurrentBattleCode);
         Assert.Equal("전투: 슬라임", s.CurrentStepText);
@@ -254,8 +254,8 @@ public class EventScreenTests
     public void An_event_with_nothing_to_show_goes_straight_back_to_the_list()
     {
         var s = Session("3001\t1\tFinish\t0\t0\t0\n");
-        s.Activate("103");
-        s.Activate("3001");
+        s.Pick("103");
+        s.Pick("3001");
         Assert.Equal(Screen.Event, s.Screen);
     }
 }
@@ -478,8 +478,8 @@ public class EventFlagFlowTests
         Assert.Throws<PackFormatException>(() => Session("3001\t1\tSetFlag\tabc\t0\t0\n"));
 
         var s = Session("3001\t1\tSetFlag\t1001\t1\t0\n3001\t2\tAdv\t4001\t0\t0\n");
-        s.Activate("103");
-        s.Activate("3001");                                                          // 플래그 칸을 지나 ADV(흐름 없음)까지 바로 지나가 이벤트가 끝난다
+        s.Pick("103");
+        s.Pick("3001");                                                          // 플래그 칸을 지나 ADV(흐름 없음)까지 바로 지나가 이벤트가 끝난다
         Assert.Equal(1, s.PlayerFlags[1001]);
         Assert.Equal(Screen.Event, s.Screen);
         Assert.Equal(1, GameSession.FromSaveJson(s.Pack, s.ToSaveJson()).PlayerFlags[1001]);

@@ -28,11 +28,11 @@ public class LeaderTests
     public void An_empty_party_lists_only_leader_tagged_characters_and_the_first_one_becomes_the_leader()
     {
         var s = Session();
-        s.Activate("105"); s.Activate("5");                       // 아무도 없는 파티의 슬롯 5
+        s.Pick("105"); s.Pick("5");                       // 아무도 없는 파티의 슬롯 5
         Assert.Equal([7001L, 7003L], Listed(s));                  // 플레이어(리더 태그 없음)와 마법사는 걸러진다
-        Assert.DoesNotContain(s.Entries, e => e.Code == "7002");
+        Assert.DoesNotContain(s.DataEntries, e => e.Code == "7002");
 
-        s.Activate("7001");
+        s.Pick("7001");
         Assert.True(s.PartyInstance.Units[4]!.IsLeader);
         Assert.True(s.PartySlotViews[4].IsLeader);
     }
@@ -41,11 +41,11 @@ public class LeaderTests
     public void Other_slots_of_a_party_with_someone_list_everyone_and_place_non_leaders()
     {
         var s = Session();
-        s.Activate("105"); s.Activate("1"); s.Activate("7001");
-        s.Activate("2");                                          // 리더가 아닌 슬롯
+        s.Pick("105"); s.Pick("1"); s.Pick("7001");
+        s.Pick("2");                                          // 리더가 아닌 슬롯
         Assert.Equal([1L, 7002L, 7003L], Listed(s).Where(c => c != 7001));
         Assert.Equal(CharacterListColor.Green, s.CharacterList.Single(c => c.Code == 7001).Color);
-        s.Activate("7002");
+        s.Pick("7002");
         Assert.False(s.PartyInstance.Units[1]!.IsLeader);
         Assert.True(s.PartyInstance.Units[0]!.IsLeader);
     }
@@ -54,10 +54,10 @@ public class LeaderTests
     public void Changing_the_character_of_a_leader_slot_lists_only_leader_tagged_ones_and_keeps_the_leadership()
     {
         var s = Session();
-        s.Activate("105"); s.Activate("1"); s.Activate("7001");
-        s.Activate("1");                                          // 리더의 슬롯을 바꾼다
+        s.Pick("105"); s.Pick("1"); s.Pick("7001");
+        s.Pick("1");                                          // 리더의 슬롯을 바꾼다
         Assert.Equal([7003L], Listed(s));                         // 지금 그 슬롯의 용사는 목록에 없다
-        s.Activate("7003");
+        s.Pick("7003");
         Assert.Equal(7003, s.Party[0]);
         Assert.True(s.PartyInstance.Units[0]!.IsLeader);          // 새 유닛이 리더 자리를 잇는다
     }
@@ -66,18 +66,18 @@ public class LeaderTests
     public void The_last_leader_cannot_be_cleared_while_others_remain_but_can_when_alone()
     {
         var s = Session();
-        s.Activate("105"); s.Activate("1"); s.Activate("7001");
-        s.Activate("2"); s.Activate("7002");
-        s.Activate("1");
-        Assert.DoesNotContain(s.Entries, e => e.Code == GameSession.ClearEntryCode);   // 리더가 한 명뿐이고 동료가 있다
-        s.Activate("999");
+        s.Pick("105"); s.Pick("1"); s.Pick("7001");
+        s.Pick("2"); s.Pick("7002");
+        s.Pick("1");
+        Assert.DoesNotContain(s.DataEntries, e => e.Code == GameSession.ClearEntryCode);   // 리더가 한 명뿐이고 동료가 있다
+        s.Pick("999");
 
-        s.Activate("2");                                          // 동료는 비울 수 있다
-        Assert.Contains(s.Entries, e => e.Code == GameSession.ClearEntryCode);
-        s.Activate("0");
-        s.Activate("1");                                          // 이제 혼자라 비울 수 있다
-        Assert.Contains(s.Entries, e => e.Code == GameSession.ClearEntryCode);
-        s.Activate("0");
+        s.Pick("2");                                          // 동료는 비울 수 있다
+        Assert.Contains(s.DataEntries, e => e.Code == GameSession.ClearEntryCode);
+        s.Pick("0");
+        s.Pick("1");                                          // 이제 혼자라 비울 수 있다
+        Assert.Contains(s.DataEntries, e => e.Code == GameSession.ClearEntryCode);
+        s.Pick("0");
         Assert.All(s.Party, p => Assert.Null(p));
     }
 
@@ -85,25 +85,25 @@ public class LeaderTests
     public void Leader_mode_toggles_leaders_only_for_leader_tagged_characters_and_keeps_at_least_one()
     {
         var s = Session();
-        s.Activate("105"); s.Activate("1"); s.Activate("7001");
-        s.Activate("2"); s.Activate("7002");
-        s.Activate("3"); s.Activate("7003");
+        s.Pick("105"); s.Pick("1"); s.Pick("7001");
+        s.Pick("2"); s.Pick("7002");
+        s.Pick("3"); s.Pick("7003");
 
-        s.Activate("104");
+        s.Pick("104");
         Assert.Equal(Screen.LeaderSetup, s.Screen);
-        Assert.Equal(["1", "3"], s.Entries.Where(e => e.Action == EntryAction.ToggleLeader && e.Enabled).Select(e => e.Code));   // 마법사(슬롯 2)는 회색
-        Assert.False(s.Entries.Single(e => e.Code == "2").Enabled);
-        Assert.False(s.Entries.Single(e => e.Code == "104").Enabled);                                              // 지금 모드
+        Assert.Equal(["1", "3"], s.DataEntries.Where(e => e.Action == EntryAction.ToggleLeader && e.Enabled).Select(e => e.Code));   // 마법사(슬롯 2)는 회색
+        Assert.False(s.DataEntries.Single(e => e.Code == "2").Enabled);
+        Assert.False(s.DataEntries.Single(e => e.Code == "104").Enabled);                                              // 지금 모드
 
-        s.Activate("2");                                          // 리더 태그가 없는 캐릭터: 반응 없음
+        s.Pick("2");                                          // 리더 태그가 없는 캐릭터: 반응 없음
         Assert.False(s.PartyInstance.Units[1]!.IsLeader);
 
-        s.Activate("3");                                          // 전사를 리더로
+        s.Pick("3");                                          // 전사를 리더로
         Assert.Equal([true, false, true], s.PartyInstance.Units.Take(3).Select(u => u!.IsLeader));
-        s.Activate("1");                                          // 용사 해제(전사가 남아 있다)
+        s.Pick("1");                                          // 용사 해제(전사가 남아 있다)
         Assert.False(s.PartyInstance.Units[0]!.IsLeader);
 
-        s.Activate("3");                                          // 마지막 리더는 해제할 수 없다
+        s.Pick("3");                                          // 마지막 리더는 해제할 수 없다
         Assert.True(s.PartyInstance.Units[2]!.IsLeader);
         Assert.Equal("파티에는 리더가 한 명 이상 있어야 합니다.", s.Message);
         Assert.Equal(Screen.LeaderSetup, s.Screen);
@@ -113,8 +113,8 @@ public class LeaderTests
     public void A_leader_losing_the_leader_tag_stops_being_a_leader_and_nobody_takes_over()
     {
         var s = Session();
-        s.Activate("105"); s.Activate("1"); s.Activate("7001");
-        s.Activate("2"); s.Activate("7003");
+        s.Pick("105"); s.Pick("1"); s.Pick("7001");
+        s.Pick("2"); s.Pick("7003");
         Assert.True(s.RemoveCharacterTag(7001, GamePack.LeaderTagCode));
         Assert.False(s.PartyInstance.Units[0]!.IsLeader);
         Assert.False(s.PartyInstance.Units[1]!.IsLeader);          // 다른 유닛이 대신 리더가 되지는 않는다
@@ -125,8 +125,8 @@ public class LeaderTests
     public void Removing_the_leader_character_leaves_the_party_without_a_leader()
     {
         var s = Session();
-        s.Activate("105"); s.Activate("1"); s.Activate("7001");
-        s.Activate("2"); s.Activate("7003");
+        s.Pick("105"); s.Pick("1"); s.Pick("7001");
+        s.Pick("2"); s.Pick("7003");
         Assert.True(s.RemoveCharacter(7001));
         Assert.False(s.PartyInstance.Units[1]!.IsLeader);
         Assert.False(s.IsDispatchable(0));
@@ -136,9 +136,9 @@ public class LeaderTests
     public void Leaders_survive_the_save_and_old_saves_without_leader_info_have_no_leader()
     {
         var s = Session();
-        s.Activate("105"); s.Activate("1"); s.Activate("7001");
-        s.Activate("2"); s.Activate("7003");
-        s.Activate("104"); s.Activate("2");                       // 전사도 리더
+        s.Pick("105"); s.Pick("1"); s.Pick("7001");
+        s.Pick("2"); s.Pick("7003");
+        s.Pick("104"); s.Pick("2");                       // 전사도 리더
         var loaded = GameSession.FromSaveJson(s.Pack, s.ToSaveJson());
         Assert.Equal([true, true], loaded.PartyInstance.Units.Take(2).Select(u => u!.IsLeader));
 
@@ -168,8 +168,8 @@ public class LeaderTests
     {
         var s = Session();
         Assert.False(s.IsDispatchable(0));                        // 빈 파티: 리더 없음
-        s.Activate("105"); s.Activate("1"); s.Activate("7001");   // 리더가 생겼다
-        s.Activate("999");
+        s.Pick("105"); s.Pick("1"); s.Pick("7001");   // 리더가 생겼다
+        s.Pick("999");
         Assert.True(s.IsDispatchable(0));
     }
 
@@ -177,9 +177,9 @@ public class LeaderTests
     public void Dispatchability_follows_each_party()
     {
         var s = Session();
-        s.Activate("105"); s.Activate("1"); s.Activate("7001");   // 파티-A: 리더 있음
-        s.Activate("12");                                          // 파티-B: 비어 있음
-        s.Activate("999");
+        s.Pick("105"); s.Pick("1"); s.Pick("7001");   // 파티-A: 리더 있음
+        s.Pick("12");                                          // 파티-B: 비어 있음
+        s.Pick("999");
         Assert.True(s.IsDispatchable(0));
         Assert.False(s.IsDispatchable(1));
     }
@@ -196,20 +196,20 @@ public class LeaderTests
     public void The_modes_are_101_placement_102_equipment_103_skill_and_104_leader()
     {
         var s = Session();
-        s.Activate("105");
-        Assert.Equal(["101", "102", "103", "104"], s.Entries.Where(e => e.Arg is null && e.Code != "0" && e.Code != "999").Select(e => e.Code));
+        s.Pick("105");
+        Assert.Equal(["101", "102", "103", "104"], s.DataEntries.Where(e => e.Arg is null && e.Code != "0" && e.Code != "999").Select(e => e.Code));
         Assert.Equal(["캐릭터 배치", "장비 착용", "스킬 설정", "리더 지정"],
-            s.Entries.Where(e => e.Code is "101" or "102" or "103" or "104").Select(e => e.Label));
+            s.DataEntries.Where(e => e.Code is "101" or "102" or "103" or "104").Select(e => e.Label));
         Assert.Equal("103", GameSession.SkillModeCode);
         Assert.Equal("104", GameSession.LeaderModeCode);
 
-        Assert.Equal(Screen.SkillSetup, s.Activate("103")!.Target);
+        Assert.Equal(Screen.SkillSetup, s.Pick("103")!.Target);
         Assert.Equal(Screen.SkillSetup, s.Screen);
-        Assert.False(s.Entries.Single(e => e.Code == "103").Enabled);                      // 지금 모드
-        Assert.All(s.Entries.Where(e => e.Arg is not null && e.Code.Length == 1 && e.Code != "0"), e => Assert.Equal(Screen.SkillCharacter, e.Target));   // 슬롯을 고르면 그 캐릭터의 스킬 설정으로 간다
-        s.Activate("104");
+        Assert.False(s.DataEntries.Single(e => e.Code == "103").Enabled);                      // 지금 모드
+        Assert.All(s.DataEntries.Where(e => e.Arg is not null && e.Code.Length == 1 && e.Code != "0"), e => Assert.Equal(Screen.SkillCharacter, e.Target));   // 슬롯을 고르면 그 캐릭터의 스킬 설정으로 간다
+        s.Pick("104");
         Assert.Equal(Screen.LeaderSetup, s.Screen);
-        s.Activate("999");
+        s.Pick("999");
         Assert.Equal(Screen.Home, s.Screen);
     }
 }

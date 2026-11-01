@@ -24,8 +24,8 @@ public class MultiPartyTests
         Assert.Equal("파티-P", s.Parties[15].Name);
         Assert.Equal(0, s.CurrentPartyIndex);
 
-        s.Activate("105");
-        var buttons = s.Entries.Where(e => e.Action == EntryAction.SelectParty).ToList();
+        s.Pick("105");
+        var buttons = s.DataEntries.Where(e => e.Action == EntryAction.SelectParty).ToList();
         Assert.Equal(Enumerable.Range(11, 16).Select(c => c.ToString()), buttons.Select(e => e.Code));
         Assert.Equal("파티-A", buttons[0].Label);
         Assert.Equal("파티-P", buttons[15].Label);
@@ -37,21 +37,21 @@ public class MultiPartyTests
     public void Choosing_a_party_switches_the_one_the_slots_and_placement_follow()
     {
         var s = Session();
-        s.Activate("105");
-        s.Activate("1"); s.Activate("7001");                     // 파티-A의 슬롯 1에 용사
+        s.Pick("105");
+        s.Pick("1"); s.Pick("7001");                     // 파티-A의 슬롯 1에 용사
         Assert.Equal(7001, s.Party[0]);
 
-        s.Activate("11");                                        // 지금 보는 파티의 버튼은 눌러도 반응이 없다
+        s.Pick("11");                                        // 지금 보는 파티의 버튼은 눌러도 반응이 없다
         Assert.Equal(0, s.CurrentPartyIndex);
-        Assert.NotNull(s.Activate("12"));                        // 파티-B
+        Assert.NotNull(s.Pick("12"));                        // 파티-B
         Assert.Equal(Screen.PartySetup, s.Screen);
         Assert.Equal(1, s.CurrentPartyIndex);
         Assert.Null(s.Party[0]);                                 // 파티-B는 비어 있다
-        Assert.Equal("12", s.Entries.Single(e => e.Action == EntryAction.SelectParty && !e.Enabled).Code);
+        Assert.Equal("12", s.DataEntries.Single(e => e.Action == EntryAction.SelectParty && !e.Enabled).Code);
 
-        s.Activate("1"); s.Activate("7002");
+        s.Pick("1"); s.Pick("7002");
         Assert.Equal(7002, s.Party[0]);
-        s.Activate("11");
+        s.Pick("11");
         Assert.Equal(7001, s.Party[0]);                          // 파티-A는 그대로
     }
 
@@ -59,15 +59,15 @@ public class MultiPartyTests
     public void A_character_in_another_party_is_gray_and_cannot_be_placed()
     {
         var s = Session();
-        s.Activate("105");
-        s.Activate("1"); s.Activate("7001");
-        s.Activate("12");                                        // 파티-B
-        s.Activate("1");
+        s.Pick("105");
+        s.Pick("1"); s.Pick("7001");
+        s.Pick("12");                                        // 파티-B
+        s.Pick("1");
         var dragon = s.CharacterList.Single(c => c.Code == 7001);
         Assert.Equal(CharacterListColor.Gray, dragon.Color);
         Assert.False(dragon.Selectable);
-        Assert.DoesNotContain(s.Entries, e => e.Code == "7001");
-        Assert.Null(s.Activate("7001"));
+        Assert.DoesNotContain(s.DataEntries, e => e.Code == "7001");
+        Assert.Null(s.Pick("7001"));
         Assert.Equal(CharacterListColor.White, s.CharacterList.Single(c => c.Code == 7002).Color);
     }
 
@@ -77,7 +77,7 @@ public class MultiPartyTests
         var s = Session((9001, 1));
         s.Party[0] = 7001;
         s.PartyInstance.Units[0] = new PartyUnit(7001);          // 파티-A의 용사
-        s.Activate("105"); s.Activate("12");
+        s.Pick("105"); s.Pick("12");
         s.Party[0] = 7002;                                       // 파티-B의 마법사
         Assert.True(s.Equip(7001, 1, 9001));
         Assert.False(s.Equip(7002, 1, 9001));                    // 철검 한 개는 두 파티에 동시에 낄 수 없다
@@ -90,7 +90,7 @@ public class MultiPartyTests
     {
         var s = Session();
         s.AddCharacter(7003);
-        s.Activate("105"); s.Activate("13");
+        s.Pick("105"); s.Pick("13");
         s.Party[2] = 7003;
         Assert.True(s.RemoveCharacter(7003));
         Assert.Null(s.Party[2]);
@@ -102,7 +102,7 @@ public class MultiPartyTests
         var s = Session((9001, 1));
         s.Party[0] = 7001;
         s.Equip(7001, 1, 9001);
-        s.Activate("105"); s.Activate("14");                     // 파티-D
+        s.Pick("105"); s.Pick("14");                     // 파티-D
         s.Party[4] = 7002;
         s.PartyName = "파견대";
 
@@ -148,18 +148,18 @@ public class MultiPartyTests
     public void Zero_opens_the_rename_screen_and_the_typed_text_becomes_the_party_name()
     {
         var s = Session();
-        s.Activate("105");
-        var title = s.Entries.Single(e => e.Code == "0");
+        s.Pick("105");
+        var title = s.DataEntries.Single(e => e.Code == "0");
         Assert.Equal(("파티-A", EntryAction.RenameParty), (title.Label, title.Action));
 
-        s.Activate("0");
+        s.Pick("0");
         Assert.Equal(Screen.PartyRename, s.Screen);
-        Assert.Equal(["999"], s.Entries.Select(e => e.Code));
-        s.Activate("정예 부대");
+        Assert.Equal(["999"], s.DataEntries.Select(e => e.Code));
+        s.Pick("정예 부대");
         Assert.Equal(Screen.PartySetup, s.Screen);                 // 들어온 화면으로 돌아간다
         Assert.Equal("정예 부대", s.PartyName);
-        Assert.Equal("정예 부대", s.Entries.Single(e => e.Code == "0").Label);
-        Assert.Equal("정예 부대", s.Entries.Single(e => e.Action == EntryAction.SelectParty && !e.Enabled).Label);
+        Assert.Equal("정예 부대", s.DataEntries.Single(e => e.Code == "0").Label);
+        Assert.Equal("정예 부대", s.DataEntries.Single(e => e.Action == EntryAction.SelectParty && !e.Enabled).Label);
         Assert.Equal("파티-B", s.Parties[1].Name);                 // 다른 파티는 그대로
     }
 
@@ -168,15 +168,15 @@ public class MultiPartyTests
     {
         var s = Session();
         s.Party[0] = 7001;
-        s.Activate("105"); s.Activate("102");                      // 장비 착용 화면
-        s.Activate("0");
+        s.Pick("105"); s.Pick("102");                      // 장비 착용 화면
+        s.Pick("0");
         Assert.Equal(Screen.PartyRename, s.Screen);
-        s.Activate("999");                                         // 돌아가기: 이름은 그대로
+        s.Pick("999");                                         // 돌아가기: 이름은 그대로
         Assert.Equal(Screen.EquipmentSetup, s.Screen);
         Assert.Equal("파티-A", s.PartyName);
 
-        s.Activate("0");
-        s.Activate("007");                                         // 숫자도 이름이 된다(앞자리 0을 없애지 않는다)
+        s.Pick("0");
+        s.Pick("007");                                         // 숫자도 이름이 된다(앞자리 0을 없애지 않는다)
         Assert.Equal(Screen.EquipmentSetup, s.Screen);
         Assert.Equal("007", s.PartyName);
     }
@@ -185,15 +185,15 @@ public class MultiPartyTests
     public void An_empty_or_too_long_name_changes_nothing()
     {
         var s = Session();
-        s.Activate("105"); s.Activate("0");
-        Assert.Null(s.Activate("   "));
+        s.Pick("105"); s.Pick("0");
+        Assert.Null(s.Pick("   "));
         Assert.Equal(Screen.PartyRename, s.Screen);
-        Assert.Null(s.Activate(new string('가', GameSession.MaxPartyNameLength + 1)));
+        Assert.Null(s.Pick(new string('가', GameSession.MaxPartyNameLength + 1)));
         Assert.Equal(Screen.PartyRename, s.Screen);
         Assert.Contains("20자", s.Message);
         Assert.Equal("파티-A", s.PartyName);
 
-        s.Activate(new string('가', GameSession.MaxPartyNameLength));
+        s.Pick(new string('가', GameSession.MaxPartyNameLength));
         Assert.Equal(new string('가', GameSession.MaxPartyNameLength), s.PartyName);
     }
 
@@ -201,8 +201,8 @@ public class MultiPartyTests
     public void Renaming_follows_the_party_being_viewed()
     {
         var s = Session();
-        s.Activate("105"); s.Activate("13");                       // 파티-C
-        s.Activate("0"); s.Activate("순찰대");
+        s.Pick("105"); s.Pick("13");                       // 파티-C
+        s.Pick("0"); s.Pick("순찰대");
         Assert.Equal("순찰대", s.Parties[2].Name);
         Assert.Equal("파티-A", s.Parties[0].Name);
         Assert.Equal("순찰대", GameSession.FromSaveJson(s.Pack, s.ToSaveJson()).Parties[2].Name);

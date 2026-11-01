@@ -26,13 +26,13 @@ public class DebugScreenTests
     {
         var s = GameSession.NewGame(SamplePack());
         Assert.Equal(["200", "300", "400"], s.HomeMenu[2].Entries.Select(e => e.Code));
-        Assert.Equal(Screen.Debug, s.Activate("400")!.Target);
-        Assert.Equal(["401", "402", "403", "404", "999"], s.Entries.Select(e => e.Code));
-        Assert.Equal(["캐릭터 추가", "장비 추가", "아이템 추가", "스킬 추가", "돌아가기"], s.Entries.Select(e => e.Label));
-        Assert.Equal(Screen.DebugAddCharacter, s.Activate("401")!.Target);
-        s.Activate("999");
+        Assert.Equal(Screen.Debug, s.Pick("400")!.Target);
+        Assert.Equal(["401", "402", "403", "404", "999"], s.DataEntries.Select(e => e.Code));
+        Assert.Equal(["캐릭터 추가", "장비 추가", "아이템 추가", "스킬 추가", "돌아가기"], s.DataEntries.Select(e => e.Label));
+        Assert.Equal(Screen.DebugAddCharacter, s.Pick("401")!.Target);
+        s.Pick("999");
         Assert.Equal(Screen.Debug, s.Screen);
-        s.Activate("999");
+        s.Pick("999");
         Assert.Equal(Screen.Home, s.Screen);
     }
 
@@ -41,20 +41,20 @@ public class DebugScreenTests
     {
         var s = GameSession.NewGame(SamplePack());
         s.AddCharacter(7001);
-        s.Activate("400");
-        Assert.Equal(Screen.DebugSkillCharacter, s.Activate("404")!.Target);
+        s.Pick("400");
+        Assert.Equal(Screen.DebugSkillCharacter, s.Pick("404")!.Target);
         Assert.Equal(["당신", "용사"], s.DebugList.Select(d => d.Name).Take(2));          // 가진 캐릭터만(코드순)
-        var pick = s.Entries.First(e => e.Label.StartsWith("용사"));
-        Assert.Equal(Screen.DebugAddSkill, s.Activate(pick.Code)!.Target);
+        var pick = s.DataEntries.First(e => e.Label.StartsWith("용사"));
+        Assert.Equal(Screen.DebugAddSkill, s.Pick(pick.Code)!.Target);
         Assert.Equal(s.Pack.Skills!.Select(k => k.Code), s.DebugList.Select(d => d.Code));
         var before = s.Characters[7001].SkillPool.Count;                                  // 생성 후 이펙트가 넣은 스킬
-        s.Activate("1"); s.Activate("1");                                                 // 첫 스킬을 두 번
+        s.Pick("1"); s.Pick("1");                                                 // 첫 스킬을 두 번
         Assert.Equal(before + 2, s.Characters[7001].SkillPool.Count);
         Assert.All(s.Characters[7001].SkillPool.Skip(before), p => Assert.Equal(s.Pack.Skills![0].Code, p.SkillCode));
         Assert.Contains("스킬 추가", s.Message);
-        s.Activate("999");
+        s.Pick("999");
         Assert.Equal(Screen.DebugSkillCharacter, s.Screen);
-        s.Activate("999");
+        s.Pick("999");
         Assert.Equal(Screen.Debug, s.Screen);
     }
 
@@ -62,26 +62,26 @@ public class DebugScreenTests
     public void The_character_list_shows_every_master_character_twenty_per_page()
     {
         var s = GameSession.NewGame(ManyCharacters());
-        s.Activate("400");
-        s.Activate("401");
+        s.Pick("400");
+        s.Pick("401");
         Assert.Equal(45, s.DebugList.Count);
         Assert.Equal(3, s.DebugPageCount);
-        Assert.Equal(Enumerable.Range(1, 20).Select(i => i.ToString()), s.Entries.Where(e => e.Action == EntryAction.DebugAdd).Select(e => e.Code));
-        Assert.Equal(["104", "105", "106"], s.Entries.Where(e => e.Action == EntryAction.ListPage).Select(e => e.Code));   // 지금 페이지(1)에는 코드가 없다
+        Assert.Equal(Enumerable.Range(1, 20).Select(i => i.ToString()), s.DataEntries.Where(e => e.Action == EntryAction.DebugAdd).Select(e => e.Code));
+        Assert.Equal(["104", "105", "106"], s.DataEntries.Where(e => e.Action == EntryAction.ListPage).Select(e => e.Code));   // 지금 페이지(1)에는 코드가 없다
 
-        s.Activate("104");                                                        // 다음(+1) 페이지
+        s.Pick("104");                                                        // 다음(+1) 페이지
         Assert.Equal(1, s.DebugPage);
-        s.Activate("106");                                                        // 마지막 페이지
+        s.Pick("106");                                                        // 마지막 페이지
         Assert.Equal(2, s.DebugPage);
-        Assert.Equal(5, s.Entries.Count(e => e.Action == EntryAction.DebugAdd));  // 마지막 페이지는 나머지 5개
-        Assert.Equal(["101", "102", "103"], s.Entries.Where(e => e.Action == EntryAction.ListPage).Select(e => e.Code));
-        Assert.Null(s.Activate("105"));                                           // 갈 곳이 없는 자리(+2)
+        Assert.Equal(5, s.DataEntries.Count(e => e.Action == EntryAction.DebugAdd));  // 마지막 페이지는 나머지 5개
+        Assert.Equal(["101", "102", "103"], s.DataEntries.Where(e => e.Action == EntryAction.ListPage).Select(e => e.Code));
+        Assert.Null(s.Pick("105"));                                           // 갈 곳이 없는 자리(+2)
         Assert.Equal(2, s.DebugPage);
-        s.Activate("103");                                                        // 이전(-1) 페이지
+        s.Pick("103");                                                        // 이전(-1) 페이지
         Assert.Equal(1, s.DebugPage);
 
-        s.Activate("999");                                                        // 다시 들어오면 첫 페이지
-        s.Activate("401");
+        s.Pick("999");                                                        // 다시 들어오면 첫 페이지
+        s.Pick("401");
         Assert.Equal(0, s.DebugPage);
     }
 
@@ -89,14 +89,14 @@ public class DebugScreenTests
     public void Pressing_a_character_adds_it_once()
     {
         var s = GameSession.NewGame(ManyCharacters());
-        s.Activate("400");
-        s.Activate("401");
+        s.Pick("400");
+        s.Pick("401");
         Assert.False(s.Characters.ContainsKey(7001));
-        s.Activate("2");                                                          // 첫 페이지의 둘째: 7001(당신 다음)
+        s.Pick("2");                                                          // 첫 페이지의 둘째: 7001(당신 다음)
         Assert.True(s.Characters.ContainsKey(7001));
         Assert.Contains("캐릭터 추가", s.Message);
         Assert.Equal(Screen.DebugAddCharacter, s.Screen);
-        s.Activate("2");
+        s.Pick("2");
         Assert.Contains("이미 가지고 있는", s.Message);
         Assert.Equal(2, s.Characters.Count);
     }
@@ -106,18 +106,18 @@ public class DebugScreenTests
     {
         var pack = SamplePack();
         var s = GameSession.NewGame(pack);
-        s.Activate("400");
-        s.Activate("402");
+        s.Pick("400");
+        s.Pick("402");
         Assert.Equal(pack.UniqueItems!.Select(i => i.ItemCode), s.DebugList.Select(d => d.Code));
-        s.Activate("1");
-        s.Activate("1");
+        s.Pick("1");
+        s.Pick("1");
         Assert.Equal(2, s.UniqueItemInstances.Count(kv => kv.Value.ItemCode == pack.UniqueItems![0].ItemCode));    // 장비는 몇 번이고 얻는다
 
-        s.Activate("999");
-        s.Activate("403");
+        s.Pick("999");
+        s.Pick("403");
         Assert.Equal(pack.ItemInventory!.Select(i => i.Code), s.DebugList.Select(d => d.Code));
         var item = pack.ItemInventory![0];
-        for (var i = 0; i < item.CarryLimit + 1; i++) s.Activate("1");
+        for (var i = 0; i < item.CarryLimit + 1; i++) s.Pick("1");
         Assert.Equal(item.CarryLimit, s.InventoryItems[item.Code].Amount);
         Assert.Contains("소지 한도", s.Message);
     }

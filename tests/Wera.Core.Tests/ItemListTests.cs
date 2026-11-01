@@ -31,9 +31,9 @@ public class ItemListTests
     public void The_item_check_screen_opens_from_the_home_menu_and_goes_back()
     {
         var s = Session();
-        s.Activate(GameSession.ItemCheckEntryCode);
+        s.Pick(GameSession.ItemCheckEntryCode);
         Assert.Equal(Screen.ItemCheck, s.Screen);
-        s.Activate(GameSession.BackEntryCode);
+        s.Pick(GameSession.BackEntryCode);
         Assert.Equal(Screen.Home, s.Screen);
     }
 }

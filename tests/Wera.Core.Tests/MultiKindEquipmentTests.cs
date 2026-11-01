@@ -171,11 +171,11 @@ public class MultiKindEquipmentTests
         s.InventoryItems[3] = new InventoryItem(2);
         s.Equip(7001, 3, EquipRef.Common(3));
 
-        s.Activate("104"); s.Activate("2001");
-        Assert.False(s.Entries.Single(e => e.Code == "5001").Enabled);
+        s.Pick("104"); s.Pick("2001");
+        Assert.False(s.DataEntries.Single(e => e.Code == "5001").Enabled);
         Assert.False(s.CanTrade(5001));
         Assert.StartsWith("교환 실패", s.TradeBlockedReason(5001));
-        s.Activate("5001");
+        s.Pick("5001");
         Assert.Null(s.Message);                                            // 회색 교환은 눌러도 아무 일 없다
         Assert.Equal(2, s.InventoryItems[3].Amount);                       // 낀 뼈 조각 때문에 2개를 다 쓸 수 없다
         Assert.False(s.InventoryItems.ContainsKey(11));
@@ -187,15 +187,15 @@ public class MultiKindEquipmentTests
     public void The_select_screen_numbers_the_candidates_from_zero_across_kinds()
     {
         var s = Session();
-        s.Activate("105"); s.Activate("102"); s.Activate("1"); s.Activate("3");     // 강령술사의 소환 슬롯
-        Assert.Equal(["0", "1", "999"], s.Entries.Select(e => e.Code));   // 번호 없는 커먼 아이템/캐릭터는 0부터 이어 붙인다
-        Assert.Equal(["뼈 조각", "강시", "돌아가기"], s.Entries.Select(e => e.Label));
+        s.Pick("105"); s.Pick("102"); s.Pick("1"); s.Pick("3");     // 강령술사의 소환 슬롯
+        Assert.Equal(["0", "1", "999"], s.DataEntries.Select(e => e.Code));   // 번호 없는 커먼 아이템/캐릭터는 0부터 이어 붙인다
+        Assert.Equal(["뼈 조각", "강시", "돌아가기"], s.DataEntries.Select(e => e.Label));
 
-        s.Activate("1");                                                          // 강시
+        s.Pick("1");                                                          // 강시
         Assert.Equal("장착: 강령술사의 소환 ← 강시", s.Message);
         Assert.Equal(EquipRef.Char(7002), s.EquippedItemOf(7001, 3));
         Assert.Equal(Screen.EquipmentList, s.Screen);
-        Assert.Contains(s.Entries, e => e.Label == "소환 : 강시");
+        Assert.Contains(s.DataEntries, e => e.Label == "소환 : 강시");
     }
 
     // ---- 세이브 ----

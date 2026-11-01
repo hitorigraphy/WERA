@@ -34,7 +34,7 @@ public class SupportSlotTests
         Assert.False(s.PlayerSlot.IsEmpty);                           // 플레이어(캐릭터 1)를 보여 준다
         Assert.Equal("Lv.1", s.PlayerSlot.LevelText);
         Assert.Equal(-1, s.PlayerSlot.Slot);
-        Assert.Null(s.Activate("0"));                                 // 당신 슬롯에는 코드가 없다
+        Assert.Null(s.Pick("0"));                                 // 당신 슬롯에는 코드가 없다
         Assert.Equal(Screen.Home, s.Screen);
     }
 
@@ -57,8 +57,8 @@ public class SupportSlotTests
     public void The_home_entry_list_is_unchanged_and_the_slot_codes_are_hidden_typed_codes()
     {
         var s = Session();
-        Assert.Equal(["101", "102", "103", "104", "105", "106", "107", "201", "202", "203", "200", "300", "400"], s.Entries.Select(e => e.Code));
-        Assert.NotNull(s.Activate("1"));
+        Assert.Equal(["101", "102", "103", "104", "105", "106", "107", "201", "202", "203", "200", "300", "400"], s.DataEntries.Select(e => e.Code));
+        Assert.NotNull(s.Pick("1"));
         Assert.Equal(Screen.SupportSelect, s.Screen);
     }
 
@@ -68,22 +68,22 @@ public class SupportSlotTests
     public void Choosing_the_partner_slot_lists_only_owned_characters_and_the_player_is_hidden()
     {
         var s = Session();
-        s.Activate("1");
+        s.Pick("1");
         Assert.Equal(SupportRole.Partner, s.CurrentSupportRole);
         Assert.Equal("파트너", s.CurrentSupportRoleName);
 
         Assert.Equal([7001L, 7002L, 7003L], s.SupportList.Select(c => c.Code));       // 보유하지 않은 도적(7004)은 목록에 없다
         Assert.DoesNotContain(s.SupportList, c => c.Code == 7004);
         Assert.DoesNotContain(s.SupportList, c => c.Code == 1);                              // 플레이어는 목록에 없다
-        Assert.Equal(["7001", "7002", "7003", "999"], s.Entries.Select(e => e.Code));    // 비우기는 비어 있으면 없다
+        Assert.Equal(["7001", "7002", "7003", "999"], s.DataEntries.Select(e => e.Code));    // 비우기는 비어 있으면 없다
     }
 
     [Fact]
     public void Selecting_a_character_sets_it_and_returns_home()
     {
         var s = Session();
-        s.Activate("1");
-        var entry = s.Activate("7002");
+        s.Pick("1");
+        var entry = s.Pick("7002");
 
         Assert.Equal(EntryAction.SetSupport, entry!.Action);
         Assert.Equal(Screen.Home, s.Screen);
@@ -96,8 +96,8 @@ public class SupportSlotTests
     public void An_unowned_character_cannot_be_chosen()
     {
         var s = Session();
-        s.Activate("1");
-        Assert.Null(s.Activate("7004"));
+        s.Pick("1");
+        Assert.Null(s.Pick("7004"));
         Assert.Equal(Screen.SupportSelect, s.Screen);
         Assert.False(s.SetSupport(SupportRole.Partner, 7004));
         Assert.Null(s.PartnerCode);
@@ -109,14 +109,14 @@ public class SupportSlotTests
         var s = Session();
         s.SetSupport(SupportRole.Assist, 7003);
 
-        s.Activate("1");                                              // 파트너는 비어 있다
-        Assert.DoesNotContain(s.Entries, e => e.Code == "0");
-        s.Activate("999");
+        s.Pick("1");                                              // 파트너는 비어 있다
+        Assert.DoesNotContain(s.DataEntries, e => e.Code == "0");
+        s.Pick("999");
 
-        s.Activate("2");
-        Assert.Equal("0", s.Entries[0].Code);
+        s.Pick("2");
+        Assert.Equal("0", s.DataEntries[0].Code);
         Assert.DoesNotContain(s.SupportList, c => c.Code == 7003);   // 이 슬롯의 캐릭터는 목록에 나오지 않는다
-        s.Activate("0");
+        s.Pick("0");
         Assert.Null(s.AssistCode);
         Assert.Equal(Screen.Home, s.Screen);
     }
@@ -126,8 +126,8 @@ public class SupportSlotTests
     {
         var s = Session();
         s.SetSupport(SupportRole.Partner, 7001);
-        s.Activate("1");
-        s.Activate("999");
+        s.Pick("1");
+        s.Pick("999");
         Assert.Equal(Screen.Home, s.Screen);
         Assert.Equal(7001, s.PartnerCode);
         Assert.Null(s.CurrentSupportRole);
@@ -137,11 +137,11 @@ public class SupportSlotTests
     public void Slot_codes_work_only_on_the_home_screen()
     {
         var s = Session();
-        s.Activate("105");
-        s.Activate("1");                                              // 파티 설정의 1은 슬롯 1번(캐릭터 목록)이지 파트너가 아니다
+        s.Pick("105");
+        s.Pick("1");                                              // 파티 설정의 1은 슬롯 1번(캐릭터 목록)이지 파트너가 아니다
         Assert.Equal(Screen.CharacterSelect, s.Screen);
         Assert.Null(s.CurrentSupportRole);
-        s.Activate("999"); s.Activate("999");
+        s.Pick("999"); s.Pick("999");
         Assert.Equal(Screen.Home, s.Screen);
     }
 
@@ -157,7 +157,7 @@ public class SupportSlotTests
 
         s.Party[0] = null;                                            // 파티에서 빼도 파트너는 그대로
         Assert.Equal(7001, s.PartnerCode);
-        s.Activate("105"); s.Activate("1"); s.Activate("7002");       // 파티 설정에서 마법사를 배치해도 파트너/어시스트는 그대로
+        s.Pick("105"); s.Pick("1"); s.Pick("7002");       // 파티 설정에서 마법사를 배치해도 파트너/어시스트는 그대로
         Assert.Equal(7002, s.Party[0]);
         Assert.Equal(7001, s.PartnerCode);
         Assert.Null(s.AssistCode);
@@ -170,9 +170,9 @@ public class SupportSlotTests
         s.SetSupport(SupportRole.Partner, 7001);
         s.SetSupport(SupportRole.Assist, 7002);
 
-        s.Activate("1");
+        s.Pick("1");
         Assert.Equal(CharacterListColor.Green, s.SupportList.Single(c => c.Code == 7002).Color);   // 다른 쪽 슬롯의 캐릭터
-        s.Activate("7002");
+        s.Pick("7002");
         Assert.Equal((7002L, 7001L), (s.PartnerCode, s.AssistCode));
     }
 
