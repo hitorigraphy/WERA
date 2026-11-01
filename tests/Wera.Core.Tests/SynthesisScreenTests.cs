@@ -146,4 +146,27 @@ public class SynthesisScreenTests
         Assert.Contains("강화 레벨 1의 행이 없습니다", Assert.Throws<PackFormatException>(() => LevelPack("8001\t40\t2\t12\n")).Message);
         LevelPack("", max: 0);                                                              // 상한 0이면 요구하는 행이 없다
     }
+
+    [Fact]
+    public void The_smaller_of_the_status_master_max_and_the_enhance_level_max_is_the_real_cap()
+    {
+        GamePack Pack(long statusMax, long levelMax) => GamePack.Load(CoreTests.PackZip(
+            ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
+            (GamePack.StatusMasterPath, "status_code\tstatus_name\n1\tlevel\n2\thp\n8\tenhance_count\n40\tATK\n"),
+            (GamePack.UniqueItemInventoryMasterPath, "inventory_code\titem_name\n8001\t철검\n"),
+            (GamePack.UniqueItemStatusMasterPath, $"item_code\tstatus_code\tinitial_value\tmin_value\tmax_value\n8001\t8\t0\t0\t{statusMax}\n8001\t40\t10\t0\t999\n"),
+            (GamePack.GameSettingMasterPath, $"setting_type\tvalue_type\tlong_value\tdecimal_value\ttext_value\nEnhanceLevelMax\tLong\t{levelMax}\t\t\n"),
+            (GamePack.UniqueItemEnhanceStatusMasterPath, "item_code\tstatus_code\t강화_level\tvalue\n8001\t40\t1\t5\n8001\t40\t2\t12\n8001\t40\t3\t20\n"),
+            (GamePack.SynthesisFlowMasterPath, "execute_number\tflow_type\tvalue_1\tvalue_2\tvalue_3\n1\tFocusSynthesisTarget\n2\tSetCacheValue\t0\t10\n3\tCacheToFocusedItemModValue\t8\t0\n")));
+
+        // 흐름은 강화 횟수에 10을 더한다.
+        (long Count, long Atk) Run(GamePack pack)
+        {
+            var item = new SynthesisFlowCircuit(pack, new UniqueItemInstance("x", 8001, 0, null, pack.MasterStatusesOfUniqueItem(8001))).Execute();
+            return (item.Statuses![8], item.Statuses[40]);
+        }
+        Assert.Equal((1L, 15L), Run(Pack(statusMax: 1, levelMax: 3)));                      // 스테이터스 마스터의 최댓값 1이 더 작아 레벨 1
+        Assert.Equal((3L, 30L), Run(Pack(statusMax: 99, levelMax: 3)));                     // 강화 레벨 상한 3이 더 작아 레벨 3
+        Assert.Equal((2L, 22L), Run(Pack(statusMax: 2, levelMax: 2)));                      // 같으면 그 값
+    }
 }
