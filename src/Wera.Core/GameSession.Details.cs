@@ -268,15 +268,17 @@ public sealed partial class GameSession
         return after > before ? $"제련 성공: {name} +{after}" : $"제련 실패: {name}";
     }
 
-    /// <summary>골라 둔 작업이 있고, 제련이면 제련석이 있고 강화 레벨이 상한(EnhanceLevelMax)에 닿지 않았으며, 합성이면 이 장비 말고, 장착하지 않은 같은 코드의 장비가 제물 수만큼 있다.</summary>
+    /// <summary>골라 둔 작업이 있고, 강화 레벨이 상한(EnhanceLevelMax)에 닿지 않았고, 제련이면 제련석이 있으며, 합성이면 이 장비 말고, 장착하지 않은 같은 코드의 장비가 제물 수만큼 있다.</summary>
     bool CanPickForEnhance(UniqueItemInstance item) => EnhanceMode switch
     {
         null => false,
-        Wera.Core.EnhanceMode.Synthesis => SacrificeCandidates(item).Count() >= Pack.SynthesisSacrificeCount,
-        Wera.Core.EnhanceMode.Smelt => Pack.SmeltStoneItemCode is { } stone && CountInventory(stone) >= 1
-            && !(Pack.EnhanceLevelMax is { } max && (item.Statuses?.GetValueOrDefault(GamePack.EnhanceCountStatusCode) ?? 0) >= max),
+        Wera.Core.EnhanceMode.Synthesis => !AtEnhanceLevelMax(item) && SacrificeCandidates(item).Count() >= Pack.SynthesisSacrificeCount,
+        Wera.Core.EnhanceMode.Smelt => !AtEnhanceLevelMax(item) && Pack.SmeltStoneItemCode is { } stone && CountInventory(stone) >= 1,
         _ => true,
     };
+
+    bool AtEnhanceLevelMax(UniqueItemInstance item) =>
+        Pack.EnhanceLevelMax is { } max && (item.Statuses?.GetValueOrDefault(GamePack.EnhanceCountStatusCode) ?? 0) >= max;
 
     /// <summary>아이템 확인 화면: 가진 커먼 아이템마다 [아이템 코드]로 고르면 아이템 상세 화면으로 간다.</summary>
     IReadOnlyList<ScreenEntry> ItemCheckEntries() =>

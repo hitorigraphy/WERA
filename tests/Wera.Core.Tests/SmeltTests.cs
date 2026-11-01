@@ -153,4 +153,26 @@ public class SmeltTests
         Assert.False(Row(SmeltScreen(stones: 3, roll: 99, swordEnhance: 20)).Enabled);       // 상한 20
         Assert.True(Row(SmeltScreen(stones: 3, roll: 99, swordEnhance: 19)).Enabled);
     }
+
+    [Fact]
+    public void A_piece_at_the_enhance_level_max_is_gray_in_synthesis_mode_too()
+    {
+        GameSession Synth(long enhance)
+        {
+            var s = GameSession.NewGame(SamplePack());
+            foreach (var n in new[] { 0, 1 })
+            {
+                var id = s.AddUniqueItem(8001)!;
+                s.UniqueItemInstances[id] = s.UniqueItemInstances[id] with
+                {
+                    Statuses = new Dictionary<long, long>(s.UniqueItemInstances[id].Statuses!) { [GamePack.EnhanceCountStatusCode] = enhance },
+                };
+            }
+            s.Activate(GameSession.EquipmentEnhanceEntryCode);
+            s.Activate("901");
+            return s;
+        }
+        Assert.All(Synth(20).Entries.Where(e => e.Label.StartsWith("철검")), e => Assert.False(e.Enabled));
+        Assert.Contains(Synth(19).Entries.Where(e => e.Label.StartsWith("철검")), e => e.Enabled);
+    }
 }
