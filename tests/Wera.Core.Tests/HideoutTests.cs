@@ -69,7 +69,7 @@ public class HideoutTests
         Assert.Equal(1, s.HideoutFloorCount);
         Assert.Equal(-1, s.HideoutViewTop);
         Assert.Equal(["확장 가능", "1층", "----"], s.HideoutRows.Select(r => r.FloorName));
-        Assert.Equal(["1", "4", "6", "1000", "1001", "999"], s.Entries.Select(e => e.Code));     // [1] 확장 가능, [4] 1층, [6] 1층 보스, ▲ ▼ 돌아가기
+        Assert.Equal(["1", "4", "6", "1000", "1001", "1002", "999"], s.Entries.Select(e => e.Code));     // [1] 확장 가능, [4] 1층, [6] 1층 보스, ▲ ▼ 돌아가기
         Assert.False(s.Entries.Single(e => e.Code == "1000").Enabled);
         Assert.False(s.Entries.Single(e => e.Code == "1001").Enabled);
         Assert.True(s.HideoutRows[1].Boss!.IsEmpty);
@@ -144,7 +144,7 @@ public class HideoutTests
         s.Activate("1001");
         Assert.Equal(["2층", "3층", "4층"], s.HideoutRows.Select(r => r.FloorName));
         Assert.False(s.Entries.Single(e => e.Code == "1001").Enabled);                    // 가장 오래된 층이 맨 아래
-        Assert.Equal(["1", "3", "4", "6", "7", "9", "1000", "1001", "999"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["1", "3", "4", "6", "7", "9", "1000", "1001", "1002", "999"], s.Entries.Select(e => e.Code));
         s.Activate("1000");
         Assert.Equal(["1층", "2층", "3층"], s.HideoutRows.Select(r => r.FloorName));
     }

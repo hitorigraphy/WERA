@@ -189,4 +189,30 @@ public class DefenseBattleTests
         Assert.True(s.HideoutInvaded);
         Assert.EndsWith("침입 2팀, 격퇴 0팀, 구금 0명, 아지트 침입당함", log[^1]);
     }
+
+    [Fact]
+    public void Every_operator_who_hits_and_every_boss_fighter_is_marked_and_an_operator_leaves_the_boss_party()
+    {
+        var pack = SamplePackWith(
+            ("master/hideout_defense_enemy_master_v1.tsv", EnemyHeader + "1\t2\t1\t100\t1\t100\n"),
+            ("master/facility_defense_master_v1.tsv", DefenseHeader + "1\t0\n"),
+            ("master/facility_operator_slot_master_v1.tsv", "facility_code\toperator_slot_code\n2\t1\n1\t2\n"),
+            ("master/operator_slot_defense_flow_master_v1.tsv", "operator_slot_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\n2\t1\tAddDefense\t1\t0\t0\n"));
+        var s = GameSession.NewGame(pack);
+        s.PlayerFlags[100] = 100;
+        s.NextRandom = n => n - 1;
+        var bossId = Boss(s);                                                               // 방어 파티의 용사 한 명
+        s.AddCharacter(7002);                                                               // 다른 캐릭터가 오퍼레이터
+        var operatorId = s.InstanceIdOf(7002)!;
+        Assert.True(s.SetHideoutOperatorInstance(0, false, 2, operatorId));
+        s.RunDefense().ToList();
+        Assert.Equal(s.CurrentDayCount, s.Characters[operatorId].DefenseDayCount);          // 때린 오퍼레이터
+        Assert.Equal(s.CurrentDayCount, s.Characters[bossId].DefenseDayCount);              // 싸운 보스 파티원
+
+        // 방어 파티에 선 복사본을 오퍼레이터로 세우면 파티에서 빠지므로 한 사람이 두 역할로 두 번 세지는 일은 없다.
+        var two = GameSession.NewGame(pack);
+        var same = Boss(two);
+        Assert.True(two.SetHideoutOperatorInstance(0, false, 2, same));
+        Assert.DoesNotContain(two.HideoutParties[0].Units.OfType<PartyUnit>(), u => u.InstanceId == same);
+    }
 }

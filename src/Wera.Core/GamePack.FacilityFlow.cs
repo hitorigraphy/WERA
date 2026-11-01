@@ -68,7 +68,7 @@ public sealed partial class GamePack
     public IReadOnlyList<FacilityFlow> FacilityFlowsOf(long facilityCode) =>
         (FacilityFlows ?? []).Where(f => f.FacilityCode == facilityCode).OrderBy(f => f.FlowNumber).ToList();
 
-    static bool IsFacilityConditionalJump(FacilityFlowType type) =>
+    internal static bool IsFacilityConditionalJump(FacilityFlowType type) =>
         FlagJump.Of(type.ToString()) is not null || InventoryJump.Of(type.ToString()) is not null
         || type is FacilityFlowType.JumpCharacterHaveTag or FacilityFlowType.JumpUniqueItemHaveTag or FacilityFlowType.JumpRandom
             or FacilityFlowType.JumpOperatorExists or FacilityFlowType.JumpOperatorNotExists or FacilityFlowType.JumpOperatorHaveTag;

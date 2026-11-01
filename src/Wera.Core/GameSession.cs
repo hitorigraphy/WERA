@@ -46,6 +46,8 @@ public enum Screen
     Defense,
     /// <summary>아지트 화면(102): 층마다 계층/시설/보스 슬롯 3×3(한 번에 3개 층), 위쪽 줄은 "확장 가능"일 수 있다. 돌아가기는 홈.</summary>
     Hideout,
+    /// <summary>시설 확인 화면: 아지트의 시설별 오퍼레이터, 방어력, 생산 내용을 읽기만 한다. 돌아가기는 아지트.</summary>
+    FacilityCheck,
     /// <summary>아지트 확장 화면: 쓸 재료 그룹을 고른다(갖춘 그룹만 활성). 돌아가기는 아지트.</summary>
     HideoutExpand,
     /// <summary>아지트 층 상세(계층 슬롯): 기본 시설의 이름이 나온다. 돌아가기는 아지트.</summary>
@@ -817,6 +819,8 @@ public sealed partial class GameSession
                     return HideoutEntries();
                 case Screen.HideoutExpand:
                     return HideoutExpandEntries();
+                case Screen.FacilityCheck:
+                    return [new ScreenEntry(BackEntryCode, "돌아가기", Screen.Hideout)];
                 case Screen.HideoutFloorDetail:
                     return [.. CurrentSlot is { } floorAt ? HideoutOperatorEntries(floorAt, false, 1) : [], new ScreenEntry(BackEntryCode, "돌아가기", Screen.Hideout)];
                 case Screen.HideoutOperatorSelect:

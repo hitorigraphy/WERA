@@ -551,7 +551,19 @@
                 @hideoutGrid
                 <div class="menu-separator"></div>
                 <div class="battle-scroll">@entryList(session.Entries.Where(e => e.Action == EntryAction.HideoutScroll))</div>
-                <div class="commands">@entryList(session.Entries.Where(e => e.Action != EntryAction.HideoutScroll && e.Code == GameSession.BackEntryCode))</div>
+                <div class="commands">@entryList(session.Entries.Where(e => e.Action != EntryAction.HideoutScroll && e.Code is GameSession.BackEntryCode or GameSession.FacilityCheckEntryCode))</div>
+                break;
+
+            case Screen.FacilityCheck:
+                <h2>시설 확인</h2>
+                @* 읽기만 하는 화면: 층마다 기본 시설, 지은 시설의 오퍼레이터와 방어력, 생산 내용 *@
+                <div class="facility-check">
+                    @foreach (var line in session.FacilityCheckLines)
+                    {
+                        <div class="@(line.Indent == 0 ? "facility-check-floor" : null)" style="@($"padding-left:{line.Indent * 1.5}em;white-space:pre-wrap")">@line.Text</div>
+                    }
+                </div>
+                @commands
                 break;
 
             case Screen.HideoutExpand:

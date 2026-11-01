@@ -156,6 +156,7 @@ public sealed partial class GameSession
         }
         entries.Add(new ScreenEntry(HideoutScrollUpEntryCode, "▲", Screen.Hideout, EntryAction.HideoutScroll, "-1", Enabled: hideoutViewTop > -1));
         entries.Add(new ScreenEntry(HideoutScrollDownEntryCode, "▼", Screen.Hideout, EntryAction.HideoutScroll, "1", Enabled: hideoutViewTop < HideoutViewTopMax));
+        entries.Add(new ScreenEntry(FacilityCheckEntryCode, "시설 확인", Screen.FacilityCheck));
         entries.Add(new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home));
         return entries;
     }
