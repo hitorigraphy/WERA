@@ -41,6 +41,7 @@ TSV 파일 묶음(zip 형식)이고 확장자는 **`.wra`**입니다(zip 압축 
 | `master/unique_item_status_master_v1.tsv` | (선택, 유니크 아이템 인벤토리/스테이터스 마스터 필요) `item_code`, `status_code`, `initial_value`, `min_value`, `max_value` |
 | `master/xp_type_master_v1.tsv` | (선택) `xp_type_code`(키), `xp_type_name`, `xp_type_abbr`(대문자 두 글자 약칭), `xp_type_color`(`#RRGGBB`, 약칭의 색) — XP(MP, SP, TP 등 스킬을 쓸 때 쓰는 자원들의 통칭)의 종류. 캐릭터 인벤토리 마스터의 선택 열 `xp_type_code`가 가리킴 |
 | `master/xp_calculate_effect_master_v1.tsv` | (선택, XP 종류 마스터 필요) `xp_type_code`, `execute_number`(앞의 두 열이 키), `effect_type`(`XpCalculateEffectType`, 번호와 이름과 인자가 스킬 실행 이펙트와 같음), `value_1`, `value_2`, `value_3` |
+| `master/game_setting_master_v1.tsv` | (선택) `setting_type`(키, `GameSettingType` 이름), `value_type`(`Long`/`Decimal`/`Text`), `long_value`, `decimal_value`, `text_value` — 게임 전반의 설정. 행의 `value_type`에 맞는 열만 읽고(비울 수 없음) 나머지 두 열은 무시하며, 행이 없는 설정은 엔진의 기본값을 씁니다. 지금 `GameSettingType`에는 자리 표시인 `None`만 있어 아직 엔진이 읽는 설정은 없습니다 |
 | `master/after_load_character_flow_master_v1.tsv` | (선택) `execute_number`(키), `flow_type`, `value_1`, `value_2`, `value_3` |
 | `master/after_load_unique_item_flow_master_v1.tsv` | (선택) `execute_number`(키), `flow_type`, `value_1`, `value_2`, `value_3` |
 | `master/after_hit_effect_master_v1.tsv` | (선택) `execute_number`(키), `effect_type`, `value_1`, `value_2`, `value_3` |

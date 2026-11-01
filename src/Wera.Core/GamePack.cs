@@ -149,6 +149,7 @@ public sealed partial class GamePack
         var bunchInventory = LoadBunchInventory(zip, itemInventory);
         var attributes = LoadAttributes(zip);
         var xpTypes = LoadXpTypes(zip);
+        var gameSettings = LoadGameSettings(zip);
         var characterInventory = LoadCharacterInventory(zip, attributes, xpTypes);
         var uniqueItems = LoadUniqueItems(zip);
         var debugStartUniqueItems = LoadDebugStartUniqueItems(meta, uniqueItems);
@@ -285,6 +286,7 @@ public sealed partial class GamePack
             AfterBattleRunEffects = afterBattleRunEffects,
             CharacterAfterCreateEffects = characterAfterCreateEffects,
             XpTypes = xpTypes,
+            GameSettings = gameSettings,
             PartSlots = partSlots,
             PartSlotTags = partSlotTags,
             XpCalculateEffects = xppChangedEffects,
