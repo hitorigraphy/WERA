@@ -1,3 +1,5 @@
 execute_number	flow_type	value_1	value_2	value_3	memo
-1	SetCacheValue	0	1		캐시 0에 1
-2	CacheToFocusedItemModValue	8	0		강화 횟수(상태 8)에 캐시 0을 더함
+1	FocusSynthesisTarget				합성하는 장비를 포커스
+2	SetCacheValue	0	1		캐시 0에 1
+3	CacheToFocusedItemModValue	8	0		강화 횟수(상태 8)에 캐시 0을 더함
+4	DeleteAllSacrifices				제물을 모두 없앰

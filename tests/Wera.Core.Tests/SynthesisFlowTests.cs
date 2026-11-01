@@ -84,4 +84,67 @@ public class SynthesisFlowTests
         var capped = once with { Statuses = new Dictionary<long, long>(once.Statuses) { [GamePack.EnhanceCountStatusCode] = 99 } };
         Assert.Equal(99, new SynthesisFlowCircuit(pack, capped).Execute().Statuses![GamePack.EnhanceCountStatusCode]);   // 최댓값 99
     }
+
+    static UniqueItemInstance Item(GamePack pack, string id, long code = 8001) =>
+        new(id, code, 0, null, pack.MasterStatusesOfUniqueItem(code));
+
+    [Fact]
+    public void Sacrifices_are_deleted_only_by_the_flow_and_the_target_is_changed()
+    {
+        // 타겟 포커스 → 캐시 0에 -30 → 내구도 -30(70) → 제물 1번만 없앰
+        var pack = Pack(Rows("1 FocusSynthesisTarget", "2 SetCacheValue 0 -30", "3 CacheToFocusedItemModValue 21 0", "4 DeleteSacrifice 1"));
+        var target = Item(pack, "T");
+        var a = Item(pack, "A");
+        var b = Item(pack, "B");
+        var circuit = new SynthesisFlowCircuit(pack, target, [a, b]);
+        var result = circuit.Execute();
+        Assert.Equal(70, result.Statuses![Durability]);
+        Assert.Equal([b], circuit.DeletedSacrifices);
+        Assert.Equal([a, b], circuit.Sacrifices);
+
+        var none = new SynthesisFlowCircuit(PackWithout(), Item(PackWithout(), "T"), [Item(PackWithout(), "A")]);
+        none.Execute();
+        Assert.Empty(none.DeletedSacrifices);                                          // 흐름이 없으면 제물은 그대로
+    }
+
+    [Fact]
+    public void Delete_all_removes_the_sacrifices_from_the_store_but_not_the_target_and_a_deleted_sacrifice_is_not_written_back()
+    {
+        var pack = Pack(Rows("1 FocusSacrifice 0", "2 SetCacheValue 0 -10", "3 CacheToFocusedItemModValue 21 0", "4 DeleteAllSacrifices", "5 FocusSacrifice 0",
+            "6 CacheToFocusedItemModValue 21 0", "7 FocusSynthesisTarget", "8 CacheToFocusedItemModValue 22 0"));
+        var items = new Dictionary<string, UniqueItemInstance>();
+        foreach (var id in new[] { "T", "A", "B" }) items[id] = Item(pack, id);
+        var circuit = new SynthesisFlowCircuit(pack, new UnitStore([], items), items["T"], [items["A"], items["B"]]);
+        var target = circuit.Execute();
+        Assert.Equal(["T"], items.Keys);                                                 // 제물 둘이 모두 지워졌다
+        Assert.Equal(0, target.Statuses![Power]);                                        // 타겟의 power: 5 + (-10) → 최솟값 0
+        Assert.Equal(2, circuit.DeletedSacrifices.Count);
+    }
+
+    [Fact]
+    public void Missing_sacrifices_are_ignored_and_negative_sacrifice_numbers_are_rejected_at_load()
+    {
+        var pack = Pack(Rows("1 FocusSacrifice 5", "2 SetCacheValue 0 1", "3 CacheToFocusedItemModValue 21 0", "4 DeleteSacrifice 9"));
+        var circuit = new SynthesisFlowCircuit(pack, Item(pack, "T"), []);
+        Assert.Equal(100, circuit.Execute().Statuses![Durability]);                      // 제물이 없으면 포커스가 비어 아무 일도 없다
+        Assert.Empty(circuit.DeletedSacrifices);
+        Assert.Contains("0 이상", Assert.Throws<PackFormatException>(() => Pack(Rows("1 FocusSacrifice -1"))).Message);
+        Assert.Contains("0 이상", Assert.Throws<PackFormatException>(() => Pack(Rows("1 DeleteSacrifice -2"))).Message);
+    }
+
+    [Fact]
+    public void The_sample_pack_flow_adds_one_enhance_and_deletes_the_sacrifices_in_a_session()
+    {
+        var root = AppContext.BaseDirectory;
+        while (!File.Exists(Path.Combine(root, "WERA.slnx"))) root = Path.GetDirectoryName(root)!;
+        using var read = File.OpenRead(Path.Combine(root, "src", "Wera.Web", "wwwroot", "sample-pack.wra"));
+        var s = GameSession.NewGame(GamePack.Load(read));
+        var target = s.UniqueItemInstances[s.AddUniqueItem(8001)!];
+        var sacrifice = s.UniqueItemInstances[s.AddUniqueItem(8001)!];
+        var store = new UnitStore([], s.UniqueItemInstances);
+        var result = new SynthesisFlowCircuit(s.Pack, store, target, [sacrifice]).Execute();
+        Assert.Equal(1, result.Statuses![GamePack.EnhanceCountStatusCode]);
+        Assert.Equal(1, s.UniqueItemInstances[target.InstanceId].Statuses![GamePack.EnhanceCountStatusCode]);
+        Assert.False(s.UniqueItemInstances.ContainsKey(sacrifice.InstanceId));
+    }
 }

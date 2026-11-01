@@ -25,6 +25,7 @@ public abstract class UnitCircuitBase
         public UniqueItemInstance Original { get; } = original;
         public UniqueItemInstance Instance { get; set; } = original;
         public StatusBuffer Buffer { get; } = buffer;
+        public bool Deleted { get; set; }
     }
 
     // 스킬은 캐릭터의 스킬 풀 안(owner와 풀 번호) 아니면 유니크 아이템이 가진 스킬(item) 둘 중 하나에 있다.
@@ -128,6 +129,22 @@ public abstract class UnitCircuitBase
             focusedItem = WorkOf(item);
             focusedSkill = SkillWorkOf(focusedItem);
         }
+    }
+
+    /// <summary>유니크 아이템 하나를 포커스한다(그 아이템이 가진 스킬도 함께). null이거나 이 서킷이 이미 없앤 아이템이면 포커스를 비운다.</summary>
+    protected void FocusItem(UniqueItemInstance? item)
+    {
+        focusedItem = item is not null && !WorkOf(item).Deleted ? WorkOf(item) : null;
+        focusedSkill = focusedItem is null ? null : SkillWorkOf(focusedItem);
+    }
+
+    /// <summary>유니크 아이템 하나를 없앤다(서킷이 끝나면 저장소에서 지워진다). 포커스하고 있었다면 포커스는 비워진다.</summary>
+    protected void DeleteItem(UniqueItemInstance item)
+    {
+        var work = WorkOf(item);
+        work.Deleted = true;
+        if (ReferenceEquals(focusedItem, work)) focusedItem = null;
+        if (focusedSkill?.Item is { } holder && ReferenceEquals(holder, work)) focusedSkill = null;
     }
 
     void FocusCharacter(PartyUnit? unit) =>
@@ -301,7 +318,8 @@ public abstract class UnitCircuitBase
         foreach (var work in characterWorks.Values)
             if (!ReferenceEquals(work.Instance, work.Original)) Store.Replace(work.Original, work.Instance.Clamped());
         foreach (var work in itemWorks.Values)
-            if (!ReferenceEquals(work.Instance, work.Original)) Store.Replace(work.Original, work.Instance);
+            if (work.Deleted) Store.Remove(work.Original);
+            else if (!ReferenceEquals(work.Instance, work.Original)) Store.Replace(work.Original, work.Instance);
     }
 
     /// <summary>캐시의 index번 값. 없으면 null.</summary>

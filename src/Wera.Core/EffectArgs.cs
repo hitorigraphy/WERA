@@ -58,6 +58,25 @@ public static class EffectArgs
         }
     }
 
+    /// <summary>합성 흐름의 종류별 인자 검증: 제물을 포커스하거나 없애는 종류는 value_1(제물 번호)이 0 이상이어야 하고, 나머지는 <see cref="Check"/>를 따른다.</summary>
+    public static void CheckSynthesis(string file, string where, SynthesisFlowType type, long value1, long value2, long value3, EffectCheck check)
+    {
+        switch (type)
+        {
+            case SynthesisFlowType.FocusSynthesisTarget:
+            case SynthesisFlowType.DeleteAllSacrifices:
+                break;
+            case SynthesisFlowType.FocusSacrifice:
+            case SynthesisFlowType.DeleteSacrifice:
+                if (value1 < 0)
+                    throw new PackFormatException($"{file}: {where} value_1(제물 번호) '{value1}'는 0 이상이어야 합니다.");
+                break;
+            default:
+                Check(file, where, (EffectType)(int)type, value1, value2, value3, check);
+                break;
+        }
+    }
+
     static void Known(string file, string where, CharacterAfterCreateEffectType type, IReadOnlySet<long>? codes, string masterPath, string kind, long code)
     {
         if (codes is null) throw new PackFormatException($"{file}: {where} {type}에는 {masterPath}가 필요합니다.");

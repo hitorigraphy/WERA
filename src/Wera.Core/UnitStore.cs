@@ -34,6 +34,17 @@ public sealed class UnitStore
     public static UnitStore Of(UniqueItemInstance item) =>
         new([], new Dictionary<string, UniqueItemInstance> { [item.InstanceId] = item });
 
+    /// <summary>유니크 아이템 인스턴스 여러 개를 든 저장소(합성의 타겟과 제물처럼 아이템들만 다룰 때).</summary>
+    public static UnitStore Of(IEnumerable<UniqueItemInstance> items) =>
+        new([], items.ToDictionary(i => i.InstanceId));
+
+    /// <summary>서킷이 없앤 유니크 아이템을 원래 있던 자리(보유나 적 장비)에서 지운다. 원래 인스턴스를 찾을 수 없으면 아무 일도 하지 않는다.</summary>
+    public void Remove(UniqueItemInstance old)
+    {
+        if (items.TryGetValue(old.InstanceId, out var own) && ReferenceEquals(own, old)) items.Remove(old.InstanceId);
+        else if (enemyItems.TryGetValue(old.InstanceId, out var temp) && ReferenceEquals(temp, old)) enemyItems.Remove(old.InstanceId);
+    }
+
     int EnemySlotOf(PartyUnit unit)
     {
         for (var slot = 0; slot < enemyUnits.Count; slot++)
