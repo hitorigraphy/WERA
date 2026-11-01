@@ -26,7 +26,8 @@
     // 항목(ScreenEntry)을 표로: 첫 줄은 열 이름, 줄마다 [코드]와 값들. 항목을 누르면(또는 코드를 입력하면) 그 항목이 동작하고, 누를 수 없는 항목은 회색이다.
     RenderFragment<TableSpec> entryTable = t => @<ul class="companions">
         <li class="companions-head">@columnHead((t.Widths, t.Heads))</li>
-        @foreach (var entry in t.Entries)
+        @{ var rows = t.Entries.ToList(); }
+        @foreach (var entry in rows)
         {
             var code = entry.Code;
             var cells = t.Cells(entry);
@@ -34,6 +35,10 @@
                 {
                     <span class="companion-cell" style="width: @(t.Widths[i])ch">@cells[i]</span>@(i < cells.Length - 1 ? " " : "")
                 }</button></li>
+        }
+        @for (var blank = rows.Count; blank < t.PadTo; blank++)
+        {
+            <li aria-hidden="true"><span class="row-link">&nbsp;</span></li>
         }
     </ul>;
 
@@ -482,8 +487,8 @@
 
             case Screen.EquipmentEnhance:
                 <h2>장비 강화</h2>
-                @* 위는 가진 장비 표(누르면 장비 상세), 구분선 아래는 강화/개조(아직 동작 없음, 회색) *@
-                @entryTable(new TableSpec(ListEntries(e => e.Code is not (GameSession.EnhanceEntryCode or GameSession.ModifyEntryCode)), CodeNameWidths, [.. GameSession.EquipmentColumnNames], e => [e.Code, e.Label]))
+                @* 위는 가진 장비 표(누르면 장비 상세)로, 항목이 적어도 20줄 자리를 비워 두어 구분선과 강화/개조의 위치가 늘 같다. 구분선 아래는 강화/개조(아직 동작 없음, 회색) *@
+                @entryTable(new TableSpec(ListEntries(e => e.Code is not (GameSession.EnhanceEntryCode or GameSession.ModifyEntryCode)), CodeNameWidths, [.. GameSession.EquipmentColumnNames], e => [e.Code, e.Label], GameSession.ListPageSize))
                 <div class="menu-separator"></div>
                 @entryList(session.Entries.Where(e => e.Code is GameSession.EnhanceEntryCode or GameSession.ModifyEntryCode))
                 break;
@@ -915,7 +920,7 @@
 
 @code {
     /// <summary>항목 표 한 개: 줄이 될 항목들, 칸 너비(반각 칸 수), 열 이름, 항목에서 칸의 글자들을 만드는 함수.</summary>
-    record TableSpec(IEnumerable<ScreenEntry> Entries, int[] Widths, string[] Heads, Func<ScreenEntry, string[]> Cells);
+    record TableSpec(IEnumerable<ScreenEntry> Entries, int[] Widths, string[] Heads, Func<ScreenEntry, string[]> Cells, int PadTo = 0);
 
     static readonly int[] CodeNameWidths = [GameSession.CompanionCodeColumns, GameSession.CompanionNameColumns];
     static readonly int[] SlotWidths = [GameSession.CompanionCodeColumns, 24, GameSession.CompanionNameColumns];
