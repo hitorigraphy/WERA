@@ -146,4 +146,11 @@ public class SmeltTests
         Assert.Throws<PackFormatException>(() => Pack("SmeltStoneItemCode\tLong\t0\t\t\n"));
         Assert.Throws<PackFormatException>(() => Pack("SmeltStoneItemCode\tDecimal\t\t5\t\n"));
     }
+
+    [Fact]
+    public void A_piece_at_the_enhance_level_max_is_gray_in_smelt_mode()
+    {
+        Assert.False(Row(SmeltScreen(stones: 3, roll: 99, swordEnhance: 20)).Enabled);       // 상한 20
+        Assert.True(Row(SmeltScreen(stones: 3, roll: 99, swordEnhance: 19)).Enabled);
+    }
 }
