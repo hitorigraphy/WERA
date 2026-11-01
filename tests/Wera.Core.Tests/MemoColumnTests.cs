@@ -81,7 +81,7 @@ public class MemoColumnTests
         var s = GameSession.NewGame(pack);
         Assert.Equal(["테스트 던전"], s.AvailableDungeons.Select(d => d.Name));
         Assert.Equal(["테스트 상점"], s.AvailableShops.Select(x => x.Name));
-        Assert.Equal(["101", "102", "103", "104", "105", "201", "202", "203", "200", "300", "400"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["101", "102", "103", "104", "105", "106", "107", "201", "202", "203", "200", "300", "400"], s.Entries.Select(e => e.Code));
     }
 
     [Fact]
@@ -89,7 +89,7 @@ public class MemoColumnTests
     {
         var s = GameSession.NewGame(Sample());
         s.InventoryItems[2] = new InventoryItem(200);
-        s.Activate("102"); s.Activate("2999");
+        s.Activate("104"); s.Activate("2999");
         Assert.Equal(
             ["금화 ×1 → 약초 ×1", "금화 ×10 → 철검 ×1", "금화 ×100 → 도적 ×1", "철검 ×1 → 금화 ×5"],
             s.CurrentShopTrades.Select(t => t.Text));

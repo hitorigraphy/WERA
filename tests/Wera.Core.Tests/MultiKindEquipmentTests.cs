@@ -171,7 +171,7 @@ public class MultiKindEquipmentTests
         s.InventoryItems[3] = new InventoryItem(2);
         s.Equip(7001, 3, EquipRef.Common(3));
 
-        s.Activate("102"); s.Activate("2001");
+        s.Activate("104"); s.Activate("2001");
         Assert.False(s.Entries.Single(e => e.Code == "5001").Enabled);
         Assert.False(s.CanTrade(5001));
         Assert.StartsWith("교환 실패", s.TradeBlockedReason(5001));

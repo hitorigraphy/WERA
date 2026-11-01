@@ -34,10 +34,10 @@ public class HomeMenuEnabledTests
     {
         var s = GameSession.NewGame(Pack());
         Assert.False(Enabled(s, "101"));
-        Assert.False(Enabled(s, "102"));
-        foreach (var e in s.Entries.Where(e => e.Code is not ("101" or "102")))
+        Assert.False(Enabled(s, "104"));
+        foreach (var e in s.Entries.Where(e => e.Code is not ("101" or "104")))
             Assert.True(e.Enabled, e.Code);
-        Assert.Equal(["101", "102", "103", "104", "105"], s.HomeMenu[0].Entries.Select(e => e.Code));
+        Assert.Equal(["101", "102", "103", "104", "105", "106", "107"], s.HomeMenu[0].Entries.Select(e => e.Code));
     }
 
     [Fact]
@@ -45,7 +45,7 @@ public class HomeMenuEnabledTests
     {
         var s = GameSession.NewGame(Pack(dungeons: "code\tname\n1001\t초원\n"));
         Assert.True(Enabled(s, "101"));
-        Assert.False(Enabled(s, "102"));
+        Assert.False(Enabled(s, "104"));
     }
 
     [Fact]
@@ -53,7 +53,7 @@ public class HomeMenuEnabledTests
     {
         var s = GameSession.NewGame(Pack(shops: "code\tname\n2001\t잡화점\n"));
         Assert.False(Enabled(s, "101"));
-        Assert.True(Enabled(s, "102"));
+        Assert.True(Enabled(s, "104"));
     }
 
     [Fact]
@@ -63,19 +63,19 @@ public class HomeMenuEnabledTests
             "code\tname\n1001\t초원\n", DungeonHeader + "1001\t1\t1001\tGreaterOrEqual\t1\n",
             "code\tname\n2001\t잡화점\n", ShopHeader + "2001\t1\t1001\tGreaterOrEqual\t1\n"));
         Assert.False(Enabled(s, "101"));
-        Assert.False(Enabled(s, "102"));
+        Assert.False(Enabled(s, "104"));
         Assert.Equal(Screen.Home, s.Screen);
 
         s.PlayerFlags[1001] = 1;
         Assert.True(Enabled(s, "101"));
-        Assert.True(Enabled(s, "102"));
+        Assert.True(Enabled(s, "104"));
     }
 
     [Fact]
     public void Activating_a_disabled_entry_changes_nothing()
     {
         var s = GameSession.NewGame(Pack());
-        foreach (var code in new[] { "101", "102" })
+        foreach (var code in new[] { "101", "104" })
         {
             Assert.NotNull(s.Activate(code));
             Assert.Equal(Screen.Home, s.Screen);
@@ -91,7 +91,7 @@ public class HomeMenuEnabledTests
         using var zip = File.OpenRead(Path.Combine(root, "src", "Wera.Web", "wwwroot", "sample-pack.wra"));
         var s = GameSession.NewGame(GamePack.Load(zip));
         Assert.True(Enabled(s, "101"));
-        Assert.True(Enabled(s, "102"));
+        Assert.True(Enabled(s, "104"));
         Assert.All(s.Entries, e => Assert.True(e.Enabled));
     }
 }

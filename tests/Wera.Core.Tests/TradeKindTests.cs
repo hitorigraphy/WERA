@@ -49,14 +49,14 @@ public class TradeKindTests
 
     static string Trade(GameSession s, string tradeCode)
     {
-        s.Activate("102"); s.Activate("2001"); s.Activate(tradeCode);
+        s.Activate("104"); s.Activate("2001"); s.Activate(tradeCode);
         return s.Message!;
     }
 
     // 지금 할 수 없는 교환: 항목은 회색이고, 눌러도 아무 일 없으며(메시지도 없다), 막힌 이유는 TradeBlockedReason으로 본다.
     static string Blocked(GameSession s, string tradeCode)
     {
-        s.Activate("102"); s.Activate("2001");
+        s.Activate("104"); s.Activate("2001");
         var code = long.Parse(tradeCode);
         Assert.False(s.Entries.Single(e => e.Code == tradeCode).Enabled);
         Assert.False(s.CanTrade(code));
@@ -107,7 +107,7 @@ public class TradeKindTests
     public void The_trade_list_shows_names_of_every_kind()
     {
         var s = Session();
-        s.Activate("102"); s.Activate("2001");
+        s.Activate("104"); s.Activate("2001");
         Assert.Equal(
             ["금화 ×100 → 철검 ×1", "철검 ×1 → 금화 ×50", "금화 ×500 → 마법사 ×1", "마법사 ×1 → 금화 ×300"],
             s.CurrentShopTrades.Select(t => t.Text));
@@ -259,7 +259,7 @@ public class TradeKindTests
         var s = GameSession.NewGame(pack);
         s.AddCharacter(7002);
         s.Characters[7002] = CharacterInstance.Stats(9, 5, 50, 10, 99);
-        s.Activate("102"); s.Activate("2001"); s.Activate("5001");
+        s.Activate("104"); s.Activate("2001"); s.Activate("5001");
         Assert.StartsWith("교환 완료", s.Message);
         Assert.Equal(CharacterInstance.Stats(1, 1, 1, 0, 0), s.Characters[7002].StatsOnly());     // 새 캐릭터로 다시 시작
     }

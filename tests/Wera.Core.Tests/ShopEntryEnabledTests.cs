@@ -16,7 +16,7 @@ public class ShopEntryEnabledTests
             ("master/common_item_inventory_master_v1.tsv", "inventory_code\titem_name\tcarry_limit\n11\t금화\t99999\n2\t약초\t99\n"),
             ("master/shop_trade_master_v1.tsv", TradeHeader + "5001\t2001\t11\t100\t2\t5\n5002\t2001\t2\t5\t11\t100\n")));
         var s = GameSession.NewGame(pack);
-        s.Activate("102");
+        s.Activate("104");
         s.Activate("2001");
         return s;
     }

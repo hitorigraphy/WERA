@@ -74,15 +74,15 @@ public class ShopTests
         var s = GameSession.NewGame(Pack(
             "code\tname\n2001\t잡화점\n",
             Header + "2001\t1\t1001\tGreaterOrEqual\t1\n"));
-        Assert.False(s.Entries.Single(e => e.Code == "102").Enabled);
-        Assert.NotNull(s.Activate("102"));
+        Assert.False(s.Entries.Single(e => e.Code == "104").Enabled);
+        Assert.NotNull(s.Activate("104"));
         Assert.Equal(Screen.Home, s.Screen);
         Assert.Null(s.Message);
 
         s.PlayerFlags[1001] = 1;
-        Assert.True(s.Entries.Single(e => e.Code == "102").Enabled);
-        Assert.Contains(new ScreenEntry("102", "상점", Screen.ShopList), s.Entries);
-        Assert.NotNull(s.Activate("102"));
+        Assert.True(s.Entries.Single(e => e.Code == "104").Enabled);
+        Assert.Contains(new ScreenEntry("104", "상점", Screen.ShopList), s.Entries);
+        Assert.NotNull(s.Activate("104"));
         Assert.Equal(Screen.ShopList, s.Screen);
     }
 
@@ -90,7 +90,7 @@ public class ShopTests
     public void Home_order_is_101_102_103_200_300()
     {
         var s = GameSession.NewGame(Pack(TwoShops, null, dungeons: "code\tname\n1001\t초원\n"));
-        Assert.Equal(["101", "102", "103", "104", "105", "201", "202", "203", "200", "300", "400"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["101", "102", "103", "104", "105", "106", "107", "201", "202", "203", "200", "300", "400"], s.Entries.Select(e => e.Code));
     }
 
     [Fact]
@@ -98,12 +98,12 @@ public class ShopTests
     {
         var s = GameSession.NewGame(Pack(TwoShops, TutorialOnly));
         s.PlayerFlags[1001] = 1;                       // 잡화점만 열림 (무기점은 level(1002) 필요)
-        Assert.NotNull(s.Activate(" 102 "));
+        Assert.NotNull(s.Activate(" 104 "));
         Assert.Equal(Screen.ShopList, s.Screen);
         Assert.Equal([2001L], s.AvailableShops.Select(x => x.Code));
         Assert.Equal(["2001", "999"], s.Entries.Select(e => e.Code));   // 열린 상점 + 돌아가기
         Assert.Null(s.Activate("2002"));                     // 닫힌 상점은 코드를 입력해도 들어갈 수 없다
-        Assert.Null(s.Activate("102"));                      // 상점가 화면에는 102 항목이 없다
+        Assert.Null(s.Activate("104"));                      // 상점가 화면에는 104 항목이 없다
         Assert.NotNull(s.Activate("999"));
         Assert.Equal(Screen.Home, s.Screen);
     }
@@ -113,7 +113,7 @@ public class ShopTests
     {
         var pack = Pack(TwoShops, null);
         var s = GameSession.NewGame(pack);
-        s.Activate("102");
+        s.Activate("104");
         var loaded = GameSession.FromSaveJson(pack, s.ToSaveJson());
         Assert.Contains("\"ShopList\"", s.ToSaveJson());
         Assert.Equal(Screen.Home, loaded.Screen);

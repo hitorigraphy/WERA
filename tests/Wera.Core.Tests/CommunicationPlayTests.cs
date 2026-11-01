@@ -30,7 +30,7 @@ public class CommunicationPlayTests
             s.SetSupport(SupportRole.Partner, 7001);
             s.SetSupport(SupportRole.Assist, 7002);
         }
-        s.Activate("104");
+        s.Activate("107");
         return s;
     }
 
@@ -168,7 +168,7 @@ public class CommunicationPlayTests
         Assert.Equal(Screen.Interaction, s.Screen);
         Assert.Equal(2, s.CurrentCommunicationGroupCode);                           // 끝난 뒤에는 고른 그룹 그대로
         s.Activate("999");
-        s.Activate("104");
+        s.Activate("107");
         Assert.Equal(1, s.CurrentCommunicationGroupCode);
     }
 
@@ -215,7 +215,7 @@ public class CommunicationPlayTests
         s.Activate("200");
         s.Activate("999");
         Assert.Equal(Screen.Home, s.Screen);
-        s.Activate("104");
+        s.Activate("107");
         Assert.Empty(s.CommunicationHistory);
     }
 }

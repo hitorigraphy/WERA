@@ -42,6 +42,10 @@ public enum Screen
     EquipmentSelect,
     /// <summary>선택한 슬롯에 배치할 캐릭터 목록.</summary>
     CharacterSelect,
+    /// <summary>아지트 화면(102): 내용은 아직 정의되지 않았다. 돌아가기는 홈.</summary>
+    Hideout,
+    /// <summary>장비 강화 화면(106): 내용은 아직 정의되지 않았다. 돌아가기는 홈.</summary>
+    EquipmentEnhance,
     /// <summary>이벤트 화면(103): 조건을 만족하는 이벤트 목록. 하나를 고르면 그 이벤트를 시작한다.</summary>
     Event,
     /// <summary>진행 중인 이벤트의 현재 장면(ADV 재생 또는 전투). [1] 다음으로 이벤트를 이어 가며, 끝나면 이벤트 화면으로 돌아간다.</summary>
@@ -211,10 +215,12 @@ public sealed partial class GameSession
     public const int SaveVersion = 1;
 
     public const string DungeonEntryCode = "101";
-    public const string ShopEntryCode = "102";
+    public const string HideoutEntryCode = "102";
     public const string EventEntryCode = "103";
-    public const string InteractionEntryCode = "104";
+    public const string ShopEntryCode = "104";
     public const string PartyEntryCode = "105";
+    public const string EquipmentEnhanceEntryCode = "106";
+    public const string InteractionEntryCode = "107";
     public const string SaveEntryCode = "200";
     public const string CompanionCheckEntryCode = "201";
     public const string EquipmentCheckEntryCode = "202";
@@ -545,8 +551,8 @@ public sealed partial class GameSession
     }
 
     /// <summary>
-    /// 홈 화면의 메뉴: 구분선으로 나뉜 세 분류. [RPG] 던전(101, 입장 가능한 것이 없으면 회색), 상점(102, 열린 상점이 없으면 회색),
-    /// 이벤트(103), 교류(104), 파티 설정(105) / [정보] 동료 확인(201), 장비 확인(202), 아이템 확인(203) / [시스템] 세이브(200), 로드(300), 디버그(400).
+    /// 홈 화면의 메뉴: 구분선으로 나뉜 세 분류. [RPG] 던전(101, 입장 가능한 것이 없으면 회색), 아지트(102), 이벤트(103),
+    /// 상점(104, 열린 상점이 없으면 회색), 파티 설정(105), 장비 강화(106), 교류(107) / [정보] 동료 확인(201), 장비 확인(202), 아이템 확인(203) / [시스템] 세이브(200), 로드(300), 디버그(400).
     /// 홈의 <see cref="Entries"/>는 이 분류들을 순서대로 이어 붙인 것이다.
     /// </summary>
     public IReadOnlyList<MenuGroup> HomeMenu
@@ -556,10 +562,12 @@ public sealed partial class GameSession
             var rpg = new List<ScreenEntry>();
             // 입장할 수 있는 던전/상점이 없으면 메뉴에서 빼지 않고 회색(눌러도 반응 없음)으로 둔다.
             rpg.Add(new ScreenEntry(DungeonEntryCode, "던전", Screen.DungeonSelect, Enabled: AvailableDungeons.Count > 0));
-            rpg.Add(new ScreenEntry(ShopEntryCode, "상점", Screen.ShopList, Enabled: AvailableShops.Count > 0));
+            rpg.Add(new ScreenEntry(HideoutEntryCode, "아지트", Screen.Hideout));
             rpg.Add(new ScreenEntry(EventEntryCode, "이벤트", Screen.Event));
-            rpg.Add(new ScreenEntry(InteractionEntryCode, "교류", Screen.Interaction));
+            rpg.Add(new ScreenEntry(ShopEntryCode, "상점", Screen.ShopList, Enabled: AvailableShops.Count > 0));
             rpg.Add(new ScreenEntry(PartyEntryCode, "파티 설정", Screen.PartySetup));
+            rpg.Add(new ScreenEntry(EquipmentEnhanceEntryCode, "장비 강화", Screen.EquipmentEnhance));
+            rpg.Add(new ScreenEntry(InteractionEntryCode, "교류", Screen.Interaction));
 
             return
             [
@@ -673,6 +681,9 @@ public sealed partial class GameSession
                     return DungeonMoveEntries();
                 case Screen.GameOver:
                     return [new ScreenEntry(BackEntryCode, "로드 화면으로", Screen.Load)];
+                case Screen.Hideout:
+                case Screen.EquipmentEnhance:
+                    return [new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home)];
                 case Screen.Event:
                     // 조건을 만족하는 이벤트를 코드로 입력하거나 클릭하면 시작한다.
                     return AvailableEvents

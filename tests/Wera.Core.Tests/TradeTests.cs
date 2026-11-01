@@ -181,7 +181,7 @@ public class TradeTests
                 "5003\t2002\t3\t3\t9001\t1\n",
             tradeConditions: CondHeader + "5002\t1\t1001\tGreaterOrEqual\t1\n");
         var s = GameSession.NewGame(pack);
-        s.Activate("102");
+        s.Activate("104");
         return s;
     }
 
@@ -232,7 +232,7 @@ public class TradeTests
     {
         var pack = Pack(trades: TradeHeader + "5001\t2001\t11\t1\t2\t1\n");
         var s = GameSession.NewGame(pack);
-        s.Activate("102");
+        s.Activate("104");
         s.Activate("2002");                                   // 2002에는 교환이 없다
         Assert.Equal(Screen.ShopTrades, s.Screen);
         Assert.Empty(s.CurrentShopTrades);
@@ -355,7 +355,7 @@ public class TradeTests
     {
         var pack = Pack(bunch: Bunch, trades: TradeHeader + "5101\t2001\t9001\t2\t11\t50\n");
         var s = GameSession.NewGame(pack);
-        s.Activate("102");
+        s.Activate("104");
         s.Activate("2001");
         s.InventoryItems[2] = new InventoryItem(6);        // 필요: 약초 6, 철광석 2
         s.InventoryItems[3] = new InventoryItem(1);
@@ -375,7 +375,7 @@ public class TradeTests
     {
         var pack = Pack(trades: TradeHeader + "5201\t2001\t11\t100\t11\t30\n");   // 금화 100 → 금화 30
         var s = GameSession.NewGame(pack);
-        s.Activate("102");
+        s.Activate("104");
         s.Activate("2001");
 
         s.InventoryItems[11] = new InventoryItem(99);
@@ -439,7 +439,7 @@ public class TradeTests
             bunch: "inventory_code\titem_name\tpart_item_code\tpart_amount\n9\t바위산\t2\t8000000000\n",
             trades: TradeHeader + "5301\t2001\t11\t1\t9\t3000000000\n");
         var s = GameSession.NewGame(pack);
-        s.Activate("102");
+        s.Activate("104");
         s.Activate("2001");
         s.InventoryItems[11] = new InventoryItem(5);
 

@@ -163,7 +163,7 @@ public class PlayerCharacterTests
         var s = GameSession.NewGame(pack);
         s.AddCharacter(1);
 
-        s.Activate("102"); s.Activate("2001");
+        s.Activate("104"); s.Activate("2001");
         Assert.False(s.Entries.Single(e => e.Code == "5001").Enabled);
         Assert.False(s.CanTrade(5001));
         Assert.Contains("플레이어는 낼 수 없습니다", s.TradeBlockedReason(5001));

@@ -13,7 +13,7 @@ public class CommunicationGroupTests
     static GameSession Interaction(string? groups)
     {
         var s = GameSession.NewGame(Pack(groups));
-        s.Activate("104");
+        s.Activate("107");
         Assert.Equal(Screen.Interaction, s.Screen);
         return s;
     }
@@ -72,7 +72,7 @@ public class CommunicationGroupTests
         var s = Interaction("code\tname\n1\t대화\n2\t선물\n");
         s.Activate("200");
         s.Activate("999");
-        s.Activate("104");
+        s.Activate("107");
         Assert.Equal(1, s.CurrentCommunicationGroupCode);
     }
 
@@ -102,7 +102,7 @@ public class CommunicationGroupTests
         using var zip = File.OpenRead(Path.Combine(root, "src", "Wera.Web", "wwwroot", "sample-pack.wra"));
         var s = GameSession.NewGame(GamePack.Load(zip));
         Assert.Equal([new CommunicationGroupEntry(1, "대화")], s.Pack.CommunicationGroups);
-        s.Activate("104");
+        s.Activate("107");
         Assert.Equal("100", s.Entries[0].Code);
         Assert.Equal("대화", s.Entries[0].Label);
     }

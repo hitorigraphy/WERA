@@ -168,11 +168,11 @@ public class DungeonTests
     [Fact]
     public void Home_menu_is_in_code_order_with_the_always_present_entries()
     {
-        // 던전이 없어도 이벤트(103), 교류(104), 파티 설정(105), 동료/장비/아이템 확인(201~203), 세이브(200), 로드(300), 디버그(400)는 항상 있고, 던전/상점(101, 102)도 항상 있고 열려 있지 않으면 비활성.
-        Assert.Equal(["101", "102", "103", "104", "105", "201", "202", "203", "200", "300", "400"], GameSession.NewGame(Pack(null, null)).Entries.Select(e => e.Code));
+        // 던전이 없어도 아지트(102), 이벤트(103), 파티 설정(105), 장비 강화(106), 교류(107), 동료/장비/아이템 확인(201~203), 세이브(200), 로드(300), 디버그(400)는 항상 있고, 던전/상점(101, 104)도 항상 있고 열려 있지 않으면 비활성.
+        Assert.Equal(["101", "102", "103", "104", "105", "106", "107", "201", "202", "203", "200", "300", "400"], GameSession.NewGame(Pack(null, null)).Entries.Select(e => e.Code));
         var s = GameSession.NewGame(Pack(TwoDungeons, null));
-        Assert.Equal(["101", "102", "103", "104", "105", "201", "202", "203", "200", "300", "400"], s.Entries.Select(e => e.Code));
-        Assert.Equal(["던전", "상점", "이벤트", "교류", "파티 설정", "동료 확인", "장비 확인", "아이템 확인", "세이브", "로드", "디버그"], s.Entries.Select(e => e.Label));
+        Assert.Equal(["101", "102", "103", "104", "105", "106", "107", "201", "202", "203", "200", "300", "400"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["던전", "아지트", "이벤트", "상점", "파티 설정", "장비 강화", "교류", "동료 확인", "장비 확인", "아이템 확인", "세이브", "로드", "디버그"], s.Entries.Select(e => e.Label));
     }
 
     [Fact]
