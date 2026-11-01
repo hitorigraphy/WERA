@@ -197,6 +197,7 @@ public sealed partial class GamePack
         var skillSlots = LoadSkillSlots(zip);
         var characterSkillSlotTags = LoadCharacterSkillSlotTags(zip, characterInventory, skillSlots, tags);
         var partSlots = LoadPartSlots(zip);
+        var modSlots = LoadModSlots(zip);
         var partSlotTags = LoadPartSlotTags(zip, uniqueItems, partSlots, tags);
         var skills = LoadSkills(zip);
         var skillTags = LoadSkillTags(zip, skills, tags);
@@ -286,6 +287,8 @@ public sealed partial class GamePack
             AfterLoadUniqueItemFlows = afterLoadUniqueItemFlows,
             SynthesisFlows = synthesisFlows,
             SmeltFlows = smeltFlows,
+            ModSlots = modSlots,
+            UniqueItemModStatuses = LoadUniqueItemModStatuses(zip, uniqueItems?.Select(u => u.ItemCode), modSlots, itemInventory, statuses, uniqueItemStatuses),
             UniqueItemEnhanceStatuses = LoadUniqueItemEnhanceStatuses(zip, uniqueItems?.Select(u => u.ItemCode), statuses, uniqueItemStatuses, GameSettingLevelMax(gameSettings)),
             AfterHitEffects = afterHitEffects,
             AfterAttackEffects = afterAttackEffects,

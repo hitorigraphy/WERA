@@ -67,11 +67,12 @@ public sealed partial class GamePack
     /// <summary>
     /// 강화가 끝난 뒤 강화 레벨이 바뀌었다고 보고 스테이터스를 다시 정한다: 강화 스테이터스 마스터에 이 아이템의 행이 있는 스테이터스마다
     /// (유니크 아이템 스테이터스 마스터의 초깃값) + (아이템의 강화 레벨 = 강화 횟수 스테이터스의 값에 해당하는 행의 값, 그 레벨의 행이 없으면 0)을
-    /// 그 스테이터스의 최솟값~최댓값에 맞춰 인스턴스에 저장한다. 강화 레벨이 상한(<see cref="EnhanceLevelMax"/>)을 넘으면 상한으로 자른다(강화 횟수도 상한으로 저장). 자를 것도 마스터에 이 아이템의 행도 없으면 인스턴스를 그대로 돌려준다.
+    /// 그 스테이터스의 최솟값~최댓값에 맞춰 인스턴스에 저장한다. 개조 스테이터스 마스터에 이 아이템의 행이 있는 스테이터스는 더해서, 끼워 둔 개조 아이템(<see cref="UniqueItemInstance.Mods"/>)의 행의 값의 합도 더한다(개조도 이 값이 바뀌었다고 보고 같은 식으로 다시 정한다). 강화 레벨이 상한(<see cref="EnhanceLevelMax"/>)을 넘으면 상한으로 자른다(강화 횟수도 상한으로 저장). 자를 것도 마스터에 이 아이템의 행도 없으면 인스턴스를 그대로 돌려준다.
     /// </summary>
     public UniqueItemInstance WithEnhanceStatuses(UniqueItemInstance item)
     {
         var rows = UniqueItemEnhanceStatuses?.Where(r => r.ItemCode == item.ItemCode).ToList() ?? [];
+        var modRows = UniqueItemModStatuses?.Where(r => r.UniqueItemCode == item.ItemCode).ToList() ?? [];
         var statuses = new Dictionary<long, long>(item.Statuses ?? MasterStatusesOfUniqueItem(item.ItemCode));
         var level = statuses.GetValueOrDefault(EnhanceCountStatusCode);
         if (EnhanceLevelMax is { } max && level > max)
@@ -79,11 +80,13 @@ public sealed partial class GamePack
             level = max;                                                      // 상한을 넘기면 상한으로 자른다
             statuses[EnhanceCountStatusCode] = max;
         }
-        else if (rows.Count == 0) return item;
+        else if (rows.Count == 0 && modRows.Count == 0) return item;
         var master = UniqueItemStatusesOf(item.ItemCode).ToDictionary(r => r.StatusCode);
-        foreach (var status in rows.Select(r => r.StatusCode).Distinct())
+        foreach (var status in rows.Select(r => r.StatusCode).Concat(modRows.Select(r => r.StatusCode)).Distinct())
         {
             var add = rows.FirstOrDefault(r => r.StatusCode == status && r.EnhanceLevel == level)?.Value ?? 0;
+            foreach (var mod in modRows.Where(r => r.StatusCode == status && item.Mods is { } mods && mods.TryGetValue(r.ModSlotCode, out var installed) && installed == r.ItemCode))
+                add = checked(add + mod.Value);
             var row = master[status];
             statuses[status] = Math.Clamp(checked(row.InitialValue + add), row.MinValue, row.MaxValue);
         }

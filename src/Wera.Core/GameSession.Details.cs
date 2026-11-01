@@ -90,7 +90,13 @@ public sealed partial class GameSession
     {
         get
         {
-            if (Screen != Screen.EquipmentDetail || DetailEquipmentId is not { } id || !UniqueItemInstances.TryGetValue(id, out var item)) return null;
+            var id = Screen switch
+            {
+                Screen.EquipmentDetail => DetailEquipmentId,
+                Screen.EquipmentEnhanceTarget when EnhanceMode == Wera.Core.EnhanceMode.Modify => EnhanceTargetId,
+                _ => null,
+            };
+            if (id is null || !UniqueItemInstances.TryGetValue(id, out var item)) return null;
             var master = Pack.FindUniqueItem(item.ItemCode);
             var statuses = item.Statuses ?? Pack.MasterStatusesOfUniqueItem(item.ItemCode);
             var enhance = statuses.GetValueOrDefault(GamePack.EnhanceCountStatusCode);
@@ -113,7 +119,7 @@ public sealed partial class GameSession
                 .OrderBy(s => s.CharacterDisplayOrder).ThenBy(s => s.Code)
                 .Select(s => new UnitStatusLine(s.Name, Text(statuses[s.Code]))).ToList();
             return new EquipmentDetailView(
-                master?.ItemName ?? Text(item.ItemCode), $"+{Text(enhance)}", hp, xp, tag, specs, PartLines(item),
+                master?.ItemName ?? Text(item.ItemCode), $"+{Text(enhance)}", hp, xp, tag, specs, Screen == Screen.EquipmentEnhanceTarget ? ModLines(item) : PartLines(item),
                 [new UnitStatusLine("스킬", item.Skill is { } skill ? SkillName(skill.SkillCode) : "비어 있음")], master?.Description ?? "");
         }
     }
@@ -122,6 +128,60 @@ public sealed partial class GameSession
     IReadOnlyList<UnitStatusLine> PartLines(UniqueItemInstance item) =>
         Pack.PartSlotsOf(item.ItemCode).Select(slot => new UnitStatusLine(slot.Name,
             item.Parts is { } parts && parts.TryGetValue(slot.Code, out var part) ? Pack.FindItem(part)?.Name ?? Text(part) : "비어 있음")).ToList();
+
+    /// <summary>장비의 개조 슬롯 줄들: 끼운 커먼 아이템의 이름, 비었으면 "비어 있음".</summary>
+    IReadOnlyList<UnitStatusLine> ModLines(UniqueItemInstance item) =>
+        Pack.ModSlotsOf(item.ItemCode).Select(slot => new UnitStatusLine(slot.Name,
+            item.Mods is { } mods && mods.TryGetValue(slot.Code, out var mod) ? Pack.FindItem(mod)?.Name ?? Text(mod) : "비어 있음")).ToList();
+
+    /// <summary>개조 화면(장비 상세처럼 보이는)의 줄: 개조 슬롯(1번부터)을 누르면 끼울 아이템 목록으로 간다.</summary>
+    IReadOnlyList<ScreenEntry> ModSlotEntries()
+    {
+        var n = 1;
+        var slots = SynthesisTarget is { } target ? Pack.ModSlotsOf(target.ItemCode) : [];
+        return
+        [
+            .. slots.Select(s => new ScreenEntry((n++).ToString(CultureInfo.InvariantCulture), s.Name, Screen.EquipmentModSlot, EntryAction.SelectModSlot,
+                s.Code.ToString(CultureInfo.InvariantCulture))),
+            new ScreenEntry(BackEntryCode, "돌아가기", Screen.EquipmentEnhance),
+        ];
+    }
+
+    /// <summary>고른 개조 슬롯에 끼울 수 있는 커먼 아이템([아이템 코드]): 보유한 것만 활성이고 이미 낀 것은 "(장착 중)"으로 회색이다.</summary>
+    IReadOnlyList<ScreenEntry> ModItemEntries()
+    {
+        var target = SynthesisTarget;
+        long? installed = target?.Mods is { } mods && ModSlotCode is { } slot && mods.TryGetValue(slot, out var m) ? m : null;
+        var items = target is not null && ModSlotCode is { } s ? Pack.ModItemsOf(target.ItemCode, s) : [];
+        return
+        [
+            .. items.Select(code => new ScreenEntry(code.ToString(CultureInfo.InvariantCulture),
+                (Pack.FindItem(code)?.Name ?? Text(code)) + (code == installed ? " (장착 중)" : ""), Screen.EquipmentEnhanceTarget, EntryAction.InstallMod,
+                code.ToString(CultureInfo.InvariantCulture), Enabled: code != installed && CountInventory(code) >= 1)),
+            new ScreenEntry(BackEntryCode, "돌아가기", Screen.EquipmentEnhanceTarget),
+        ];
+    }
+
+    /// <summary>개조 화면에서 고른 개조 슬롯 코드(끼울 아이템 목록을 보는 동안).</summary>
+    public long? ModSlotCode { get; private set; }
+
+    /// <summary>
+    /// 개조 슬롯에 아이템을 끼운다: 인벤토리에서 1개를 쓰고 이미 낀 아이템은 인벤토리로 돌려준 뒤, 그 아이템의 개조 스테이터스 값이 스테이터스에 반영되게 다시 정한다
+    /// (<see cref="GamePack.WithEnhanceStatuses"/>). 끼울 수 없으면(타겟/슬롯 없음, 목록에 없는 아이템, 보유하지 않음) 아무것도 바꾸지 않고 빈 문자열을 돌려준다.
+    /// </summary>
+    string InstallMod(long itemCode)
+    {
+        if (SynthesisTarget is not { } target || ModSlotCode is not { } slot) return "";
+        if (!Pack.ModItemsOf(target.ItemCode, slot).Contains(itemCode) || CountInventory(itemCode) < 1) return "";
+        long? old = target.Mods is { } current && current.TryGetValue(slot, out var o) ? o : null;
+        if (old == itemCode) return "";
+        AddInventory(itemCode, -1);
+        if (old is { } returned) AddInventory(returned, 1);
+        var mods = new Dictionary<long, long>(target.Mods ?? []) { [slot] = itemCode };
+        UniqueItemInstances[target.InstanceId] = Pack.WithEnhanceStatuses(target with { Mods = mods });
+        RevalidateEquipment();
+        return $"개조했습니다: {Pack.FindUniqueItem(target.ItemCode)?.ItemName ?? Text(target.ItemCode)} {Pack.FindModSlot(slot)?.Name} {Pack.FindItem(itemCode)?.Name ?? Text(itemCode)}";
+    }
 
     /// <summary>지금 보는 캐릭터 상세 화면의 내용. 캐릭터 상세 화면이 아니거나 보유하지 않은 캐릭터면 null.</summary>
     public CharacterDetailView? CharacterDetail
@@ -174,6 +234,8 @@ public sealed partial class GameSession
     public string? EnhanceTargetId { get; private set; }
 
     /// <summary>장비 인스턴스의 이름(없으면 빈 글).</summary>
+    public string ModSlotName(long code) => Pack.FindModSlot(code)?.Name ?? Text(code);
+
     public string EquipmentName(string? instanceId) =>
         instanceId is not null && UniqueItemInstances.TryGetValue(instanceId, out var i) ? Pack.FindUniqueItem(i.ItemCode)?.ItemName ?? Text(i.ItemCode) : "";
 

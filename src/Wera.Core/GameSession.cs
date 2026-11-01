@@ -87,8 +87,10 @@ public enum Screen
     /// <summary>선택한 상점의 교환 목록.</summary>
     ShopTrades,
     Load,
-    /// <summary>합성/제련/개조를 고른 장비로 진행하는 화면(내용은 아직 없다).</summary>
+    /// <summary>개조를 고른 장비로 진행하는 화면: 장비 상세처럼 보이고 개조 슬롯 줄(1번부터)을 누르면 끼울 아이템을 고른다. 돌아가기는 장비 강화.</summary>
     EquipmentEnhanceTarget,
+    /// <summary>개조 슬롯에 끼울 아이템을 고르는 화면: 그 슬롯에 끼울 수 있는 커먼 아이템 목록(보유한 것만 활성). 돌아가기는 개조 화면.</summary>
+    EquipmentModSlot,
 }
 
 public enum EntryAction
@@ -185,6 +187,10 @@ public enum EntryAction
     ExecuteSmelt,
     /// <summary>골라 둔 합성/제련/개조로 진행할 장비를 고른다(Arg = 장비 인스턴스 ID).</summary>
     PickEnhanceEquipment,
+    /// <summary>개조 화면에서 개조 슬롯(Arg=슬롯 코드)을 골라 끼울 아이템 목록으로 간다.</summary>
+    SelectModSlot,
+    /// <summary>끼울 아이템(Arg=아이템 코드)을 골라 개조 슬롯에 끼운다: 인벤토리에서 1개를 쓰고 이미 낀 것은 인벤토리로 돌아온다.</summary>
+    InstallMod,
 }
 
 /// <summary>장비 강화 화면에서 먼저 골라 두는 작업.</summary>
@@ -718,7 +724,9 @@ public sealed partial class GameSession
                 case Screen.EquipmentEnhance:
                     return EquipmentEnhanceEntries();
                 case Screen.EquipmentEnhanceTarget:
-                    return [new ScreenEntry(BackEntryCode, "돌아가기", Screen.EquipmentEnhance)];
+                    return ModSlotEntries();
+                case Screen.EquipmentModSlot:
+                    return ModItemEntries();
                 case Screen.Event:
                     // 조건을 만족하는 이벤트를 코드로 입력하거나 클릭하면 시작한다.
                     return AvailableEvents
@@ -830,7 +838,7 @@ public sealed partial class GameSession
                     CurrentCommunicationGroupCode = CommunicationGroups.FirstOrDefault()?.Code;   // 들어가면 가장 작은 그룹이 선택되고
                     communicationHistory.Clear();                                                  // 이력은 비어 있다
                 }
-                if (entry.Target == Screen.EquipmentEnhance && Screen is not (Screen.EquipmentEnhance or Screen.EquipmentEnhanceTarget)) { EnhanceMode = null; ResetSynthesis(); }   // 강화 화면에 새로 들어오면 아무것도 골라 두지 않은 상태다
+                if (entry.Target == Screen.EquipmentEnhance && Screen is not (Screen.EquipmentEnhance or Screen.EquipmentEnhanceTarget or Screen.EquipmentModSlot)) { EnhanceMode = null; ResetSynthesis(); }   // 강화 화면에 새로 들어오면 아무것도 골라 두지 않은 상태다
                 if (entry.Target != Screen || IsDebugAddScreen(entry.Target)) ListPage = 0;       // 목록 화면에 들어오면 첫 페이지다
                 Screen = entry.Target;
                 break;
@@ -849,6 +857,14 @@ public sealed partial class GameSession
                 break;
             case EntryAction.CancelSynthesis:
                 ResetSynthesis();
+                break;
+            case EntryAction.SelectModSlot:
+                ModSlotCode = long.Parse(entry.Arg!, CultureInfo.InvariantCulture);
+                Screen = entry.Target;
+                break;
+            case EntryAction.InstallMod:
+                Message = InstallMod(long.Parse(entry.Arg!, CultureInfo.InvariantCulture));
+                Screen = entry.Target;
                 break;
             case EntryAction.PickEnhanceEquipment:
                 EnhanceTargetId = entry.Arg;

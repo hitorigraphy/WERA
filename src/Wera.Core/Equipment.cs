@@ -54,15 +54,17 @@ public readonly record struct EquipRef(
 /// OrderNumber는 목록의 순서다: 얻을 때 소지 유니크 아이템 수(0부터 시작)이고, 순서를 바꿀 때 이 값을 조작한다. 목록은 OrderNumber순, 같으면 InstanceId순이다.
 /// </summary>
 public sealed record UniqueItemInstance(string InstanceId, long ItemCode, long OrderNumber = 0, List<long>? Tags = null,
-    Dictionary<long, long>? Statuses = null, SkillInstance? Skill = null, Dictionary<long, long>? Parts = null)
+    Dictionary<long, long>? Statuses = null, SkillInstance? Skill = null, Dictionary<long, long>? Parts = null,
+    Dictionary<long, long>? Mods = null)
 {
+    /// <summary>Mods(개조 슬롯 코드 → 끼운 커먼 아이템의 코드): 개조로 끼운 아이템. 비었거나 null이면 끼운 것이 없다. 끼운 아이템의 개조 스테이터스 행의 값이 스테이터스에 더해진다.</summary>
     /// <summary>Parts(부품 슬롯 코드 → 끼운 커먼 아이템의 코드): 장비 상세 화면의 부품 슬롯 줄. 비었거나 null이면 끼운 부품이 없다.</summary>
     /// <summary>Statuses(스테이터스 코드 → 값)는 유니크 아이템 스테이터스 마스터의 초깃값에서 복사해 가지고 게임 중에 바뀔 수 있다. 세이브에 없으면(null) 마스터에서 복사한다.</summary>
     public bool Equals(UniqueItemInstance? other) =>
         other is not null && InstanceId == other.InstanceId && ItemCode == other.ItemCode && OrderNumber == other.OrderNumber
         && (Tags is null) == (other.Tags is null) && (Tags ?? []).SequenceEqual(other.Tags ?? [])
         && StatusesEqual(Statuses, other.Statuses) && Equals(Skill, other.Skill)
-        && StatusesEqual(Parts ?? [], other.Parts ?? []);
+        && StatusesEqual(Parts ?? [], other.Parts ?? []) && StatusesEqual(Mods ?? [], other.Mods ?? []);
 
     public override int GetHashCode() => HashCode.Combine(InstanceId, ItemCode, OrderNumber);
 

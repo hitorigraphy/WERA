@@ -1,0 +1,4 @@
+unique_item_code	개조_slot_code	item_code	status_code	value	memo
+8001	1	4	40	3	철검 슬롯 1에 철광석: ATK +3
+8001	2	4	40	1	철검 슬롯 2에 철광석: ATK +1
+8001	2	3	40	2	철검 슬롯 2에 약초: ATK +2
