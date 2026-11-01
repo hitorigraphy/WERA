@@ -147,7 +147,7 @@ public sealed partial class GameSession
     /// 지금 장면이 아무 키나 누르면(또는 눌러서) 다음으로 넘어가는 장면인가: 이벤트 진행 화면이고 선택지 장면이 아닐 때.
     /// 이런 장면은 "[1] 다음"을 화면에 보여 주지 않지만, 코드 1을 <see cref="Activate"/>하면 넘어간다.
     /// </summary>
-    public bool AdvanceOnAnyKey => Screen is Screen.EventPlay or Screen.CommunicationPlay && CurrentAdvStep is not { Kind: AdvStepKind.Choice };
+    public bool AdvanceOnAnyKey => Screen == Screen.Defense || Screen is Screen.EventPlay or Screen.CommunicationPlay && CurrentAdvStep is not { Kind: AdvStepKind.Choice };
 
     /// <summary>선택지 항목. 문구는 꾸밈 문법을 적용해 보여 주고(Label은 꾸밈을 뗀 글), 로드 때 문법을 검증하므로 늘 읽힌다.</summary>
     ScreenEntry ChoiceEntry(int index, AdvChoice choice)

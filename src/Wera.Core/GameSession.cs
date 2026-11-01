@@ -42,6 +42,8 @@ public enum Screen
     EquipmentSelect,
     /// <summary>선택한 슬롯에 배치할 캐릭터 목록.</summary>
     CharacterSelect,
+    /// <summary>아지트 방어전(턴 종료 때 적이 침입했을 때): 결과 로그를 Enter(코드 1)마다 한 줄씩 보여 준다. 다 보면 홈으로 돌아간다.</summary>
+    Defense,
     /// <summary>아지트 화면(102): 층마다 계층/시설/보스 슬롯 3×3(한 번에 3개 층), 위쪽 줄은 "확장 가능"일 수 있다. 돌아가기는 홈.</summary>
     Hideout,
     /// <summary>아지트 확장 화면: 쓸 재료 그룹을 고른다(갖춘 그룹만 활성). 돌아가기는 아지트.</summary>
@@ -179,6 +181,8 @@ public enum EntryAction
     EquipItem,
     /// <summary>선택한 캐릭터의 선택한 장비 슬롯의 장비를 뺀다.</summary>
     Unequip,
+    /// <summary>방어전 화면의 로그를 한 줄 더 보여 준다(더 없으면 방어전을 끝내고 홈으로 돌아가 시설 서킷을 돌린다).</summary>
+    NextDefenseStep,
     /// <summary>항목의 코드에 해당하는 이벤트를 시작해 첫 장면으로 간다.</summary>
     StartEvent,
     /// <summary>진행 중인 이벤트를 다음 장면으로 이어 간다(더 없으면 이벤트 화면으로).</summary>
@@ -838,6 +842,8 @@ public sealed partial class GameSession
                 case Screen.EventPlay:
                 case Screen.CommunicationPlay:
                     return EventPlayEntries();
+                case Screen.Defense:
+                    return DefenseEntries();
                 case Screen.Interaction:
                     // 교류 그룹을 코드(그룹 코드×100)로 입력하거나 클릭해 고른다. 고른 그룹의 항목은 선택할 수 없다.
                     // 그다음 고른 그룹의 교류들(코드순)이 교류 코드로 나오고, 고르면 그 교류의 흐름을 재생한다.
@@ -981,6 +987,7 @@ public sealed partial class GameSession
                 if (AdvanceTurn())
                 {
                     Message = $"턴 종료: {CurrentDateText}";
+                    if (BeginDefenseScreen()) break;                                                   // 적이 침입했으면 방어전 화면이 끝난 뒤 시설 서킷을 돈다
                     if (RunFacilityCircuits() is { } production) Message += $" / {production}";       // 턴 종료 뒤 시설 서킷
                 }
                 break;
@@ -1187,6 +1194,9 @@ public sealed partial class GameSession
                 break;
             case EntryAction.NextEventStep:
                 ContinueEvent();
+                break;
+            case EntryAction.NextDefenseStep:
+                NextDefenseStep();
                 break;
             case EntryAction.ChooseAdv:
                 ChooseAdv(int.Parse(entry.Arg!, CultureInfo.InvariantCulture));

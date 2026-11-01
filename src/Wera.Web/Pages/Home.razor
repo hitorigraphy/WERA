@@ -692,6 +692,17 @@
                 }
                 break;
 
+            case Screen.Defense:
+                @* 방어전: 결과 로그를 한 줄씩 보여 준다. 이벤트 장면처럼 아무 키나 누르거나 눌러서 다음 줄로 넘어간다(마지막 다음은 홈으로) *@
+                <div class="advance-area" @ref="advanceArea" tabindex="0" @onkeydown="OnAdvanceKey" @onclick="OnAdvanceClick">
+                    <h2>아지트 방어전</h2>
+                    @for (var i = 0; i < session.DefenseLog.Count; i++)
+                    {
+                        <div class="@(i == session.DefenseLog.Count - 1 ? "adv-item" : "adv-item dim")">@session.DefenseLog[i]</div>
+                    }
+                </div>
+                break;
+
             case Screen.CommunicationPlay:
                 @* 위쪽 슬롯은 그대로 두고(스크롤해도 위에 붙어 있다), 아래를 교류 흐름 재생으로 바꾼다. 재생 방식은 이벤트의 ADV와 같다 *@
                 <div class="communication-play">
@@ -1119,7 +1130,7 @@
 
     /// <summary>화면이 바뀌었는지 알아보는 표지: 화면, 이벤트 장면, 쌓인 대사 수, 현재 장면.</summary>
     string? SceneKey => session is null ? null
-        : $"{session.Screen}|{session.CurrentStep}|{session.AdvLog.Count}|{session.CurrentAdvStep?.FlowNumber}|{session.CurrentAdvStep?.Kind}";
+        : $"{session.Screen}|{session.CurrentStep}|{session.AdvLog.Count}|{session.CurrentAdvStep?.FlowNumber}|{session.CurrentAdvStep?.Kind}|{session.DefenseLog.Count}";
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -1137,7 +1148,7 @@
         // 이벤트 진행 화면은 맨 아래(최신 대사)로, 다른 화면은 맨 위로.
         var scene = SceneKey;
         if (scene is not null && scene != lastScene)
-            await JS.InvokeVoidAsync("wera.scroll", screenArea, session!.Screen is Screen.EventPlay or Screen.CommunicationPlay);
+            await JS.InvokeVoidAsync("wera.scroll", screenArea, session!.Screen is Screen.EventPlay or Screen.CommunicationPlay or Screen.Defense);
         lastScene = scene;
     }
 

@@ -58,22 +58,23 @@ public sealed partial class GameSession
     /// 적은 스킬과 메인 타겟(스킬의 타겟 대상에 맞는 유닛)을 랜덤으로 정한다(자동 지정 서킷은 나중에). 메인 타겟이 쓰러졌으면 그 스킬의 타겟 대상에 맞는 살아 있는 유닛 중 랜덤으로 바꾼다.
     /// 끝나면 승패를 판정하고 이긴 쪽이 없으면 다음 턴(행동 설정)을 시작한다.
     /// </summary>
-    void ExecuteBattleTurn()
+    /// <param name="autoAllies">true면 아군도 적처럼 스킬과 대상을 스스로 정하고(방어전의 보스 전투) 이동과 아이템 드롭은 하지 않는다.</param>
+    void ExecuteBattleTurn(bool autoAllies = false)
     {
-        if (BattleOutcome != BattleOutcomeKind.None || !BattleAllActionsSet) return;
+        if (BattleOutcome != BattleOutcomeKind.None || (!autoAllies && !BattleAllActionsSet)) return;
         battleLog.Clear();
-        var moved = ApplyBattleMoves();
+        var moved = autoAllies ? new Dictionary<int, int>() : ApplyBattleMoves();
         var store = CreateUnitStore();
 
         var skillOf = new Dictionary<Combatant, long>();
         var targetOf = new Dictionary<Combatant, Combatant>();
-        foreach (var slot in BattleUnitSlots().Where(battleActions.ContainsKey))      // 장착한 스킬이 없는 유닛은 행동하지 않는다
+        foreach (var slot in autoAllies ? Enumerable.Empty<int>() : BattleUnitSlots().Where(battleActions.ContainsKey))      // 장착한 스킬이 없는 유닛은 행동하지 않는다
         {
             var ally = new Combatant(false, slot);
             skillOf[ally] = battleActions[slot];
             targetOf[ally] = battleTargets[slot] is { IsEnemy: false } t ? t with { Slot = moved.GetValueOrDefault(t.Slot, t.Slot) } : battleTargets[slot];     // 이동한 아군을 가리켰다면 새 자리로
         }
-        foreach (var enemy in LivingOf(true))
+        foreach (var enemy in autoAllies ? LivingOf(true).Concat(LivingOf(false)) : LivingOf(true))
         {
             var skills = BattleSkillsOf(enemy);
             if (skills.Count == 0) continue;
@@ -126,7 +127,7 @@ public sealed partial class GameSession
         foreach (var slot in BattleUnitSlots())
             if (BattleOutcome == BattleOutcomeKind.Win) new AfterBattleWinCircuit(Pack, store, PartyInstance.Units[slot]!).Execute();
             else new AfterBattleLoseCircuit(Pack, store, PartyInstance.Units[slot]!, CurrentDungeonCode is not null && CurrentEvent is null, c => pendingCaptures.Add(c.InstanceId)).Execute();
-        if (BattleOutcome == BattleOutcomeKind.Win) DropBattleItems();
+        if (BattleOutcome == BattleOutcomeKind.Win && !autoAllies) DropBattleItems();
         BattleCommands = BattleCommandMode.Basic;
     }
 
