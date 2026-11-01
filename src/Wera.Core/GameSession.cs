@@ -221,6 +221,9 @@ public sealed partial class GameSession
     public const string PartyEntryCode = "105";
     public const string EquipmentEnhanceEntryCode = "106";
     public const string InteractionEntryCode = "107";
+    /// <summary>장비 강화 화면의 강화/개조 항목(장비 목록 아래, 페이지와 상관없이 늘 나온다).</summary>
+    public const string EnhanceEntryCode = "901";
+    public const string ModifyEntryCode = "902";
     public const string SaveEntryCode = "200";
     public const string CompanionCheckEntryCode = "201";
     public const string EquipmentCheckEntryCode = "202";
@@ -690,8 +693,9 @@ public sealed partial class GameSession
                 case Screen.GameOver:
                     return [new ScreenEntry(BackEntryCode, "로드 화면으로", Screen.Load)];
                 case Screen.Hideout:
-                case Screen.EquipmentEnhance:
                     return [new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home)];
+                case Screen.EquipmentEnhance:
+                    return EquipmentEnhanceEntries();
                 case Screen.Event:
                     // 조건을 만족하는 이벤트를 코드로 입력하거나 클릭하면 시작한다.
                     return AvailableEvents

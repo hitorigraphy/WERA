@@ -177,4 +177,18 @@ public class PartSlotTests
         s.UniqueItemInstances[id] = s.UniqueItemInstances[id] with { Parts = new Dictionary<long, long> { [1] = 777 } };
         Assert.Contains("부품 '777'", Assert.Throws<SaveFormatException>(() => GameSession.FromSaveJson(pack, s.ToSaveJson())).Message);
     }
+
+    [Fact]
+    public void The_equipment_enhance_screen_lists_the_equipment_then_gray_enhance_and_modify()
+    {
+        var s = GameSession.NewGame(SamplePack());
+        var id = s.AddUniqueItem(8001)!;
+        s.Activate(GameSession.EquipmentEnhanceEntryCode);
+        Assert.Equal(["순례자의 은단검", "철검", "강화", "개조", "돌아가기"], s.Entries.Select(e => e.Label));
+        Assert.All(s.Entries.Where(e => e.Code is "901" or "902"), e => Assert.False(e.Enabled));
+        Assert.Equal(Screen.EquipmentEnhance, s.Activate("901")!.Target);
+        Assert.Equal(Screen.EquipmentEnhance, s.Screen);
+        Assert.Equal(Screen.EquipmentDetail, s.Activate(s.Entries.First(e => e.Label == "철검").Code)!.Target);
+        Assert.Equal(Screen.EquipmentEnhance, s.Activate("999")!.Target);                  // 상세에서 돌아오면 강화 화면
+    }
 }

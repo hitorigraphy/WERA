@@ -482,7 +482,10 @@
 
             case Screen.EquipmentEnhance:
                 <h2>장비 강화</h2>
-                @commands
+                @* 위는 가진 장비 표(누르면 장비 상세), 구분선 아래는 강화/개조(아직 동작 없음, 회색) *@
+                @entryTable(new TableSpec(ListEntries(e => e.Code is not (GameSession.EnhanceEntryCode or GameSession.ModifyEntryCode)), CodeNameWidths, [.. GameSession.EquipmentColumnNames], e => [e.Code, e.Label]))
+                <div class="menu-separator"></div>
+                @entryList(session.Entries.Where(e => e.Code is GameSession.EnhanceEntryCode or GameSession.ModifyEntryCode))
                 break;
 
             case Screen.Event:

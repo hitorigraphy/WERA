@@ -167,11 +167,19 @@ public sealed partial class GameSession
     ];
 
     /// <summary>장비 확인 화면: 가진 장비마다 [OrderNumber]로 고르면 장비 상세 화면으로 간다.</summary>
-    IReadOnlyList<ScreenEntry> EquipmentCheckEntries() =>
+    IReadOnlyList<ScreenEntry> EquipmentCheckEntries() => [.. EquipmentRowEntries(), new ScreenEntry(BackEntryCode, "돌아가기", CheckBackScreen)];
+
+    IEnumerable<ScreenEntry> EquipmentRowEntries() =>
+        OwnedUniqueItems.Select(i => new ScreenEntry(i.OrderNumber.ToString(CultureInfo.InvariantCulture), Pack.FindUniqueItem(i.ItemCode)?.ItemName ?? Text(i.ItemCode),
+            Screen.EquipmentDetail, EntryAction.OpenDetail, $"E:{i.InstanceId}"));
+
+    /// <summary>장비 강화 화면: 가진 장비 목록(장비 확인과 같은 줄, 누르면 장비 상세)과 그 아래 강화/개조(아직 동작이 없어 회색).</summary>
+    IReadOnlyList<ScreenEntry> EquipmentEnhanceEntries() =>
     [
-        .. OwnedUniqueItems.Select(i => new ScreenEntry(i.OrderNumber.ToString(CultureInfo.InvariantCulture), Pack.FindUniqueItem(i.ItemCode)?.ItemName ?? Text(i.ItemCode),
-            Screen.EquipmentDetail, EntryAction.OpenDetail, $"E:{i.InstanceId}")),
-        new ScreenEntry(BackEntryCode, "돌아가기", CheckBackScreen),
+        .. EquipmentRowEntries(),
+        new ScreenEntry(EnhanceEntryCode, "강화", Screen.EquipmentEnhance, Enabled: false),
+        new ScreenEntry(ModifyEntryCode, "개조", Screen.EquipmentEnhance, Enabled: false),
+        new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home),
     ];
 
     /// <summary>아이템 확인 화면: 가진 커먼 아이템마다 [아이템 코드]로 고르면 아이템 상세 화면으로 간다.</summary>

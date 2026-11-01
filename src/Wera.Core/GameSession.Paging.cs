@@ -32,7 +32,8 @@ public sealed partial class GameSession
 
     static bool IsPagedScreen(Screen screen) => screen is Screen.CompanionCheck or Screen.EquipmentCheck or Screen.ItemCheck
         or Screen.CharacterSelect or Screen.SupportSelect or Screen.EquipmentSelect or Screen.ShopList or Screen.ShopTrades or Screen.Event
-        or Screen.EquipmentList or Screen.SkillCharacter or Screen.SkillSlotSelect or Screen.SkillPoolList or Screen.DungeonSelect or Screen.DungeonPartySelect;
+        or Screen.EquipmentList or Screen.SkillCharacter or Screen.SkillSlotSelect or Screen.SkillPoolList or Screen.DungeonSelect or Screen.DungeonPartySelect
+        or Screen.EquipmentEnhance;
 
     static bool IsDebugListScreen(Screen screen) =>
         screen is Screen.DebugAddCharacter or Screen.DebugAddEquipment or Screen.DebugAddItem or Screen.DebugSkillCharacter or Screen.DebugAddSkill;
@@ -40,6 +41,7 @@ public sealed partial class GameSession
     /// <summary>페이지와 상관없이 늘 나오는 항목: 돌아가기와, 고르는 화면의 "[0] 비우기/해제"(동료 확인의 0번 줄은 그냥 항목이다).</summary>
     bool IsFixedEntry(ScreenEntry e) =>
         e.Code == BackEntryCode
+        || e.Code is EnhanceEntryCode or ModifyEntryCode && Screen == Screen.EquipmentEnhance
         || e.Code == ClearEntryCode && Screen is Screen.CharacterSelect or Screen.SupportSelect or Screen.EquipmentSelect or Screen.SkillSlotSelect or Screen.SkillCharacter;
 
     /// <summary>항목이 count개일 때의 페이지 수(항목이 없어도 1).</summary>
