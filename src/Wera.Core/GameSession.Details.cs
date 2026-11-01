@@ -182,16 +182,26 @@ public sealed partial class GameSession
             Screen.EquipmentDetail, EntryAction.OpenDetail, $"E:{i.InstanceId}"));
 
     /// <summary>
-    /// 장비 강화 화면: 가진 장비 목록(장비 확인과 같은 줄)과 그 아래 강화/개조. 강화/개조 중 하나를 먼저 골라 두면 장비를 눌러 그 장비로 진행하고,
-    /// 고르기 전에는 장비 줄이 회색이다.
+    /// 장비 강화 화면: 가진 장비 목록(장비 확인과 같은 줄)과 그 아래 합성/제련/개조. 셋 중 하나를 먼저 골라 두면 장비를 눌러 그 장비로 진행하고,
+    /// 고르기 전에는 장비 줄이 회색이다. 합성은 제물(같은 코드의 다른 장비 SynthesisSacrificeCount개)이 모자라는 장비도 회색이다.
     /// </summary>
     IReadOnlyList<ScreenEntry> EquipmentEnhanceEntries() =>
     [
-        .. EquipmentRowEntries().Select(e => e with { Target = Screen.EquipmentEnhanceTarget, Action = EntryAction.PickEnhanceEquipment, Arg = e.Arg![2..], Enabled = EnhanceMode is not null }),
-        new ScreenEntry(EnhanceEntryCode, "강화", Screen.EquipmentEnhance, EntryAction.SelectEnhanceMode, nameof(Wera.Core.EnhanceMode.Enhance)),
+        .. OwnedUniqueItems.Select(i => new ScreenEntry(i.OrderNumber.ToString(CultureInfo.InvariantCulture), Pack.FindUniqueItem(i.ItemCode)?.ItemName ?? Text(i.ItemCode),
+            Screen.EquipmentEnhanceTarget, EntryAction.PickEnhanceEquipment, i.InstanceId, Enabled: CanPickForEnhance(i))),
+        new ScreenEntry(SynthesisEntryCode, "합성", Screen.EquipmentEnhance, EntryAction.SelectEnhanceMode, nameof(Wera.Core.EnhanceMode.Synthesis)),
+        new ScreenEntry(SmeltEntryCode, "제련", Screen.EquipmentEnhance, EntryAction.SelectEnhanceMode, nameof(Wera.Core.EnhanceMode.Smelt)),
         new ScreenEntry(ModifyEntryCode, "개조", Screen.EquipmentEnhance, EntryAction.SelectEnhanceMode, nameof(Wera.Core.EnhanceMode.Modify)),
         new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home),
     ];
+
+    /// <summary>골라 둔 작업이 있고, 합성이면 이 장비 말고 같은 코드의 장비가 제물 수만큼 있다.</summary>
+    bool CanPickForEnhance(UniqueItemInstance item) => EnhanceMode switch
+    {
+        null => false,
+        Wera.Core.EnhanceMode.Synthesis => OwnedUniqueItems.Count(o => o.ItemCode == item.ItemCode && o.InstanceId != item.InstanceId) >= Pack.SynthesisSacrificeCount,
+        _ => true,
+    };
 
     /// <summary>아이템 확인 화면: 가진 커먼 아이템마다 [아이템 코드]로 고르면 아이템 상세 화면으로 간다.</summary>
     IReadOnlyList<ScreenEntry> ItemCheckEntries() =>

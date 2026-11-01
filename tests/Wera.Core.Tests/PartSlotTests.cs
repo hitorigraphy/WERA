@@ -184,16 +184,17 @@ public class PartSlotTests
         var s = GameSession.NewGame(SamplePack());
         var id = s.AddUniqueItem(8001)!;
         s.Activate(GameSession.EquipmentEnhanceEntryCode);
-        Assert.Equal(["순례자의 은단검", "철검", "강화", "개조", "돌아가기"], s.Entries.Select(e => e.Label));
+        Assert.Equal(["순례자의 은단검", "철검", "합성", "제련", "개조", "돌아가기"], s.Entries.Select(e => e.Label));
+        Assert.Equal(["901", "902", "903"], s.Entries.Where(e => e.Action == EntryAction.SelectEnhanceMode).Select(e => e.Code));
         Assert.Null(s.EnhanceMode);
         var sword = s.Entries.First(e => e.Label == "철검");
         Assert.False(sword.Enabled);                                                        // 작업을 고르기 전에는 장비를 못 누른다
         s.Activate(sword.Code);
         Assert.Equal(Screen.EquipmentEnhance, s.Screen);
 
-        s.Activate("901");
-        Assert.Equal(EnhanceMode.Enhance, s.EnhanceMode);
         s.Activate("902");
+        Assert.Equal(EnhanceMode.Smelt, s.EnhanceMode);
+        s.Activate("903");
         Assert.Equal(EnhanceMode.Modify, s.EnhanceMode);                                    // 다른 쪽을 누르면 바뀐다
         Assert.True(s.Entries.First(e => e.Label == "철검").Enabled);
         s.Activate(sword.Code);
@@ -205,5 +206,24 @@ public class PartSlotTests
         s.Activate("999");
         s.Activate(GameSession.EquipmentEnhanceEntryCode);
         Assert.Null(s.EnhanceMode);                                                         // 새로 들어오면 비어 있다
+    }
+
+    [Fact]
+    public void Synthesis_is_gray_for_equipment_without_enough_other_copies_of_the_same_item()
+    {
+        var s = GameSession.NewGame(SamplePack());                                          // 제물 수 기본 1
+        s.AddUniqueItem(8001);
+        s.Activate(GameSession.EquipmentEnhanceEntryCode);
+        s.Activate("901");
+        Assert.All(s.Entries.Where(e => e.Action == EntryAction.PickEnhanceEquipment), e => Assert.False(e.Enabled));   // 같은 코드가 하나뿐
+
+        s.AddUniqueItem(8001);
+        var swords = s.Entries.Where(e => e.Label == "철검").ToList();
+        Assert.Equal(2, swords.Count);
+        Assert.All(swords, e => Assert.True(e.Enabled));                                    // 서로가 제물이 된다
+        Assert.False(s.Entries.First(e => e.Label != "철검" && e.Action == EntryAction.PickEnhanceEquipment).Enabled);   // 다른 코드는 그대로 회색
+
+        s.Activate("902");                                                                  // 제련은 제물이 필요 없다
+        Assert.All(s.Entries.Where(e => e.Action == EntryAction.PickEnhanceEquipment), e => Assert.True(e.Enabled));
     }
 }

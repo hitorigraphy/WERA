@@ -87,7 +87,7 @@ public enum Screen
     /// <summary>선택한 상점의 교환 목록.</summary>
     ShopTrades,
     Load,
-    /// <summary>강화/개조를 고른 장비로 진행하는 화면(내용은 아직 없다).</summary>
+    /// <summary>합성/제련/개조를 고른 장비로 진행하는 화면(내용은 아직 없다).</summary>
     EquipmentEnhanceTarget,
 }
 
@@ -173,14 +173,14 @@ public enum EntryAction
     OpenDetail,
     /// <summary>상세 화면의 돌아가기: 상세 화면을 열기 전의 화면과 그 화면이 보던 것으로 돌아간다.</summary>
     CloseDetail,
-    /// <summary>장비 강화 화면에서 강화/개조 중 하나를 골라 둔다(Arg = EnhanceMode 이름). 화면은 그대로다.</summary>
+    /// <summary>장비 강화 화면에서 합성/제련/개조 중 하나를 골라 둔다(Arg = EnhanceMode 이름). 화면은 그대로다.</summary>
     SelectEnhanceMode,
-    /// <summary>골라 둔 강화/개조로 진행할 장비를 고른다(Arg = 장비 인스턴스 ID).</summary>
+    /// <summary>골라 둔 합성/제련/개조로 진행할 장비를 고른다(Arg = 장비 인스턴스 ID).</summary>
     PickEnhanceEquipment,
 }
 
 /// <summary>장비 강화 화면에서 먼저 골라 두는 작업.</summary>
-public enum EnhanceMode { Enhance, Modify }
+public enum EnhanceMode { Synthesis, Smelt, Modify }
 
 /// <summary>화면에 나오는 클릭 가능한 텍스트. 클릭하거나 Code를 입력하면 Action을 수행한다.</summary>
 /// <param name="Arg">항목이 가리키는 추가 값(파티 슬롯 항목에서는 슬롯 번호 0~8).</param>
@@ -230,9 +230,10 @@ public sealed partial class GameSession
     public const string PartyEntryCode = "105";
     public const string EquipmentEnhanceEntryCode = "106";
     public const string InteractionEntryCode = "107";
-    /// <summary>장비 강화 화면의 강화/개조 항목(장비 목록 아래, 페이지와 상관없이 늘 나온다).</summary>
-    public const string EnhanceEntryCode = "901";
-    public const string ModifyEntryCode = "902";
+    /// <summary>장비 강화 화면의 합성/제련/개조 항목(장비 목록 아래, 페이지와 상관없이 늘 나온다).</summary>
+    public const string SynthesisEntryCode = "901";
+    public const string SmeltEntryCode = "902";
+    public const string ModifyEntryCode = "903";
     public const string SaveEntryCode = "200";
     public const string CompanionCheckEntryCode = "201";
     public const string EquipmentCheckEntryCode = "202";

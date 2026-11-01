@@ -2,4 +2,4 @@ setting_type	value_type	long_value	decimal_value	text_value	memo
 AttributeAdvantageMultiplier	Decimal		1.5		유리속성 배율
 AttributeDisadvantageMultiplier	Decimal		0.5		불리속성 배율
 ListPageSize	Long	20			목록 한 페이지 항목 수
-EnhanceSacrificeCount	Long	1			강화 제물 수
+SynthesisSacrificeCount	Long	1			합성 제물 수

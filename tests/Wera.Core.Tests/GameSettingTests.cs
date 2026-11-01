@@ -50,15 +50,15 @@ public class GameSettingTests
     public void The_engine_settings_have_defaults_and_can_be_overridden()
     {
         var plain = Pack(null);
-        Assert.Equal((1.5m, 0.5m, 20, 1L), (plain.AttributeAdvantageMultiplier, plain.AttributeDisadvantageMultiplier, plain.ListPageSize, plain.EnhanceSacrificeCount));
-        var pack = Pack("AttributeAdvantageMultiplier\tDecimal\t\t2\t\nAttributeDisadvantageMultiplier\tDecimal\t\t0.25\t\nListPageSize\tLong\t5\t\t\nEnhanceSacrificeCount\tLong\t3\t\t\n");
-        Assert.Equal((2m, 0.25m, 5, 3L), (pack.AttributeAdvantageMultiplier, pack.AttributeDisadvantageMultiplier, pack.ListPageSize, pack.EnhanceSacrificeCount));
+        Assert.Equal((1.5m, 0.5m, 20, 1L), (plain.AttributeAdvantageMultiplier, plain.AttributeDisadvantageMultiplier, plain.ListPageSize, plain.SynthesisSacrificeCount));
+        var pack = Pack("AttributeAdvantageMultiplier\tDecimal\t\t2\t\nAttributeDisadvantageMultiplier\tDecimal\t\t0.25\t\nListPageSize\tLong\t5\t\t\nSynthesisSacrificeCount\tLong\t3\t\t\n");
+        Assert.Equal((2m, 0.25m, 5, 3L), (pack.AttributeAdvantageMultiplier, pack.AttributeDisadvantageMultiplier, pack.ListPageSize, pack.SynthesisSacrificeCount));
     }
 
     [Theory]
     [InlineData("ListPageSize\tDecimal\t\t5\t\n")]                  // 값 종류가 정해져 있다
     [InlineData("ListPageSize\tLong\t0\t\t\n")]                     // 1 이상
-    [InlineData("EnhanceSacrificeCount\tLong\t0\t\t\n")]
+    [InlineData("SynthesisSacrificeCount\tLong\t0\t\t\n")]
     [InlineData("AttributeAdvantageMultiplier\tLong\t2\t\t\n")]
     [InlineData("AttributeDisadvantageMultiplier\tDecimal\t\t-0.5\t\n")]
     public void Engine_settings_check_their_value_type_and_minimum(string rows) => Assert.Throws<PackFormatException>(() => Pack(rows));

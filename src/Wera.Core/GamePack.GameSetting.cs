@@ -20,7 +20,7 @@ public enum GameSettingType
     /// <summary>목록 화면 한 페이지에 보이는 항목 수(Long, 1 이상, 기본 20).</summary>
     ListPageSize = 3,
     /// <summary>유니크 아이템 1개를 강화하려면 제물로 바쳐야 하는 같은 유니크 아이템의 수(Long, 1 이상, 기본 1).</summary>
-    EnhanceSacrificeCount = 4,
+    SynthesisSacrificeCount = 4,
 }
 
 /// <summary>게임 설정 한 행이 쓰는 값의 종류. 종류에 맞는 열(long_value, decimal_value, text_value)이 그 설정의 값이다.</summary>
@@ -49,7 +49,7 @@ public sealed partial class GamePack
     public const decimal DefaultAttributeAdvantageMultiplier = 1.5m;
     public const decimal DefaultAttributeDisadvantageMultiplier = 0.5m;
     public const long DefaultListPageSize = 20;
-    public const long DefaultEnhanceSacrificeCount = 1;
+    public const long DefaultSynthesisSacrificeCount = 1;
 
     /// <summary>유리속성 배율(설정 AttributeAdvantageMultiplier, 기본 1.5).</summary>
     public decimal AttributeAdvantageMultiplier => GameSettingDecimal(GameSettingType.AttributeAdvantageMultiplier, DefaultAttributeAdvantageMultiplier);
@@ -60,8 +60,8 @@ public sealed partial class GamePack
     /// <summary>목록 한 페이지의 항목 수(설정 ListPageSize, 기본 20).</summary>
     public int ListPageSize => (int)Math.Min(GameSettingLong(GameSettingType.ListPageSize, DefaultListPageSize), int.MaxValue);
 
-    /// <summary>강화 제물 수(설정 EnhanceSacrificeCount, 기본 1).</summary>
-    public long EnhanceSacrificeCount => GameSettingLong(GameSettingType.EnhanceSacrificeCount, DefaultEnhanceSacrificeCount);
+    /// <summary>합성 제물 수(설정 SynthesisSacrificeCount, 기본 1).</summary>
+    public long SynthesisSacrificeCount => GameSettingLong(GameSettingType.SynthesisSacrificeCount, DefaultSynthesisSacrificeCount);
 
     /// <summary>설정 종류마다 정해진 값 종류와 최솟값. None은 아무 종류나 허용한다.</summary>
     static readonly Dictionary<GameSettingType, (GameSettingValueType ValueType, decimal Min)> SettingRules = new()
@@ -69,7 +69,7 @@ public sealed partial class GamePack
         [GameSettingType.AttributeAdvantageMultiplier] = (GameSettingValueType.Decimal, 0),
         [GameSettingType.AttributeDisadvantageMultiplier] = (GameSettingValueType.Decimal, 0),
         [GameSettingType.ListPageSize] = (GameSettingValueType.Long, 1),
-        [GameSettingType.EnhanceSacrificeCount] = (GameSettingValueType.Long, 1),
+        [GameSettingType.SynthesisSacrificeCount] = (GameSettingValueType.Long, 1),
     };
 
     public GameSettingEntry? FindGameSetting(GameSettingType type) => GameSettings?.FirstOrDefault(s => s.SettingType == type);
