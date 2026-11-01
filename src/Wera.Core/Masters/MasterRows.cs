@@ -586,6 +586,7 @@ public record SkillRow
     public required string Name { get; init; }
     public required int MainTargetType { get; init; }
     public required int SubTargetType { get; init; }
+    public string Description { get; init; } = "";
 }
 
 /// <summary>스킬 태그: 복합키는 (스킬, 태그)이고, 보조키 스킬 코드로 그 스킬의 태그 전부를 찾는다.</summary>

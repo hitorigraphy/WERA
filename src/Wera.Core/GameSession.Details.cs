@@ -22,7 +22,7 @@ public sealed partial class GameSession
     public long? DetailItemCode { get; private set; }
 
     /// <summary>
-    /// 상세 화면의 제목과 이름(스킬 상세는 아직 내용이 없어 이름만 보여 준다).
+    /// 상세 화면의 제목과 이름.
     /// 상세 화면이 아니면 null.
     /// </summary>
     public (string Title, string Name)? DetailHeading => Screen switch
@@ -64,6 +64,26 @@ public sealed partial class GameSession
                 [new UnitStatusLine("스킬", item.SkillCode is { } skill ? SkillName(skill) : "없음")], item.Description);
         }
     }
+
+    /// <summary>스킬 상세 화면의 내용: 스킬 이름, 쓸 수 있는 대상(메인 타겟 종류), 설명문.</summary>
+    public sealed record SkillDetailView(string Name, string Target, string Description);
+
+    /// <summary>지금 보는 스킬 상세 화면의 내용. 스킬 상세 화면이 아니거나 그 스킬이 없으면 null.</summary>
+    public SkillDetailView? SkillDetail =>
+        Screen == Screen.SkillDetail && DetailSkillCode is { } code && Pack.FindSkill(code) is { } skill
+            ? new SkillDetailView(skill.Name, TargetText(skill.MainTargetType), skill.Description)
+            : null;
+
+    static string TargetText(SkillMainTargetType type) => type switch
+    {
+        SkillMainTargetType.Enemy => "적",
+        SkillMainTargetType.Ally => "아군",
+        SkillMainTargetType.Self => "자신",
+        SkillMainTargetType.Any => "모두",
+        SkillMainTargetType.AllyFallen => "쓰러진 아군",
+        SkillMainTargetType.EnemyFallen => "쓰러진 적",
+        _ => "없음",
+    };
 
     /// <summary>지금 보는 장비 상세 화면의 내용. 장비 상세 화면이 아니거나 그 장비가 없으면 null.</summary>
     public EquipmentDetailView? EquipmentDetail

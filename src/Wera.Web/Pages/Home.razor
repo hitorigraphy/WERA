@@ -626,11 +626,20 @@
                 break;
 
             case Screen.SkillDetail:
-                @* 스킬 상세의 내용은 아직 정의되지 않았다: 무엇을 보고 있는지 이름만 보여 준다 *@
-                @if (session.DetailHeading is { } heading)
+                @* 스킬 상세: 왼쪽에 이미지 칸, 오른쪽에 스킬명, 대상, 설명문을 구분선으로 나눠 놓는다 *@
+                @if (session.SkillDetail is { } skillView)
                 {
-                    <h2>@heading.Title</h2>
-                    <p>@heading.Name</p>
+                    <h2>스킬 상세</h2>
+                    <div class="char-detail">
+                        <div class="char-image" role="img" aria-label="No Image">No Image</div>
+                        <div class="char-info">
+                            <div class="char-head"><span class="char-name">@skillView.Name</span></div>
+                            <hr />
+                            <div class="char-columns"><div>대상 : @skillView.Target</div></div>
+                            <hr />
+                            <p class="char-description">@skillView.Description</p>
+                        </div>
+                    </div>
                 }
                 break;
 

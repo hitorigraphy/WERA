@@ -27,7 +27,7 @@ public static class SkillSlotRules
 }
 
 /// <summary>스킬 마스터의 한 행.</summary>
-public sealed record SkillEntry(long Code, string Name, SkillMainTargetType MainTargetType = SkillMainTargetType.Enemy, SkillSubTargetType SubTargetType = SkillSubTargetType.None);
+public sealed record SkillEntry(long Code, string Name, SkillMainTargetType MainTargetType = SkillMainTargetType.Enemy, SkillSubTargetType SubTargetType = SkillSubTargetType.None, string Description = "");
 
 /// <summary>스킬의 메인 타겟 대상(skill_master의 main_target_type): 시전자 기준으로 메인 타겟이 될 수 있는 유닛. 기절(쓰러진) 유닛을 대상으로 하는 종류(<see cref="AllyFallen"/>, <see cref="EnemyFallen"/>)를 뺀 나머지는 쓰러진 유닛을 제외한다.</summary>
 public enum SkillMainTargetType
@@ -179,17 +179,18 @@ public sealed partial class GamePack
 
     /// <summary>
     /// 스킬 마스터: code, name과 선택 열 main_target_type(<see cref="SkillMainTargetType"/>: Enemy/Ally/Self/Any/AllyFallen/EnemyFallen/None, 비우거나 열이 없으면 Enemy),
-    /// 그 다음의 선택 열 sub_target_type(<see cref="SkillSubTargetType"/> 이름, 비우거나 열이 없으면 None). 이름만 쓰고 대소문자는 무시한다.
+    /// sub_target_type(<see cref="SkillSubTargetType"/> 이름, 비우거나 열이 없으면 None), description(스킬 상세 화면의 설명문). 이름만 쓰고 대소문자는 무시한다.
+    /// 선택 열은 이 이름으로 어떤 순서로든 둘 수 있다.
     /// </summary>
     static List<SkillEntry>? LoadSkills(ZipArchive zip)
     {
         var text = TryReadEntry(zip, SkillMasterPath);
         if (text is null) return null;
         var rows = Tsv.WithoutMemo(Tsv.Parse(text));
-        var withMain = rows.Count > 0 && rows[0].Length > 2 && rows[0][2] == "main_target_type";
-        var subAt = withMain ? 3 : 2;
-        var withSub = rows.Count > 0 && rows[0].Length > subAt && rows[0][subAt] == "sub_target_type";
-        string[] header = ["code", "name", .. withMain ? new[] { "main_target_type" } : [], .. withSub ? new[] { "sub_target_type" } : []];
+        string[] optional = rows.Count > 0 ? [.. rows[0].Skip(2).TakeWhile(h => h is "main_target_type" or "sub_target_type" or "description")] : [];
+        int At(string name) => Array.IndexOf(optional, name) is var i and >= 0 ? i + 2 : -1;
+        int mainAt = At("main_target_type"), subAt = At("sub_target_type"), descriptionAt = At("description");
+        string[] header = ["code", "name", .. optional];
 
         static T ParseName<T>(string cell, long code, string column) where T : struct, Enum
         {
@@ -206,9 +207,9 @@ public sealed partial class GamePack
             var code = ParseLong(SkillMasterPath, "스킬 코드", r[0]);
             if (!seen.Add(code))
                 throw new PackFormatException($"{SkillMasterPath}: 스킬 코드 '{code}'가 중복됩니다.");
-            var main = withMain ? ParseName<SkillMainTargetType>(r[2], code, "main_target_type") : SkillMainTargetType.Enemy;
-            var subType = withSub ? ParseName<SkillSubTargetType>(r[subAt], code, "sub_target_type") : SkillSubTargetType.None;
-            skills.Add(new SkillEntry(code, r[1], main, subType));
+            var main = mainAt >= 0 ? ParseName<SkillMainTargetType>(r[mainAt], code, "main_target_type") : SkillMainTargetType.Enemy;
+            var subType = subAt >= 0 ? ParseName<SkillSubTargetType>(r[subAt], code, "sub_target_type") : SkillSubTargetType.None;
+            skills.Add(new SkillEntry(code, r[1], main, subType, descriptionAt >= 0 ? r[descriptionAt] : ""));
         }
         return skills;
     }
@@ -336,7 +337,7 @@ public sealed partial class GamePack
         Masters.SkillSlotRowTable.TryFindByCode(code, out var r) ? new SkillSlotEntry(r.Code, r.Name) : null;
 
     public SkillEntry? FindSkill(long code) =>
-        Masters.SkillRowTable.TryFindByCode(code, out var r) ? new SkillEntry(r.Code, r.Name, (SkillMainTargetType)r.MainTargetType, (SkillSubTargetType)r.SubTargetType) : null;
+        Masters.SkillRowTable.TryFindByCode(code, out var r) ? new SkillEntry(r.Code, r.Name, (SkillMainTargetType)r.MainTargetType, (SkillSubTargetType)r.SubTargetType, r.Description) : null;
 
     /// <summary>캐릭터가 가진 스킬 슬롯들: 스킬 슬롯 마스터의 모든 슬롯(슬롯 코드 순). 태그 마스터는 슬롯의 유무가 아니라 무엇을 넣을 수 있는지만 정한다.</summary>
     public IReadOnlyList<SkillSlotEntry> SkillSlotsOf(long characterCode) =>

@@ -72,6 +72,22 @@ public class DetailScreenTests
     }
 
     [Fact]
+    public void The_skill_detail_shows_name_target_and_description()
+    {
+        var s = SampleSession();
+        s.AddInventory(8001, 1);
+        s.Activate("202");
+        s.Activate(s.Entries.First(e => e.Label == "철검").Code);
+        s.Activate("101");                                                                 // 장비 상세의 스킬 줄(베기)
+        Assert.Equal(Screen.SkillDetail, s.Screen);
+        var d = s.SkillDetail!;
+        Assert.Equal(("베기", "적"), (d.Name, d.Target));
+        Assert.Equal(s.Pack.FindSkill(1001)!.Description, d.Description);
+        Assert.NotEqual("", d.Description);
+        Assert.Null(s.EquipmentDetail);
+    }
+
+    [Fact]
     public void The_status_check_shows_the_party_slots_and_only_occupied_slots_open_the_character_detail()
     {
         var s = SampleSession();

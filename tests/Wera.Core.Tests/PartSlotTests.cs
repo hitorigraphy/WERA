@@ -90,6 +90,17 @@ public class PartSlotTests
         Assert.Equal("쓴맛", Items("inventory_code\titem_name\tcarry_limit\tdescription\n3\t약초\t9\t쓴맛\n").FindItem(3)!.Description);
     }
 
+    [Fact]
+    public void The_skill_master_optional_columns_come_in_any_order()
+    {
+        static GamePack Skills(string rows) => GamePack.Load(CoreTests.PackZip(
+            ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
+            (GamePack.SkillMasterPath, rows)));
+        Assert.Equal("", Skills("code\tname\n1\t베기\n").FindSkill(1)!.Description);
+        var skill = Skills("code\tname\tdescription\tmain_target_type\n1\t치유\t살린다\tAlly\n").FindSkill(1)!;
+        Assert.Equal(("살린다", SkillMainTargetType.Ally), (skill.Description, skill.MainTargetType));
+    }
+
     static (GameSession Session, string Id) SessionWithWornSword()
     {
         var s = GameSession.NewGame(SamplePack());
