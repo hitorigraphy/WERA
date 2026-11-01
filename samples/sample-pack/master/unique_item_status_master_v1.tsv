@@ -7,3 +7,4 @@ item_code	status_code	initial_value	min_value	max_value	memo
 8005	8	0	0	99	강화 횟수
 8006	8	0	0	99	강화 횟수
 8007	8	0	0	99	강화 횟수
+8001	40	10	0	9999	공격력(강화로 늘어남)

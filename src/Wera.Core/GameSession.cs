@@ -175,6 +175,12 @@ public enum EntryAction
     CloseDetail,
     /// <summary>장비 강화 화면에서 합성/제련/개조 중 하나를 골라 둔다(Arg = EnhanceMode 이름). 화면은 그대로다.</summary>
     SelectEnhanceMode,
+    /// <summary>합성에서 제물로 쓸 장비를 하나 고른다(Arg = 장비 인스턴스 ID).</summary>
+    SelectSacrifice,
+    /// <summary>합성을 실행한다(제물을 다 골랐을 때만 활성).</summary>
+    ExecuteSynthesis,
+    /// <summary>합성의 타겟과 제물을 비운다.</summary>
+    CancelSynthesis,
     /// <summary>골라 둔 합성/제련/개조로 진행할 장비를 고른다(Arg = 장비 인스턴스 ID).</summary>
     PickEnhanceEquipment,
 }
@@ -234,6 +240,9 @@ public sealed partial class GameSession
     public const string SynthesisEntryCode = "901";
     public const string SmeltEntryCode = "902";
     public const string ModifyEntryCode = "903";
+    /// <summary>합성에서 타겟을 고른 뒤 합성/제련/개조 자리에 나오는 실행과 취소(같은 자리, 같은 코드).</summary>
+    public const string ExecuteEntryCode = "901";
+    public const string CancelEntryCode = "902";
     public const string SaveEntryCode = "200";
     public const string CompanionCheckEntryCode = "201";
     public const string EquipmentCheckEntryCode = "202";
@@ -819,12 +828,22 @@ public sealed partial class GameSession
                     CurrentCommunicationGroupCode = CommunicationGroups.FirstOrDefault()?.Code;   // 들어가면 가장 작은 그룹이 선택되고
                     communicationHistory.Clear();                                                  // 이력은 비어 있다
                 }
-                if (entry.Target == Screen.EquipmentEnhance && Screen != Screen.EquipmentEnhanceTarget) EnhanceMode = null;   // 강화 화면에 새로 들어오면 아무것도 골라 두지 않은 상태다
+                if (entry.Target == Screen.EquipmentEnhance && Screen is not (Screen.EquipmentEnhance or Screen.EquipmentEnhanceTarget)) { EnhanceMode = null; ResetSynthesis(); }   // 강화 화면에 새로 들어오면 아무것도 골라 두지 않은 상태다
                 if (entry.Target != Screen || IsDebugAddScreen(entry.Target)) ListPage = 0;       // 목록 화면에 들어오면 첫 페이지다
                 Screen = entry.Target;
                 break;
             case EntryAction.SelectEnhanceMode:
                 EnhanceMode = Enum.Parse<EnhanceMode>(entry.Arg!);
+                ResetSynthesis();
+                break;
+            case EntryAction.SelectSacrifice:
+                synthesisSacrifices.Add(entry.Arg!);
+                break;
+            case EntryAction.ExecuteSynthesis:
+                Message = ExecuteSynthesis();
+                break;
+            case EntryAction.CancelSynthesis:
+                ResetSynthesis();
                 break;
             case EntryAction.PickEnhanceEquipment:
                 EnhanceTargetId = entry.Arg;

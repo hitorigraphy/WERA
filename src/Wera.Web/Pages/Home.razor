@@ -487,6 +487,10 @@
 
             case Screen.EquipmentEnhance:
                 <h2>장비 강화</h2>
+                @if (session.Message is not null)
+                {
+                    <p class="message" role="status">@session.Message</p>
+                }
                 @* 위는 가진 장비 표(누르면 장비 상세)로, 항목이 적어도 20줄 자리를 비워 두어 구분선과 합성/제련/개조의 위치가 늘 같다. 구분선 아래는 합성/제련/개조 *@
                 @entryTable(new TableSpec(ListEntries(e => e.Code is not (GameSession.SynthesisEntryCode or GameSession.SmeltEntryCode or GameSession.ModifyEntryCode)), CodeNameWidths, [.. GameSession.EquipmentColumnNames], e => [e.Code, e.Label], session.ListPageSize))
                 <div class="menu-separator"></div>
@@ -496,7 +500,7 @@
                     {
                         var code = e.Code;
                         var chosen = session.EnhanceMode?.ToString() == e.Arg;
-                        <div><button class="textlink @(chosen ? "chosen" : "")" @onclick="() => Activate(code)">[@e.Code] @e.Label</button></div>
+                        <div><button class="textlink @(chosen ? "chosen" : "")" disabled="@(!e.Enabled)" @onclick="() => Activate(code)">[@e.Code] @e.Label</button></div>
                     }
                 </div>
                 break;

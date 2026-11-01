@@ -184,22 +184,75 @@ public sealed partial class GameSession
     /// <summary>
     /// 장비 강화 화면: 가진 장비 목록(장비 확인과 같은 줄)과 그 아래 합성/제련/개조. 셋 중 하나를 먼저 골라 두면 장비를 눌러 그 장비로 진행하고,
     /// 고르기 전에는 장비 줄이 회색이다. 합성은 제물(장착하지 않은 같은 코드의 다른 장비 SynthesisSacrificeCount개)이 모자라는 장비도 회색이다.
+    /// 합성에서 타겟을 고르면 목록은 제물로 쓸 수 있는 장비만 활성이 되고 나머지는 회색이며(타겟은 "(대상)", 고른 제물은 "(제물)"), 아래 버튼이
+    /// [901] 실행([902] 취소와 함께)으로 바뀐다. 제물을 다 고를 때까지 실행은 회색이고, 다 고르면 목록이 모두 회색이 되고 실행이 활성이 된다.
     /// </summary>
-    IReadOnlyList<ScreenEntry> EquipmentEnhanceEntries() =>
-    [
-        .. OwnedUniqueItems.Select(i => new ScreenEntry(i.OrderNumber.ToString(CultureInfo.InvariantCulture), Pack.FindUniqueItem(i.ItemCode)?.ItemName ?? Text(i.ItemCode),
-            Screen.EquipmentEnhanceTarget, EntryAction.PickEnhanceEquipment, i.InstanceId, Enabled: CanPickForEnhance(i))),
-        new ScreenEntry(SynthesisEntryCode, "합성", Screen.EquipmentEnhance, EntryAction.SelectEnhanceMode, nameof(Wera.Core.EnhanceMode.Synthesis)),
-        new ScreenEntry(SmeltEntryCode, "제련", Screen.EquipmentEnhance, EntryAction.SelectEnhanceMode, nameof(Wera.Core.EnhanceMode.Smelt)),
-        new ScreenEntry(ModifyEntryCode, "개조", Screen.EquipmentEnhance, EntryAction.SelectEnhanceMode, nameof(Wera.Core.EnhanceMode.Modify)),
-        new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home),
-    ];
+    IReadOnlyList<ScreenEntry> EquipmentEnhanceEntries()
+    {
+        var choosing = EnhanceMode == Wera.Core.EnhanceMode.Synthesis && SynthesisTarget is not null;
+        var candidates = choosing ? SacrificeCandidates(SynthesisTarget!).Select(i => i.InstanceId).ToHashSet() : [];
+        var complete = choosing && SynthesisSacrificeIds.Count >= Pack.SynthesisSacrificeCount;
+        string Name(UniqueItemInstance i) => Pack.FindUniqueItem(i.ItemCode)?.ItemName ?? Text(i.ItemCode);
+        var rows = OwnedUniqueItems.Select(i =>
+        {
+            var code = i.OrderNumber.ToString(CultureInfo.InvariantCulture);
+            if (!choosing)
+                return new ScreenEntry(code, Name(i), EnhanceMode == Wera.Core.EnhanceMode.Synthesis ? Screen.EquipmentEnhance : Screen.EquipmentEnhanceTarget,
+                    EntryAction.PickEnhanceEquipment, i.InstanceId, Enabled: CanPickForEnhance(i));
+            var mark = i.InstanceId == EnhanceTargetId ? " (대상)" : SynthesisSacrificeIds.Contains(i.InstanceId) ? " (제물)" : "";
+            return new ScreenEntry(code, Name(i) + mark, Screen.EquipmentEnhance, EntryAction.SelectSacrifice, i.InstanceId,
+                Enabled: !complete && candidates.Contains(i.InstanceId) && !SynthesisSacrificeIds.Contains(i.InstanceId));
+        });
+        ScreenEntry[] buttons = choosing
+            ?
+            [
+                new ScreenEntry(ExecuteEntryCode, "실행", Screen.EquipmentEnhance, EntryAction.ExecuteSynthesis, Enabled: complete),
+                new ScreenEntry(CancelEntryCode, "취소", Screen.EquipmentEnhance, EntryAction.CancelSynthesis),
+            ]
+            :
+            [
+                new ScreenEntry(SynthesisEntryCode, "합성", Screen.EquipmentEnhance, EntryAction.SelectEnhanceMode, nameof(Wera.Core.EnhanceMode.Synthesis)),
+                new ScreenEntry(SmeltEntryCode, "제련", Screen.EquipmentEnhance, EntryAction.SelectEnhanceMode, nameof(Wera.Core.EnhanceMode.Smelt)),
+                new ScreenEntry(ModifyEntryCode, "개조", Screen.EquipmentEnhance, EntryAction.SelectEnhanceMode, nameof(Wera.Core.EnhanceMode.Modify)),
+            ];
+        return [.. rows, .. buttons, new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home)];
+    }
+
+    /// <summary>합성의 타겟(고른 장비). 없으면 null.</summary>
+    UniqueItemInstance? SynthesisTarget => EnhanceTargetId is { } id && UniqueItemInstances.TryGetValue(id, out var item) ? item : null;
+
+    /// <summary>합성의 제물로 쓸 수 있는 장비: 타겟 말고, 장착하지 않은 같은 코드의 장비.</summary>
+    IEnumerable<UniqueItemInstance> SacrificeCandidates(UniqueItemInstance target) =>
+        OwnedUniqueItems.Where(o => o.ItemCode == target.ItemCode && o.InstanceId != target.InstanceId && EquippedCount(EquipRef.Unique(o.InstanceId)) == 0);
+
+    /// <summary>합성에서 지금까지 고른 제물의 인스턴스 ID(고른 순서).</summary>
+    public IReadOnlyList<string> SynthesisSacrificeIds => synthesisSacrifices;
+    readonly List<string> synthesisSacrifices = [];
+
+    /// <summary>합성의 타겟과 제물을 비운다(모드는 그대로).</summary>
+    void ResetSynthesis()
+    {
+        EnhanceTargetId = null;
+        synthesisSacrifices.Clear();
+    }
+
+    /// <summary>합성을 실행한다: 합성 흐름 서킷이 타겟과 제물을 가지고 돌고(제물은 흐름이 없앤다), 강화 레벨이 바뀌었다고 보고 강화 스테이터스를 반영한 뒤 타겟과 제물을 비운다.</summary>
+    string ExecuteSynthesis()
+    {
+        if (SynthesisTarget is not { } target) return "";
+        var sacrifices = synthesisSacrifices.Select(id => UniqueItemInstances[id]).ToList();
+        new SynthesisFlowCircuit(Pack, new UnitStore([], UniqueItemInstances), target, sacrifices).Execute();
+        RevalidateEquipment();
+        var name = Pack.FindUniqueItem(target.ItemCode)?.ItemName ?? Text(target.ItemCode);
+        ResetSynthesis();
+        return $"합성했습니다: {name}";
+    }
 
     /// <summary>골라 둔 작업이 있고, 합성이면 이 장비 말고, 장착하지 않은 같은 코드의 장비가 제물 수만큼 있다.</summary>
     bool CanPickForEnhance(UniqueItemInstance item) => EnhanceMode switch
     {
         null => false,
-        Wera.Core.EnhanceMode.Synthesis => OwnedUniqueItems.Count(o => o.ItemCode == item.ItemCode && o.InstanceId != item.InstanceId && EquippedCount(EquipRef.Unique(o.InstanceId)) == 0) >= Pack.SynthesisSacrificeCount,
+        Wera.Core.EnhanceMode.Synthesis => SacrificeCandidates(item).Count() >= Pack.SynthesisSacrificeCount,
         _ => true,
     };
 

@@ -281,6 +281,7 @@ public sealed partial class GamePack
             AfterLoadCharacterFlows = afterLoadCharacterFlows,
             AfterLoadUniqueItemFlows = afterLoadUniqueItemFlows,
             SynthesisFlows = synthesisFlows,
+            UniqueItemEnhanceStatuses = LoadUniqueItemEnhanceStatuses(zip, uniqueItems?.Select(u => u.ItemCode), statuses, uniqueItemStatuses),
             AfterHitEffects = afterHitEffects,
             AfterAttackEffects = afterAttackEffects,
             AfterBattleWinEffects = afterBattleWinEffects,
