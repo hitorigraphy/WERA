@@ -830,7 +830,7 @@
         @* 교류 화면에서는 같은 줄 왼쪽에 이력(직전 커맨드 < 그전 커맨드 < …)이 나온다 *@
         var back = session.Entries.FirstOrDefault(e => e.Code == GameSession.BackEntryCode);
         var showHistory = session.Screen == Screen.Interaction;
-        @* 목록 화면이 한 페이지(20개)를 넘으면 같은 줄 왼쪽에 페이지 버튼이 나온다: [1]...[N-2][N-1][N][N+1][N+2]...[마지막] *@
+        @* 목록 화면이 한 페이지(20개)를 넘으면 같은 줄 왼쪽에 페이지 버튼이 나온다: [101] 1 ... [102] N-2 [103] N-1 N [104] N+1 [105] N+2 ... [106] 마지막 *@
         var pager = session.Pager;
         @if (back is not null || showHistory || pager.Count > 0)
         {
@@ -841,17 +841,17 @@
                         @foreach (var b in pager)
                         {
                             var pageCode = b.Code;
-                            @if (pageCode is null)
+                            @if (b.Current)
                             {
-                                <span>...</span>
+                                <span class="pager-current">@b.Text</span>
                             }
-                            else if (b.Current)
+                            else if (pageCode is null)
                             {
-                                <span class="pager-current">[@b.Text]</span>
+                                <span>@b.Text</span>
                             }
                             else
                             {
-                                <button class="textlink" @onclick="() => Activate(pageCode)">[@b.Text]</button>
+                                <button class="textlink" @onclick="() => Activate(pageCode, typed: true)">[@pageCode] @b.Text</button>
                             }
                         }
                     </span>
@@ -988,10 +988,11 @@
 
     void NewGame() { error = null; session = GameSession.NewGame(pack!); focusCommand = true; }
 
-    async Task Activate(string code)
+    /// <param name="typed">입력칸에 쓴 코드면 true, 눌러서 고른 항목이면 false(항목 코드가 페이지 버튼 코드 101~106과 겹치면 눌렀을 때는 항목, 입력했을 때는 페이지 버튼이 먼저다). 페이지 버튼을 누를 때는 true.</param>
+    async Task Activate(string code, bool typed = false)
     {
         error = null;
-        var entry = session!.Activate(code);
+        var entry = session!.Activate(code, typed);
         if (entry is null) error = $"알 수 없는 입력: {code}";
         else if (entry.Action == EntryAction.Save) await SaveGame();
         command = "";
@@ -1049,7 +1050,7 @@
         if (e.Key != "Enter") return;
         // 아무 키나 누르면 넘어가는 장면에서는 비어 있는 입력칸의 Enter도 넘깁니다.
         if (session is { AdvanceOnAnyKey: true } && string.IsNullOrWhiteSpace(command)) await Activate(GameSession.NextEventStepCode);
-        else await Activate(command);
+        else await Activate(command, typed: true);
     }
 
     async Task SaveGame() =>

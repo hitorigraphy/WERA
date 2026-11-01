@@ -16,7 +16,8 @@ public class PagerTests
         return s;
     }
 
-    static string Layout(GameSession s) => string.Concat(s.Pager.Select(b => b.Code is null ? "..." : $"[{b.Text}]"));
+    /// <summary>"[101] 1 ... [102] 4 [103] 5 6 [104] 7 [105] 8 ... [106] 12"처럼: 코드가 있는 버튼은 "[코드] 쪽", 지금 쪽과 "..."는 글자만.</summary>
+    static string Layout(GameSession s) => string.Join(" ", s.Pager.Select(b => b.Code is null ? b.Text : $"[{b.Code}] {b.Text}"));
 
     [Fact]
     public void A_list_up_to_twenty_has_one_page_and_no_pager()
@@ -35,43 +36,63 @@ public class PagerTests
         s.Activate("201");
         Assert.Equal(20, s.PageOf(s.Companions).Count);
         Assert.Equal(20, s.Entries.Count(e => e.Action == EntryAction.OpenDetail));
-        Assert.Equal("[1][2][3]", Layout(s));
+        Assert.Equal("1 [104] 2 [106] 3", Layout(s));
+        Assert.Equal(["104", "105", "106"], s.Entries.Where(e => e.Action == EntryAction.ListPage).Select(e => e.Code));
         Assert.Equal("999", s.Entries[^1].Code);                                    // 돌아가기는 늘 맨 끝
 
-        s.Activate("P3");
-        Assert.Equal(5, s.PageOf(s.Companions).Count);                              // 마지막 페이지는 나머지 5명
+        s.Activate("106");                                                          // 마지막 페이지
+        Assert.Equal(5, s.PageOf(s.Companions).Count);                              // 나머지 5명
         Assert.Equal(5, s.Entries.Count(e => e.Action == EntryAction.OpenDetail));
         Assert.Equal(s.PageOf(s.Companions).Select(c => c.Order.Trim('[', ']')), s.Entries.Where(e => e.Action == EntryAction.OpenDetail).Select(e => e.Code));
+        Assert.Equal("[101] 1 [103] 2 3", Layout(s));
     }
 
     [Fact]
-    public void The_pager_shows_the_first_page_two_pages_either_side_and_the_last_page_with_dots_between()
+    public void The_pager_codes_are_fixed_by_position_and_dots_fill_the_gaps()
     {
         var s = SessionWith(20 * 12);                                                // 12쪽
         s.Activate("201");
-        Assert.Equal("[1][2][3]...[12]", Layout(s));
-        s.Activate("P2");
-        Assert.Equal("[1][2][3][4]...[12]", Layout(s));
-        s.Activate("P6");
-        Assert.Equal("[1]...[4][5][6][7][8]...[12]", Layout(s));
-        Assert.Equal([false, false, false, true, false, false, false], s.Pager.Where(b => b.Code is not null).Select(b => b.Current));
-        s.Activate("P11");
-        Assert.Equal("[1]...[9][10][11][12]", Layout(s));
-        s.Activate("P12");
-        Assert.Equal("[1]...[10][11][12]", Layout(s));
+        Assert.Equal("1 [104] 2 [105] 3 ... [106] 12", Layout(s));
+        s.Activate("104");                                                           // 2쪽
+        Assert.Equal("[101] 1 2 [104] 3 [105] 4 ... [106] 12", Layout(s));
+        s.Activate("105"); s.Activate("105"); s.Activate("104");                     // +2, +2, +1: 2쪽에서 4쪽, 6쪽, 7쪽
+        Assert.Equal(7, s.ListPage + 1);
+        s.Activate("103");                                                           // 6쪽
+        Assert.Equal("[101] 1 ... [102] 4 [103] 5 6 [104] 7 [105] 8 ... [106] 12", Layout(s));
+        Assert.Equal([false, false, false, true, false, false, false], s.Pager.Where(b => b.Text != "...").Select(b => b.Current));
+        s.Activate("105"); s.Activate("105"); s.Activate("104");                     // 8쪽, 10쪽, 11쪽
+        Assert.Equal("[101] 1 ... [102] 9 [103] 10 11 [106] 12", Layout(s));
+        s.Activate("106");
+        Assert.Equal("[101] 1 ... [102] 10 [103] 11 12", Layout(s));
+        s.Activate("101");
+        Assert.Equal(0, s.ListPage);
     }
 
     [Fact]
-    public void Any_page_can_be_typed_and_entering_the_list_again_starts_on_the_first_page()
+    public void A_page_button_code_typed_wins_over_an_item_with_the_same_code_but_clicking_the_item_still_opens_it()
+    {
+        var s = SessionWith(120);                                                    // 동료 번호 0~119, 6쪽(100~119)에는 101~106도 항목이다
+        s.Activate("201");
+        s.Activate("106");
+        Assert.Equal(5, s.ListPage);
+        Assert.Contains(s.Entries, e => e.Action == EntryAction.OpenDetail && e.Code == "103");
+        s.Activate("103", typed: false);                                             // 눌렀을 때는 103번 동료의 상세
+        Assert.Equal(Screen.CharacterDetail, s.Screen);
+        s.Activate("999");
+        s.Activate("103");                                                           // 입력했을 때는 페이지 버튼: 5-1... 지금(6)-1 = 5쪽
+        Assert.Equal(Screen.CompanionCheck, s.Screen);
+        Assert.Equal(4, s.ListPage);
+    }
+
+    [Fact]
+    public void Entering_the_list_again_starts_on_the_first_page_and_a_detail_keeps_the_page()
     {
         var s = SessionWith(100);
         s.Activate("201");
-        s.Activate("P5");                                                            // 보이지 않는 페이지도 코드로 간다
-        Assert.Equal(4, s.ListPage);
-        Assert.Null(s.Activate("P6"));
+        s.Activate("106");
         Assert.Equal(4, s.ListPage);
 
-        s.Activate(s.Entries.First(e => e.Action == EntryAction.OpenDetail).Code);   // 상세에서 돌아오면 보던 페이지
+        s.Activate(s.Entries.First(e => e.Action == EntryAction.OpenDetail).Code, typed: false);   // 상세에서 돌아오면 보던 페이지
         Assert.Equal(Screen.CharacterDetail, s.Screen);
         s.Activate("999");
         Assert.Equal(4, s.ListPage);
@@ -87,8 +108,8 @@ public class PagerTests
         s.Activate("1");                                                             // 홈의 파트너 슬롯: 지정할 캐릭터 고르기
         Assert.Equal(Screen.SupportSelect, s.Screen);
         Assert.Equal(20, s.PageOf(s.SupportList).Count);
-        Assert.Equal("[1][2][3]", Layout(s));
-        s.Activate("P2");
+        Assert.Equal("1 [104] 2 [106] 3", Layout(s));
+        s.Activate("104");
         Assert.Equal(s.PageOf(s.SupportList).Where(c => c.Selectable).Select(c => c.Code.ToString()),
             s.Entries.Where(e => e.Action == EntryAction.SetSupport).Select(e => e.Code));
         Assert.NotEmpty(s.Entries.Where(e => e.Action == EntryAction.SetSupport));

@@ -771,12 +771,12 @@ public sealed partial class GameSession
     /// 코드(공백 무시)에 해당하는 항목을 수행하고 그 항목을 돌려준다. 없으면 null.
     /// 이동 항목은 화면을 바꾸고, 교환 항목은 인벤토리를 바꾸며, 세이브 항목은 호출한 쪽(UI)이 파일로 내보낸다.
     /// </summary>
-    public ScreenEntry? Activate(string code)
+    public ScreenEntry? Activate(string code, bool typed = true)
     {
         Message = null;
         if (Screen == Screen.PartyRename && code.Trim() != BackEntryCode) return RenamePartyTo(code);   // 쓴 글이 새 이름이다
         code = Normalize(code);
-        var entry = RawEntries.Concat(HomeSlotEntries).FirstOrDefault(e => e.Code == code) ?? PagerEntryFor(code);
+        var entry = (typed ? PagerEntryFor(code) : null) ?? RawEntries.Concat(HomeSlotEntries).FirstOrDefault(e => e.Code == code) ?? PagerEntryFor(code);
         if (entry is { Enabled: false }) return entry;       // 회색 항목은 눌러도 아무 반응이 없다
         RecordCommunicationCommand(entry);
         switch (entry?.Action)
