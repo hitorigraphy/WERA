@@ -30,7 +30,7 @@ public class ModTests
         (GamePack.UniqueItemStatusMasterPath, "item_code\tstatus_code\tinitial_value\tmin_value\tmax_value\n8001\t40\t10\t0\t99\n"),
         (GamePack.CommonItemInventoryMasterPath, "inventory_code\titem_name\tcarry_limit\n4\t철광석\t99\n"),
         (GamePack.ModSlotMasterPath, "code\tname\n" + slots),
-        (GamePack.UniqueItemModStatusMasterPath, "unique_item_code\t개조_slot_code\titem_code\tstatus_code\tvalue\n" + rows)));
+        (GamePack.UniqueItemModStatusMasterPath, "unique_item_code\tmod_slot_code\titem_code\tstatus_code\tvalue\n" + rows)));
 
     [Fact]
     public void The_mod_status_master_is_validated_at_load()

@@ -47,8 +47,8 @@ TSV 파일 묶음(zip 형식)이고 확장자는 **`.wra`**입니다(zip 압축 
 | `master/synthesis_flow_master_v1.tsv` | (선택) `execute_number`(키), `flow_type`(`SynthesisFlowType`), `value_1`, `value_2`, `value_3` — 유니크 아이템을 합성할 때 타겟과 제물에 실행하는 합성 흐름 |
 | `master/smelt_flow_master_v1.tsv` | (선택) `execute_number`(키), `flow_type`(`SmeltFlowType`), `value_1`, `value_2`, `value_3` — 유니크 아이템을 제련석으로 제련할 때 실행하는 제련 흐름(제련석 소모, 확률, 강화, 타겟 삭제) |
 | `master/unique_item_강화_status_master_v1.tsv` | (선택, 유니크 아이템 인벤토리/스테이터스 마스터 필요) `item_code`, `status_code`, `강화_level`, `value`(앞의 세 열이 키) — 유니크 아이템의 강화 레벨별로 스테이터스에 더하는 값. 강화를 영어로 어떻게 쓸지 정하기 전까지 파일 이름과 열 이름에 한글 `강화`를 그대로 씁니다 |
-| `master/개조_slot_master_v1.tsv` | (선택) `code`(키), `name` — 장비에 개조로 아이템을 끼우는 슬롯의 종류(개조를 영어로 어떻게 쓸지 정하기 전까지 한글 이름) |
-| `master/unique_item_개조_status_master_v1.tsv` | (선택, 유니크 아이템·개조 슬롯·커먼 아이템·스테이터스·유니크 아이템 스테이터스 마스터 필요) `unique_item_code`, `개조_slot_code`, `item_code`, `status_code`(앞의 네 열이 키), `value` — 그 장비의 그 개조 슬롯에 그 커먼 아이템을 끼우면 그 스테이터스에 더하는 값. 장비가 가진 개조 슬롯은 `unique_item_code`로, 슬롯에 끼울 수 있는 아이템은 `(unique_item_code, 개조_slot_code)`로 묶어 중복 없이 알아냅니다 |
+| `master/mod_slot_master_v1.tsv` | (선택) `code`(키), `name` — 장비에 개조로 아이템을 끼우는 슬롯의 종류(개조는 `mod`로 부름) |
+| `master/unique_item_mod_status_master_v1.tsv` | (선택, 유니크 아이템·개조 슬롯·커먼 아이템·스테이터스·유니크 아이템 스테이터스 마스터 필요) `unique_item_code`, `mod_slot_code`, `item_code`, `status_code`(앞의 네 열이 키), `value` — 그 장비의 그 개조 슬롯에 그 커먼 아이템을 끼우면 그 스테이터스에 더하는 값. 장비가 가진 개조 슬롯은 `unique_item_code`로, 슬롯에 끼울 수 있는 아이템은 `(unique_item_code, mod_slot_code)`로 묶어 중복 없이 알아냅니다 |
 | `master/after_hit_effect_master_v1.tsv` | (선택) `execute_number`(키), `effect_type`, `value_1`, `value_2`, `value_3` |
 | `master/after_attack_effect_master_v1.tsv` | (선택) `execute_number`(키), `effect_type`, `value_1`, `value_2`, `value_3` |
 | `master/after_battle_win_effect_master_v1.tsv` | (선택) `execute_number`(키), `effect_type`, `value_1`, `value_2`, `value_3` |

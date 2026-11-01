@@ -8,13 +8,13 @@ public sealed record ModSlotEntry(long Code, string Name);
 /// <summary>유니크 아이템 개조 스테이터스 마스터의 한 행: 유니크 아이템(UniqueItemCode)의 개조 슬롯(ModSlotCode)에 커먼 아이템(ItemCode)을 끼우면 이 스테이터스(StatusCode)에 더하는 값(Value).</summary>
 public sealed record UniqueItemModStatus(long UniqueItemCode, long ModSlotCode, long ItemCode, long StatusCode, long Value);
 
-// 개조_slot_master(code, name)와 unique_item_개조_status_master(unique_item_code, 개조_slot_code, item_code, status_code; 네 열이 키, value). 둘 다 선택이다.
-// 개조를 영어로 어떻게 쓸지 정하기 전까지 파일 이름과 열 이름에 한글 "개조"를 그대로 쓴다.
+// mod_slot_master(code, name)와 unique_item_mod_status_master(unique_item_code, mod_slot_code, item_code, status_code; 네 열이 키, value). 둘 다 선택이다.
+// 개조는 코드와 파일 이름에서 mod로 부른다.
 // 장비가 가진 개조 슬롯은 (유니크 아이템)으로, 슬롯에 끼울 수 있는 아이템은 (유니크 아이템, 개조 슬롯)으로 묶어 중복 없이 알아낸다.
 public sealed partial class GamePack
 {
-    public const string ModSlotMasterPath = "master/개조_slot_master_v1.tsv";
-    public const string UniqueItemModStatusMasterPath = "master/unique_item_개조_status_master_v1.tsv";
+    public const string ModSlotMasterPath = "master/mod_slot_master_v1.tsv";
+    public const string UniqueItemModStatusMasterPath = "master/unique_item_mod_status_master_v1.tsv";
 
     /// <summary>개조 슬롯 마스터(게임팩 파일 순서). 마스터가 없으면 null.</summary>
     public IReadOnlyList<ModSlotEntry>? ModSlots { get; init; }
@@ -61,7 +61,7 @@ public sealed partial class GamePack
         var owned = uniqueItemStatuses.Select(s => (s.OwnerCode, s.StatusCode)).ToHashSet();
         var rows = new List<UniqueItemModStatus>();
         var seen = new HashSet<(long, long, long, long)>();
-        foreach (var r in Body(file, text, "unique_item_code", "개조_slot_code", "item_code", "status_code", "value"))
+        foreach (var r in Body(file, text, "unique_item_code", "mod_slot_code", "item_code", "status_code", "value"))
         {
             var unique = ParseLong(file, "유니크 아이템 코드", r[0]);
             var who = $"유니크 아이템 '{unique}'의";
