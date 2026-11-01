@@ -169,16 +169,27 @@ public sealed partial class GameSession
     /// <summary>장비 확인 화면: 가진 장비마다 [OrderNumber]로 고르면 장비 상세 화면으로 간다.</summary>
     IReadOnlyList<ScreenEntry> EquipmentCheckEntries() => [.. EquipmentRowEntries(), new ScreenEntry(BackEntryCode, "돌아가기", CheckBackScreen)];
 
+    /// <summary>장비 강화 화면에서 골라 둔 작업(없으면 null)과, 그 작업으로 진행하는 장비의 인스턴스 ID.</summary>
+    public EnhanceMode? EnhanceMode { get; private set; }
+    public string? EnhanceTargetId { get; private set; }
+
+    /// <summary>장비 인스턴스의 이름(없으면 빈 글).</summary>
+    public string EquipmentName(string? instanceId) =>
+        instanceId is not null && UniqueItemInstances.TryGetValue(instanceId, out var i) ? Pack.FindUniqueItem(i.ItemCode)?.ItemName ?? Text(i.ItemCode) : "";
+
     IEnumerable<ScreenEntry> EquipmentRowEntries() =>
         OwnedUniqueItems.Select(i => new ScreenEntry(i.OrderNumber.ToString(CultureInfo.InvariantCulture), Pack.FindUniqueItem(i.ItemCode)?.ItemName ?? Text(i.ItemCode),
             Screen.EquipmentDetail, EntryAction.OpenDetail, $"E:{i.InstanceId}"));
 
-    /// <summary>장비 강화 화면: 가진 장비 목록(장비 확인과 같은 줄, 누르면 장비 상세)과 그 아래 강화/개조(아직 동작이 없어 회색).</summary>
+    /// <summary>
+    /// 장비 강화 화면: 가진 장비 목록(장비 확인과 같은 줄)과 그 아래 강화/개조. 강화/개조 중 하나를 먼저 골라 두면 장비를 눌러 그 장비로 진행하고,
+    /// 고르기 전에는 장비 줄이 회색이다.
+    /// </summary>
     IReadOnlyList<ScreenEntry> EquipmentEnhanceEntries() =>
     [
-        .. EquipmentRowEntries(),
-        new ScreenEntry(EnhanceEntryCode, "강화", Screen.EquipmentEnhance, Enabled: false),
-        new ScreenEntry(ModifyEntryCode, "개조", Screen.EquipmentEnhance, Enabled: false),
+        .. EquipmentRowEntries().Select(e => e with { Target = Screen.EquipmentEnhanceTarget, Action = EntryAction.PickEnhanceEquipment, Arg = e.Arg![2..], Enabled = EnhanceMode is not null }),
+        new ScreenEntry(EnhanceEntryCode, "강화", Screen.EquipmentEnhance, EntryAction.SelectEnhanceMode, nameof(Wera.Core.EnhanceMode.Enhance)),
+        new ScreenEntry(ModifyEntryCode, "개조", Screen.EquipmentEnhance, EntryAction.SelectEnhanceMode, nameof(Wera.Core.EnhanceMode.Modify)),
         new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home),
     ];
 

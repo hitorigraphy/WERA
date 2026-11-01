@@ -490,7 +490,21 @@
                 @* 위는 가진 장비 표(누르면 장비 상세)로, 항목이 적어도 20줄 자리를 비워 두어 구분선과 강화/개조의 위치가 늘 같다. 구분선 아래는 강화/개조(아직 동작 없음, 회색) *@
                 @entryTable(new TableSpec(ListEntries(e => e.Code is not (GameSession.EnhanceEntryCode or GameSession.ModifyEntryCode)), CodeNameWidths, [.. GameSession.EquipmentColumnNames], e => [e.Code, e.Label], GameSession.ListPageSize))
                 <div class="menu-separator"></div>
-                @entryList(session.Entries.Where(e => e.Code is GameSession.EnhanceEntryCode or GameSession.ModifyEntryCode))
+                @* 고른 작업(강화/개조)은 굵게 보인다 *@
+                <div class="entries">
+                    @foreach (var e in session.Entries.Where(e => e.Code is GameSession.EnhanceEntryCode or GameSession.ModifyEntryCode))
+                    {
+                        var code = e.Code;
+                        var chosen = session.EnhanceMode?.ToString() == e.Arg;
+                        <div><button class="textlink @(chosen ? "chosen" : "")" @onclick="() => Activate(code)">[@e.Code] @e.Label</button></div>
+                    }
+                </div>
+                break;
+
+            case Screen.EquipmentEnhanceTarget:
+                <h2>@(session.EnhanceMode == EnhanceMode.Modify ? "개조" : "강화")</h2>
+                <p>@session.EquipmentName(session.EnhanceTargetId)</p>
+                @commands
                 break;
 
             case Screen.Event:

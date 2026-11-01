@@ -87,6 +87,8 @@ public enum Screen
     /// <summary>선택한 상점의 교환 목록.</summary>
     ShopTrades,
     Load,
+    /// <summary>강화/개조를 고른 장비로 진행하는 화면(내용은 아직 없다).</summary>
+    EquipmentEnhanceTarget,
 }
 
 public enum EntryAction
@@ -171,7 +173,14 @@ public enum EntryAction
     OpenDetail,
     /// <summary>상세 화면의 돌아가기: 상세 화면을 열기 전의 화면과 그 화면이 보던 것으로 돌아간다.</summary>
     CloseDetail,
+    /// <summary>장비 강화 화면에서 강화/개조 중 하나를 골라 둔다(Arg = EnhanceMode 이름). 화면은 그대로다.</summary>
+    SelectEnhanceMode,
+    /// <summary>골라 둔 강화/개조로 진행할 장비를 고른다(Arg = 장비 인스턴스 ID).</summary>
+    PickEnhanceEquipment,
 }
+
+/// <summary>장비 강화 화면에서 먼저 골라 두는 작업.</summary>
+public enum EnhanceMode { Enhance, Modify }
 
 /// <summary>화면에 나오는 클릭 가능한 텍스트. 클릭하거나 Code를 입력하면 Action을 수행한다.</summary>
 /// <param name="Arg">항목이 가리키는 추가 값(파티 슬롯 항목에서는 슬롯 번호 0~8).</param>
@@ -696,6 +705,8 @@ public sealed partial class GameSession
                     return [new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home)];
                 case Screen.EquipmentEnhance:
                     return EquipmentEnhanceEntries();
+                case Screen.EquipmentEnhanceTarget:
+                    return [new ScreenEntry(BackEntryCode, "돌아가기", Screen.EquipmentEnhance)];
                 case Screen.Event:
                     // 조건을 만족하는 이벤트를 코드로 입력하거나 클릭하면 시작한다.
                     return AvailableEvents
@@ -807,7 +818,15 @@ public sealed partial class GameSession
                     CurrentCommunicationGroupCode = CommunicationGroups.FirstOrDefault()?.Code;   // 들어가면 가장 작은 그룹이 선택되고
                     communicationHistory.Clear();                                                  // 이력은 비어 있다
                 }
+                if (entry.Target == Screen.EquipmentEnhance && Screen != Screen.EquipmentEnhanceTarget) EnhanceMode = null;   // 강화 화면에 새로 들어오면 아무것도 골라 두지 않은 상태다
                 if (entry.Target != Screen || IsDebugAddScreen(entry.Target)) ListPage = 0;       // 목록 화면에 들어오면 첫 페이지다
+                Screen = entry.Target;
+                break;
+            case EntryAction.SelectEnhanceMode:
+                EnhanceMode = Enum.Parse<EnhanceMode>(entry.Arg!);
+                break;
+            case EntryAction.PickEnhanceEquipment:
+                EnhanceTargetId = entry.Arg;
                 Screen = entry.Target;
                 break;
             case EntryAction.OpenDetail:

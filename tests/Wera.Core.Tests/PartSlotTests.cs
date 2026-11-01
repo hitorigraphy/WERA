@@ -179,16 +179,31 @@ public class PartSlotTests
     }
 
     [Fact]
-    public void The_equipment_enhance_screen_lists_the_equipment_then_gray_enhance_and_modify()
+    public void The_equipment_enhance_screen_needs_a_mode_first_then_a_picked_equipment_proceeds()
     {
         var s = GameSession.NewGame(SamplePack());
         var id = s.AddUniqueItem(8001)!;
         s.Activate(GameSession.EquipmentEnhanceEntryCode);
         Assert.Equal(["순례자의 은단검", "철검", "강화", "개조", "돌아가기"], s.Entries.Select(e => e.Label));
-        Assert.All(s.Entries.Where(e => e.Code is "901" or "902"), e => Assert.False(e.Enabled));
-        Assert.Equal(Screen.EquipmentEnhance, s.Activate("901")!.Target);
+        Assert.Null(s.EnhanceMode);
+        var sword = s.Entries.First(e => e.Label == "철검");
+        Assert.False(sword.Enabled);                                                        // 작업을 고르기 전에는 장비를 못 누른다
+        s.Activate(sword.Code);
         Assert.Equal(Screen.EquipmentEnhance, s.Screen);
-        Assert.Equal(Screen.EquipmentDetail, s.Activate(s.Entries.First(e => e.Label == "철검").Code)!.Target);
-        Assert.Equal(Screen.EquipmentEnhance, s.Activate("999")!.Target);                  // 상세에서 돌아오면 강화 화면
+
+        s.Activate("901");
+        Assert.Equal(EnhanceMode.Enhance, s.EnhanceMode);
+        s.Activate("902");
+        Assert.Equal(EnhanceMode.Modify, s.EnhanceMode);                                    // 다른 쪽을 누르면 바뀐다
+        Assert.True(s.Entries.First(e => e.Label == "철검").Enabled);
+        s.Activate(sword.Code);
+        Assert.Equal(Screen.EquipmentEnhanceTarget, s.Screen);
+        Assert.Equal(id, s.EnhanceTargetId);
+        Assert.Equal("철검", s.EquipmentName(s.EnhanceTargetId));
+        Assert.Equal(Screen.EquipmentEnhance, s.Activate("999")!.Target);
+        Assert.Equal(EnhanceMode.Modify, s.EnhanceMode);                                    // 돌아와도 고른 작업은 그대로
+        s.Activate("999");
+        s.Activate(GameSession.EquipmentEnhanceEntryCode);
+        Assert.Null(s.EnhanceMode);                                                         // 새로 들어오면 비어 있다
     }
 }
