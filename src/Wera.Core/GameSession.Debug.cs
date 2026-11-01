@@ -16,12 +16,8 @@ public sealed partial class GameSession
     public const string DebugAddEquipmentEntryCode = "402";
     public const string DebugAddItemEntryCode = "403";
 
-    /// <summary>추가 화면의 [101] 이전 페이지, [102] 다음 페이지(항목은 페이지 안의 번호 [1]~[20]).</summary>
-    public const string DebugPreviousPageEntryCode = "101";
-    public const string DebugNextPageEntryCode = "102";
-
-    /// <summary>디버그 추가 화면에서 보고 있는 페이지(0부터). 추가 화면에 들어올 때마다 0으로 돌아간다.</summary>
-    public int DebugPage { get; private set; }
+    /// <summary>디버그 추가 화면에서 보고 있는 페이지(0부터). 추가 화면에 들어올 때마다 0으로 돌아간다(항목은 페이지 안의 번호 [1]~[20], 페이지는 하단의 페이지 버튼).</summary>
+    public int DebugPage => ListPage;
 
     /// <summary>[404] 스킬 추가: 먼저 스킬을 받을 가진 캐릭터를 고르고, 그 캐릭터의 스킬 풀에 마스터의 스킬을 하나씩 더한다.</summary>
     public const string DebugAddSkillEntryCode = "404";
@@ -44,10 +40,10 @@ public sealed partial class GameSession
     };
 
     /// <summary>디버그 목록의 페이지 수(항목이 없어도 1).</summary>
-    public int DebugPageCount => Math.Max(1, (DebugList.Count + DebugPageSize - 1) / DebugPageSize);
+    public int DebugPageCount => PageCountOf(DebugList.Count);
 
     /// <summary>지금 페이지의 항목들(최대 <see cref="DebugPageSize"/>개).</summary>
-    public IReadOnlyList<DebugListItem> DebugPageItems => DebugList.Skip(DebugPage * DebugPageSize).Take(DebugPageSize).ToList();
+    public IReadOnlyList<DebugListItem> DebugPageItems => PageOf(DebugList);
 
     IReadOnlyList<ScreenEntry> DebugEntries()
     {
@@ -67,13 +63,10 @@ public sealed partial class GameSession
             .Select((item, i) => picking
                 ? new ScreenEntry(Text(i + 1), $"{item.Name} ({item.Code})", Screen.DebugAddSkill, EntryAction.DebugSelectSkillCharacter, Text(item.Code))
                 : new ScreenEntry(Text(i + 1), $"{item.Name} ({item.Code})", Screen, EntryAction.DebugAdd, Text(item.Code)))
-            .Append(new ScreenEntry(DebugPreviousPageEntryCode, "이전 페이지", Screen, EntryAction.DebugPage, "-1", Enabled: DebugPage > 0))
-            .Append(new ScreenEntry(DebugNextPageEntryCode, "다음 페이지", Screen, EntryAction.DebugPage, "1", Enabled: DebugPage < DebugPageCount - 1))
+            .Concat(PagerEntries(DebugList.Count))
             .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen == Screen.DebugAddSkill ? Screen.DebugSkillCharacter : Screen.Debug))
             .ToList();
     }
-
-    void ChangeDebugPage(int delta) => DebugPage = Math.Clamp(DebugPage + delta, 0, DebugPageCount - 1);
 
     /// <summary>항목의 마스터 코드로 하나 추가하고 결과 안내를 돌려준다: 캐릭터는 이미 가졌으면 못 얻고, 아이템은 소지 한도에서 멈춘다.</summary>
     string DebugAddOne(long code)

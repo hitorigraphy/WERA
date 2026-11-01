@@ -67,17 +67,17 @@ public class DebugScreenTests
         Assert.Equal(45, s.DebugList.Count);
         Assert.Equal(3, s.DebugPageCount);
         Assert.Equal(Enumerable.Range(1, 20).Select(i => i.ToString()), s.Entries.Where(e => e.Action == EntryAction.DebugAdd).Select(e => e.Code));
-        Assert.False(s.Entries.Single(e => e.Code == "101").Enabled);            // 첫 페이지에는 이전이 없다
-        Assert.True(s.Entries.Single(e => e.Code == "102").Enabled);
+        Assert.Equal(["P1", "P2", "P3"], s.Entries.Where(e => e.Action == EntryAction.ListPage).Select(e => e.Code));
+        Assert.False(s.Entries.Single(e => e.Code == "P1").Enabled);             // 지금 페이지는 고를 수 없다
 
-        s.Activate("102");
-        s.Activate("102");
+        s.Activate("P2");
+        s.Activate("P3");
         Assert.Equal(2, s.DebugPage);
         Assert.Equal(5, s.Entries.Count(e => e.Action == EntryAction.DebugAdd));  // 마지막 페이지는 나머지 5개
-        Assert.False(s.Entries.Single(e => e.Code == "102").Enabled);
-        s.Activate("102");                                                        // 끝에서는 더 넘어가지 않는다
+        Assert.False(s.Entries.Single(e => e.Code == "P3").Enabled);
+        Assert.Null(s.Activate("P4"));                                            // 없는 페이지로는 가지 못한다
         Assert.Equal(2, s.DebugPage);
-        s.Activate("101");
+        s.Activate("p2");                                                         // 소문자도 된다
         Assert.Equal(1, s.DebugPage);
 
         s.Activate("999");                                                        // 다시 들어오면 첫 페이지

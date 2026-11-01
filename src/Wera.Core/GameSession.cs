@@ -165,8 +165,8 @@ public enum EntryAction
     DebugAdd,
     /// <summary>디버그 스킬 추가에서 스킬을 받을 캐릭터(Arg = 캐릭터 코드)를 고른다.</summary>
     DebugSelectSkillCharacter,
-    /// <summary>디버그 추가 화면의 페이지를 넘긴다(Arg = -1 이전, 1 다음).</summary>
-    DebugPage,
+    /// <summary>목록 화면의 페이지를 옮긴다(Arg = 페이지 번호, 1부터). 화면은 그대로다.</summary>
+    ListPage,
     /// <summary>상세 화면을 연다(Arg = "C:캐릭터 코드", "S:파티 슬롯", "E:장비 인스턴스 ID", "I:아이템 코드", "K:스킬 코드"). 연 화면이 돌아갈 화면이 된다.</summary>
     OpenDetail,
     /// <summary>상세 화면의 돌아가기: 상세 화면을 열기 전의 화면과 그 화면이 보던 것으로 돌아간다.</summary>
@@ -588,8 +588,11 @@ public sealed partial class GameSession
         }
     }
 
-    /// <summary>현재 화면에서 클릭하거나 코드를 입력할 수 있는 텍스트들.</summary>
-    public IReadOnlyList<ScreenEntry> Entries
+    /// <summary>현재 화면에서 클릭하거나 코드를 입력할 수 있는 텍스트들. 목록 화면은 지금 페이지의 항목과 페이지 버튼만 담는다(<see cref="Paginate"/>).</summary>
+    public IReadOnlyList<ScreenEntry> Entries => Paginate(RawEntries);
+
+    /// <summary>페이지로 자르기 전의 화면 항목들: 목록 화면의 모든 항목이 들어 있다.</summary>
+    IReadOnlyList<ScreenEntry> RawEntries
     {
         get
         {
@@ -773,7 +776,7 @@ public sealed partial class GameSession
         Message = null;
         if (Screen == Screen.PartyRename && code.Trim() != BackEntryCode) return RenamePartyTo(code);   // 쓴 글이 새 이름이다
         code = Normalize(code);
-        var entry = Entries.Concat(HomeSlotEntries).FirstOrDefault(e => e.Code == code);
+        var entry = RawEntries.Concat(HomeSlotEntries).FirstOrDefault(e => e.Code == code) ?? PagerEntryFor(code);
         if (entry is { Enabled: false }) return entry;       // 회색 항목은 눌러도 아무 반응이 없다
         RecordCommunicationCommand(entry);
         switch (entry?.Action)
@@ -795,7 +798,7 @@ public sealed partial class GameSession
                     CurrentCommunicationGroupCode = CommunicationGroups.FirstOrDefault()?.Code;   // 들어가면 가장 작은 그룹이 선택되고
                     communicationHistory.Clear();                                                  // 이력은 비어 있다
                 }
-                if (IsDebugAddScreen(entry.Target)) DebugPage = 0;       // 추가 화면에 들어오면 첫 페이지다
+                if (entry.Target != Screen || IsDebugAddScreen(entry.Target)) ListPage = 0;       // 목록 화면에 들어오면 첫 페이지다
                 Screen = entry.Target;
                 break;
             case EntryAction.OpenDetail:
@@ -863,11 +866,11 @@ public sealed partial class GameSession
                 break;
             case EntryAction.DebugSelectSkillCharacter:
                 DebugSkillTarget = long.Parse(entry.Arg!, CultureInfo.InvariantCulture);
-                DebugPage = 0;
+                ListPage = 0;
                 Screen = entry.Target;
                 break;
-            case EntryAction.DebugPage:
-                ChangeDebugPage(int.Parse(entry.Arg!, CultureInfo.InvariantCulture));
+            case EntryAction.ListPage:
+                ListPage = int.Parse(entry.Arg!, CultureInfo.InvariantCulture) - 1;
                 break;
             case EntryAction.ToggleLeader:
                 ToggleLeader(int.Parse(entry.Arg!, CultureInfo.InvariantCulture));

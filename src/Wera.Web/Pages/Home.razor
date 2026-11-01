@@ -10,7 +10,7 @@
     // 클릭 가능한 텍스트 목록. 항목마다 [코드]가 붙고, 그 코드를 입력해도 같은 동작을 한다.
     // [999] 돌아가기는 목록에 넣지 않는다: 모든 화면에서 같은 자리(코드 입력줄 바로 위 오른쪽)에 따로 나온다.
     RenderFragment<IEnumerable<ScreenEntry>> entryList = entries => @<div class="entries">
-        @foreach (var entry in entries.Where(e => e.Code != GameSession.BackEntryCode))
+        @foreach (var entry in entries.Where(e => e.Code != GameSession.BackEntryCode && e.Action != EntryAction.ListPage))
         {
             var code = entry.Code;
             <div><button class="textlink" disabled="@(!entry.Enabled)" @onclick="() => Activate(code)">[@entry.Code] @if (entry.LabelHtml is { } html) { @((MarkupString)html) } else { @entry.Label }</button></div>
@@ -391,7 +391,7 @@
                 @entryList(session.Entries.Where(e => e.Code == GameSession.ClearEntryCode))
                 @* 흰색: 지정 가능, 회색: 보유하지 않음, (이 슬롯의 캐릭터는 목록에 없음), 파란색: 다른 쪽 슬롯의 캐릭터(고르면 서로 바뀐다) *@
                 <ul class="character-list">
-                    @foreach (var c in session.SupportList)
+                    @foreach (var c in session.PageOf(session.SupportList))
                     {
                         var supportCode = c.Code.ToString();
                         var supportClass = "char-" + c.Color.ToString().ToLowerInvariant();
@@ -415,7 +415,7 @@
                 @entryList(session.Entries.Where(e => e.Code == GameSession.ClearEntryCode))
                 @* 흰색: 배치 가능, 회색: 배치 불가, (이 슬롯의 캐릭터는 목록에 없음), 파란색: 이미 배치된 파티원(고르면 위치 교환) *@
                 <ul class="character-list">
-                    @foreach (var c in session.CharacterList)
+                    @foreach (var c in session.PageOf(session.CharacterList))
                     {
                         var charCode = c.Code.ToString();
                         var colorClass = "char-" + c.Color.ToString().ToLowerInvariant();
@@ -658,7 +658,7 @@
                 <h2>동료 확인</h2>
                 @* 지금 가진 캐릭터(당신 포함)를 OrderNumber순, 같으면 인스턴스 ID순으로. 줄을 누르면(또는 번호를 입력하면) 캐릭터 상세 화면으로 간다 *@
                 <ul class="companions">
-                    @foreach (var (r, entry) in session.Companions.Zip(session.Entries))
+                    @foreach (var (r, entry) in session.PageOf(session.Companions).Zip(session.Entries))
                     {
                         var code = entry.Code;
                         @* 코드 칸은 반각 8칸, 이름 칸은 32칸, Lv/Hp/Xpp 칸은 8칸씩 고정 너비(ch)라 글꼴에서 한글 폭이 달라도 칸이 맞는다 *@
@@ -671,7 +671,7 @@
                 <h2>장비 확인</h2>
                 @* 지금 가진 장비(유니크 아이템)를 OrderNumber순, 같으면 인스턴스 ID순으로 "[순서 번호] 이름". 줄을 누르면 장비 상세 화면으로 간다 *@
                 <ul class="companions">
-                    @foreach (var (e, entry) in session.Equipments.Zip(session.Entries))
+                    @foreach (var (e, entry) in session.PageOf(session.Equipments).Zip(session.Entries))
                     {
                         var code = entry.Code;
                         <li><button class="textlink row-link" @onclick="() => Activate(code)"><span class="companion-cell" style="width: @(GameSession.CompanionCodeColumns)ch">@e.Order</span> <span class="companion-cell" style="width: @(GameSession.CompanionNameColumns)ch">@e.Name</span></button></li>
@@ -683,7 +683,7 @@
                 <h2>아이템 확인</h2>
                 @* 지금 가진 커먼 아이템을 인벤토리 마스터 순서대로 "[아이템 코드] 이름 수량 N". 줄을 누르면 아이템 상세 화면으로 간다 *@
                 <ul class="companions">
-                    @foreach (var (r, entry) in session.Items.Zip(session.Entries))
+                    @foreach (var (r, entry) in session.PageOf(session.Items).Zip(session.Entries))
                     {
                         var code = entry.Code;
                         <li><button class="textlink row-link" @onclick="() => Activate(code)"><span class="companion-cell" style="width: @(GameSession.CompanionCodeColumns)ch">@r.Code</span> <span class="companion-cell" style="width: @(GameSession.CompanionNameColumns)ch">@r.Name</span> <span class="companion-cell" style="width: @(GameSession.ItemAmountColumns)ch">@r.Amount</span></button></li>
@@ -830,9 +830,32 @@
         @* 교류 화면에서는 같은 줄 왼쪽에 이력(직전 커맨드 < 그전 커맨드 < …)이 나온다 *@
         var back = session.Entries.FirstOrDefault(e => e.Code == GameSession.BackEntryCode);
         var showHistory = session.Screen == Screen.Interaction;
-        @if (back is not null || showHistory)
+        @* 목록 화면이 한 페이지(20개)를 넘으면 같은 줄 왼쪽에 페이지 버튼이 나온다: [1]...[N-2][N-1][N][N+1][N+2]...[마지막] *@
+        var pager = session.Pager;
+        @if (back is not null || showHistory || pager.Count > 0)
         {
             <div class="@(showHistory ? "back-bar ruled" : "back-bar")">
+                @if (pager.Count > 0)
+                {
+                    <span class="pager">
+                        @foreach (var b in pager)
+                        {
+                            var pageCode = b.Code;
+                            @if (pageCode is null)
+                            {
+                                <span>...</span>
+                            }
+                            else if (b.Current)
+                            {
+                                <span class="pager-current">[@b.Text]</span>
+                            }
+                            else
+                            {
+                                <button class="textlink" @onclick="() => Activate(pageCode)">[@b.Text]</button>
+                            }
+                        }
+                    </span>
+                }
                 @if (showHistory)
                 {
                     <span class="history">이력 : @string.Join(" > ", session.CommunicationHistory)</span>
