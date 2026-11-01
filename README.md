@@ -13,6 +13,7 @@ TSV 파일 묶음(zip 형식)이고 확장자는 **`.wra`**입니다(zip 압축 
 
 | 파일 | 내용 |
 |---|---|
+| `master/pack_master_v1.tsv` | (선택, 바깥 팩에만) 모드: `order_number`, `pack_file` — 중첩 게임팩을 순서대로 합쳐 읽음(아래 **모드**) |
 | `pack.tsv` | `key`/`value` 행: `id`, `title`, 선택 `debug_start_unique_items`(디버깅용: 새 게임이 시작할 때 한 개씩 얻는 유니크 아이템 코드들, 쉼표로 구분; 유니크 아이템 마스터에 있어야 함) |
 | `master/dungeon_master_v1.tsv` | (선택) `code`, `name`, (선택 열 셋) `entry_layer_number`, `entry_pos_x`, `entry_pos_y`, (선택 열) `encounter_rate` |
 | `master/dungeon_flag_master_v1.tsv` | (선택) `dungeon_code`, `group_number`, `flag_code`, `condition_type`, `condition_value` |
@@ -287,6 +288,23 @@ TSV 파일 묶음(zip 형식)이고 확장자는 **`.wra`**입니다(zip 압축 
 - 로드할 때 이미지 마스터가 가리키는 파일만(같은 파일은 한 번만) 바이트로 읽어 메모리에 둡니다. 마스터가 가리키지 않는 파일은 무시합니다(오류도 경고도 없음). 웹에서는 이미지마다 data URL을 한 번만 만들어 씁니다.
 - 이미지가 없는 대상(마스터가 없거나 행이 없음)은 `No Image` 기본 이미지로 나옵니다. 이것이 모든 곳의 대체 표시입니다.
 - 이미지 칸은 비율을 지켜 칸 안에 맞춥니다(`object-fit: contain`): 슬롯 이미지와 ADV 화자 이미지는 4줄 높이 정사각형, 속성·상태이상 아이콘은 1줄 높이 정사각형, 상세 화면은 300×600px입니다. 예시 팩에는 캐릭터 1(변형 0, 1)과 7001, 약초(커먼 아이템 3), 불 속성, 대장간 시설의 작은 PNG가 있습니다(`samples/sample-pack/image`).
+
+### 모드 (중첩 게임팩)
+
+게임팩(`.wra`) 안에 다른 게임팩들을 넣을 수 있습니다. 바깥 팩의 **`master/pack_master_v1.tsv`**(선택)가 어느 파일을 어떤 순서로 쓸지 정합니다. 예: `mainPack`, `mod1`, `mod2`를 한 바깥 팩 `mainPack2`로 묶어 하나의 게임팩처럼 불러옵니다. `pack_master`가 없으면 아무것도 하지 않고 지금까지와 똑같이 읽습니다.
+
+| 열 | 뜻 |
+|---|---|
+| `order_number` | 적용 순서(정수, 팩마다 달라야 함). **작은 번호부터 차례로 얹고, 나중 팩이 앞선 팩을 덮어씁니다.** zip 안의 파일 순서나 `pack_master`의 줄 순서는 상관없습니다 |
+| `pack_file` | 바깥 zip 안의 중첩 팩 파일 경로(예: `packs/mod1.wra`; 슬래시 구분, 대소문자 구분, 맨 앞 `/`와 `..` 불가). 읽을 수 있는 zip이어야 합니다 |
+
+- **합치기 규칙**(로더보다 앞서 텍스트로 합치고, 합친 결과를 기존 로더가 그대로 읽으므로 **모든 검증이 합친 결과에 적용됩니다**): 어느 팩에든 한 곳에만 있는 파일은 그대로 쓰고, 같은 경로의 마스터 TSV가 둘 이상이면 하나로 합칩니다. 열은 **헤더 이름**으로 맞추므로 열 순서가 달라도 되고(앞 팩의 순서를 지키고 새 열은 뒤에 붙음), 어떤 팩에 없는 열은 빈 칸으로 채웁니다(선택 열을 모드가 더해도 됨). 같은 **키**의 행은 나중 팩의 행이 앞 팩의 행을 **통째로** 덮어쓰고(자리는 원래 행의 자리, 열의 값은 새 행의 것이라 모드 행에 없는 열은 비게 됨), 새 키의 행은 뒤에 붙습니다. 같은 팩 안에서 키가 겹치면 덮지 않고 그대로 두어 로더가 중복 오류를 냅니다. 메모 열은 합칠 때 버립니다. 이미지 등 TSV가 아닌 파일은 같은 경로면 나중 팩의 것이 이깁니다.
+- **키**: 마스터마다 행을 알아보는 열이 정해져 있습니다(이 문서 각 마스터의 키와 같음; 코드는 `PackMasterKeys.All`). 정수 칸은 `01`과 `1`을 같게, 이름 칸은 대소문자를 가리지 않고 비교합니다(던전 맵의 글자 `local_tile_text`만 대소문자 구분). 로더가 따로 유일성을 요구하는 두 번째 키가 있는 마스터는 그 키로 겹쳐도 덮어씁니다: `image_master`의 `(kind, target_code, variation_number)`(image_code가 달라도 같은 대상의 이미지가 덮임), `unique_item_mod_skill_master`의 `(unique_item_code, priority)`, `hideout_defense_enemy_master`의 `priority`. 열 순서가 정해진 `dungeon_master`는 합친 뒤 `code, name, entry_layer_number, entry_pos_x, entry_pos_y, encounter_rate` 순으로 놓습니다.
+- **바깥 팩 자신의 파일이 가장 나중**에 적용됩니다(`pack.tsv`, `master/*`, `image/*` 모두). 중첩 팩만 담은 순수한 래퍼도, 바깥 팩이 직접 몇 줄을 덮어쓰는 것도 됩니다. **`pack.tsv`는 바깥 팩의 것만** 씁니다(`id`, `title` 필수는 그대로; 중첩 팩의 `pack.tsv`는 읽지 않고 `GamePack.Layers`의 표시에만 씀).
+- **한계**: 중첩 팩 안에 `pack_master`를 둘 수 없습니다(재귀 없음). 팩 개수 최대 32개(`GamePack.MaxNestedPacks`), 중첩 팩 파일 하나는 64MB 이하(`MaxNestedPackBytes`; 메모리에 읽어 엽니다). **행을 지우는 기능은 없습니다**(덮어쓰기와 추가만). 흐름이나 이펙트처럼 한 소유자의 줄들이 여럿인 마스터는 줄 단위(소유자+번호)로 덮이므로 모드가 한 이벤트의 일부 줄만 바꾸면 나머지 줄은 앞 팩의 것이 남습니다(번호를 맞춰 쓰세요). **세이브는 이 구성과 무관하게 바깥 팩 `id`에만 묶이고**, 모드 구성이 바뀐 세이브의 호환은 지원하지 않습니다(코드가 어긋나면 불러올 때 검증이 거부할 수 있음).
+- **새 마스터를 만들면 `PackMasterKeys.All`에 그 키를 꼭 등록합니다.** 테스트가 `GamePack`의 모든 `...MasterPath` 상수가 등록됐는지, 샘플 팩의 모든 마스터의 키 열이 헤더에 있는지 확인합니다. 키가 없는 마스터(더 이상 쓰이지 않는 옛 마스터)는 `AppendOnly`로 등록해 이어 붙입니다.
+- **진단**: `GamePack.Layers`가 적용된 레이어를 순서대로(중첩 팩들을 `order_number` 순, 마지막이 바깥 팩) `(Name, OrderNumber, Id, Title)`로 돌려줍니다. `pack_master`가 없으면 바깥 팩 하나뿐입니다.
+- **만드는 법**: 폴더에 `pack.tsv`, `master/pack_master_v1.tsv`, `packs/*.wra`를 두고 `python tools/zip-wrapper-pack.py <폴더> <출력.wra>`를 돌립니다(이미 압축된 `.wra`는 다시 압축하지 않고 폴더의 상대 경로 그대로 넣고, `pack_master`가 가리키는 파일이 있는지 확인). 예: `pack_master_v1.tsv`가 `order_number<TAB>pack_file` 아래에 `1<TAB>packs/main.wra`, `2<TAB>packs/mod1.wra`를 적으면 main 위에 mod1이 얹힙니다.
 
 ## 구조
 - `src/Wera.Core` — 게임팩 로딩, 세션, 세이브 (브라우저 비의존)

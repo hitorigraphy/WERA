@@ -104,7 +104,7 @@ public sealed partial class GamePack
     public const string CommunicationDefaultFlowMasterPath = "master/communication_default_flow_master_v1.tsv";
 
     /// <summary>communication_solo_flow_master로 이름이 바뀐 이전 파일 이름.</summary>
-    const string OldCommunicationFlowMasterPath = "master/communication_flow_master_v1.tsv";
+    internal const string OldCommunicationFlowMasterPath = "master/communication_flow_master_v1.tsv";
 
     /// <summary>교류 그룹 마스터(게임팩 파일 순서). 마스터가 없으면 null.</summary>
     public IReadOnlyList<CommunicationGroupEntry>? CommunicationGroups { get; init; }

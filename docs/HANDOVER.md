@@ -41,6 +41,8 @@ dotnet test tests/Wera.Core.Tests      # 코어 테스트만(pages.yml이 쓰는
 dotnet run --project src/Wera.Web      # 로컬 실행
 ```
 
+**모드를 묶은 바깥 팩 만들기:** `python tools/zip-wrapper-pack.py <폴더> <출력.wra>`(폴더에 `pack.tsv`, `master/pack_master_v1.tsv`, 중첩 `.wra`들; §4.1a).
+
 **샘플 게임팩 다시 만들기**(원본 `samples/sample-pack`을 고쳤다면 반드시): 저장소 루트에서 `python tools/zip-sample-pack.py`를 돌립니다. `pack.tsv`, `master/*`, `image/**`를 최상위 폴더 없이 `sample-pack.wra`로 묶습니다.
 
 **주의:** zip 안의 항목 이름은 정확히 `pack.tsv`, `master/<이름>_v1.tsv`(이미지는 이미지 마스터의 `file` 경로, 관례상 `image/…`)여야 합니다(최상위 폴더로 한 번 더 감싸면 안 됨; 구분자는 `/`, `\` 둘 다 찾음, 대소문자 구분). 윈도에서 폴더를 통째로 압축하면 최상위 폴더가 생겨 로드에 실패하니 `tools/zip-sample-pack.py`처럼 항목 이름을 직접 지정해서 만드세요.
@@ -76,6 +78,8 @@ dotnet run --project src/Wera.Web      # 로컬 실행
 
 ### 2.0 `pack.tsv`
 `key`/`value` 행(헤더는 필요 없음, 두 칸짜리 행들): `id`(필수, 문자열), `title`(필수), `debug_start_unique_items`(선택: 새 게임이 시작할 때 한 개씩 얻는 유니크 아이템 코드들, 쉼표 구분, 유니크 아이템 마스터에 있어야 함). 샘플은 `debug_start_unique_items = 8007`.
+
+`master/pack_master_v1.tsv`(선택, **바깥 팩에만**)는 다른 게임팩들을 안에 넣어 합쳐 읽는 모드 기능의 목록입니다(`order_number`, `pack_file`; §4.1a). 일반 게임팩에는 필요 없습니다.
 
 ### 2.1 게임 설정·태그·스테이터스·속성
 
@@ -340,6 +344,12 @@ hideout_defense_enemy ──▶ preset_party;  (+ ThreatFlagCode 설정)
 ### 4.1 게임팩 형식 (`.wra`)
 zip(UTF-8 TSV). 항목: `pack.tsv` + `master/*_v1.tsv`. `GamePack.Load(Stream)`이 모든 마스터를 읽고 검증해 읽기 전용 `GamePack`(마스터 테이블, 조회 함수)을 만듭니다. 조회는 `GamePack.Find*`/`*Of` 계열(예: `FindCharacter`, `FindItem`, `FindSkill`, `SkillExecuteEffectsOf`, `FacilityFlowsOf`).
 
+### 4.1a 모드 (중첩 게임팩, `pack_master`)
+바깥 팩의 `master/pack_master_v1.tsv`(열 `order_number`, `pack_file`)가 zip 안의 중첩 `.wra`들을 `order_number` 순으로 얹고, 같은 마스터는 헤더 이름으로 열을 맞춰 합치며, **같은 키의 행은 나중 팩이 통째로 덮어씁니다**(바깥 팩 자신의 파일이 가장 나중). 로더보다 앞서 텍스트로 합쳐 메모리 zip을 만들고 기존 로더에 그대로 넘기므로 합친 결과 전체가 검증됩니다. `pack_master`가 없으면 아무것도 바뀌지 않습니다. 자세한 규칙·한계는 README의 **모드 (중첩 게임팩)**.
+- **핵심:** `pack.tsv`는 바깥 팩의 것만 씀(id/title). 중첩 팩 안에 `pack_master` 금지(재귀 없음). 팩 최대 32개, 파일당 64MB. 행 삭제 기능 없음(덮어쓰기·추가만). 세이브는 바깥 팩 `id`에만 묶이고 모드 구성이 달라진 세이브의 호환은 지원하지 않음.
+- **키 등록(중요):** 어떤 열이 키인지는 `src/Wera.Core/PackMasterKeys.cs`의 `PackMasterKeys.All`에 마스터 경로별로 등록합니다. **새 마스터를 만들면 반드시 여기에 등록**하세요(테스트가 모든 `...MasterPath` 상수와 샘플 마스터의 키 열을 검사해 빠뜨리면 실패). 로더가 따로 유일성을 요구하는 두 번째 키는 `KeyedAlt`로(예: `image_master`의 `(kind, target_code, variation_number)`), 열 순서가 정해진 마스터는 `ColumnOrder`로(`dungeon_master`), 키 없이 이어 붙일 옛 마스터는 `AppendOnly`로 등록합니다.
+- **만들기·진단:** `python tools/zip-wrapper-pack.py <폴더> <출력.wra>`로 묶고, 읽은 뒤 `GamePack.Layers`(`Name`, `OrderNumber`, `Id`, `Title`)로 적용된 레이어를 봅니다. 구현은 `GamePack.Layers.cs`(`ResolveLayers`, `Merge`, `MergeTsv`), 테스트는 `PackLayerTests.cs`.
+
 ### 4.2 `GameSession` (게임 중 상태, `src/Wera.Core/GameSession*.cs`)
 `GameSession.NewGame(pack)`이 새 게임을, `GameSession.FromSaveJson(pack, json)` / `ToSaveJson()`이 세이브를 다룹니다. 주요 상태:
 
@@ -529,6 +539,7 @@ master/common_item_tag_master_v1.tsv         item_code, tag_code        2 3   (�
 |---|---|
 | `GamePack.cs` | `GamePack.Load`: 모든 로더 호출 순서, 필수 마스터 목록, 공용 도우미(`Body`, `TryReadEntry`, `ParseLong`, `OptionalLong`, `LoadCodeNames`, `LoadConditioned`) |
 | `Tsv.cs` | TSV 파서와 `memo` 열 제거 |
+| `GamePack.Layers.cs`, `PackMasterKeys.cs` | 모드(중첩 팩): `pack_master` 읽기, 레이어 합치기(`MergeTsv`), 마스터별 병합 키 등록(`PackMasterKeys.All`; 새 마스터는 여기에 키 등록) |
 | `GamePack.<영역>.cs` | 마스터별 레코드, enum, 로더, 조회: `Skill`(EffectType, 스킬 실행), `SkillOrder`, `SkillAutoTarget`, `AfterHit/AfterAttack/AfterBattleWin/Lose/Run`, `AfterLoadCharacter/UniqueItem`, `CharacterAfterCreate`, `UniqueItemAfterCreate`, `XpType`, `SynthesisFlow`, `SmeltFlow`, `Event`, `AdvFlow`, `Communication`, `FacilityFlow`, `Defense`(방어력 흐름·시설 방어력), `DefenseEnemy`, `Facility`, `Hideout`, `Operator`, `DungeonMap`(타일/맵/인카운트/층), `Equipment`(태그·장비·예약 태그), `CharacterStatus`, `GameSetting`, `Preset`, `Turn`, `Mod`/`ModSkill`/`PartSlot`/`UniqueItemEnhanceStatus`/`OwnerStatus`, `Submodule`/`FlowSubmodule` |
 | `Masters/MasterRows.cs`, `GamePack.Masters.cs` | MasterMemory 테이블 정의와 조회 |
 | `UnitCircuitBase.cs` | 이펙트 서킷 공통(포커스, 캐시, 소수 버퍼, `Run`, 서브모듈, `ApplyOther`/`JumpOther` 훅) |

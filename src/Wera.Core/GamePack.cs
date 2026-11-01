@@ -112,7 +112,14 @@ public sealed partial class GamePack
     /// <param name="embeddedEffects">상태이상 이펙트가 가리킬 수 있는 임베디드 이펙트들. 생략하면 구동기의 기본 마스터.</param>
     public static GamePack Load(Stream zipStream, EmbeddedEffectRegistry? embeddedEffects = null)
     {
-        embeddedEffects ??= EmbeddedEffectRegistry.Default;
+        // 바깥 팩에 pack_master가 있으면 중첩 팩들을 합친 메모리 zip을 읽고, 없으면 지금까지처럼 원래 zip을 읽는다.
+        var (stream, layers) = ResolveLayers(zipStream);
+        using (ReferenceEquals(stream, zipStream) ? null : stream)
+            return LoadFlat(stream, embeddedEffects ?? EmbeddedEffectRegistry.Default, layers);
+    }
+
+    static GamePack LoadFlat(Stream zipStream, EmbeddedEffectRegistry embeddedEffects, IReadOnlyList<PackLayer>? layers)
+    {
         using var zip = new ZipArchive(zipStream, ZipArchiveMode.Read, leaveOpen: true);
 
         var meta = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -247,6 +254,7 @@ public sealed partial class GamePack
         {
             Id = Need("id"),
             Title = Need("title"),
+            Layers = layers ?? [new PackLayer("(바깥 팩)", null, Need("id"), Need("title"))],
             DebugStartUniqueItems = debugStartUniqueItems,
             Inventory = inventory,
             Dungeons = dungeons,
