@@ -211,6 +211,7 @@ public sealed partial class GamePack
         var skillAutoTargetEffects = LoadSkillAutoTargetEffects(zip, skills, effectCheck);
         var afterLoadCharacterFlows = LoadAfterLoadCharacterFlows(zip, effectCheck);
         var afterLoadUniqueItemFlows = LoadAfterLoadUniqueItemFlows(zip, effectCheck);
+        var synthesisFlows = LoadSynthesisFlows(zip, effectCheck);
         var afterHitEffects = LoadAfterHitEffects(zip, effectCheck);
         var afterAttackEffects = LoadAfterAttackEffects(zip, effectCheck);
         var afterBattleWinEffects = LoadAfterBattleWinEffects(zip, effectCheck);
@@ -279,6 +280,7 @@ public sealed partial class GamePack
             SkillAutoTargetEffects = skillAutoTargetEffects,
             AfterLoadCharacterFlows = afterLoadCharacterFlows,
             AfterLoadUniqueItemFlows = afterLoadUniqueItemFlows,
+            SynthesisFlows = synthesisFlows,
             AfterHitEffects = afterHitEffects,
             AfterAttackEffects = afterAttackEffects,
             AfterBattleWinEffects = afterBattleWinEffects,
@@ -303,7 +305,7 @@ public sealed partial class GamePack
                 presetUnits, presetUnitEquips, presetUnitDrops, presetParties, battleEnemies,
                 tileEffects, dungeonTiles, dungeonMaps, dungeonEncounters,
                 skillSlots, characterSkillSlotTags, skills, skillTags, skillExecuteEffects, skillOrderEffects, skillAutoTargetEffects,
-                skillStatuses, uniqueItemStatuses, afterLoadCharacterFlows, afterLoadUniqueItemFlows,
+                skillStatuses, uniqueItemStatuses, afterLoadCharacterFlows, afterLoadUniqueItemFlows, synthesisFlows,
                 afterHitEffects, afterAttackEffects, afterBattleWinEffects, afterBattleLoseEffects, afterBattleRunEffects,
                 characterAfterCreateEffects, uniqueItemAfterCreateEffects),
             EmbeddedEffects = embeddedEffects,
