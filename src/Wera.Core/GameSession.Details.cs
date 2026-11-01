@@ -36,7 +36,7 @@ public sealed partial class GameSession
     };
 
     /// <summary>캐릭터 상세 화면의 Exp 바 칸 수("Exp : " 뒤, 오른쪽 여백을 30px 남기고 끝까지 가는 길이).</summary>
-    public const int CharacterDetailExpWidth = 61;
+    public const int CharacterDetailExpWidth = 56;
 
     /// <summary>캐릭터 상세 화면의 내용: 이름, 레벨, Exp 바, HP, XP, 상태값(character_display_order가 1 이상인 스테이터스, 작은 수부터), 장비 슬롯, 스킬 슬롯, 설명문.</summary>
     public sealed record CharacterDetailView(
