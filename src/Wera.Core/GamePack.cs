@@ -173,6 +173,8 @@ public sealed partial class GamePack
         var eventConditions = new List<FlatCondition>();
         var events = LoadConditioned(zip, EventMasterPath, ["code", "name"], EventConditionMasterPath, "이벤트", "event_code",
             eventConditions, (code, r, groups) => new GameEvent(code, r[1], groups));
+        var facilities = LoadConditioned(zip, FacilityMasterPath, ["code", "name"], FacilityConditionMasterPath, "시설", "facility_code",
+            new List<FlatCondition>(), (code, r, groups) => new FacilityEntry(code, r[1], groups));
         var advs = LoadAdvs(zip);
         var battles = LoadBattles(zip);
         var eventFlows = LoadEventFlows(zip, events?.Select(e => e.Code).ToList(), advs, battles, tags, inventory);
@@ -289,6 +291,9 @@ public sealed partial class GamePack
             SmeltFlows = smeltFlows,
             ModSlots = modSlots,
             HideoutExpandCosts = LoadHideoutExpandCosts(zip, itemInventory),
+            Facilities = facilities,
+            FacilityBuildCosts = LoadFacilityBuildCosts(zip, facilities, itemInventory),
+            HideoutFloors = LoadHideoutFloors(zip, facilities),
             UniqueItemModSkills = LoadUniqueItemModSkills(zip, uniqueItems?.Select(u => u.ItemCode), modSlots, skills),
             UniqueItemModStatuses = LoadUniqueItemModStatuses(zip, uniqueItems?.Select(u => u.ItemCode), modSlots, itemInventory, statuses, uniqueItemStatuses),
             UniqueItemEnhanceStatuses = LoadUniqueItemEnhanceStatuses(zip, uniqueItems?.Select(u => u.ItemCode), statuses, uniqueItemStatuses, GameSettingLevelMax(gameSettings)),

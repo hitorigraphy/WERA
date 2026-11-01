@@ -7,6 +7,18 @@ public class HideoutTests
 {
     const string Header = "expand_count\tgroup_code\titem_code\tamount\n";
 
+    static GameSession FacilitySession(string build = "2\t1\t2\t50\n2\t2\t4\t3\n3\t1\t2\t200\n", string floors = "1\t1\n")
+    {
+        var pack = GamePack.Load(CoreTests.PackZip(
+            ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
+            ("master/common_item_inventory_master_v1.tsv", "inventory_code\titem_name\tcarry_limit\n2\t금화\t99999\n4\t철광석\t99\n"),
+            ("master/facility_master_v1.tsv", "code\tname\n1\t정문\n2\t대장간\n3\t마법탑\n"),
+            ("master/facility_condition_master_v1.tsv", "facility_code\tgroup_number\tflag_code\tcondition_type\tcondition_value\n3\t1\t1\tGreaterOrEqual\t1\n"),
+            ("master/facility_build_master_v1.tsv", "facility_code\tgroup_code\titem_code\tamount\n" + build),
+            ("master/hideout_floor_master_v1.tsv", "floor_order\tfacility_code\n" + floors)));
+        return GameSession.NewGame(pack);
+    }
+
     static GameSession Session(string expand = "1\t1\t2\t100\n1\t2\t4\t5\n1\t2\t5\t2\n2\t1\t2\t300\n3\t1\t2\t1\n4\t1\t2\t1\n")
     {
         var pack = GamePack.Load(CoreTests.PackZip(
@@ -34,7 +46,7 @@ public class HideoutTests
         Assert.Equal(1, s.HideoutFloorCount);
         Assert.Equal(-1, s.HideoutViewTop);
         Assert.Equal(["확장 가능", "1층", "----"], s.HideoutRows.Select(r => r.FloorName));
-        Assert.Equal(["1", "6", "1000", "1001", "999"], s.Entries.Select(e => e.Code));          // [1] 확장 가능, [6] 1층 보스, ▲ ▼ 돌아가기
+        Assert.Equal(["1", "4", "6", "1000", "1001", "999"], s.Entries.Select(e => e.Code));     // [1] 확장 가능, [4] 1층, [6] 1층 보스, ▲ ▼ 돌아가기
         Assert.False(s.Entries.Single(e => e.Code == "1000").Enabled);
         Assert.False(s.Entries.Single(e => e.Code == "1001").Enabled);
         Assert.True(s.HideoutRows[1].Boss!.IsEmpty);
@@ -110,7 +122,7 @@ public class HideoutTests
         s.Activate("1001");
         Assert.Equal(["2층", "3층", "4층"], s.HideoutRows.Select(r => r.FloorName));
         Assert.False(s.Entries.Single(e => e.Code == "1001").Enabled);                    // 가장 오래된 층이 맨 아래
-        Assert.Equal(["3", "6", "9", "1000", "1001", "999"], s.Entries.Select(e => e.Code));
+        Assert.Equal(["1", "3", "4", "6", "7", "9", "1000", "1001", "999"], s.Entries.Select(e => e.Code));
         s.Activate("1000");
         Assert.Equal(["1층", "2층", "3층"], s.HideoutRows.Select(r => r.FloorName));
     }
@@ -189,5 +201,101 @@ public class HideoutTests
         Assert.Contains("아이템 '9'", Fail("1\t1\t9\t1\n").Message);
         Assert.Contains("두 번", Fail("1\t1\t2\t1\n1\t1\t2\t2\n").Message);
         Assert.Contains("확장 횟수", Fail("x\t1\t2\t1\n").Message);
+    }
+
+    [Fact]
+    public void The_base_facility_belongs_to_the_floor_by_creation_order_and_shows_its_name_only_in_the_floor_detail()
+    {
+        var s = FacilitySession("", "1\t1\n");
+        Assert.Equal("정문", s.BaseFacilityOfFloor(0)!.Name);
+        s.Activate(GameSession.HideoutEntryCode);
+        Assert.Equal("1층", s.HideoutRows[1].FloorName);                    // 이름은 n층
+        s.Activate("4");
+        Assert.Equal(Screen.HideoutFloorDetail, s.Screen);
+        Assert.Equal("기본 시설: 정문", s.HideoutFloorDetailText);
+        s.Activate("999");
+        Assert.Equal(Screen.Hideout, s.Screen);
+    }
+
+    [Fact]
+    public void Floors_keep_their_creation_order_when_pushed_down_by_an_expansion()
+    {
+        var s = Session();
+        s.InventoryItems[2] = new InventoryItem(1000);
+        Assert.Equal(1, s.HideoutFloorOrderOf(0));
+        s.ExpandHideout(1);
+        Assert.Equal(2, s.HideoutFloorOrderOf(0));                         // 새 층은 2번째, 처음 층은 아래로 밀려도 1번째
+        Assert.Equal(1, s.HideoutFloorOrderOf(1));
+        var withBase = FacilitySession("", "1\t1\n");
+        withBase.InventoryItems[2] = new InventoryItem(1000);
+        Assert.Equal("정문", withBase.BaseFacilityOfFloor(0)!.Name);
+    }
+
+    [Fact]
+    public void A_facility_is_built_in_the_middle_slot_with_a_material_group_and_can_be_demolished_without_refund()
+    {
+        var s = FacilitySession();
+        s.InventoryItems[2] = new InventoryItem(100);
+        s.Activate(GameSession.HideoutEntryCode);
+        s.Activate("5");
+        Assert.Equal(Screen.HideoutFacilitySelect, s.Screen);
+        Assert.Equal(["1", "2", "999"], s.Entries.Select(e => e.Code));       // 마법탑(3)은 플래그 조건 때문에 없다
+        s.Activate("2");
+        Assert.Equal(Screen.HideoutBuild, s.Screen);
+        Assert.Equal(["1", "2", "999"], s.Entries.Select(e => e.Code));
+        Assert.Equal([true, false, true], s.Entries.Select(e => e.Enabled));
+        s.Activate("1");
+        Assert.Equal(Screen.Hideout, s.Screen);
+        Assert.Equal(50, s.InventoryItems[2].Amount);
+        Assert.Equal("대장간", s.HideoutRows[1].FacilityName);
+        Assert.Equal(2, s.HideoutFacilities[0]);
+
+        s.Activate("5");                                                    // 지은 시설 상세
+        Assert.Equal(Screen.HideoutFacilityDetail, s.Screen);
+        Assert.Equal("시설: 대장간", s.HideoutFacilityDetailText);
+        s.Activate(GameSession.DemolishEntryCode);
+        Assert.Equal(Screen.Hideout, s.Screen);
+        Assert.Null(s.HideoutFacilities[0]);
+        Assert.Equal(50, s.InventoryItems[2].Amount);                       // 재료는 돌려받지 못한다
+        Assert.Equal("공터", s.HideoutRows[1].FacilityName);
+    }
+
+    [Fact]
+    public void Facility_conditions_check_flags_and_facilities_without_build_rows_are_free()
+    {
+        var s = FacilitySession();
+        Assert.Equal([1L, 2L], s.AvailableFacilities.Select(f => f.Code));
+        s.PlayerFlags[1] = 1;
+        Assert.Equal([1L, 2L, 3L], s.AvailableFacilities.Select(f => f.Code));
+        Assert.True(s.CanAffordFacility(1));                                // 정문은 재료 행이 없다
+        Assert.False(s.CanAffordFacility(2));
+        Assert.True(s.BuildFacility(0, 1));
+        Assert.False(s.BuildFacility(0, 2));                                // 이미 지어져 있다
+        Assert.Equal(1, s.HideoutFacilities[0]);
+    }
+
+    [Fact]
+    public void Selecting_a_free_facility_builds_it_at_once_and_the_facilities_survive_the_save()
+    {
+        var s = FacilitySession();
+        s.Activate(GameSession.HideoutEntryCode);
+        s.Activate("5"); s.Activate("1");
+        Assert.Equal(Screen.Hideout, s.Screen);
+        Assert.Equal(1, s.HideoutFacilities[0]);
+        var loaded = GameSession.FromSaveJson(s.Pack, s.ToSaveJson());
+        Assert.Equal([1L], loaded.HideoutFacilities);
+    }
+
+    [Fact]
+    public void The_facility_masters_are_validated()
+    {
+        PackFormatException Fail(string build, string floors) => Assert.Throws<PackFormatException>(() => FacilitySession(build, floors));
+        Assert.Contains("시설 '9'", Fail("9\t1\t2\t1\n", "1\t1\n").Message);
+        Assert.Contains("아이템 '9'", Fail("2\t1\t9\t1\n", "1\t1\n").Message);
+        Assert.Contains("1 이상", Fail("2\t1\t2\t0\n", "1\t1\n").Message);
+        Assert.Contains("두 번", Fail("2\t1\t2\t1\n2\t1\t2\t1\n", "1\t1\n").Message);
+        Assert.Contains("기본 시설 '9'", Fail("", "1\t9\n").Message);
+        Assert.Contains("두 번", Fail("", "1\t1\n1\t2\n").Message);
+        Assert.Contains("1 이상", Fail("", "0\t1\n").Message);
     }
 }

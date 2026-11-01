@@ -48,6 +48,14 @@ public enum Screen
     HideoutExpand,
     /// <summary>아지트의 한 층의 보스 슬롯에 둘 캐릭터 목록. 돌아가기는 아지트.</summary>
     HideoutBossSelect,
+    /// <summary>아지트 층 상세(계층 슬롯): 기본 시설의 이름이 나온다. 돌아가기는 아지트.</summary>
+    HideoutFloorDetail,
+    /// <summary>아지트 시설 상세(가운데 슬롯, 지은 시설): 시설 이름과 철거. 돌아가기는 아지트.</summary>
+    HideoutFacilityDetail,
+    /// <summary>아지트 가운데 슬롯에 지을 시설 목록(설치 조건을 만족한 시설, 재료를 갖추지 못한 시설은 회색). 돌아가기는 아지트.</summary>
+    HideoutFacilitySelect,
+    /// <summary>고른 시설의 재료 그룹을 고르는 화면. 돌아가기는 시설 목록.</summary>
+    HideoutBuild,
     /// <summary>장비 강화 화면(106): 내용은 아직 정의되지 않았다. 돌아가기는 홈.</summary>
     EquipmentEnhance,
     /// <summary>이벤트 화면(103): 조건을 만족하는 이벤트 목록. 하나를 고르면 그 이벤트를 시작한다.</summary>
@@ -151,6 +159,12 @@ public enum EntryAction
     HideoutScroll,
     /// <summary>항목의 코드(그룹 코드)의 재료로 아지트를 확장한다.</summary>
     ExpandHideout,
+    /// <summary>항목의 코드에 해당하는 시설을 지으려고 고른다(재료 그룹이 없으면 바로 짓는다).</summary>
+    SelectFacility,
+    /// <summary>항목의 코드(그룹 코드)의 재료로 고른 시설을 짓는다.</summary>
+    BuildFacility,
+    /// <summary>고른 층의 가운데 슬롯의 시설을 철거한다.</summary>
+    DemolishFacility,
     /// <summary>항목의 코드에 해당하는 캐릭터를 고른 아지트 층의 보스 슬롯에 둔다.</summary>
     SetHideoutBoss,
     /// <summary>고른 아지트 층의 보스 슬롯을 비운다.</summary>
@@ -240,7 +254,8 @@ public sealed record SaveData(
     PartyInstance? PartyInstance = null,
     PartyInstance?[]? Parties = null,
     int? CurrentParty = null,
-    long?[]? Hideout = null);
+    long?[]? Hideout = null,
+    long?[]? HideoutFacilities = null);
 
 [JsonSerializable(typeof(SaveData))]
 [JsonSourceGenerationOptions(WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
@@ -752,6 +767,14 @@ public sealed partial class GameSession
                     return HideoutExpandEntries();
                 case Screen.HideoutBossSelect:
                     return HideoutBossSelectEntries();
+                case Screen.HideoutFloorDetail:
+                    return [new ScreenEntry(BackEntryCode, "돌아가기", Screen.Hideout)];
+                case Screen.HideoutFacilityDetail:
+                    return HideoutFacilityDetailEntries();
+                case Screen.HideoutFacilitySelect:
+                    return HideoutFacilitySelectEntries();
+                case Screen.HideoutBuild:
+                    return HideoutBuildEntries();
                 case Screen.EquipmentEnhance:
                     return EquipmentEnhanceEntries();
                 case Screen.EquipmentEnhanceTarget:
@@ -856,7 +879,9 @@ public sealed partial class GameSession
                 CurrentShopCode = entry.Target == Screen.ShopTrades ? CodeOf(entry) : null;
                 CurrentSlot = entry.Target switch
                 {
-                    Screen.CharacterSelect or Screen.EquipmentList or Screen.HideoutBossSelect => int.Parse(entry.Arg!, CultureInfo.InvariantCulture),
+                    Screen.CharacterSelect or Screen.EquipmentList or Screen.HideoutBossSelect or Screen.HideoutFloorDetail or Screen.HideoutFacilityDetail => int.Parse(entry.Arg!, CultureInfo.InvariantCulture),
+                    Screen.HideoutFacilitySelect when entry.Arg is not null => int.Parse(entry.Arg, CultureInfo.InvariantCulture),
+                    Screen.HideoutFacilitySelect or Screen.HideoutBuild => CurrentSlot,                  // 같은 층을 계속 본다
                     Screen.SkillCharacter when entry.Arg is not null => int.Parse(entry.Arg, CultureInfo.InvariantCulture),
                     Screen.EquipmentSelect or Screen.SkillCharacter or Screen.SkillSlotSelect or Screen.SkillPoolList => CurrentSlot,      // 같은 캐릭터를 계속 본다
                     _ => null,
@@ -924,6 +949,29 @@ public sealed partial class GameSession
             case EntryAction.SetSupport:
                 SetSupport(CurrentSupportRole!.Value, CodeOf(entry));
                 CurrentSupportRole = null;
+                Screen = entry.Target;
+                break;
+            case EntryAction.SelectFacility:
+                selectedFacilityCode = CodeOf(entry);
+                if (Pack.FacilityBuildGroupsOf(CodeOf(entry)).Count == 0)         // 재료가 필요 없는 시설은 바로 짓는다
+                {
+                    if (BuildFacility(CurrentSlot!.Value, CodeOf(entry))) Message = $"시설을 지었습니다: {Pack.FindFacility(CodeOf(entry))?.Name}";
+                    selectedFacilityCode = null;
+                    CurrentSlot = null;
+                    Screen = Screen.Hideout;
+                }
+                else Screen = entry.Target;
+                break;
+            case EntryAction.BuildFacility:
+                if (selectedFacilityCode is { } building && BuildFacility(CurrentSlot!.Value, building, CodeOf(entry))) Message = $"시설을 지었습니다: {Pack.FindFacility(building)?.Name}";
+                selectedFacilityCode = null;
+                CurrentSlot = null;
+                Screen = entry.Target;
+                break;
+            case EntryAction.DemolishFacility:
+                var demolished = BuiltFacilityOfFloor(CurrentSlot!.Value)?.Name;
+                if (DemolishFacility(CurrentSlot!.Value)) Message = $"시설을 철거했습니다: {demolished}";
+                CurrentSlot = null;
                 Screen = entry.Target;
                 break;
             case EntryAction.HideoutScroll:
@@ -1450,7 +1498,8 @@ public sealed partial class GameSession
                 null,
                 Parties.Select(p => p.Copy()).ToArray(),
                 CurrentPartyIndex,
-                hideoutBosses.ToArray()),
+                hideoutBosses.ToArray(),
+                hideoutFacilities.ToArray()),
             SaveJsonContext.Default.SaveData);
 
     public static GameSession FromSaveJson(GamePack pack, string json)
@@ -1615,6 +1664,14 @@ public sealed partial class GameSession
         if (hideoutCodes.Any(code => allCodes.Contains(code)))
             throw new SaveFormatException("세이브에서 같은 캐릭터가 파티와 아지트에 모두 있습니다(한 곳에만 있을 수 있습니다).");
 
+        var facilities = new List<long?>(new long?[hideout.Count]);
+        for (var i = 0; i < hideout.Count && save.HideoutFacilities is { } savedFacilities && i < savedFacilities.Length; i++)
+        {
+            if (savedFacilities[i] is { } facility && pack.FindFacility(facility) is null)
+                throw new SaveFormatException($"세이브의 아지트 시설 '{facility}'가 시설 마스터에 없습니다.");
+            facilities[i] = savedFacilities[i];
+        }
+
         // 불러오기는 저장된 화면과 상관없이 항상 홈으로 들어간다.
         var session = new GameSession(pack, Screen.Home, playerFlags, inventory, characters, parties, statusEffects, uniqueItems, characterTags)
         {
@@ -1625,6 +1682,8 @@ public sealed partial class GameSession
         };
         session.hideoutBosses.Clear();
         session.hideoutBosses.AddRange(hideout);
+        session.hideoutFacilities.Clear();
+        session.hideoutFacilities.AddRange(facilities);
         return session;
     }
 }

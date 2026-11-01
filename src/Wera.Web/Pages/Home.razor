@@ -223,6 +223,7 @@
         {
             var floorCode = row.FloorCode.ToString();
             var bossCode = row.BossCode.ToString();
+            var facilityCode = row.FacilityCode.ToString();
             <div class="slot">
                 <div class="slot-icon" title="@row.FloorName">@noImage</div>
                 <div class="slot-info">
@@ -236,14 +237,21 @@
                     }
                     else
                     {
-                        <div class="slot-name"><span class="slot-level"></span><span class="slot-char">[@floorCode] @row.FloorName</span></div>
+                        <button class="slot-name" @onclick="() => Activate(floorCode)"><span class="slot-level"></span><span class="slot-char">[@floorCode] @row.FloorName</span></button>
                     }
                 </div>
             </div>
             <div class="slot">
                 <div class="slot-icon" title="공터">@noImage</div>
                 <div class="slot-info">
-                    <div class="slot-name @(row.Floor is >= 0 ? "" : "gray")"><span class="slot-level"></span><span class="slot-char">@(row.Floor is >= 0 ? $"[{row.FacilityCode}] 공터" : "----")</span></div>
+                    @if (row.Floor is >= 0 && session.Entries.Any(e => e.Code == facilityCode))
+                    {
+                        <button class="slot-name" @onclick="() => Activate(facilityCode)"><span class="slot-level"></span><span class="slot-char">[@facilityCode] @row.FacilityName</span></button>
+                    }
+                    else
+                    {
+                        <div class="slot-name @(row.Floor is >= 0 ? "" : "gray")"><span class="slot-level"></span><span class="slot-char">@(row.Floor is >= 0 ? $"[{row.FacilityCode}] {row.FacilityName}" : "----")</span></div>
+                    }
                 </div>
             </div>
             @if (row.Boss is { } boss)
@@ -544,6 +552,31 @@
 
             case Screen.HideoutExpand:
                 <h2>아지트 확장 (@(session.HideoutFloorCount + 1)층째)</h2>
+                @* 쓸 재료 그룹을 고른다: 그룹 안은 모두, 그룹끼리는 하나만 갖추면 된다(갖추지 못한 그룹은 회색) *@
+                @commands
+                break;
+
+            case Screen.HideoutFloorDetail:
+                <h2>@(session.CurrentHideoutFacilityFloorName)</h2>
+                <p>@session.HideoutFloorDetailText</p>
+                @commands
+                break;
+
+            case Screen.HideoutFacilityDetail:
+                <h2>@(session.CurrentHideoutFacilityFloorName) 시설</h2>
+                <p>@session.HideoutFacilityDetailText</p>
+                @* 철거하면 재료는 돌려받을 수 없다 *@
+                @commands
+                break;
+
+            case Screen.HideoutFacilitySelect:
+                <h2>@(session.CurrentHideoutFacilityFloorName)에 지을 시설</h2>
+                @* 설치 조건을 만족한 시설만 나온다(재료를 갖추지 못한 시설은 회색) *@
+                @commands
+                break;
+
+            case Screen.HideoutBuild:
+                <h2>@(session.SelectedFacilityName) 건설</h2>
                 @* 쓸 재료 그룹을 고른다: 그룹 안은 모두, 그룹끼리는 하나만 갖추면 된다(갖추지 못한 그룹은 회색) *@
                 @commands
                 break;

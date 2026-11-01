@@ -3,7 +3,7 @@ using System.Globalization;
 namespace Wera.Core;
 
 /// <summary>아지트 화면의 한 줄(층): 보이는 줄 번호(0~2)와 그 줄이 무엇인지. Floor가 -1이면 "확장 가능" 줄, null이면 빈 줄이다.</summary>
-public sealed record HideoutRowView(int Row, int? Floor, string FloorName, PartySlotView? Boss)
+public sealed record HideoutRowView(int Row, int? Floor, string FloorName, PartySlotView? Boss, string FacilityName = "공터", bool HasFacility = false)
 {
     /// <summary>줄의 슬롯 번호: 계층(왼쪽) 줄×3+1, 시설(가운데) +2, 보스(오른쪽) +3.</summary>
     public int FloorCode => Row * 3 + 1;
@@ -27,6 +27,12 @@ public sealed partial class GameSession
     /// <summary>층별 보스 슬롯의 캐릭터 코드(없으면 null). 맨 앞이 가장 새 층(1층)이다.</summary>
     readonly List<long?> hideoutBosses = [null];
 
+    /// <summary>층별로 유저가 지은(가운데 슬롯) 시설 코드(없으면 null). <see cref="hideoutBosses"/>와 같은 순서이고 층이 생기면 같이 늘어난다.</summary>
+    readonly List<long?> hideoutFacilities = [null];
+
+    /// <summary>시설을 고르는 중인 시설의 코드(재료 그룹을 고르는 화면에서만 있다).</summary>
+    long? selectedFacilityCode;
+
     /// <summary>보이는 첫 줄의 위치: -1은 "확장 가능" 줄, 0은 1층, 1은 2층…</summary>
     int hideoutViewTop = -1;
 
@@ -35,6 +41,20 @@ public sealed partial class GameSession
 
     /// <summary>층별 보스 슬롯의 캐릭터(1층부터).</summary>
     public IReadOnlyList<long?> HideoutBosses => hideoutBosses;
+
+    /// <summary>층별로 지은 시설(1층부터). 가운데 슬롯이고 비어 있으면 null.</summary>
+    public IReadOnlyList<long?> HideoutFacilities => hideoutFacilities;
+
+    /// <summary>이 층(0이 1층)이 생긴 순서: 처음부터 있는 층이 1, 첫 확장으로 생긴 층이 2… 층계 마스터가 기본 시설을 찾는 키다(확장해도 변하지 않는다).</summary>
+    public int HideoutFloorOrderOf(int floor) => HideoutFloorCount - floor;
+
+    /// <summary>이 층의 기본 시설(층계 마스터, 계층 슬롯). 정하지 않았으면 null.</summary>
+    public FacilityEntry? BaseFacilityOfFloor(int floor) =>
+        Pack.BaseFacilityOf(HideoutFloorOrderOf(floor)) is { } code ? Pack.FindFacility(code) : null;
+
+    /// <summary>이 층의 가운데 슬롯에 지은 시설. 없으면 null.</summary>
+    public FacilityEntry? BuiltFacilityOfFloor(int floor) =>
+        floor >= 0 && floor < HideoutFloorCount && hideoutFacilities[floor] is { } code ? Pack.FindFacility(code) : null;
 
     /// <summary>이 캐릭터가 있는 아지트 층의 번호(0이 1층, 어느 층에도 없으면 -1).</summary>
     public int HideoutFloorOf(long characterCode) => hideoutBosses.IndexOf(characterCode);
@@ -57,6 +77,7 @@ public sealed partial class GameSession
         if (HideoutExpandGroups.FirstOrDefault(g => g.GroupCode == groupCode) is not { } group || !CanAffordHideoutExpand(group)) return false;
         foreach (var cost in group.Costs) ChangeCommonItem(cost.ItemCode, -cost.Amount);
         hideoutBosses.Insert(0, null);
+        hideoutFacilities.Insert(0, null);
         hideoutViewTop = -1;
         return true;
     }
@@ -105,7 +126,8 @@ public sealed partial class GameSession
                 var at = hideoutViewTop + row;
                 if (at == -1) return new HideoutRowView(row, HideoutExpandGroups.Count > 0 ? -1 : null, HideoutExpandGroups.Count > 0 ? "확장 가능" : "----", null);
                 if (at < 0 || at >= HideoutFloorCount) return new HideoutRowView(row, null, "----", null);
-                return new HideoutRowView(row, at, $"{at + 1}층", CharacterView(-1, hideoutBosses[at]));
+                var built = BuiltFacilityOfFloor(at);
+                return new HideoutRowView(row, at, $"{at + 1}층", CharacterView(-1, hideoutBosses[at]), built?.Name ?? "공터", built is not null);
             }).ToList();
         }
     }
@@ -117,7 +139,12 @@ public sealed partial class GameSession
         {
             if (row.IsExpandRow) entries.Add(new ScreenEntry(Text(row.FloorCode), "확장 가능", Screen.HideoutExpand));
             else if (row.Floor is { } floor and >= 0)
+            {
+                entries.Add(new ScreenEntry(Text(row.FloorCode), row.FloorName, Screen.HideoutFloorDetail, Arg: Text(floor)));
+                if (row.HasFacility) entries.Add(new ScreenEntry(Text(row.FacilityCode), row.FacilityName, Screen.HideoutFacilityDetail, Arg: Text(floor)));
+                else if (Pack.Facilities is { Count: > 0 }) entries.Add(new ScreenEntry(Text(row.FacilityCode), row.FacilityName, Screen.HideoutFacilitySelect, Arg: Text(floor)));
                 entries.Add(new ScreenEntry(Text(row.BossCode), row.Boss!.Name, Screen.HideoutBossSelect, Arg: Text(floor)));
+            }
         }
         entries.Add(new ScreenEntry(HideoutScrollUpEntryCode, "▲", Screen.Hideout, EntryAction.HideoutScroll, "-1", Enabled: hideoutViewTop > -1));
         entries.Add(new ScreenEntry(HideoutScrollDownEntryCode, "▼", Screen.Hideout, EntryAction.HideoutScroll, "1", Enabled: hideoutViewTop < HideoutViewTopMax));
@@ -156,4 +183,84 @@ public sealed partial class GameSession
         entries.Add(new ScreenEntry(BackEntryCode, "돌아가기", Screen.Hideout));
         return entries;
     }
+
+    // ---- 시설 ----
+
+    /// <summary>지금 설치 조건(시설 조건 마스터)을 만족해 지을 수 있는 시설들(시설 마스터 순서).</summary>
+    public IReadOnlyList<FacilityEntry> AvailableFacilities => Pack.Facilities?.Where(f => f.IsAvailable(PlayerFlags)).ToList() ?? [];
+
+    /// <summary>이 그룹의 재료를 모두 갖췄는가(장비에 끼워 둔 것은 셈에서 뺀다).</summary>
+    public bool CanAffordFacilityBuild(FacilityBuildGroup group) =>
+        group.Costs.All(c => CountInventory(c.ItemCode) - EquippedCount(EquipRef.Common(c.ItemCode)) >= c.Amount);
+
+    /// <summary>이 시설을 지금 지을 재료를 갖췄는가: 재료 그룹이 없으면 늘 true, 있으면 한 그룹이라도 갖춰야 한다.</summary>
+    public bool CanAffordFacility(long facilityCode) =>
+        Pack.FacilityBuildGroupsOf(facilityCode) is { Count: > 0 } groups ? groups.Any(CanAffordFacilityBuild) : true;
+
+    /// <summary>
+    /// 층(0이 1층)의 가운데 슬롯에 시설을 짓는다: 슬롯이 비어 있고 시설이 설치 조건을 만족해야 하며, 재료 그룹이 있으면 갖춘 그룹(groupCode)의 재료를 쓴다
+    /// (재료 그룹이 없는 시설은 groupCode를 무시하고 재료 없이 짓는다). 할 수 없으면 false.
+    /// </summary>
+    public bool BuildFacility(int floor, long facilityCode, long? groupCode = null)
+    {
+        if (floor < 0 || floor >= HideoutFloorCount || hideoutFacilities[floor] is not null) return false;
+        if (AvailableFacilities.All(f => f.Code != facilityCode)) return false;
+        var groups = Pack.FacilityBuildGroupsOf(facilityCode);
+        if (groups.Count > 0)
+        {
+            if (groups.FirstOrDefault(g => g.GroupCode == groupCode) is not { } group || !CanAffordFacilityBuild(group)) return false;
+            foreach (var cost in group.Costs) ChangeCommonItem(cost.ItemCode, -cost.Amount);
+        }
+        hideoutFacilities[floor] = facilityCode;
+        return true;
+    }
+
+    /// <summary>층의 가운데 슬롯에 지은 시설을 철거한다(재료는 돌려받지 않는다). 지은 시설이 없으면 false.</summary>
+    public bool DemolishFacility(int floor)
+    {
+        if (floor < 0 || floor >= HideoutFloorCount || hideoutFacilities[floor] is null) return false;
+        hideoutFacilities[floor] = null;
+        return true;
+    }
+
+    /// <summary>시설 고르는 화면의 제목에 쓰는 층 이름: 시설 선택, 시설 재료 선택, 층 상세, 시설 상세 화면에서만 있다.</summary>
+    public string? CurrentHideoutFacilityFloorName =>
+        Screen is Screen.HideoutFacilitySelect or Screen.HideoutBuild or Screen.HideoutFloorDetail or Screen.HideoutFacilityDetail && CurrentSlot is { } floor ? $"{floor + 1}층" : null;
+
+    /// <summary>층 상세 화면의 안내: 기본 시설의 이름(없으면 "기본 시설 없음").</summary>
+    public string? HideoutFloorDetailText => Screen == Screen.HideoutFloorDetail && CurrentSlot is { } floor && floor < HideoutFloorCount
+        ? BaseFacilityOfFloor(floor) is { } facility ? $"기본 시설: {facility.Name}" : "기본 시설 없음" : null;
+
+    /// <summary>시설 상세 화면의 안내: 지은 시설의 이름.</summary>
+    public string? HideoutFacilityDetailText => Screen == Screen.HideoutFacilityDetail && CurrentSlot is { } floor && BuiltFacilityOfFloor(floor) is { } facility
+        ? $"시설: {facility.Name}" : null;
+
+    /// <summary>시설을 고르는 중인 시설의 이름과 재료 그룹 화면의 제목에 쓴다.</summary>
+    public string? SelectedFacilityName => selectedFacilityCode is { } code ? Pack.FindFacility(code)?.Name : null;
+
+    /// <summary>시설 재료 그룹 한 줄의 글: "이름 ×개수, 이름 ×개수".</summary>
+    public string FacilityBuildGroupText(FacilityBuildGroup group) =>
+        string.Join(", ", group.Costs.Select(c => $"{Pack.FindItem(c.ItemCode)?.Name ?? Text(c.ItemCode)} ×{Text(c.Amount)}"));
+
+    IReadOnlyList<ScreenEntry> HideoutFacilitySelectEntries() =>
+    [
+        .. AvailableFacilities.Select(f => new ScreenEntry(Text(f.Code), f.Name, Screen.HideoutBuild, EntryAction.SelectFacility, Enabled: CanAffordFacility(f.Code))),
+        new ScreenEntry(BackEntryCode, "돌아가기", Screen.Hideout),
+    ];
+
+    IReadOnlyList<ScreenEntry> HideoutBuildEntries() =>
+    [
+        .. (selectedFacilityCode is { } code ? Pack.FacilityBuildGroupsOf(code) : [])
+            .Select(g => new ScreenEntry(Text(g.GroupCode), FacilityBuildGroupText(g), Screen.Hideout, EntryAction.BuildFacility, Enabled: CanAffordFacilityBuild(g))),
+        new ScreenEntry(BackEntryCode, "돌아가기", Screen.HideoutFacilitySelect),
+    ];
+
+    /// <summary>시설 상세 화면의 철거 항목 코드.</summary>
+    public const string DemolishEntryCode = "1";
+
+    IReadOnlyList<ScreenEntry> HideoutFacilityDetailEntries() =>
+    [
+        new ScreenEntry(DemolishEntryCode, "철거", Screen.Hideout, EntryAction.DemolishFacility),
+        new ScreenEntry(BackEntryCode, "돌아가기", Screen.Hideout),
+    ];
 }
