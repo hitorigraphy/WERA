@@ -184,7 +184,7 @@ public sealed partial class GameSession
 
     /// <summary>
     /// 상세 화면의 돌아가기는 상세 화면을 연 화면이다. 캐릭터 상세는 그 앞에 장비 슬롯 줄(1번부터)과 스킬 슬롯 줄(101번부터) 항목이 있다:
-    /// 장비 줄은 낀 것이 유니크 아이템이면 장비 상세, 커먼 아이템이면 아이템 상세, 보유 캐릭터면 캐릭터 상세로, 스킬 줄은 스킬 상세로 간다(빈 줄은 고를 수 없다).
+    /// 아이템 상세의 스킬 줄(101번)은 그 스킬 상세로 간다. 장비 줄은 낀 것이 유니크 아이템이면 장비 상세, 커먼 아이템이면 아이템 상세, 보유 캐릭터면 캐릭터 상세로, 스킬 줄은 스킬 상세로 간다(빈 줄은 고를 수 없다).
     /// </summary>
     IReadOnlyList<ScreenEntry> DetailEntries()
     {
@@ -203,6 +203,13 @@ public sealed partial class GameSession
             parts.Add(new ScreenEntry("101", "스킬", Screen.SkillDetail, EntryAction.OpenDetail,
                 equipment.Skill is { } sk ? $"K:{sk.SkillCode.ToString(CultureInfo.InvariantCulture)}" : null, Enabled: equipment.Skill is not null));
             return [.. parts, back];
+        }
+        if (Screen == Screen.ItemDetail && DetailItemCode is { } itemCode)
+        {
+            // 스킬 줄(101번)은 아이템의 스킬 상세로 간다(스킬이 없으면 고를 수 없다).
+            var skill = Pack.FindItem(itemCode)?.SkillCode;
+            return [new ScreenEntry("101", "스킬", Screen.SkillDetail, EntryAction.OpenDetail,
+                skill is { } k ? $"K:{k.ToString(CultureInfo.InvariantCulture)}" : null, Enabled: skill is not null), back];
         }
         if (Screen != Screen.CharacterDetail || DetailCharacterCode is not { } code || !Characters.TryGetValue(code, out var state)) return [back];
 

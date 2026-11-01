@@ -613,9 +613,10 @@
                             <hr />
                             <div class="char-columns">
                                 <div>소지 한도 : @itemView.CarryLimit</div>
-                                @foreach (var line in itemView.Skills)
+                                @foreach (var (line, entry) in itemView.Skills.Zip(session.Entries))
                                 {
-                                    <div>@line.Label : @line.Value</div>
+                                    var code = entry.Code;
+                                    <div><button class="textlink row-link" disabled="@(!entry.Enabled)" @onclick="() => Activate(code)">@line.Label : @line.Value</button></div>
                                 }
                             </div>
                             <hr />

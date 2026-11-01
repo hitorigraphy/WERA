@@ -65,8 +65,12 @@ public class DetailScreenTests
         Assert.Equal(s.Pack.FindItem(3)!.Description, d.Description);
         Assert.NotEqual("", d.Description);
         Assert.Equal($"스킬 : {s.Pack.FindSkill(1003)!.Name}", $"{d.Skills.Single().Label} : {d.Skills.Single().Value}");
+        Assert.Equal(Screen.SkillDetail, s.Activate("101")!.Target);                       // 스킬 줄을 누르면 스킬 상세로
+        Assert.Equal("치유", s.SkillDetail!.Name);
+        Assert.Equal(Screen.ItemDetail, s.Activate("999")!.Target);
         s.Activate("999");
         s.Activate("4");
+        Assert.False(s.Entries.First(e => e.Code == "101").Enabled);                       // 스킬이 없으면 고를 수 없다
         Assert.Equal("없음", s.ItemDetail!.Skills.Single().Value);                          // 스킬이 없는 아이템
         Assert.Null(s.EquipmentDetail);
     }
