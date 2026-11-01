@@ -1,0 +1,3 @@
+operator_slot_code	flow_number	flow_type	param_1	param_2	param_3	memo
+1	1	AddDefense	5	0	0	고정 5
+1	2	AddDefenseByStatus	40	50	0	캐릭터 ATK(40)의 50%

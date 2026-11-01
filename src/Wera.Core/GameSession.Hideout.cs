@@ -343,6 +343,12 @@ public sealed partial class GameSession
         return changes.Count == 0 ? null : "시설 생산: " + string.Join(", ", changes);
     }
 
+    /// <summary>오퍼레이터 슬롯에 선 캐릭터의 최대 방어력: 그 슬롯의 방어력 흐름(서킷)을 실행한 결과. 흐름이 없거나 보유하지 않은 캐릭터면 0.</summary>
+    public long OperatorDefenseOf(long characterCode, long operatorSlotCode) =>
+        Characters.TryGetValue(characterCode, out var character) && Pack.DefenseFlowsOf(operatorSlotCode) is { Count: > 0 } flows
+            ? new DefenseFlowCircuit(flows, characterCode, (_, status) => character.Statuses.GetValueOrDefault(status), CharacterHasTag, PlayerFlags, NextRandom).Execute()
+            : 0;
+
     /// <summary>현재 위협도(게임 설정 ThreatFlagCode의 플레이어 플래그 값). 설정이 없으면 0.</summary>
     public long Threat => Pack.ThreatFlagCode is { } flag ? PlayerFlags.GetValueOrDefault(flag) : 0;
 

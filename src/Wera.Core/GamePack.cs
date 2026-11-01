@@ -300,6 +300,8 @@ public sealed partial class GamePack
             FacilityOperatorSlots = facilityOperatorSlots,
             OperatorSlotTags = LoadOperatorSlotTags(zip, operatorSlots, tags),
             DefenseEnemies = LoadDefenseEnemies(zip, presetParties, gameSettings),
+            DefenseFlows = LoadDefenseFlows(zip, operatorSlots, statuses, tags),
+            FacilityDefenses = LoadFacilityDefenses(zip, facilities),
             FacilityFlows = LoadFacilityFlows(zip, facilities, tags, inventory, facilityOperatorSlots),
             UniqueItemModSkills = LoadUniqueItemModSkills(zip, uniqueItems?.Select(u => u.ItemCode), modSlots, skills),
             UniqueItemModStatuses = LoadUniqueItemModStatuses(zip, uniqueItems?.Select(u => u.ItemCode), modSlots, itemInventory, statuses, uniqueItemStatuses),
