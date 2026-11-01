@@ -5,7 +5,7 @@ namespace Wera.Core;
 
 /// <summary>
 /// ADV 흐름 한 칸이 하는 일의 종류. TSV에는 이름(대소문자 무시)으로 적는다.
-/// 숫자 값은 정해진 번호다: None 0, Finish 1, Jump 2, TextMe 3, Choice 4, TextYou 5, TextPlain 6, SetFlag 7, ModFlag 8, AddInventory 9, JumpFlagEqual 10, JumpFlagNotEqual 11, JumpFlagGreaterThan 12, JumpFlagGreaterOrEqual 13, JumpFlagLessThan 14, JumpFlagLessOrEqual 15, JumpInventoryEqual 16, JumpInventoryNotEqual 17, JumpInventoryGreaterThan 18, JumpInventoryGreaterOrEqual 19, JumpInventoryLessThan 20, JumpInventoryLessOrEqual 21, JumpCharacterHaveTag 22, JumpUniqueItemHaveTag 23, JumpRandom 24, TextLog 25.
+/// 숫자 값은 정해진 번호다: None 0, Finish 1, Jump 2, TextMe 3, Choice 4, TextYou 5, TextPlain 6, SetFlag 7, ModFlag 8, AddInventory 9, JumpFlagEqual 10, JumpFlagNotEqual 11, JumpFlagGreaterThan 12, JumpFlagGreaterOrEqual 13, JumpFlagLessThan 14, JumpFlagLessOrEqual 15, JumpInventoryEqual 16, JumpInventoryNotEqual 17, JumpInventoryGreaterThan 18, JumpInventoryGreaterOrEqual 19, JumpInventoryLessThan 20, JumpInventoryLessOrEqual 21, JumpCharacterHaveTag 22, JumpUniqueItemHaveTag 23, JumpRandom 24, TextLog 25, JumpToSubmodule 26.
 /// </summary>
 public enum AdvFlowType
 {
@@ -82,6 +82,11 @@ public enum AdvFlowType
     /// 화자가 없는, 상자 없이 글만 나오는 텍스트(로그). 보여 줄 문장은 text 열이고 비워 둘 수 없으며 꾸밈 문법은 맞아야 하지만 줄 수 제한은 없다. 인자는 아직 쓰이지 않는다.
     /// </summary>
     TextLog = 25,
+    /// <summary>
+    /// 서브모듈 호출: param_1의 서브모듈(이 종류의 서브모듈 마스터)을 부른 흐름의 같은 상태로 실행하고 끝나면 다음 칸으로 돌아온다. 서브모듈 안의 Finish는 서브모듈만 끝낸다.
+    /// 서브모듈 안에서는 쓸 수 없다(서브모듈이 서브모듈을 부를 수 없다). 서브모듈 마스터에 그 코드가 있어야 한다(로드 검증). 값은 부르는 쪽과 공유하는 상태(플래그 등)로 주고받는다.
+    /// </summary>
+    JumpToSubmodule = 26,
 }
 
 /// <summary>
@@ -111,24 +116,26 @@ public sealed partial class GamePack
     /// 흐름 조건 마스터(adv_flow_condition_master)는 없어졌다. 그 파일이 게임팩에 있으면 로드 오류다.
     /// </summary>
     static List<AdvFlow>? LoadAdvFlows(
-        ZipArchive zip, List<AdvEntry>? advs, IReadOnlyDictionary<long, InventoryEntry> inventory, IReadOnlyList<TagEntry>? tags)
+        ZipArchive zip, List<AdvEntry>? advs, IReadOnlyDictionary<long, InventoryEntry> inventory, IReadOnlyList<TagEntry>? tags, bool submodule = false)
     {
-        const string file = AdvFlowMasterPath;
+        // 서브모듈 마스터(submodule: true)는 같은 규칙인데 소유자가 서브모듈 코드(ADV 마스터에 있을 필요 없음)이고 JumpToSubmodule을 쓸 수 없다.
+        var file = submodule ? AdvSubmoduleMasterPath : AdvFlowMasterPath;
+        var label = submodule ? "서브모듈" : "ADV";
         const string conditionFile = AdvFlowConditionMasterPath;
         var text = TryReadEntry(zip, file);
         // 흐름 조건 마스터는 없어졌다: 조건에 따라 칸이나 선택지를 숨기려면 JumpFlag*로 다른 칸/선택지 묶음으로 뛴다. 조용히 무시하면 조건이 사라지므로 오류로 알린다.
-        if (FindEntry(zip, conditionFile) is not null)
+        if (!submodule && FindEntry(zip, conditionFile) is not null)
             throw new PackFormatException($"{conditionFile}는 더 이상 쓰이지 않습니다(조건은 JumpFlag* 칸으로 건너뛰거나 다른 선택지 묶음으로 뛰어 냅니다). 이 파일을 지워 주세요.");
         if (text is null) return null;
-        if (advs is null) throw new PackFormatException($"{file}가 있으려면 {AdvMasterPath}도 필요합니다.");
+        if (!submodule && advs is null) throw new PackFormatException($"{file}가 있으려면 {AdvMasterPath}도 필요합니다.");
 
-        var advCodes = advs.Select(a => a.Code).ToHashSet();
+        var advCodes = advs?.Select(a => a.Code).ToHashSet() ?? [];
         var rows = new List<(long Adv, long Flow, AdvFlowType Type, long P1, long P2, long P3, string Text, string ForceName)>();
         var seen = new HashSet<(long, long)>();
-        foreach (var r in Body(file, text, "adv_code", "flow_number", "flow_type", "param_1", "param_2", "param_3", "text", "force_name"))
+        foreach (var r in Body(file, text, submodule ? "submodule_code" : "adv_code", "flow_number", "flow_type", "param_1", "param_2", "param_3", "text", "force_name"))
         {
             var advCode = ParseLong(file, "ADV 코드", r[0]);
-            var who = $"ADV '{advCode}'의";
+            var who = $"{label} '{advCode}'의";
             var flow = ParseLong(file, $"{who} 흐름 번호", r[1]);
             var where = $"{who} 흐름 {flow}의";
             // 숫자("1")도 Enum.TryParse를 통과하므로 이름 목록으로 먼저 거른다.
@@ -137,7 +144,7 @@ public sealed partial class GamePack
                 throw new PackFormatException(
                     $"{file}: {where} 흐름 종류 '{r[2]}'을(를) 알 수 없습니다. ({string.Join(", ", Enum.GetNames<AdvFlowType>())})");
 
-            if (!advCodes.Contains(advCode))
+            if (!submodule && !advCodes.Contains(advCode))
                 throw new PackFormatException($"{file}: ADV '{advCode}'가 ADV 마스터에 없습니다.");
             if (!seen.Add((advCode, flow)))
                 throw new PackFormatException($"{file}: 같은 키(ADV {advCode}, 흐름 {flow})가 두 번 있습니다.");
@@ -150,7 +157,9 @@ public sealed partial class GamePack
         // 종류별 인자 검증
         foreach (var (advCode, flow, type, p1, p2, p3, line, _) in rows)
         {
-            var where = $"{file}: ADV '{advCode}'의 흐름 {flow}의";
+            var where = $"{file}: {label} '{advCode}'의 흐름 {flow}의";
+            if (submodule && type == AdvFlowType.JumpToSubmodule)
+                throw new PackFormatException($"{where} 서브모듈 안에서는 JumpToSubmodule을 쓸 수 없습니다(서브모듈이 서브모듈을 부를 수 없습니다).");
             if (type == AdvFlowType.Choice) CheckChoiceText(where, line);
             if (type == AdvFlowType.AddInventory) CheckAddInventory(where, p1, p2, inventory);
             if (RandomJump.Is(type.ToString()) && p2 < 1)
@@ -193,7 +202,7 @@ public sealed partial class GamePack
                 if (type != AdvFlowType.Choice) { last = null; continue; }
                 if (last != p1 && !started.Add(p1))
                     throw new PackFormatException(
-                        $"{file}: ADV '{advCode}'의 흐름 {flow}의 선택지 그룹 '{p1}'가 연속하지 않습니다(같은 그룹의 선택지 사이에 다른 칸이 있습니다).");
+                        $"{file}: {label} '{advCode}'의 흐름 {flow}의 선택지 그룹 '{p1}'가 연속하지 않습니다(같은 그룹의 선택지 사이에 다른 칸이 있습니다).");
                 last = p1;
             }
         }

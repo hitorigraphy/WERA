@@ -7,7 +7,8 @@ namespace Wera.Core;
 /// </summary>
 public sealed class CommunicationFlowCircuit
 {
-    readonly IReadOnlyList<CommunicationFlowStep> flows;       // 흐름 번호 순
+    IReadOnlyList<CommunicationFlowStep> flows;                // 흐름 번호 순(서브모듈 안이면 그 서브모듈의 칸들)
+    readonly IReadOnlyDictionary<long, IReadOnlyList<CommunicationFlowStep>>? submodules;
     readonly Dictionary<long, long> flags;
     readonly Action<long, long>? addInventory;
     readonly Func<long, long>? countInventory;
@@ -32,6 +33,7 @@ public sealed class CommunicationFlowCircuit
         CommunicationCode = communicationCode;
         this.pack = pack;
         this.flows = flows;
+        submodules = pack.CommunicationSubmodules;
         this.speakerCode = speakerCode;
         this.flags = flags;
         this.addInventory = addInventory;
@@ -48,7 +50,7 @@ public sealed class CommunicationFlowCircuit
 
         while (!IsFinished)
         {
-            if (next >= flows.Count)
+            if (!More())
             {
                 IsFinished = true;
                 break;
@@ -59,7 +61,10 @@ public sealed class CommunicationFlowCircuit
             switch (flow.FlowType)
             {
                 case CommunicationFlowType.Finish:
-                    IsFinished = true;
+                    if (!Return()) IsFinished = true;    // 서브모듈 안의 Finish는 서브모듈만 끝낸다
+                    break;
+                case CommunicationFlowType.JumpToSubmodule:
+                    Call(flow.Param1);
                     break;
                 case CommunicationFlowType.Jump:
                     JumpTo(flow.Param1);
@@ -122,4 +127,32 @@ public sealed class CommunicationFlowCircuit
     }
 
     void JumpTo(long flowNumber) => next = flows.TakeWhile(f => f.FlowNumber < flowNumber).Count();
+
+    // 서브모듈 호출 스택(한 단계): 부른 흐름과 돌아갈 자리. 서브모듈 안에서 멈춰도(대사, 선택지, 전투) 다음 호출은 그 자리에서 이어 가고, 끝나면 부른 칸의 다음으로 돌아온다.
+    IReadOnlyList<CommunicationFlowStep>? callerFlows;
+    int callerNext;
+
+    /// <summary>서브모듈을 부른다(서브모듈 안에서는 부를 수 없고, 없는 서브모듈이면 아무 일도 하지 않는다. 로드가 막는다).</summary>
+    void Call(long code)
+    {
+        if (callerFlows is not null || submodules is null || !submodules.TryGetValue(code, out var submodule)) return;
+        (callerFlows, callerNext) = (flows, next);
+        (flows, next) = (submodule, 0);
+    }
+
+    /// <summary>서브모듈 안이면 부른 흐름의 다음 칸으로 돌아간다. 서브모듈 안이 아니면 false.</summary>
+    bool Return()
+    {
+        if (callerFlows is null) return false;
+        (flows, next, callerFlows) = (callerFlows, callerNext, null);
+        return true;
+    }
+
+    /// <summary>더 볼 칸이 있는가(서브모듈의 끝이면 부른 흐름으로 돌아가 이어 본다).</summary>
+    bool More()
+    {
+        while (next >= flows.Count)
+            if (!Return()) return false;
+        return true;
+    }
 }

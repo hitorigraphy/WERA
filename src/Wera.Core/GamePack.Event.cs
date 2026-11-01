@@ -5,7 +5,7 @@ namespace Wera.Core;
 
 /// <summary>
 /// 이벤트 흐름 한 칸이 하는 일의 종류. TSV에는 이름(대소문자 무시)으로 적는다.
-/// 숫자 값은 정해진 번호다: None 0, Finish 1, Jump 2, Adv 3, Battle 4, SetFlag 5, ModFlag 6, AddInventory 7, JumpFlagEqual 8, JumpFlagNotEqual 9, JumpFlagGreaterThan 10, JumpFlagGreaterOrEqual 11, JumpFlagLessThan 12, JumpFlagLessOrEqual 13, JumpInventoryEqual 14, JumpInventoryNotEqual 15, JumpInventoryGreaterThan 16, JumpInventoryGreaterOrEqual 17, JumpInventoryLessThan 18, JumpInventoryLessOrEqual 19, JumpCharacterHaveTag 20, JumpUniqueItemHaveTag 21, JumpRandom 22, GameOver 23, ReleaseCaptives 24.
+/// 숫자 값은 정해진 번호다: None 0, Finish 1, Jump 2, Adv 3, Battle 4, SetFlag 5, ModFlag 6, AddInventory 7, JumpFlagEqual 8, JumpFlagNotEqual 9, JumpFlagGreaterThan 10, JumpFlagGreaterOrEqual 11, JumpFlagLessThan 12, JumpFlagLessOrEqual 13, JumpInventoryEqual 14, JumpInventoryNotEqual 15, JumpInventoryGreaterThan 16, JumpInventoryGreaterOrEqual 17, JumpInventoryLessThan 18, JumpInventoryLessOrEqual 19, JumpCharacterHaveTag 20, JumpUniqueItemHaveTag 21, JumpRandom 22, GameOver 23, ReleaseCaptives 24, JumpToSubmodule 25.
 /// </summary>
 public enum EventFlowType
 {
@@ -82,6 +82,11 @@ public enum EventFlowType
     /// 인자는 없다. 던전 이벤트가 아닌 이벤트에서는 아무 일도 하지 않는다. 던전 클리어 자체는 플래그(SetFlag)로 다룬다.
     /// </summary>
     ReleaseCaptives = 24,
+    /// <summary>
+    /// 서브모듈 호출: param_1의 서브모듈(이 종류의 서브모듈 마스터)을 부른 흐름의 같은 상태로 실행하고 끝나면 다음 칸으로 돌아온다. 서브모듈 안의 Finish는 서브모듈만 끝낸다.
+    /// 서브모듈 안에서는 쓸 수 없다(서브모듈이 서브모듈을 부를 수 없다). 서브모듈 마스터에 그 코드가 있어야 한다(로드 검증). 값은 부르는 쪽과 공유하는 상태(플래그 등)로 주고받는다.
+    /// </summary>
+    JumpToSubmodule = 25,
 }
 
 /// <summary>이벤트 마스터의 한 행. 이벤트 조건 마스터의 그룹 규칙(그룹 안은 AND, 그룹끼리는 OR)으로 열리고, 조건이 없으면 늘 열린다.</summary>
@@ -172,24 +177,25 @@ public sealed partial class GamePack
     /// </summary>
     static List<EventFlow>? LoadEventFlows(
         ZipArchive zip, IReadOnlyCollection<long>? events, List<AdvEntry>? advs, List<BattleEntry>? battles, IReadOnlyList<TagEntry>? tags, IReadOnlyDictionary<long, InventoryEntry> inventory,
-        bool dungeon = false)
+        bool dungeon = false, bool submodule = false)
     {
         // 던전 이벤트(타일에서 재생하는 이벤트)의 흐름 마스터는 같은 규칙에 파일과 열 이름만 다르다.
-        var file = dungeon ? DungeonEventFlowMasterPath : EventFlowMasterPath;
+        // 서브모듈 마스터(submodule: true)는 같은 규칙인데 소유자가 서브모듈 코드(어느 마스터에 있을 필요 없음)이고 JumpToSubmodule을 쓸 수 없다.
+        var file = submodule ? (dungeon ? DungeonEventSubmoduleMasterPath : EventSubmoduleMasterPath) : dungeon ? DungeonEventFlowMasterPath : EventFlowMasterPath;
         var masterFile = dungeon ? DungeonEventMasterPath : EventMasterPath;
-        var label = dungeon ? "던전 이벤트" : "이벤트";
+        var label = submodule ? "서브모듈" : dungeon ? "던전 이벤트" : "이벤트";
         const string conditionFile = EventFlowConditionMasterPath;
         var text = TryReadEntry(zip, file);
         // 흐름 조건 마스터는 없어졌다: 조건에 따라 칸을 건너뛰려면 JumpFlag*로 뛰어넘는다. 조용히 무시하면 조건이 사라지므로 오류로 알린다.
-        if (!dungeon && FindEntry(zip, conditionFile) is not null)
+        if (!dungeon && !submodule && FindEntry(zip, conditionFile) is not null)
             throw new PackFormatException($"{conditionFile}는 더 이상 쓰이지 않습니다(조건은 JumpFlag* 칸으로 건너뛰어 냅니다). 이 파일을 지워 주세요.");
         if (text is null) return null;
-        if (events is null) throw new PackFormatException($"{file}가 있으려면 {masterFile}도 필요합니다.");
+        if (!submodule && events is null) throw new PackFormatException($"{file}가 있으려면 {masterFile}도 필요합니다.");
 
-        var eventCodes = events.ToHashSet();
+        var eventCodes = events?.ToHashSet() ?? [];
         var rows = new List<(long Event, long Flow, EventFlowType Type, long P1, long P2, long P3)>();
         var seen = new HashSet<(long, long)>();
-        foreach (var r in Body(file, text, dungeon ? "dungeon_event_code" : "event_code", "flow_number", "flow_type", "param_1", "param_2", "param_3"))
+        foreach (var r in Body(file, text, submodule ? "submodule_code" : dungeon ? "dungeon_event_code" : "event_code", "flow_number", "flow_type", "param_1", "param_2", "param_3"))
         {
             var eventCode = ParseLong(file, $"{label} 코드", r[0]);
             var who = $"{label} '{eventCode}'의";
@@ -201,7 +207,7 @@ public sealed partial class GamePack
                 throw new PackFormatException(
                     $"{file}: {where} 흐름 종류 '{r[2]}'을(를) 알 수 없습니다. ({string.Join(", ", Enum.GetNames<EventFlowType>())})");
 
-            if (!eventCodes.Contains(eventCode))
+            if (!submodule && !eventCodes.Contains(eventCode))
                 throw new PackFormatException($"{file}: {label} '{eventCode}'가 {label} 마스터에 없습니다.");
             if (!seen.Add((eventCode, flow)))
                 throw new PackFormatException($"{file}: 같은 키({label} {eventCode}, 흐름 {flow})가 두 번 있습니다.");
@@ -217,6 +223,8 @@ public sealed partial class GamePack
         foreach (var (eventCode, flow, type, p1, p2, p3) in rows)
         {
             var where = $"{file}: {label} '{eventCode}'의 흐름 {flow}의";
+            if (submodule && type == EventFlowType.JumpToSubmodule)
+                throw new PackFormatException($"{where} 서브모듈 안에서는 JumpToSubmodule을 쓸 수 없습니다(서브모듈이 서브모듈을 부를 수 없습니다).");
             if (type == EventFlowType.AddInventory) CheckAddInventory(where, p1, p2, inventory);
             if (RandomJump.Is(type.ToString()) && p2 < 1)
                 throw new PackFormatException($"{where} JumpRandom의 모수 '{p2}'는 1 이상이어야 합니다.");

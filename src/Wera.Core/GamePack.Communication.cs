@@ -16,7 +16,7 @@ public sealed record CommunicationEntry(long Code, long GroupCode, string Name, 
 /// 숫자 값은 정해진 번호다: None 0, Finish 1, Jump 2, Text 3, Choice 4, TextPlain 5, SetFlag 6, ModFlag 7, AddInventory 8,
 /// JumpFlagEqual 9, JumpFlagNotEqual 10, JumpFlagGreaterThan 11, JumpFlagGreaterOrEqual 12, JumpFlagLessThan 13, JumpFlagLessOrEqual 14,
 /// JumpInventoryEqual 15, JumpInventoryNotEqual 16, JumpInventoryGreaterThan 17, JumpInventoryGreaterOrEqual 18, JumpInventoryLessThan 19, JumpInventoryLessOrEqual 20,
-/// JumpCharacterHaveTag 21, JumpUniqueItemHaveTag 22, JumpRandom 23, TextLog 24.
+/// JumpCharacterHaveTag 21, JumpUniqueItemHaveTag 22, JumpRandom 23, TextLog 24, JumpToSubmodule 25.
 /// 점프하는 칸의 규칙과 인자는 ADV 흐름(<see cref="AdvFlowType"/>)과 같고, 점프할 흐름 번호는 같은 흐름 묶음 안에 있고 자신보다 커야 한다.
 /// </summary>
 public enum CommunicationFlowType
@@ -64,6 +64,11 @@ public enum CommunicationFlowType
     JumpRandom = 23,
     /// <summary>화자가 없는, 상자 없이 글만 나오는 텍스트(로그). 보여 줄 문장은 text 열이고 비워 둘 수 없다. 인자는 아직 쓰이지 않는다.</summary>
     TextLog = 24,
+    /// <summary>
+    /// 서브모듈 호출: param_1의 서브모듈(이 종류의 서브모듈 마스터)을 부른 흐름의 같은 상태로 실행하고 끝나면 다음 칸으로 돌아온다. 서브모듈 안의 Finish는 서브모듈만 끝낸다.
+    /// 서브모듈 안에서는 쓸 수 없다(서브모듈이 서브모듈을 부를 수 없다). 서브모듈 마스터에 그 코드가 있어야 한다(로드 검증). 값은 부르는 쪽과 공유하는 상태(플래그 등)로 주고받는다.
+    /// </summary>
+    JumpToSubmodule = 25,
 }
 
 /// <summary>흐름의 한 칸. 세 흐름 마스터가 모두 이 모양의 칸을 가진다.</summary>
@@ -189,21 +194,23 @@ public sealed partial class GamePack
     /// </summary>
     static List<(long[] Keys, CommunicationFlowStep Step)>? LoadCommunicationFlowFile(
         ZipArchive zip, string file, string[] characterColumns, List<CommunicationEntry>? communications,
-        IReadOnlyDictionary<long, InventoryEntry> inventory, IReadOnlyList<TagEntry>? tags)
+        IReadOnlyDictionary<long, InventoryEntry> inventory, IReadOnlyList<TagEntry>? tags, bool submodule = false)
     {
+        // 서브모듈 마스터(submodule: true, 열은 submodule_code, flow_number, ...)는 같은 규칙인데 소유자가 서브모듈 코드(교류 마스터에 있을 필요 없음)이고 JumpToSubmodule을 쓸 수 없다.
+        var label = submodule ? "서브모듈" : "교류";
         var text = TryReadEntry(zip, file);
         if (text is null) return null;
-        if (communications is null) throw new PackFormatException($"{file}가 있으려면 {CommunicationMasterPath}도 필요합니다.");
+        if (!submodule && communications is null) throw new PackFormatException($"{file}가 있으려면 {CommunicationMasterPath}도 필요합니다.");
 
-        var codes = communications.Select(c => c.Code).ToHashSet();
-        string[] header = ["communication_code", .. characterColumns, "flow_number", "flow_type", "param_1", "param_2", "param_3", "text"];
+        var codes = communications?.Select(c => c.Code).ToHashSet() ?? [];
+        string[] header = [submodule ? "submodule_code" : "communication_code", .. characterColumns, "flow_number", "flow_type", "param_1", "param_2", "param_3", "text"];
         var n = characterColumns.Length;
         var rows = new List<(long[] Keys, CommunicationFlowStep Step)>();
         var seen = new HashSet<string>();
         foreach (var r in Body(file, text, header))
         {
-            var code = ParseLong(file, "교류 코드", r[0]);
-            var who = $"교류 '{code}'의";
+            var code = ParseLong(file, $"{label} 코드", r[0]);
+            var who = $"{label} '{code}'의";
             var keys = new long[1 + n];
             keys[0] = code;
             for (var i = 0; i < n; i++)
@@ -220,7 +227,7 @@ public sealed partial class GamePack
                 throw new PackFormatException(
                     $"{file}: {where} 흐름 종류 '{typeText}'을(를) 알 수 없습니다. ({string.Join(", ", Enum.GetNames<CommunicationFlowType>())})");
 
-            if (!codes.Contains(code))
+            if (!submodule && !codes.Contains(code))
                 throw new PackFormatException($"{file}: 교류 '{code}'가 교류 마스터에 없습니다.");
             for (var i = 0; i < n; i++)
                 if (!inventory.TryGetValue(keys[1 + i], out var entry) || entry.Kind != InventoryKind.Character)
@@ -234,23 +241,33 @@ public sealed partial class GamePack
         }
 
         foreach (var set in rows.GroupBy(r => string.Join(",", r.Keys)))
-            CheckCommunicationFlowSet(file, set.OrderBy(r => r.Step.FlowNumber).Select(r => (r.Keys, r.Step)).ToList(), inventory, tags);
+            CheckCommunicationFlowSet(file, set.OrderBy(r => r.Step.FlowNumber).Select(r => (r.Keys, r.Step)).ToList(), inventory, tags, submodule);
         return rows;
     }
+
+    /// <summary>교류 서브모듈 마스터: 세 교류 흐름 마스터(듀오, 솔로, 기본)가 함께 부르는 하나의 서브모듈 마스터(열은 submodule_code, flow_number, flow_type, param_1~3, text; 앞의 두 열이 키).</summary>
+    static Dictionary<long, IReadOnlyList<CommunicationFlowStep>>? LoadCommunicationSubmodules(
+        ZipArchive zip, IReadOnlyDictionary<long, InventoryEntry> inventory, IReadOnlyList<TagEntry>? tags) =>
+        GroupSubmodules(LoadCommunicationFlowFile(zip, CommunicationSubmoduleMasterPath, [], null, inventory, tags, submodule: true),
+            r => r.Keys[0], r => r.Step.FlowNumber)?.ToDictionary(g => g.Key, g => (IReadOnlyList<CommunicationFlowStep>)g.Value.Select(r => r.Step).ToList());
 
     /// <summary>한 흐름 묶음(같은 교류와 캐릭터 열들)의 칸들을 종류별로 검증한다. steps는 흐름 번호 순이다.</summary>
     static void CheckCommunicationFlowSet(
         string file, List<(long[] Keys, CommunicationFlowStep Step)> steps,
-        IReadOnlyDictionary<long, InventoryEntry> inventory, IReadOnlyList<TagEntry>? tags)
+        IReadOnlyDictionary<long, InventoryEntry> inventory, IReadOnlyList<TagEntry>? tags, bool submodule = false)
     {
         var numbers = steps.Select(s => s.Step.FlowNumber).ToHashSet();
         var started = new HashSet<long>();
         long? lastGroup = null;                          // 바로 앞 칸이 Choice일 때 그 선택지 그룹
         foreach (var (keys, s) in steps)
         {
-            var where = $"{file}: 교류 '{keys[0]}'의 키 [{string.Join(", ", keys.Skip(1))}]의 흐름 {s.FlowNumber}의";
+            var where = submodule
+                ? $"{file}: 서브모듈 '{keys[0]}'의 흐름 {s.FlowNumber}의"
+                : $"{file}: 교류 '{keys[0]}'의 키 [{string.Join(", ", keys.Skip(1))}]의 흐름 {s.FlowNumber}의";
             var (type, p1, p2, p3) = (s.FlowType, s.Param1, s.Param2, s.Param3);
             var name = type.ToString();
+            if (submodule && type == CommunicationFlowType.JumpToSubmodule)
+                throw new PackFormatException($"{where} 서브모듈 안에서는 JumpToSubmodule을 쓸 수 없습니다(서브모듈이 서브모듈을 부를 수 없습니다).");
 
             if (type is CommunicationFlowType.Text or CommunicationFlowType.TextPlain or CommunicationFlowType.TextLog or CommunicationFlowType.Choice
                 && string.IsNullOrWhiteSpace(s.Text))

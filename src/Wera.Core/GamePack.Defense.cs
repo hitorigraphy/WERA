@@ -29,6 +29,11 @@ public enum DefenseFlowType
     JumpOperatorHaveTag = 11,
     /// <summary>확률로 점프한다. param_1 chance, param_2 bound(1 이상), param_3 target_flow_number.</summary>
     JumpRandom = 12,
+    /// <summary>
+    /// 서브모듈 호출: param_1의 서브모듈(이 종류의 서브모듈 마스터)을 부른 흐름의 같은 상태로 실행하고 끝나면 다음 칸으로 돌아온다. 서브모듈 안의 Finish는 서브모듈만 끝낸다.
+    /// 서브모듈 안에서는 쓸 수 없다(서브모듈이 서브모듈을 부를 수 없다). 서브모듈 마스터에 그 코드가 있어야 한다(로드 검증). 값은 부르는 쪽과 공유하는 상태(플래그 등)로 주고받는다.
+    /// </summary>
+    JumpToSubmodule = 13,
 }
 
 /// <summary>오퍼레이터 슬롯 방어력 흐름 마스터의 한 칸.</summary>
@@ -65,36 +70,40 @@ public sealed partial class GamePack
     /// Jump의 param_1과 점프하는 칸의 param_3은 자신보다 큰 같은 슬롯의 흐름 번호, AddDefenseByStatus의 스테이터스와 JumpOperatorHaveTag의 태그는 각각의 마스터에,
     /// JumpRandom의 모수는 1 이상이어야 한다.
     /// </summary>
-    static List<DefenseFlow>? LoadDefenseFlows(ZipArchive zip, List<OperatorSlotEntry>? slots, List<StatusEntry>? statuses, IReadOnlyList<TagEntry>? tags)
+    static List<DefenseFlow>? LoadDefenseFlows(ZipArchive zip, List<OperatorSlotEntry>? slots, List<StatusEntry>? statuses, IReadOnlyList<TagEntry>? tags, bool submodule = false)
     {
-        const string file = DefenseFlowMasterPath;
+        // 서브모듈 마스터(submodule: true)는 같은 규칙인데 소유자가 서브모듈 코드(오퍼레이터 슬롯 마스터에 있을 필요 없음)이고 JumpToSubmodule을 쓸 수 없다.
+        var file = submodule ? DefenseSubmoduleMasterPath : DefenseFlowMasterPath;
+        var label = submodule ? "서브모듈" : "오퍼레이터 슬롯";
         var text = TryReadEntry(zip, file);
         if (text is null) return null;
-        if (slots is null) throw new PackFormatException($"{file}가 있으려면 {OperatorSlotMasterPath}도 필요합니다.");
+        if (!submodule && slots is null) throw new PackFormatException($"{file}가 있으려면 {OperatorSlotMasterPath}도 필요합니다.");
 
-        var slotCodes = slots.Select(s => s.Code).ToHashSet();
+        var slotCodes = slots?.Select(s => s.Code).ToHashSet() ?? [];
         var rows = new List<DefenseFlow>();
         var seen = new HashSet<(long, long)>();
-        foreach (var r in Body(file, text, "operator_slot_code", "flow_number", "flow_type", "param_1", "param_2", "param_3"))
+        foreach (var r in Body(file, text, submodule ? "submodule_code" : "operator_slot_code", "flow_number", "flow_type", "param_1", "param_2", "param_3"))
         {
-            var slot = ParseLong(file, "오퍼레이터 슬롯 코드", r[0]);
-            var who = $"오퍼레이터 슬롯 '{slot}'의";
+            var slot = ParseLong(file, $"{label} 코드", r[0]);
+            var who = $"{label} '{slot}'의";
             var flow = ParseLong(file, $"{who} 흐름 번호", r[1]);
             var where = $"{who} 흐름 {flow}의";
             if (!Enum.GetNames<DefenseFlowType>().Contains(r[2], StringComparer.OrdinalIgnoreCase)
                 || !Enum.TryParse<DefenseFlowType>(r[2], ignoreCase: true, out var type))
                 throw new PackFormatException($"{file}: {where} 흐름 종류 '{r[2]}'을(를) 알 수 없습니다. ({string.Join(", ", Enum.GetNames<DefenseFlowType>())})");
-            if (!slotCodes.Contains(slot))
+            if (!submodule && !slotCodes.Contains(slot))
                 throw new PackFormatException($"{file}: 오퍼레이터 슬롯 '{slot}'가 {OperatorSlotMasterPath}에 없습니다.");
             if (!seen.Add((slot, flow)))
-                throw new PackFormatException($"{file}: 같은 키(오퍼레이터 슬롯 {slot}, 흐름 {flow})가 두 번 있습니다.");
+                throw new PackFormatException($"{file}: 같은 키({label} {slot}, 흐름 {flow})가 두 번 있습니다.");
             rows.Add(new DefenseFlow(slot, flow, type,
                 OptionalLong(file, $"{where} 인자 1", r[3]), OptionalLong(file, $"{where} 인자 2", r[4]), OptionalLong(file, $"{where} 인자 3", r[5])));
         }
 
         foreach (var (slot, flow, type, p1, p2, p3) in rows)
         {
-            var where = $"{file}: 오퍼레이터 슬롯 '{slot}'의 흐름 {flow}의";
+            var where = $"{file}: {label} '{slot}'의 흐름 {flow}의";
+            if (submodule && type == DefenseFlowType.JumpToSubmodule)
+                throw new PackFormatException($"{where} 서브모듈 안에서는 JumpToSubmodule을 쓸 수 없습니다(서브모듈이 서브모듈을 부를 수 없습니다).");
             if (type == DefenseFlowType.AddDefenseByStatus && (statuses is null || !statuses.Any(s => s.Code == p1)))
                 throw new PackFormatException($"{where} AddDefenseByStatus의 스테이터스 코드 '{p1}'가 스테이터스 마스터에 없습니다.");
             if (type == DefenseFlowType.JumpOperatorHaveTag && (tags is null || !tags.Any(t => t.Code == p1)))

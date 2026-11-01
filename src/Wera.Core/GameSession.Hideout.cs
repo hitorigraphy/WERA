@@ -358,7 +358,7 @@ public sealed partial class GameSession
                 if (FacilityOfFloor(floor, built) is not { } facility || Pack.FacilityFlowsOf(facility.Code) is not { Count: > 0 } flows) continue;
                 var at = floor;
                 new FacilityFlowCircuit(facility.Code, flows, slot => HideoutOperatorOf(at, built, slot), PlayerFlags,
-                    AddInventory, CountInventory, CharacterHasTag, UniqueItemHasTag, NextRandom).Execute();
+                    AddInventory, CountInventory, CharacterHasTag, UniqueItemHasTag, NextRandom, Pack.FacilitySubmodules).Execute();
             }
         var changes = InventoryItems.Keys.Union(before.Keys).Order()
             .Select(code => (code, delta: InventoryItems.GetValueOrDefault(code).Amount - before.GetValueOrDefault(code))).Where(x => x.delta != 0)
@@ -373,7 +373,7 @@ public sealed partial class GameSession
     /// <summary>오퍼레이터 슬롯에 선 캐릭터 인스턴스의 최대 방어력(<see cref="OperatorDefenseOf(long, long)"/>와 같다).</summary>
     public long OperatorDefenseOf(string instanceId, long operatorSlotCode) =>
         Characters.TryGetValue(instanceId, out var character) && Pack.DefenseFlowsOf(operatorSlotCode) is { Count: > 0 } flows
-            ? new DefenseFlowCircuit(flows, character.CharacterCode, (_, status) => character.Statuses.GetValueOrDefault(status), CharacterHasTag, PlayerFlags, NextRandom).Execute()
+            ? new DefenseFlowCircuit(flows, character.CharacterCode, (_, status) => character.Statuses.GetValueOrDefault(status), CharacterHasTag, PlayerFlags, NextRandom, Pack.DefenseSubmodules).Execute()
             : 0;
 
     /// <summary>현재 위협도(게임 설정 ThreatFlagCode의 플레이어 플래그 값). 설정이 없으면 0.</summary>

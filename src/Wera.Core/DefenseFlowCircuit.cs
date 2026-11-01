@@ -6,7 +6,8 @@ namespace Wera.Core;
 /// </summary>
 public sealed class DefenseFlowCircuit
 {
-    readonly IReadOnlyList<DefenseFlow> flows;       // 흐름 번호 순
+    IReadOnlyList<DefenseFlow> flows;                // 흐름 번호 순(서브모듈 안이면 그 서브모듈의 칸들)
+    readonly IReadOnlyDictionary<long, IReadOnlyList<DefenseFlow>>? submodules;
     readonly long operatorCode;
     readonly Func<long, long, long> statusOf;         // (캐릭터 코드, 스테이터스 코드) → 값
     readonly Func<long, long, bool> characterHasTag;
@@ -18,8 +19,9 @@ public sealed class DefenseFlowCircuit
     /// <param name="operatorCode">슬롯에 선 캐릭터 코드.</param>
     public DefenseFlowCircuit(
         IReadOnlyList<DefenseFlow> flows, long operatorCode, Func<long, long, long> statusOf, Func<long, long, bool> characterHasTag,
-        IReadOnlyDictionary<long, long> flags, Func<long, long>? random = null)
+        IReadOnlyDictionary<long, long> flags, Func<long, long>? random = null, IReadOnlyDictionary<long, IReadOnlyList<DefenseFlow>>? submodules = null)
     {
+        this.submodules = submodules;
         this.flows = flows;
         this.operatorCode = operatorCode;
         this.statusOf = statusOf;
@@ -31,13 +33,17 @@ public sealed class DefenseFlowCircuit
     /// <summary>서킷을 끝까지 실행해 최대 방어력(0 이상)을 돌려준다.</summary>
     public long Execute()
     {
-        while (next < flows.Count)
+        while (More())
         {
             var flow = flows[next++];
             switch (flow.FlowType)
             {
                 case DefenseFlowType.Finish:
-                    return Math.Max(0, defense);
+                    if (!Return()) return Math.Max(0, defense);      // 서브모듈 안의 Finish는 서브모듈만 끝낸다
+                    break;
+                case DefenseFlowType.JumpToSubmodule:
+                    Call(flow.Param1);
+                    break;
                 case DefenseFlowType.Jump:
                     JumpTo(flow.Param1);
                     break;
@@ -71,4 +77,32 @@ public sealed class DefenseFlowCircuit
     }
 
     void JumpTo(long flowNumber) => next = flows.TakeWhile(f => f.FlowNumber < flowNumber).Count();
+
+    // 서브모듈 호출 스택(한 단계): 부른 흐름과 돌아갈 자리. 서브모듈 안에서 멈춰도(대사, 선택지, 전투) 다음 호출은 그 자리에서 이어 가고, 끝나면 부른 칸의 다음으로 돌아온다.
+    IReadOnlyList<DefenseFlow>? callerFlows;
+    int callerNext;
+
+    /// <summary>서브모듈을 부른다(서브모듈 안에서는 부를 수 없고, 없는 서브모듈이면 아무 일도 하지 않는다. 로드가 막는다).</summary>
+    void Call(long code)
+    {
+        if (callerFlows is not null || submodules is null || !submodules.TryGetValue(code, out var submodule)) return;
+        (callerFlows, callerNext) = (flows, next);
+        (flows, next) = (submodule, 0);
+    }
+
+    /// <summary>서브모듈 안이면 부른 흐름의 다음 칸으로 돌아간다. 서브모듈 안이 아니면 false.</summary>
+    bool Return()
+    {
+        if (callerFlows is null) return false;
+        (flows, next, callerFlows) = (callerFlows, callerNext, null);
+        return true;
+    }
+
+    /// <summary>더 볼 칸이 있는가(서브모듈의 끝이면 부른 흐름으로 돌아가 이어 본다).</summary>
+    bool More()
+    {
+        while (next >= flows.Count)
+            if (!Return()) return false;
+        return true;
+    }
 }

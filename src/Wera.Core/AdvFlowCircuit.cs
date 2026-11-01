@@ -46,7 +46,8 @@ public readonly record struct AdvStep(
 /// </summary>
 public sealed class AdvFlowCircuit
 {
-    readonly IReadOnlyList<AdvFlow> flows;       // 흐름 번호 순
+    IReadOnlyList<AdvFlow> flows;                // 흐름 번호 순(서브모듈 안이면 그 서브모듈의 칸들)
+    readonly IReadOnlyDictionary<long, IReadOnlyList<AdvFlow>>? submodules;
     readonly Dictionary<long, long> flags;
     readonly Action<long, long>? addInventory;
     readonly Func<long, long>? countInventory;
@@ -72,21 +73,24 @@ public sealed class AdvFlowCircuit
         Func<long, long, bool>? characterHasTag = null,
         Func<long, long, bool>? uniqueItemHasTag = null,
         Func<long, long>? random = null)
-        : this(pack, advCode, pack.AdvFlowsOf(advCode), flags, addInventory, countInventory, characterHasTag, uniqueItemHasTag, random)
+        : this(pack, advCode, pack.AdvFlowsOf(advCode), flags, addInventory, countInventory, characterHasTag, uniqueItemHasTag, random, pack.AdvSubmodules)
     {
     }
 
     /// <summary>
     /// 흐름 칸들을 직접 받아 실행한다. flows는 흐름 번호 순이어야 한다(교류 흐름은 이 실행기가 아니라 <see cref="CommunicationFlowCircuit"/>이 돌린다).
+    /// submodules는 JumpToSubmodule 칸이 부르는 서브모듈들(서브모듈 코드 → 칸들)이고 null이면 서브모듈이 없다.
     /// </summary>
     public AdvFlowCircuit(GamePack pack, long advCode, IReadOnlyList<AdvFlow> flows, Dictionary<long, long> flags,
         Action<long, long>? addInventory = null,
         Func<long, long>? countInventory = null,
         Func<long, long, bool>? characterHasTag = null,
         Func<long, long, bool>? uniqueItemHasTag = null,
-        Func<long, long>? random = null)
+        Func<long, long>? random = null,
+        IReadOnlyDictionary<long, IReadOnlyList<AdvFlow>>? submodules = null)
     {
         AdvCode = advCode;
+        this.submodules = submodules;
         this.pack = pack;
         this.flags = flags;
         this.addInventory = addInventory;
@@ -104,7 +108,7 @@ public sealed class AdvFlowCircuit
 
         while (!IsFinished)
         {
-            if (next >= flows.Count)
+            if (!More())
             {
                 IsFinished = true;
                 break;
@@ -115,7 +119,10 @@ public sealed class AdvFlowCircuit
             switch (flow.FlowType)
             {
                 case AdvFlowType.Finish:
-                    IsFinished = true;
+                    if (!Return()) IsFinished = true;    // 서브모듈 안의 Finish는 서브모듈만 끝낸다
+                    break;
+                case AdvFlowType.JumpToSubmodule:
+                    Call(flow.Param1);
                     break;
                 case AdvFlowType.Jump:
                     JumpTo(flow.Param1);
@@ -193,4 +200,32 @@ public sealed class AdvFlowCircuit
     static string Named(AdvFlow flow, string fallback) => string.IsNullOrEmpty(flow.ForceName) ? fallback : flow.ForceName;
 
     void JumpTo(long flowNumber) => next = flows.TakeWhile(f => f.FlowNumber < flowNumber).Count();
+
+    // 서브모듈 호출 스택(한 단계): 부른 흐름과 돌아갈 자리. 서브모듈 안에서 멈춰도(대사, 선택지, 전투) 다음 호출은 그 자리에서 이어 가고, 끝나면 부른 칸의 다음으로 돌아온다.
+    IReadOnlyList<AdvFlow>? callerFlows;
+    int callerNext;
+
+    /// <summary>서브모듈을 부른다(서브모듈 안에서는 부를 수 없고, 없는 서브모듈이면 아무 일도 하지 않는다. 로드가 막는다).</summary>
+    void Call(long code)
+    {
+        if (callerFlows is not null || submodules is null || !submodules.TryGetValue(code, out var submodule)) return;
+        (callerFlows, callerNext) = (flows, next);
+        (flows, next) = (submodule, 0);
+    }
+
+    /// <summary>서브모듈 안이면 부른 흐름의 다음 칸으로 돌아간다. 서브모듈 안이 아니면 false.</summary>
+    bool Return()
+    {
+        if (callerFlows is null) return false;
+        (flows, next, callerFlows) = (callerFlows, callerNext, null);
+        return true;
+    }
+
+    /// <summary>더 볼 칸이 있는가(서브모듈의 끝이면 부른 흐름으로 돌아가 이어 본다).</summary>
+    bool More()
+    {
+        while (next >= flows.Count)
+            if (!Return()) return false;
+        return true;
+    }
 }

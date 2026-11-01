@@ -231,6 +231,10 @@ public sealed partial class GamePack
         var submodules = LoadAllSubmodules(zip, effectCheck, afterAttackEffects, afterBattleLoseEffects, afterBattleRunEffects, afterBattleWinEffects, afterHitEffects,
             afterLoadCharacterFlows, afterLoadUniqueItemFlows, characterAfterCreateEffects, skillExecuteEffects, skillAutoTargetEffects, skillOrderEffects,
             smeltFlows, synthesisFlows, uniqueItemAfterCreateEffects, xppChangedEffects);
+        var facilityFlows = LoadFacilityFlows(zip, facilities, tags, inventory, facilityOperatorSlots);
+        var defenseFlows = LoadDefenseFlows(zip, operatorSlots, statuses, tags);
+        var flowSubmodules = LoadFlowSubmodules(zip, advs, battles, tags, inventory, statuses, facilityOperatorSlots,
+            eventFlows, dungeonEventFlows, advFlows, communicationSoloFlows, communicationDuoFlows, communicationDefaultFlows, facilityFlows, defenseFlows);
         var skillStatuses = LoadOwnerStatuses(zip, SkillStatusMasterPath, "skill_code", "스킬", SkillMasterPath, skills?.Select(s => s.Code), statuses);
         var uniqueItemStatuses = LoadOwnerStatuses(zip, UniqueItemStatusMasterPath, "item_code", "유니크 아이템", UniqueItemInventoryMasterPath, uniqueItems?.Select(u => u.ItemCode), statuses);
 
@@ -305,9 +309,15 @@ public sealed partial class GamePack
             FacilityOperatorSlots = facilityOperatorSlots,
             OperatorSlotTags = LoadOperatorSlotTags(zip, operatorSlots, tags),
             DefenseEnemies = LoadDefenseEnemies(zip, presetParties, gameSettings),
-            DefenseFlows = LoadDefenseFlows(zip, operatorSlots, statuses, tags),
+            DefenseFlows = defenseFlows,
             FacilityDefenses = LoadFacilityDefenses(zip, facilities),
-            FacilityFlows = LoadFacilityFlows(zip, facilities, tags, inventory, facilityOperatorSlots),
+            FacilityFlows = facilityFlows,
+            EventSubmodules = flowSubmodules.Event,
+            DungeonEventSubmodules = flowSubmodules.DungeonEvent,
+            AdvSubmodules = flowSubmodules.Adv,
+            CommunicationSubmodules = flowSubmodules.Communication,
+            FacilitySubmodules = flowSubmodules.Facility,
+            DefenseSubmodules = flowSubmodules.Defense,
             UniqueItemModSkills = LoadUniqueItemModSkills(zip, uniqueItems?.Select(u => u.ItemCode), modSlots, skills),
             UniqueItemModStatuses = LoadUniqueItemModStatuses(zip, uniqueItems?.Select(u => u.ItemCode), modSlots, itemInventory, statuses, uniqueItemStatuses),
             UniqueItemEnhanceStatuses = LoadUniqueItemEnhanceStatuses(zip, uniqueItems?.Select(u => u.ItemCode), statuses, uniqueItemStatuses, GameSettingLevelMax(gameSettings)),

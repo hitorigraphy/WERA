@@ -46,6 +46,11 @@ public enum FacilityFlowType
     JumpOperatorNotExists = 22,
     /// <summary>이 시설의 오퍼레이터 슬롯(param_1)에 선 캐릭터가 태그(param_2: tag_code)를 가지면 점프한다(슬롯이 비었거나 태그가 없으면 다음 칸으로). param_3 target_flow_number.</summary>
     JumpOperatorHaveTag = 23,
+    /// <summary>
+    /// 서브모듈 호출: param_1의 서브모듈(이 종류의 서브모듈 마스터)을 부른 흐름의 같은 상태로 실행하고 끝나면 다음 칸으로 돌아온다. 서브모듈 안의 Finish는 서브모듈만 끝낸다.
+    /// 서브모듈 안에서는 쓸 수 없다(서브모듈이 서브모듈을 부를 수 없다). 서브모듈 마스터에 그 코드가 있어야 한다(로드 검증). 값은 부르는 쪽과 공유하는 상태(플래그 등)로 주고받는다.
+    /// </summary>
+    JumpToSubmodule = 24,
 }
 
 /// <summary>시설 흐름 마스터의 한 칸.</summary>
@@ -76,27 +81,30 @@ public sealed partial class GamePack
     /// </summary>
     static List<FacilityFlow>? LoadFacilityFlows(
         ZipArchive zip, List<FacilityEntry>? facilities, IReadOnlyList<TagEntry>? tags, IReadOnlyDictionary<long, InventoryEntry> inventory,
-        List<FacilityOperatorSlot>? facilityOperatorSlots)
+        List<FacilityOperatorSlot>? facilityOperatorSlots, bool submodule = false)
     {
-        const string file = FacilityFlowMasterPath;
+        // 서브모듈 마스터(submodule: true)는 같은 규칙인데 소유자가 서브모듈 코드(시설 마스터에 있을 필요 없음)이고 JumpToSubmodule을 쓸 수 없으며,
+        // 오퍼레이터 칸의 슬롯은 어느 시설이 부를지 모르므로 어느 시설에든 있는 슬롯이면 된다.
+        var file = submodule ? FacilitySubmoduleMasterPath : FacilityFlowMasterPath;
+        var label = submodule ? "서브모듈" : "시설";
         var text = TryReadEntry(zip, file);
         if (text is null) return null;
-        if (facilities is null) throw new PackFormatException($"{file}가 있으려면 {FacilityMasterPath}도 필요합니다.");
+        if (!submodule && facilities is null) throw new PackFormatException($"{file}가 있으려면 {FacilityMasterPath}도 필요합니다.");
 
-        var facilityCodes = facilities.Select(f => f.Code).ToHashSet();
+        var facilityCodes = facilities?.Select(f => f.Code).ToHashSet() ?? [];
         var rows = new List<FacilityFlow>();
         var seen = new HashSet<(long, long)>();
-        foreach (var r in Body(file, text, "facility_code", "flow_number", "flow_type", "param_1", "param_2", "param_3"))
+        foreach (var r in Body(file, text, submodule ? "submodule_code" : "facility_code", "flow_number", "flow_type", "param_1", "param_2", "param_3"))
         {
-            var facility = ParseLong(file, "시설 코드", r[0]);
-            var who = $"시설 '{facility}'의";
+            var facility = ParseLong(file, $"{label} 코드", r[0]);
+            var who = $"{label} '{facility}'의";
             var flow = ParseLong(file, $"{who} 흐름 번호", r[1]);
             var where = $"{who} 흐름 {flow}의";
             if (!Enum.GetNames<FacilityFlowType>().Contains(r[2], StringComparer.OrdinalIgnoreCase)
                 || !Enum.TryParse<FacilityFlowType>(r[2], ignoreCase: true, out var type))
                 throw new PackFormatException(
                     $"{file}: {where} 흐름 종류 '{r[2]}'을(를) 알 수 없습니다. ({string.Join(", ", Enum.GetNames<FacilityFlowType>())})");
-            if (!facilityCodes.Contains(facility))
+            if (!submodule && !facilityCodes.Contains(facility))
                 throw new PackFormatException($"{file}: 시설 '{facility}'가 {FacilityMasterPath}에 없습니다.");
             if (!seen.Add((facility, flow)))
                 throw new PackFormatException($"{file}: 같은 키(시설 {facility}, 흐름 {flow})가 두 번 있습니다.");
@@ -107,14 +115,16 @@ public sealed partial class GamePack
         foreach (var row in rows)
         {
             var (facility, flow, type, p1, p2, p3) = row;
-            var where = $"{file}: 시설 '{facility}'의 흐름 {flow}의";
+            var where = $"{file}: {label} '{facility}'의 흐름 {flow}의";
+            if (submodule && type == FacilityFlowType.JumpToSubmodule)
+                throw new PackFormatException($"{where} 서브모듈 안에서는 JumpToSubmodule을 쓸 수 없습니다(서브모듈이 서브모듈을 부를 수 없습니다).");
             if (type == FacilityFlowType.AddInventory) CheckAddInventory(where, p1, p2, inventory);
             if (type == FacilityFlowType.JumpRandom && p2 < 1)
                 throw new PackFormatException($"{where} JumpRandom의 모수 '{p2}'는 1 이상이어야 합니다.");
             if (type is FacilityFlowType.JumpCharacterHaveTag or FacilityFlowType.JumpUniqueItemHaveTag) CheckHaveTag(where, type.ToString(), p1, p2, inventory, tags);
             if (type is FacilityFlowType.JumpOperatorExists or FacilityFlowType.JumpOperatorNotExists or FacilityFlowType.JumpOperatorHaveTag
-                && !(facilityOperatorSlots ?? []).Any(s => s.FacilityCode == facility && s.OperatorSlotCode == p1))
-                throw new PackFormatException($"{where} {type}의 오퍼레이터 슬롯 '{p1}'가 {FacilityOperatorSlotMasterPath}에 시설 '{facility}'의 슬롯으로 없습니다.");
+                && !(facilityOperatorSlots ?? []).Any(s => (submodule || s.FacilityCode == facility) && s.OperatorSlotCode == p1))
+                throw new PackFormatException($"{where} {type}의 오퍼레이터 슬롯 '{p1}'가 {FacilityOperatorSlotMasterPath}에 {(submodule ? "" : $"시설 '{facility}'의 ")}슬롯으로 없습니다.");
             if (type == FacilityFlowType.JumpOperatorHaveTag && (tags is null || !tags.Any(t => t.Code == p2)))
                 throw new PackFormatException($"{where} JumpOperatorHaveTag의 태그 코드 '{p2}'가 태그 마스터에 없습니다.");
             if (InventoryJump.Of(type.ToString()) is not null && !inventory.ContainsKey(p1))

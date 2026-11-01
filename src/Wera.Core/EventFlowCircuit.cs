@@ -28,7 +28,8 @@ public readonly record struct EventStep(EventStepKind Kind, long FlowNumber, lon
 /// </summary>
 public sealed class EventFlowCircuit
 {
-    readonly IReadOnlyList<EventFlow> flows;       // 흐름 번호 순
+    IReadOnlyList<EventFlow> flows;                // 흐름 번호 순(서브모듈 안이면 그 서브모듈의 칸들)
+    readonly IReadOnlyDictionary<long, IReadOnlyList<EventFlow>>? submodules;
     readonly Dictionary<long, long> flags;
     readonly Action<long, long>? addInventory;
     readonly Func<long, long>? countInventory;
@@ -47,6 +48,7 @@ public sealed class EventFlowCircuit
     public bool IsFinished { get; private set; }
 
     /// <param name="flows">실행할 흐름 칸들(흐름 번호 순). null이면 이벤트 마스터의 이벤트(eventCode)의 흐름을 쓴다. 던전 이벤트는 던전 이벤트의 흐름을 넘긴다.</param>
+    /// <param name="submodules">JumpToSubmodule 칸이 부르는 서브모듈들(서브모듈 코드 → 칸들). null이면 flows가 null일 때 이벤트 서브모듈 마스터의 것을 쓰고, 아니면 서브모듈이 없다(던전 이벤트는 던전 이벤트 서브모듈을 넘긴다).</param>
     /// <param name="flags">조건 판정에 쓰고 SetFlag, ModFlag가 바꾸는 플레이어 플래그. 실행 도중 바뀐 값이 보이도록 같은 사전을 그대로 넘긴다.</param>
     /// <param name="random">JumpRandom 칸이 부르는 동작(모수 → 0 이상 모수 미만의 무작위 정수). 세션이 넘기며, null이면 기본 난수를 쓴다.</param>
     /// <param name="characterHasTag">JumpCharacterHaveTag 칸이 부르는 동작(캐릭터 코드, 태그 코드 → 가졌는가). 세션이 넘기며, null이면 거짓으로 본다.</param>
@@ -58,7 +60,8 @@ public sealed class EventFlowCircuit
         Func<long, long, bool>? characterHasTag = null,
         Func<long, long, bool>? uniqueItemHasTag = null,
         Func<long, long>? random = null,
-        IReadOnlyList<EventFlow>? flows = null)
+        IReadOnlyList<EventFlow>? flows = null,
+        IReadOnlyDictionary<long, IReadOnlyList<EventFlow>>? submodules = null)
     {
         EventCode = eventCode;
         this.flags = flags;
@@ -67,8 +70,38 @@ public sealed class EventFlowCircuit
         this.characterHasTag = characterHasTag;
         this.uniqueItemHasTag = uniqueItemHasTag;
         this.random = random;
+        this.submodules = submodules ?? (flows is null ? pack.EventSubmodules : null);
         this.flows = flows ?? pack.FlowsOf(eventCode);
     }
+
+    // 서브모듈 호출 스택(한 단계): 부른 흐름과 돌아갈 자리. 서브모듈 안에서 멈춰도(대사, 선택지, 전투) 다음 호출은 그 자리에서 이어 가고, 끝나면 부른 칸의 다음으로 돌아온다.
+    IReadOnlyList<EventFlow>? callerFlows;
+    int callerNext;
+
+    /// <summary>서브모듈을 부른다(서브모듈 안에서는 부를 수 없고, 없는 서브모듈이면 아무 일도 하지 않는다. 로드가 막는다).</summary>
+    void Call(long code)
+    {
+        if (callerFlows is not null || submodules is null || !submodules.TryGetValue(code, out var submodule)) return;
+        (callerFlows, callerNext) = (flows, next);
+        (flows, next) = (submodule, 0);
+    }
+
+    /// <summary>서브모듈 안이면 부른 흐름의 다음 칸으로 돌아간다. 서브모듈 안이 아니면 false.</summary>
+    bool Return()
+    {
+        if (callerFlows is null) return false;
+        (flows, next, callerFlows) = (callerFlows, callerNext, null);
+        return true;
+    }
+
+    /// <summary>더 볼 칸이 있는가(서브모듈의 끝이면 부른 흐름으로 돌아가 이어 본다).</summary>
+    bool More()
+    {
+        while (next >= flows.Count)
+            if (!Return()) return false;
+        return true;
+    }
+
 
     /// <summary>
     /// 바깥이 해야 하는 다음 일(ADV 재생, 전투 개시)을 만날 때까지 칸을 실행하고 그 일을 돌려준다.
@@ -78,7 +111,7 @@ public sealed class EventFlowCircuit
     {
         while (!IsFinished)
         {
-            if (next >= flows.Count)
+            if (!More())
             {
                 IsFinished = true;                       // 더 진행할 흐름 번호가 없다
                 break;
@@ -89,7 +122,10 @@ public sealed class EventFlowCircuit
             switch (flow.FlowType)
             {
                 case EventFlowType.Finish:
-                    IsFinished = true;
+                    if (!Return()) IsFinished = true;    // 서브모듈 안의 Finish는 서브모듈만 끝낸다
+                    break;
+                case EventFlowType.JumpToSubmodule:
+                    Call(flow.Param1);
                     break;
                 case EventFlowType.SetFlag:
                     PlayerFlagOps.Set(flags, flow.Param1, flow.Param2);

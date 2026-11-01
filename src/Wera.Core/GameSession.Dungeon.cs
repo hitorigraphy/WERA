@@ -273,7 +273,7 @@ public sealed partial class GameSession
     {
         encounterPending = false;                      // 이벤트를 연 걸음에는 인카운트 판정을 하지 않는다
         CurrentEvent = new EventFlowCircuit(Pack, dungeonEventCode, PlayerFlags, AddInventory, CountInventory, CharacterHasTag, UniqueItemHasTag, NextRandom,
-            Pack.DungeonEventFlowsOf(dungeonEventCode))
+            Pack.DungeonEventFlowsOf(dungeonEventCode), Pack.DungeonEventSubmodules)
         {
             OnReleaseCaptives = () => { if (CurrentDungeonCode is { } dungeon) RescueCaptives(dungeon); },
         };
