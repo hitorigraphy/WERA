@@ -25,14 +25,29 @@ public enum ImageKind
     Facility = 6,
 }
 
-/// <summary>이미지 마스터의 한 행: image_code(키)의 이미지는 Kind의 TargetCode에 Variation번 변형으로 붙고 File(게임팩 안 경로)이 그림이다.</summary>
-public sealed record ImageEntry(long Code, ImageKind Kind, long TargetCode, long Variation, string File);
+/// <summary>
+/// 이미지의 쓰임새(역할). TSV의 선택 열 image_role에 이름(대소문자 무시)으로 적고, 비우거나 열이 없으면 <see cref="Shared"/>(공용)다.
+/// 같은 대상에 역할별 이미지를 따로 둘 수 있다: 슬롯, ADV 화자, 배지 같은 정사각형 칸은 <see cref="Icon"/>, 300x600 상세 칸은 <see cref="Portrait"/>를 먼저 찾는다.
+/// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter<ImageRole>))]
+public enum ImageRole
+{
+    /// <summary>공용(역할을 비움). 역할 이미지가 없을 때 어느 칸이든 이것을 쓴다(기존 게임팩은 모두 이것이다).</summary>
+    Shared = 0,
+    /// <summary>아이콘: 슬롯(파티, 홈, 아지트, 전투), ADV 화자, 속성/상태이상 배지처럼 정사각형으로 그리는 칸.</summary>
+    Icon = 1,
+    /// <summary>포트레이트: 캐릭터, 장비, 개조, 아이템, 스킬 상세 화면의 300x600(1:2) 칸.</summary>
+    Portrait = 2,
+}
+
+/// <summary>이미지 마스터의 한 행: image_code(키)의 이미지는 Kind의 TargetCode에 Variation번 변형으로, Role(역할)의 이미지로 붙고 File(게임팩 안 경로)이 그림이다.</summary>
+public sealed record ImageEntry(long Code, ImageKind Kind, long TargetCode, long Variation, string File, ImageRole Role = ImageRole.Shared);
 
 /// <summary>게임팩에서 읽은 이미지 파일 하나: 브라우저가 이해하는 MIME 종류와 원본 바이트.</summary>
 public sealed record ImageData(string Mime, byte[] Bytes);
 
-// image_master(image_code, kind, target_code, variation_number, file; 첫 열이 키). 선택이다.
-// (kind, target_code, variation_number)도 한 번씩만 쓸 수 있다. variation_number 0이 기본 이미지다(변형이 없는 곳에서는 늘 0을 찾는다).
+// image_master(image_code, kind, target_code, variation_number, file, 선택 열 image_role; 첫 열이 키). 선택이다.
+// (kind, target_code, variation_number, 역할)도 한 번씩만 쓸 수 있다(역할을 비운 공용도 하나의 역할로 센다). variation_number 0이 기본 이미지다(변형이 없는 곳에서는 늘 0을 찾는다).
 // file은 게임팩(zip) 안의 경로다(슬래시 구분, 대소문자 구분, 관례는 image/...). png, jpg, jpeg, webp, gif만 쓸 수 있고 한 파일은 2MB(MaxImageBytes)를 넘을 수 없다.
 // 로드할 때 마스터가 가리키는 파일만(같은 파일은 한 번만) 바이트로 읽어 메모리에 둔다. 마스터가 가리키지 않는 파일은 무시한다.
 public sealed partial class GamePack
@@ -54,20 +69,25 @@ public sealed partial class GamePack
     IReadOnlyDictionary<string, ImageData> ImageFiles { get; init; } = new Dictionary<string, ImageData>();
 
     /// <summary>
-    /// 대상의 이미지: 그 변형(variation) 이미지가 있으면 그것을, 없으면 기본(variation 0) 이미지를, 그것도 없으면 null(화면은 No Image를 그린다).
-    /// 이미지 마스터가 없는 게임팩은 늘 null이다.
+    /// 대상의 이미지를 아래 순서로 처음 찾은 것으로 돌려준다(없으면 null이고 화면은 No Image를 그린다). 이미지 마스터가 없는 게임팩은 늘 null이다.
+    /// 1) 그 역할(role)의 그 변형(variation), 2) 그 역할의 기본(variation 0), 3) 공용(역할 비움)의 그 변형, 4) 공용의 기본(variation 0).
+    /// role이 <see cref="ImageRole.Shared"/>(기본)면 1, 2는 건너뛰어 3, 4만 본다(역할 열이 없던 때와 같다). variation이 0이면 2, 4는 1, 3과 같아 건너뛴다.
     /// </summary>
-    public ImageData? ImageFor(ImageKind kind, long targetCode, long variation = 0)
+    public ImageData? ImageFor(ImageKind kind, long targetCode, long variation = 0, ImageRole role = ImageRole.Shared)
     {
         if (Images is null) return null;
-        var row = Images.FirstOrDefault(i => i.Kind == kind && i.TargetCode == targetCode && i.Variation == variation)
-            ?? (variation == 0 ? null : Images.FirstOrDefault(i => i.Kind == kind && i.TargetCode == targetCode && i.Variation == 0));
+        ImageEntry? Find(ImageRole r, long v) => Images.FirstOrDefault(i => i.Kind == kind && i.TargetCode == targetCode && i.Variation == v && i.Role == r);
+        var row = (role == ImageRole.Shared ? null : Find(role, variation))
+            ?? (role == ImageRole.Shared || variation == 0 ? null : Find(role, 0))
+            ?? Find(ImageRole.Shared, variation)
+            ?? (variation == 0 ? null : Find(ImageRole.Shared, 0));
         return row is not null && ImageFiles.TryGetValue(row.File, out var data) ? data : null;
     }
 
     /// <summary>
     /// 이미지 마스터: kind는 이름으로 적는다(숫자는 안 된다). target_code는 그 종류의 마스터에 있어야 하고(마스터가 없으면 그 종류는 쓸 수 없다),
     /// variation_number는 0 이상, file은 게임팩 안에 있는 png/jpg/jpeg/webp/gif(경로에 ..나 빈 칸, 역슬래시, 맨 앞 슬래시가 있으면 안 된다)여야 한다.
+    /// 선택 열 image_role(file 바로 뒤, 메모 열 앞)은 <see cref="ImageRole"/> 이름(Icon, Portrait; 대소문자 무시, 숫자는 안 된다)이고 비우거나 열이 없으면 공용이다.
     /// </summary>
     static (List<ImageEntry>? Rows, Dictionary<string, ImageData> Files) LoadImages(
         ZipArchive zip,
@@ -92,8 +112,11 @@ public sealed partial class GamePack
 
         var rows = new List<ImageEntry>();
         var codes = new HashSet<long>();
-        var keys = new HashSet<(ImageKind, long, long)>();
-        foreach (var r in Body(file, text, "image_code", "kind", "target_code", "variation_number", "file"))
+        var keys = new HashSet<(ImageKind, long, long, ImageRole)>();
+        var table = Tsv.WithoutMemo(Tsv.Parse(text));
+        string[] required = ["image_code", "kind", "target_code", "variation_number", "file"];
+        var hasRole = table.Count > 0 && table[0].Length > required.Length && table[0][required.Length] == "image_role";
+        foreach (var r in BodyRows(file, table, hasRole ? [.. required, "image_role"] : required))
         {
             var code = ParseLong(file, "이미지 코드", r[0]);
             var where = $"이미지 '{code}'의";
@@ -104,18 +127,25 @@ public sealed partial class GamePack
             var target = ParseLong(file, $"{where} target_code", r[2]);
             var variation = ParseLong(file, $"{where} variation_number", r[3]);
             var path = r[4].Trim();
+            var role = ImageRole.Shared;
+            if (hasRole && r[5].Trim() is { Length: > 0 } roleName)
+            {
+                if (!Enum.GetNames<ImageRole>().Contains(roleName, StringComparer.OrdinalIgnoreCase)
+                    || !Enum.TryParse(roleName, ignoreCase: true, out role))
+                    throw new PackFormatException($"{file}: {where} 역할 '{roleName}'을(를) 알 수 없습니다. ({string.Join(", ", Enum.GetNames<ImageRole>().Skip(1))}; 비우면 공용)");
+            }
 
             if (!codes.Add(code)) throw new PackFormatException($"{file}: 이미지 코드 '{code}'가 두 번 적혀 있습니다.");
             if (variation < 0) throw new PackFormatException($"{file}: {where} variation_number '{variation}'는 0 이상이어야 합니다.");
-            if (!keys.Add((kind, target, variation)))
-                throw new PackFormatException($"{file}: 같은 대상({kind} {target}, variation {variation})의 이미지가 두 번 있습니다.");
+            if (!keys.Add((kind, target, variation, role)))
+                throw new PackFormatException($"{file}: 같은 대상({kind} {target}, variation {variation}, 역할 {(role == ImageRole.Shared ? "공용" : role.ToString())})의 이미지가 두 번 있습니다.");
 
             var (label, master, known) = targets[kind];
             if (known is null) throw new PackFormatException($"{file}: {where} {kind}이 있으려면 {master}도 필요합니다.");
             if (!known.Contains(target)) throw new PackFormatException($"{file}: {where} {label} '{target}'가 {master}에 없습니다.");
 
             if (!files.ContainsKey(path)) files[path] = ReadImageFile(zip, file, where, path);
-            rows.Add(new ImageEntry(code, kind, target, variation, path));
+            rows.Add(new ImageEntry(code, kind, target, variation, path, role));
         }
         return (rows, files);
     }

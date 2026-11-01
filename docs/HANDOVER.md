@@ -209,7 +209,7 @@ dotnet run --project src/Wera.Web      # 로컬 실행
 
 ### 2.7a 이미지 (`master/image_master_v1.tsv`, 선택)
 
-열 `image_code, kind, target_code, variation_number, file`(+메모). 키는 `image_code`, `(kind, target_code, variation_number)`도 유일해야 합니다. 로더는 `src/Wera.Core/GamePack.Image.cs`, 조회는 `Pack.ImageFor(kind, target, variation = 0)`(그 변형 → 변형 0 → null 순서로 찾고, 없으면 화면이 `No Image`를 그림).
+열 `image_code, kind, target_code, variation_number, file`, 선택 열 `image_role`(`file` 바로 뒤, 메모 앞; `Icon`/`Portrait`, 비우면 공용)(+메모). 키는 `image_code`, `(kind, target_code, variation_number, image_role)`도 유일해야 합니다(역할을 비운 공용도 하나의 역할). 로더는 `src/Wera.Core/GamePack.Image.cs`, 조회는 `Pack.ImageFor(kind, target, variation = 0)`(그 변형 → 변형 0 → null 순서로 찾고, 없으면 화면이 `No Image`를 그림).
 
 | kind | target_code가 가리키는 마스터 | 쓰이는 곳 |
 |---|---|---|
@@ -221,6 +221,8 @@ dotnet run --project src/Wera.Web      # 로컬 실행
 | `Facility` | 시설 코드 | 아지트 시설 슬롯 |
 
 `file`은 zip 안의 경로(대소문자 구분, 앞 `/`·`\`·`..`·빈 조각 불가, 확장자 png/jpg/jpeg/webp/gif, 파일당 2 MB 이하 `GamePack.MaxImageBytes`)입니다. 관례상 `image/…`에 둡니다. 같은 캐릭터 코드의 모든 인스턴스는 같은 이미지를 씁니다. 대상 마스터가 팩에 없는 kind는 쓸 수 없고, 마스터가 가리키지 않는 zip 안의 파일은 읽지 않습니다. 아지트 층 아이콘과 빈 보스 슬롯은 마스터 코드가 없어 늘 `No Image`입니다.
+
+**역할(`image_role`)과 조회 순서:** 정사각형 칸(슬롯·ADV 화자·배지)은 `Icon`, 300×600 상세 칸은 `Portrait`를 먼저 찾습니다. `Pack.ImageFor(kind, target, variation, role)`의 순서는 ① 그 역할의 그 변형 → ② 그 역할의 변형 0 → ③ 공용의 그 변형 → ④ 공용의 변형 0 → null(No Image)이고, `role`을 생략하면 ③④만 봅니다(역할 열이 없던 때와 같음). 상세 칸은 변형 0, ADV는 `variation_number`+`Icon`입니다. 잘못된 역할 이름과 `(대상, 변형, 역할)` 중복은 로드 오류입니다. 모드 병합 키(`PackMasterKeys`)에는 `image_role`이 선택 키 열로 들어 있어, 열이 없는 팩의 행은 공용으로 취급합니다. 슬롯과 상세에 다른 이미지가 필요하면 `Icon`과 `Portrait` 행을 따로 등록하세요.
 
 ### 2.8 참조 관계(핵심만)
 

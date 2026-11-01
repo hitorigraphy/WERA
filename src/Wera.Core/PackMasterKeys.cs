@@ -14,7 +14,7 @@ public enum MasterMergeKind
 /// <summary>
 /// 마스터 하나의 병합 규칙.
 /// <paramref name="Key"/>는 행을 알아보는 열 이름들(복합키 가능), <paramref name="Alternates"/>는 그 마스터가 따로 유일해야 한다고 검사하는 또 다른 열 묶음들이다
-/// (나중 팩의 행이 앞선 팩의 행과 이 묶음 가운데 어느 것으로든 같으면 그 행을 덮어쓴다. 예: 이미지 마스터의 (kind, target_code, variation_number)).
+/// (나중 팩의 행이 앞선 팩의 행과 이 묶음 가운데 어느 것으로든 같으면 그 행을 덮어쓴다. 예: 이미지 마스터의 (kind, target_code, variation_number, image_role)).
 /// <paramref name="ColumnOrder"/>가 있으면 합친 마스터의 열을 그 순서로 놓는다(로더가 선택 열의 위치를 정해 둔 마스터용; 목록에 없는 열은 그 뒤에 처음 나온 순서로).
 /// </summary>
 /// <paramref name="OptionalKey"/>는 <paramref name="Key"/>(와 <paramref name="Alternates"/>)의 열 가운데 레이어의 헤더에 없어도 되는 열이다(없는 열은 빈 칸으로 보고 키에 넣는다. 예: 아지트 마스터들의 hideout_code).
@@ -183,7 +183,7 @@ public static class PackMasterKeys
         [GamePack.DefenseEnemyMasterPath] = new MasterKeySpec(MasterMergeKind.Keyed, ["hideout_code", "code"], [["hideout_code", "priority"]], null, ["hideout_code"]),
 
         // 이미지: image_code가 키이고 (kind, target_code, variation_number)도 따로 유일해야 한다.
-        [GamePack.ImageMasterPath] = KeyedAlt(["image_code"], ["kind", "target_code", "variation_number"]),
+        [GamePack.ImageMasterPath] = new(MasterMergeKind.Keyed, ["image_code"], [["kind", "target_code", "variation_number", "image_role"]], null, ["image_role"]),
 
         // 더 이상 쓰이지 않아 있으면 로드 오류인 옛 마스터(합치지 않고 이어 붙여 그 오류가 그대로 나게 한다).
         [GamePack.AdvFlowConditionMasterPath] = AppendOnly(),

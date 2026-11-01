@@ -51,7 +51,7 @@ public class ImageTests
         while (!File.Exists(Path.Combine(root, "WERA.slnx"))) root = Path.GetDirectoryName(root)!;
         using var stream = File.OpenRead(Path.Combine(root, "src", "Wera.Web", "wwwroot", "sample-pack.wra"));
         var pack = GamePack.Load(stream);
-        Assert.Equal(6, pack.Images!.Count);
+        Assert.Equal(7, pack.Images!.Count);
         var player = pack.ImageFor(ImageKind.Character, 1)!;
         Assert.Equal("image/png", player.Mime);
         Assert.Equal([0x89, (byte)'P', (byte)'N', (byte)'G'], player.Bytes.Take(4));
