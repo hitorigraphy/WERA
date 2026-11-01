@@ -56,6 +56,8 @@ public enum Screen
     HideoutFacilitySelect,
     /// <summary>고른 시설의 재료 그룹을 고르는 화면. 돌아가기는 시설 목록.</summary>
     HideoutBuild,
+    /// <summary>시설의 오퍼레이터 슬롯에 세울 캐릭터 목록(슬롯의 태그 조건을 만족하는 캐릭터). 돌아가기는 그 시설 상세.</summary>
+    HideoutOperatorSelect,
     /// <summary>장비 강화 화면(106): 내용은 아직 정의되지 않았다. 돌아가기는 홈.</summary>
     EquipmentEnhance,
     /// <summary>이벤트 화면(103): 조건을 만족하는 이벤트 목록. 하나를 고르면 그 이벤트를 시작한다.</summary>
@@ -159,6 +161,10 @@ public enum EntryAction
     HideoutScroll,
     /// <summary>항목의 코드(그룹 코드)의 재료로 아지트를 확장한다.</summary>
     ExpandHideout,
+    /// <summary>항목의 코드에 해당하는 캐릭터를 고른 오퍼레이터 슬롯에 세운다.</summary>
+    SetHideoutOperator,
+    /// <summary>고른 오퍼레이터 슬롯을 비운다.</summary>
+    ClearHideoutOperator,
     /// <summary>항목의 코드에 해당하는 시설을 지으려고 고른다(재료 그룹이 없으면 바로 짓는다).</summary>
     SelectFacility,
     /// <summary>항목의 코드(그룹 코드)의 재료로 고른 시설을 짓는다.</summary>
@@ -255,7 +261,11 @@ public sealed record SaveData(
     PartyInstance?[]? Parties = null,
     int? CurrentParty = null,
     long?[]? Hideout = null,
-    long?[]? HideoutFacilities = null);
+    long?[]? HideoutFacilities = null,
+    HideoutOperatorSave[]? HideoutOperators = null);
+
+/// <summary>세이브의 오퍼레이터 한 명: 층이 생긴 순서(1은 처음부터 있는 층), 지은 시설인가(아니면 기본 시설), 오퍼레이터 슬롯 코드, 캐릭터 코드.</summary>
+public sealed record HideoutOperatorSave(long FloorOrder, bool Built, long SlotCode, long CharacterCode);
 
 [JsonSerializable(typeof(SaveData))]
 [JsonSourceGenerationOptions(WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
@@ -608,7 +618,7 @@ public sealed partial class GameSession
     {
         get
         {
-            if (Screen is Screen.SupportSelect or Screen.HideoutBossSelect) return SupportList;
+            if (Screen is Screen.SupportSelect or Screen.HideoutBossSelect or Screen.HideoutOperatorSelect) return SupportList;
             if (Screen != Screen.CharacterSelect || CurrentSlot is not { } slot) return [];
             // 파티에 아무도 없을 때와 리더의 슬롯을 바꿀 때는 리더 태그를 가진 캐릭터만 나온다(파티에는 리더가 한 명 이상 있어야 하므로).
             var leaderOnly = IsLeaderOnlySlot(slot);
@@ -768,7 +778,9 @@ public sealed partial class GameSession
                 case Screen.HideoutBossSelect:
                     return HideoutBossSelectEntries();
                 case Screen.HideoutFloorDetail:
-                    return [new ScreenEntry(BackEntryCode, "돌아가기", Screen.Hideout)];
+                    return [.. CurrentSlot is { } floorAt ? HideoutOperatorEntries(floorAt, false, 1) : [], new ScreenEntry(BackEntryCode, "돌아가기", Screen.Hideout)];
+                case Screen.HideoutOperatorSelect:
+                    return HideoutOperatorSelectEntries();
                 case Screen.HideoutFacilityDetail:
                     return HideoutFacilityDetailEntries();
                 case Screen.HideoutFacilitySelect:
@@ -877,11 +889,20 @@ public sealed partial class GameSession
         {
             case EntryAction.Navigate:
                 CurrentShopCode = entry.Target == Screen.ShopTrades ? CodeOf(entry) : null;
+                int? operatorFloor = null;
+                if (entry.Target == Screen.HideoutOperatorSelect && entry.Arg is not null)         // "층:지은 시설인가:슬롯 코드"
+                {
+                    var parts = entry.Arg.Split(':');
+                    operatorFloor = int.Parse(parts[0], CultureInfo.InvariantCulture);
+                    hideoutOperatorBuilt = parts[1] == "1";
+                    hideoutOperatorSlot = long.Parse(parts[2], CultureInfo.InvariantCulture);
+                }
                 CurrentSlot = entry.Target switch
                 {
                     Screen.CharacterSelect or Screen.EquipmentList or Screen.HideoutBossSelect or Screen.HideoutFloorDetail or Screen.HideoutFacilityDetail => int.Parse(entry.Arg!, CultureInfo.InvariantCulture),
                     Screen.HideoutFacilitySelect when entry.Arg is not null => int.Parse(entry.Arg, CultureInfo.InvariantCulture),
                     Screen.HideoutFacilitySelect or Screen.HideoutBuild => CurrentSlot,                  // 같은 층을 계속 본다
+                    Screen.HideoutOperatorSelect => operatorFloor,
                     Screen.SkillCharacter when entry.Arg is not null => int.Parse(entry.Arg, CultureInfo.InvariantCulture),
                     Screen.EquipmentSelect or Screen.SkillCharacter or Screen.SkillSlotSelect or Screen.SkillPoolList => CurrentSlot,      // 같은 캐릭터를 계속 본다
                     _ => null,
@@ -916,7 +937,11 @@ public sealed partial class GameSession
                 ResetSynthesis();
                 break;
             case EntryAction.EndTurn:
-                if (AdvanceTurn()) Message = $"턴 종료: {CurrentDateText}";
+                if (AdvanceTurn())
+                {
+                    Message = $"턴 종료: {CurrentDateText}";
+                    if (RunFacilityCircuits() is { } production) Message += $" / {production}";       // 턴 종료 뒤 시설 서킷
+                }
                 break;
             case EntryAction.SelectModSlot:
                 ModSlotCode = long.Parse(entry.Arg!, CultureInfo.InvariantCulture);
@@ -949,6 +974,14 @@ public sealed partial class GameSession
             case EntryAction.SetSupport:
                 SetSupport(CurrentSupportRole!.Value, CodeOf(entry));
                 CurrentSupportRole = null;
+                Screen = entry.Target;
+                break;
+            case EntryAction.SetHideoutOperator:
+                SetHideoutOperator(CurrentSlot!.Value, hideoutOperatorBuilt, hideoutOperatorSlot, CodeOf(entry));
+                Screen = entry.Target;
+                break;
+            case EntryAction.ClearHideoutOperator:
+                SetHideoutOperator(CurrentSlot!.Value, hideoutOperatorBuilt, hideoutOperatorSlot, null);
                 Screen = entry.Target;
                 break;
             case EntryAction.SelectFacility:
@@ -1499,7 +1532,8 @@ public sealed partial class GameSession
                 Parties.Select(p => p.Copy()).ToArray(),
                 CurrentPartyIndex,
                 hideoutBosses.ToArray(),
-                hideoutFacilities.ToArray()),
+                hideoutFacilities.ToArray(),
+                hideoutOperators.Select(o => new HideoutOperatorSave(o.Key.FloorOrder, o.Key.Built, o.Key.Slot, o.Value)).ToArray()),
             SaveJsonContext.Default.SaveData);
 
     public static GameSession FromSaveJson(GamePack pack, string json)
@@ -1672,6 +1706,22 @@ public sealed partial class GameSession
             facilities[i] = savedFacilities[i];
         }
 
+        var operators = new Dictionary<(long, bool, long), long>();
+        foreach (var op in save.HideoutOperators ?? [])
+        {
+            if (op.FloorOrder < 1 || op.FloorOrder > hideout.Count)
+                throw new SaveFormatException($"세이브의 오퍼레이터 층 순서 '{op.FloorOrder}'가 1~{hideout.Count} 범위를 벗어납니다.");
+            if (!characters.ContainsKey(op.CharacterCode))
+                throw new SaveFormatException($"세이브의 오퍼레이터 캐릭터 '{op.CharacterCode}'가 보유 캐릭터에 없습니다.");
+            if (!operators.TryAdd((op.FloorOrder, op.Built, op.SlotCode), op.CharacterCode))
+                throw new SaveFormatException($"세이브의 오퍼레이터 슬롯 (층 {op.FloorOrder}, 슬롯 {op.SlotCode})이 두 번 있습니다.");
+        }
+        var operatorCodes = operators.Values.ToList();
+        if (operatorCodes.GroupBy(c => c).Any(g => g.Count() > 1) || operatorCodes.Any(c => hideoutCodes.Contains(c)))
+            throw new SaveFormatException("세이브에서 같은 캐릭터가 아지트의 두 곳 이상에 있습니다(한 곳에만 있을 수 있습니다).");
+        if (operatorCodes.Any(c => allCodes.Contains(c)))
+            throw new SaveFormatException("세이브에서 같은 캐릭터가 파티와 아지트에 모두 있습니다(한 곳에만 있을 수 있습니다).");
+
         // 불러오기는 저장된 화면과 상관없이 항상 홈으로 들어간다.
         var session = new GameSession(pack, Screen.Home, playerFlags, inventory, characters, parties, statusEffects, uniqueItems, characterTags)
         {
@@ -1682,6 +1732,7 @@ public sealed partial class GameSession
         };
         session.hideoutBosses.Clear();
         session.hideoutBosses.AddRange(hideout);
+        foreach (var (key, code) in operators) session.hideoutOperators[key] = code;
         session.hideoutFacilities.Clear();
         session.hideoutFacilities.AddRange(facilities);
         return session;

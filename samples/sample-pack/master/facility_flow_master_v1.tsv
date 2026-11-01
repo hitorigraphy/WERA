@@ -1,0 +1,5 @@
+facility_code	flow_number	flow_type	param_1	param_2	param_3	memo
+2	1	JumpOperatorNotExists	1	0	4	정비 슬롯에 오퍼레이터가 없으면 4번으로
+2	2	AddInventory	4	3	0	오퍼레이터가 있으면 철광석 3개
+2	3	Finish	0	0	0	
+2	4	AddInventory	4	1	0	오퍼레이터가 없으면 철광석 1개

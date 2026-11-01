@@ -19,6 +19,29 @@ public class HideoutTests
         return GameSession.NewGame(pack);
     }
 
+    // 대장간(2)을 지을 수 있고 오퍼레이터 슬롯 1(정비, 태그 4 필요)이 있다. 용사 7001은 태그 4가 있고 마법사 7002는 없다.
+    static GameSession OperatorSession(string flows = "2\t1\tJumpOperatorNotExists\t1\t0\t4\n2\t2\tAddInventory\t4\t3\t0\n2\t3\tFinish\t0\t0\t0\n2\t4\tAddInventory\t4\t1\t0\n",
+        string operatorSlots = "2\t1\n", string slotTags = "1\t4\n")
+    {
+        var pack = GamePack.Load(CoreTests.PackZip(
+            ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
+            ("master/character_inventory_master_v1.tsv",
+                "inventory_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n" +
+                "1\t당신\t1\t1\t2\n7001\t용사\t1\t1\t2\n7002\t마법사\t1\t2\t1\n"),
+            ("master/tag_master_v1.tsv", "tag_code\ttag_name\n1\t플레이어\n2\t리더\n3\t메인 통화\n4\t정비\n"),
+            ("master/character_tag_master_v1.tsv", "character_code\ttag_code\n1\t1\n7001\t2\n7001\t4\n7002\t2\n"),
+            ("master/common_item_inventory_master_v1.tsv", "inventory_code\titem_name\tcarry_limit\n2\t금화\t99999\n4\t철광석\t99\n"),
+            ("master/facility_master_v1.tsv", "code\tname\n1\t정문\n2\t대장간\n"),
+            ("master/operator_slot_master_v1.tsv", "code\tname\n1\t정비\n2\t경비\n"),
+            ("master/facility_operator_slot_master_v1.tsv", "facility_code\toperator_slot_code\n" + operatorSlots),
+            ("master/operator_slot_tag_master_v1.tsv", "operator_slot_code\ttag_code\n" + slotTags),
+            ("master/facility_flow_master_v1.tsv", "facility_code\tflow_number\tflow_type\tparam_1\tparam_2\tparam_3\n" + flows)));
+        var s = GameSession.NewGame(pack);
+        s.AddCharacter(7001);
+        s.AddCharacter(7002);
+        return s;
+    }
+
     static GameSession Session(string expand = "1\t1\t2\t100\n1\t2\t4\t5\n1\t2\t5\t2\n2\t1\t2\t300\n3\t1\t2\t1\n4\t1\t2\t1\n")
     {
         var pack = GamePack.Load(CoreTests.PackZip(
@@ -297,5 +320,98 @@ public class HideoutTests
         Assert.Contains("기본 시설 '9'", Fail("", "1\t9\n").Message);
         Assert.Contains("두 번", Fail("", "1\t1\n1\t2\n").Message);
         Assert.Contains("1 이상", Fail("", "0\t1\n").Message);
+    }
+
+    [Fact]
+    public void An_operator_slot_takes_only_characters_with_the_required_tags_and_moves_them_out_of_parties()
+    {
+        var s = OperatorSession();
+        Assert.True(s.BuildFacility(0, 2));
+        s.Party[0] = 7001;
+        Assert.True(s.CanOperate(7001, 1));
+        Assert.False(s.CanOperate(7002, 1));                                   // 정비 태그가 없다
+        Assert.False(s.SetHideoutOperator(0, true, 1, 7002));
+        Assert.False(s.SetHideoutOperator(0, true, 2, 7001));                  // 이 시설의 슬롯이 아니다
+        Assert.False(s.SetHideoutOperator(0, false, 1, 7001));                 // 기본 시설이 없다
+        Assert.True(s.SetHideoutOperator(0, true, 1, 7001));
+        Assert.Equal(7001, s.HideoutOperatorOf(0, true, 1));
+        Assert.Equal(-1, s.PartyIndexOf(7001));                                // 파티에서 빠졌다
+        Assert.True(s.SetHideoutOperator(0, true, 1, null));
+        Assert.Null(s.HideoutOperatorOf(0, true, 1));
+    }
+
+    [Fact]
+    public void The_facility_detail_lists_operator_slots_and_the_operator_select_screen_lists_eligible_characters()
+    {
+        var s = OperatorSession();
+        s.BuildFacility(0, 2);
+        s.Activate(GameSession.HideoutEntryCode);
+        s.Activate("5");                                                       // 지은 시설 상세
+        Assert.Equal(["1", "2", "999"], s.Entries.Select(e => e.Code));         // [1] 철거, [2] 정비 슬롯
+        Assert.Equal("정비: 미지정", s.Entries[1].Label);
+        s.Activate("2");
+        Assert.Equal(Screen.HideoutOperatorSelect, s.Screen);
+        Assert.Equal("1층 대장간 - 정비", s.CurrentHideoutOperatorTitle);
+        Assert.Equal(1, s.Entries.Count(e => e.Action == EntryAction.SetHideoutOperator));   // 용사만
+        s.Pick("7001");
+        Assert.Equal(Screen.HideoutFacilityDetail, s.Screen);
+        Assert.Equal("정비: 용사", s.Entries[1].Label);
+        Assert.Equal(7001, s.HideoutOperatorOf(0, true, 1));
+    }
+
+    [Fact]
+    public void The_facility_circuit_runs_after_the_turn_ends_and_the_operator_changes_the_output()
+    {
+        var s = OperatorSession();
+        s.BuildFacility(0, 2);
+        Assert.Equal("시설 생산: 철광석 +1", s.RunFacilityCircuits());           // 오퍼레이터가 없다: 1개
+        Assert.Equal(1, s.InventoryItems[4].Amount);
+        s.SetHideoutOperator(0, true, 1, 7001);
+        Assert.Equal("시설 생산: 철광석 +3", s.RunFacilityCircuits());           // 오퍼레이터가 있다: 3개
+        Assert.Equal(4, s.InventoryItems[4].Amount);
+    }
+
+    [Fact]
+    public void An_invasion_skips_the_production_once_and_the_end_turn_button_runs_the_circuit()
+    {
+        var s = OperatorSession();
+        s.BuildFacility(0, 2);
+        s.HideoutInvaded = true;
+        Assert.Equal("적이 침입해 시설이 생산하지 못했습니다", s.RunFacilityCircuits());
+        Assert.False(s.HideoutInvaded);
+        Assert.False(s.InventoryItems.ContainsKey(4));
+        Assert.Equal("시설 생산: 철광석 +1", s.RunFacilityCircuits());
+        Assert.Null(new GameSession[] { OperatorSession() }[0].RunFacilityCircuits());     // 시설이 없으면 생산도 없다
+    }
+
+    [Fact]
+    public void Operators_survive_the_save_and_a_character_in_two_places_is_rejected()
+    {
+        var s = OperatorSession();
+        s.BuildFacility(0, 2);
+        s.SetHideoutOperator(0, true, 1, 7001);
+        var loaded = GameSession.FromSaveJson(s.Pack, s.ToSaveJson());
+        Assert.Equal(7001, loaded.HideoutOperatorOf(0, true, 1));
+        s.Party[0] = 7001;
+        var bad = s.ToSaveJson();
+        Assert.Contains("파티와 아지트", Assert.Throws<SaveFormatException>(() => GameSession.FromSaveJson(s.Pack, bad)).Message);
+    }
+
+    [Fact]
+    public void The_operator_masters_and_flows_are_validated()
+    {
+        PackFormatException Fail(string flows = "", string slots = "2\t1\n", string tags = "1\t4\n") =>
+            Assert.Throws<PackFormatException>(() => OperatorSession(flows, slots, tags));
+        Assert.Contains("시설 '9'", Fail(slots: "9\t1\n").Message);
+        Assert.Contains("오퍼레이터 슬롯 '9'", Fail(slots: "2\t9\n").Message);
+        Assert.Contains("두 번", Fail(slots: "2\t1\n2\t1\n").Message);
+        Assert.Contains("태그 '9'", Fail(tags: "1\t9\n").Message);
+        Assert.Contains("두 번", Fail(tags: "1\t4\n1\t4\n").Message);
+        Assert.Contains("알 수 없습니다", Fail("2\t1\tNope\t0\t0\t0\n").Message);
+        Assert.Contains("보다 커야", Fail("2\t1\tJump\t1\t0\t0\n").Message);
+        Assert.Contains("오퍼레이터 슬롯 '2'", Fail("2\t1\tJumpOperatorExists\t2\t0\t2\n2\t2\tFinish\t0\t0\t0\n").Message);   // 대장간은 슬롯 1만 가진다
+        Assert.Contains("태그 코드 '9'", Fail("2\t1\tJumpOperatorHaveTag\t1\t9\t2\n2\t2\tFinish\t0\t0\t0\n").Message);
+        Assert.Contains("인벤토리 코드 '9'", Fail("2\t1\tAddInventory\t9\t1\t0\n").Message);
+        Assert.Contains("모수", Fail("2\t1\tJumpRandom\t1\t0\t2\n2\t2\tFinish\t0\t0\t0\n").Message);
     }
 }

@@ -581,6 +581,12 @@
                 @commands
                 break;
 
+            case Screen.HideoutOperatorSelect:
+                <h2>@(session.CurrentHideoutOperatorTitle)</h2>
+                @* 슬롯의 태그 조건을 만족하는 캐릭터만 나온다. 파란색: 이미 아지트에 있는 캐릭터(고르면 옮겨 온다), 흰색: 파티원(고르면 파티에서 빠진다)과 나머지 *@
+                @characterTable((session.Entries.Where(e => e.Code == GameSession.ClearEntryCode), session.PageOf(session.SupportList)))
+                break;
+
             case Screen.HideoutBossSelect:
                 <h2>@(session.CurrentHideoutFloorName) 보스로 지정할 캐릭터</h2>
                 @* 파란색: 다른 층의 보스(고르면 서로 바뀐다), 흰색: 파티원(고르면 파티에서 빠진다)과 나머지 *@

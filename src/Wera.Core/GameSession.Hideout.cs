@@ -30,6 +30,13 @@ public sealed partial class GameSession
     /// <summary>층별로 유저가 지은(가운데 슬롯) 시설 코드(없으면 null). <see cref="hideoutBosses"/>와 같은 순서이고 층이 생기면 같이 늘어난다.</summary>
     readonly List<long?> hideoutFacilities = [null];
 
+    /// <summary>시설의 오퍼레이터 슬롯에 선 캐릭터: (층이 생긴 순서, 지은 시설인가(아니면 기본 시설), 오퍼레이터 슬롯 코드) → 캐릭터 코드.</summary>
+    readonly Dictionary<(long FloorOrder, bool Built, long Slot), long> hideoutOperators = [];
+
+    /// <summary>오퍼레이터 슬롯을 고르는 중인 슬롯(오퍼레이터 선택 화면에서만 있다): 층은 CurrentSlot, 지은 시설인가, 슬롯 코드.</summary>
+    bool hideoutOperatorBuilt;
+    long hideoutOperatorSlot;
+
     /// <summary>시설을 고르는 중인 시설의 코드(재료 그룹을 고르는 화면에서만 있다).</summary>
     long? selectedFacilityCode;
 
@@ -97,6 +104,7 @@ public sealed partial class GameSession
         else
         {
             RemoveFromParties(code);
+            RemoveFromHideout(code);                                  // 오퍼레이터였다면 그만두고 보스가 된다
             hideoutBosses[floor] = code;
         }
         return true;
@@ -111,6 +119,7 @@ public sealed partial class GameSession
 
     void RemoveFromHideout(long characterCode)
     {
+        foreach (var key in hideoutOperators.Where(o => o.Value == characterCode).Select(o => o.Key).ToList()) hideoutOperators.Remove(key);
         for (var i = 0; i < hideoutBosses.Count; i++)
             if (hideoutBosses[i] == characterCode) hideoutBosses[i] = null;
     }
@@ -220,6 +229,7 @@ public sealed partial class GameSession
     {
         if (floor < 0 || floor >= HideoutFloorCount || hideoutFacilities[floor] is null) return false;
         hideoutFacilities[floor] = null;
+        foreach (var key in hideoutOperators.Keys.Where(k => k.FloorOrder == HideoutFloorOrderOf(floor) && k.Built).ToList()) hideoutOperators.Remove(key);     // 오퍼레이터도 일을 그만둔다
         return true;
     }
 
@@ -261,6 +271,103 @@ public sealed partial class GameSession
     IReadOnlyList<ScreenEntry> HideoutFacilityDetailEntries() =>
     [
         new ScreenEntry(DemolishEntryCode, "철거", Screen.Hideout, EntryAction.DemolishFacility),
+        .. CurrentSlot is { } floor ? HideoutOperatorEntries(floor, true, 2) : [],
         new ScreenEntry(BackEntryCode, "돌아가기", Screen.Hideout),
     ];
+
+    // ---- 오퍼레이터 ----
+
+    /// <summary>층(0이 1층)의 기본 시설(built가 false) 또는 지은 시설(true)의 오퍼레이터 슬롯에 선 캐릭터. 비었으면 null.</summary>
+    public long? HideoutOperatorOf(int floor, bool built, long slotCode) =>
+        hideoutOperators.TryGetValue((HideoutFloorOrderOf(floor), built, slotCode), out var code) ? code : null;
+
+    FacilityEntry? FacilityOfFloor(int floor, bool built) => built ? BuiltFacilityOfFloor(floor) : BaseFacilityOfFloor(floor);
+
+    /// <summary>이 캐릭터가 이 오퍼레이터 슬롯에 설 수 있는가: 보유한 캐릭터이고 슬롯이 요구하는 태그를 모두 가져야 한다.</summary>
+    public bool CanOperate(long characterCode, long operatorSlotCode) =>
+        Characters.ContainsKey(characterCode) && CharacterTags(characterCode) is var have && Pack.OperatorSlotTagsOf(operatorSlotCode).All(have.Contains);
+
+    /// <summary>
+    /// 오퍼레이터 슬롯에 캐릭터를 세운다(null이면 비운다): 그 시설이 가진 슬롯이고 캐릭터가 태그 조건을 만족해야 한다. 캐릭터는 파티, 보스 슬롯, 오퍼레이터 슬롯 중 한 곳에만 있으므로
+    /// 다른 곳에 있던 캐릭터는 거기서 빠진다(파티에서는 장비가 보유로 돌아간다). 할 수 없으면 false.
+    /// </summary>
+    public bool SetHideoutOperator(int floor, bool built, long slotCode, long? characterCode)
+    {
+        if (floor < 0 || floor >= HideoutFloorCount || FacilityOfFloor(floor, built) is not { } facility) return false;
+        if (Pack.OperatorSlotsOf(facility.Code).All(s => s.Code != slotCode)) return false;
+        var key = (HideoutFloorOrderOf(floor), built, slotCode);
+        if (characterCode is not { } code) { hideoutOperators.Remove(key); return true; }
+        if (!CanOperate(code, slotCode)) return false;
+        RemoveFromParties(code);
+        RemoveFromHideout(code);
+        for (var i = 0; i < hideoutBosses.Count; i++)
+            if (hideoutBosses[i] == code) hideoutBosses[i] = null;
+        hideoutOperators[key] = code;
+        return true;
+    }
+
+    /// <summary>시설 상세 화면의 오퍼레이터 슬롯 항목들: "슬롯 이름: 캐릭터 이름(없으면 미지정)", 코드는 firstCode부터 차례로.</summary>
+    IEnumerable<ScreenEntry> HideoutOperatorEntries(int floor, bool built, int firstCode) =>
+        (FacilityOfFloor(floor, built) is { } facility ? Pack.OperatorSlotsOf(facility.Code) : []).Select((slot, i) =>
+            new ScreenEntry(Text(firstCode + i),
+                $"{slot.Name}: {(HideoutOperatorOf(floor, built, slot.Code) is { } who ? CharacterName(who) : "미지정")}",
+                Screen.HideoutOperatorSelect, Arg: $"{floor}:{(built ? 1 : 0)}:{slot.Code}"));
+
+    /// <summary>오퍼레이터 선택 화면의 제목: "n층 시설이름 - 슬롯이름".</summary>
+    public string? CurrentHideoutOperatorTitle =>
+        Screen == Screen.HideoutOperatorSelect && CurrentSlot is { } floor && FacilityOfFloor(floor, hideoutOperatorBuilt) is { } facility
+            ? $"{floor + 1}층 {facility.Name} - {Pack.FindOperatorSlot(hideoutOperatorSlot)?.Name}" : null;
+
+    /// <summary>오퍼레이터 선택 화면의 목록(캐릭터 인벤토리 마스터 순서): 슬롯의 태그 조건을 만족하는 보유 캐릭터. 이 슬롯의 캐릭터는 빠지고, 이미 아지트에 있는 캐릭터는 파란색(고르면 그 자리에서 옮겨 온다), 파티원과 나머지는 흰색(파티에서 빠진다).</summary>
+    IReadOnlyList<CharacterListItem> HideoutOperatorCandidates()
+    {
+        if (CurrentSlot is not { } floor || floor >= HideoutFloorCount) return [];
+        var mine = HideoutOperatorOf(floor, hideoutOperatorBuilt, hideoutOperatorSlot);
+        return (Pack.CharacterInventory ?? []).Where(c => mine != c.Code && CanOperate(c.Code, hideoutOperatorSlot))
+            .Select(c => new CharacterListItem(c.Code, c.Name, HideoutFloorOf(c.Code) >= 0 || hideoutOperators.ContainsValue(c.Code) ? CharacterListColor.Green : CharacterListColor.White)).ToList();
+    }
+
+    Screen HideoutOperatorReturnScreen => hideoutOperatorBuilt ? Screen.HideoutFacilityDetail : Screen.HideoutFloorDetail;
+
+    IReadOnlyList<ScreenEntry> HideoutOperatorSelectEntries()
+    {
+        var entries = new List<ScreenEntry>();
+        var back = CurrentSlot is { } floor ? new ScreenEntry(BackEntryCode, "돌아가기", HideoutOperatorReturnScreen, Arg: Text(floor)) : new ScreenEntry(BackEntryCode, "돌아가기", Screen.Hideout);
+        if (CurrentSlot is { } at && HideoutOperatorOf(at, hideoutOperatorBuilt, hideoutOperatorSlot) is not null)
+            entries.Add(new ScreenEntry(ClearEntryCode, "비우기", HideoutOperatorReturnScreen, EntryAction.ClearHideoutOperator));
+        entries.AddRange(HideoutOperatorCandidates().Select(c => new ScreenEntry(Text(c.Code), c.Name, HideoutOperatorReturnScreen, EntryAction.SetHideoutOperator)));
+        entries.Add(back);
+        return entries;
+    }
+
+    // ---- 시설 생산 ----
+
+    /// <summary>방어전에서 밀려 적이 침입했는가: true면 다음 턴 종료의 시설 생산을 건너뛴다(방어전은 아직 없어 늘 false). 건너뛴 뒤 false로 돌아간다.</summary>
+    public bool HideoutInvaded { get; set; }
+
+    /// <summary>
+    /// 턴 종료 뒤의 시설 서킷: 아지트의 층을 1층부터 차례로, 층마다 기본 시설 다음에 지은 시설의 시설 흐름을 실행해 아이템 등을 생산한다. 흐름이 없는 시설은 아무것도 하지 않는다.
+    /// 침입(<see cref="HideoutInvaded"/>)이 있으면 하나도 실행하지 않는다. 바뀐 커먼 아이템 수를 "이름 +n, 이름 -n"으로 돌려준다(바뀐 것이 없으면 null; 침입이면 그 안내).
+    /// </summary>
+    public string? RunFacilityCircuits()
+    {
+        if (HideoutInvaded)
+        {
+            HideoutInvaded = false;
+            return "적이 침입해 시설이 생산하지 못했습니다";
+        }
+        var before = InventoryItems.ToDictionary(p => p.Key, p => p.Value.Amount);
+        for (var floor = 0; floor < HideoutFloorCount; floor++)
+            foreach (var built in new[] { false, true })
+            {
+                if (FacilityOfFloor(floor, built) is not { } facility || Pack.FacilityFlowsOf(facility.Code) is not { Count: > 0 } flows) continue;
+                var at = floor;
+                new FacilityFlowCircuit(facility.Code, flows, slot => HideoutOperatorOf(at, built, slot), PlayerFlags,
+                    AddInventory, CountInventory, CharacterHasTag, UniqueItemHasTag, NextRandom).Execute();
+            }
+        var changes = InventoryItems.Keys.Union(before.Keys).Order()
+            .Select(code => (code, delta: InventoryItems.GetValueOrDefault(code).Amount - before.GetValueOrDefault(code))).Where(x => x.delta != 0)
+            .Select(x => $"{Pack.FindItem(x.code)?.Name ?? Text(x.code)} {(x.delta > 0 ? "+" : "")}{Text(x.delta)}").ToList();
+        return changes.Count == 0 ? null : "시설 생산: " + string.Join(", ", changes);
+    }
 }
