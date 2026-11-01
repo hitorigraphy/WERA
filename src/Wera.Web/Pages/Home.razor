@@ -23,6 +23,56 @@
             <span class="companion-cell" style="width: @(head.Widths[i])ch">@head.Names[i]</span>@(i < head.Names.Count - 1 ? " " : "")
         }</text>;
 
+    // 항목(ScreenEntry)을 표로: 첫 줄은 열 이름, 줄마다 [코드]와 값들. 항목을 누르면(또는 코드를 입력하면) 그 항목이 동작하고, 누를 수 없는 항목은 회색이다.
+    RenderFragment<TableSpec> entryTable = t => @<ul class="companions">
+        <li class="companions-head">@columnHead((t.Widths, t.Heads))</li>
+        @foreach (var entry in t.Entries)
+        {
+            var code = entry.Code;
+            var cells = t.Cells(entry);
+            <li><button class="textlink row-link" disabled="@(!entry.Enabled)" @onclick="() => Activate(code)">@for (var i = 0; i < cells.Length; i++)
+                {
+                    <span class="companion-cell" style="width: @(t.Widths[i])ch">@cells[i]</span>@(i < cells.Length - 1 ? " " : "")
+                }</button></li>
+        }
+    </ul>;
+
+    // 캐릭터 고르기 표(캐릭터 배치, 파트너/어시스트): 맨 위 [0] 비우기 줄(있을 때만), 그다음 지금 페이지의 캐릭터들. 누를 수 없는 캐릭터는 글자만 있고, 색은 목록의 색 규칙을 따른다.
+    RenderFragment<(IEnumerable<ScreenEntry> Clear, IEnumerable<CharacterListItem> Items)> characterTable = t => @<ul class="companions">
+        <li class="companions-head">@columnHead((new[] { GameSession.CompanionCodeColumns, GameSession.CompanionNameColumns }, new[] { "#", "이름" }))</li>
+        @foreach (var clear in t.Clear)
+        {
+            var clearCode = clear.Code;
+            <li><button class="textlink row-link" @onclick="() => Activate(clearCode)"><span class="companion-cell" style="width: @(GameSession.CompanionCodeColumns)ch">[@clear.Code]</span> <span class="companion-cell" style="width: @(GameSession.CompanionNameColumns)ch">@clear.Label</span></button></li>
+        }
+        @foreach (var c in t.Items)
+        {
+            var pickCode = c.Code.ToString();
+            var colorClass = "char-" + c.Color.ToString().ToLowerInvariant();
+            <li>
+                @if (c.Selectable)
+                {
+                    <button class="textlink row-link @colorClass" @onclick="() => Activate(pickCode)"><span class="companion-cell" style="width: @(GameSession.CompanionCodeColumns)ch">[@c.Code]</span> <span class="companion-cell" style="width: @(GameSession.CompanionNameColumns)ch">@c.Name</span></button>
+                }
+                else
+                {
+                    <span class="row-link @colorClass"><span class="companion-cell" style="width: @(GameSession.CompanionCodeColumns)ch">[@c.Code]</span> <span class="companion-cell" style="width: @(GameSession.CompanionNameColumns)ch">@c.Name</span></span>
+                }
+            </li>
+        }
+    </ul>;
+
+    /// <summary>항목의 라벨을 " : "에서 둘로 나눈다(슬롯 이름 : 낀 것). 없으면 라벨 전체와 빈 칸.</summary>
+    static string[] SplitLabel(ScreenEntry e)
+    {
+        var i = e.Label.IndexOf(" : ", StringComparison.Ordinal);
+        return i < 0 ? [e.Label, ""] : [e.Label[..i], e.Label[(i + 3)..]];
+    }
+
+    /// <summary>목록에 나오는 항목들: 돌아가기와 페이지 버튼은 표에 넣지 않는다.</summary>
+    IEnumerable<ScreenEntry> ListEntries(Func<ScreenEntry, bool>? filter = null) =>
+        session!.Entries.Where(e => e.Code != GameSession.BackEntryCode && e.Action != EntryAction.ListPage && (filter?.Invoke(e) ?? true));
+
     /// <summary>던전 맵 한 칸의 CSS 클래스: 플레이어 표시, 칸의 표시용 효과들(벽, 계단 등), 이동불가.</summary>
     static string DungeonCellClass(DungeonCellView cell)
     {
@@ -252,12 +302,12 @@
 
             case Screen.DungeonSelect:
                 <h2>던전 선택</h2>
-                <div class="dungeon-select">@commands</div>
+                <div class="dungeon-select">@entryTable(new TableSpec(ListEntries(), CodeNameWidths, ["#", "던전"], e => ["[" + e.Code + "]", e.Label]))</div>
                 break;
 
             case Screen.DungeonPartySelect:
                 <h2>파티 선택</h2>
-                <div class="dungeon-select">@commands</div>
+                <div class="dungeon-select">@entryTable(new TableSpec(ListEntries(), CodeNameWidths, ["#", "파티"], e => ["[" + e.Code + "]", e.Label]))</div>
                 break;
 
             case Screen.DungeonMove:
@@ -331,7 +381,7 @@
                     <p class="message" role="status">@session.Message</p>
                 }
                 @* 스킬 슬롯을 순서대로, 구분선 아래에 스킬 풀 *@
-                @entryList(session.Entries.Where(e => e.Target == Screen.SkillSlotSelect))
+                @entryTable(new TableSpec(ListEntries(e => e.Target == Screen.SkillSlotSelect), SlotWidths, ["#", "슬롯", "스킬"], e => ["[" + e.Code + "]", .. SplitLabel(e)]))
                 <div class="menu-separator"></div>
                 @entryList(session.Entries.Where(e => e.Target == Screen.SkillPoolList))
                 break;
@@ -342,7 +392,7 @@
                 {
                     <p class="end">장착할 수 있는 스킬이 없습니다.</p>
                 }
-                @entryList(session.Entries)
+                @entryTable(new TableSpec(ListEntries(), CodeNameWidths, ["#", "이름"], e => ["[" + e.Code + "]", e.Label]))
                 break;
 
             case Screen.SkillPoolList:
@@ -352,9 +402,10 @@
                     <p class="end">익힌 스킬이 없습니다.</p>
                 }
                 <ul class="companions">
-                    @foreach (var r in session.SkillPoolRows)
+                    <li class="companions-head">@columnHead((SlotWidths, new[] { "#", "이름", "장착" }))</li>
+                    @foreach (var r in session.PageOf(session.SkillPoolRows))
                     {
-                        <li>@(r.Index + 1). @r.Name@(r.EquippedSlotName is null ? "" : $" ({r.EquippedSlotName})")</li>
+                        <li><span class="row-link"><span class="companion-cell" style="width: @(SlotWidths[0])ch">@(r.Index + 1)</span> <span class="companion-cell" style="width: @(SlotWidths[1])ch">@r.Name</span> <span class="companion-cell" style="width: @(SlotWidths[2])ch">@r.EquippedSlotName</span></span></li>
                     }
                 </ul>
                 break;
@@ -371,7 +422,7 @@
 
             case Screen.EquipmentList:
                 <h2>@(session.CurrentSlotCharacterName)의 장비</h2>
-                @if (session.Entries.Count == 1)
+                @if (session.CurrentEquipmentSlots.Count == 0)
                 {
                     <p class="end">장비 슬롯이 없습니다.</p>
                 }
@@ -379,7 +430,7 @@
                 {
                     <p class="message" role="status">@session.Message</p>
                 }
-                @entryList(session.Entries)
+                @entryTable(new TableSpec(ListEntries(), SlotWidths, ["#", "슬롯", "장비"], e => ["[" + e.Code + "]", .. SplitLabel(e)]))
                 break;
 
             case Screen.EquipmentSelect:
@@ -388,60 +439,26 @@
                 {
                     <p class="end">장비할 수 있는 장비가 없습니다.</p>
                 }
-                @entryList(session.Entries)
+                @entryTable(new TableSpec(ListEntries(), CodeNameWidths, ["#", "이름"], e => ["[" + e.Code + "]", e.Label]))
                 break;
 
             case Screen.SupportSelect:
                 <h2>@(session.CurrentSupportRoleName)로 지정할 캐릭터</h2>
                 @* 맨 위 [0] 비우기: 이 슬롯에 캐릭터가 있을 때만 나온다. 파티 설정과는 독립이다. *@
-                @entryList(session.Entries.Where(e => e.Code == GameSession.ClearEntryCode))
                 @* 흰색: 지정 가능, 회색: 보유하지 않음, (이 슬롯의 캐릭터는 목록에 없음), 파란색: 다른 쪽 슬롯의 캐릭터(고르면 서로 바뀐다) *@
-                <ul class="character-list">
-                    @foreach (var c in session.PageOf(session.SupportList))
-                    {
-                        var supportCode = c.Code.ToString();
-                        var supportClass = "char-" + c.Color.ToString().ToLowerInvariant();
-                        <li>
-                            @if (c.Selectable)
-                            {
-                                <button class="textlink @supportClass" @onclick="() => Activate(supportCode)">[@c.Code] @c.Name</button>
-                            }
-                            else
-                            {
-                                <span class="@supportClass">[@c.Code] @c.Name</span>
-                            }
-                        </li>
-                    }
-                </ul>
+                @characterTable((session.Entries.Where(e => e.Code == GameSession.ClearEntryCode), session.PageOf(session.SupportList)))
                 break;
 
             case Screen.CharacterSelect:
                 <h2>@((session.CurrentSlot ?? 0) + 1)번 슬롯에 배치할 캐릭터</h2>
                 @* 맨 위 [0] 비우기: 이 슬롯에 캐릭터가 있을 때만 나온다. *@
-                @entryList(session.Entries.Where(e => e.Code == GameSession.ClearEntryCode))
                 @* 흰색: 배치 가능, 회색: 배치 불가, (이 슬롯의 캐릭터는 목록에 없음), 파란색: 이미 배치된 파티원(고르면 위치 교환) *@
-                <ul class="character-list">
-                    @foreach (var c in session.PageOf(session.CharacterList))
-                    {
-                        var charCode = c.Code.ToString();
-                        var colorClass = "char-" + c.Color.ToString().ToLowerInvariant();
-                        <li>
-                            @if (c.Selectable)
-                            {
-                                <button class="textlink @colorClass" @onclick="() => Activate(charCode)">[@c.Code] @c.Name</button>
-                            }
-                            else
-                            {
-                                <span class="@colorClass">[@c.Code] @c.Name</span>
-                            }
-                        </li>
-                    }
-                </ul>
+                @characterTable((session.Entries.Where(e => e.Code == GameSession.ClearEntryCode), session.PageOf(session.CharacterList)))
                 break;
 
             case Screen.ShopList:
                 <h2>상점</h2>
-                <div class="shop-trades">@commands</div>
+                <div class="shop-trades">@entryTable(new TableSpec(ListEntries(), CodeNameWidths, ["#", "상점"], e => ["[" + e.Code + "]", e.Label]))</div>
                 break;
 
             case Screen.ShopTrades:
@@ -454,8 +471,8 @@
                 {
                     <p class="message" role="status">@session.Message</p>
                 }
-                @* 교환할 수 있는 항목과 돌아가기는 흰색, 지금 교환할 수 없는 항목은 회색(눌러도 반응 없음) *@
-                <div class="shop-trades">@commands</div>
+                @* 교환할 수 있는 항목은 흰색, 지금 교환할 수 없는 항목은 회색(눌러도 반응 없음) *@
+                <div class="shop-trades">@entryTable(new TableSpec(ListEntries(), CodeNameWidths, ["#", "교환"], e => ["[" + e.Code + "]", e.Label]))</div>
                 break;
 
             case Screen.Hideout:
@@ -478,7 +495,7 @@
                 {
                     <p class="message" role="status">@session.Message</p>
                 }
-                @commands
+                @entryTable(new TableSpec(ListEntries(), CodeNameWidths, ["#", "이벤트"], e => ["[" + e.Code + "]", e.Label]))
                 break;
 
             case Screen.EventPlay:
@@ -811,14 +828,14 @@
             case Screen.DebugAddItem:
             case Screen.DebugSkillCharacter:
             case Screen.DebugAddSkill:
-                @* 마스터의 전부를 페이지당 20개씩: 항목을 누르면(페이지 안의 번호 [1]~[20]) 하나 추가하고, [101]/[102]로 페이지를 넘긴다 *@
+                @* 마스터의 전부를 페이지당 20개씩 표로: 항목을 누르면(페이지 안의 번호 [1]~[20]) 하나 추가하고, 하단의 페이지 버튼으로 페이지를 넘긴다 *@
                 <h2>@(session.Screen switch { Screen.DebugAddCharacter => "캐릭터 추가", Screen.DebugAddEquipment => "장비 추가", Screen.DebugSkillCharacter => "스킬 추가 : 캐릭터 선택", Screen.DebugAddSkill => "스킬 추가", _ => "아이템 추가" })</h2>
                 <p class="end">@(session.DebugPage + 1) / @session.DebugPageCount 페이지 (전체 @(session.DebugList.Count)개)</p>
                 @if (session.Message is not null)
                 {
                     <p class="message" role="status">@session.Message</p>
                 }
-                @commands
+                @entryTable(new TableSpec(ListEntries(), CodeNameWidths, ["#", "이름 (코드)"], e => ["[" + e.Code + "]", e.Label]))
                 break;
 
             case Screen.Load:
@@ -894,6 +911,12 @@
 </main>
 
 @code {
+    /// <summary>항목 표 한 개: 줄이 될 항목들, 칸 너비(반각 칸 수), 열 이름, 항목에서 칸의 글자들을 만드는 함수.</summary>
+    record TableSpec(IEnumerable<ScreenEntry> Entries, int[] Widths, string[] Heads, Func<ScreenEntry, string[]> Cells);
+
+    static readonly int[] CodeNameWidths = [GameSession.CompanionCodeColumns, GameSession.CompanionNameColumns];
+    static readonly int[] SlotWidths = [GameSession.CompanionCodeColumns, 24, GameSession.CompanionNameColumns];
+
     const long MaxBytes = 2L * 1024 * 1024 * 1024 - 1;
 
     GamePack? pack;

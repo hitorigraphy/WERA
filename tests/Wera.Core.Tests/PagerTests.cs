@@ -114,4 +114,27 @@ public class PagerTests
             s.Entries.Where(e => e.Action == EntryAction.SetSupport).Select(e => e.Code));
         Assert.NotEmpty(s.Entries.Where(e => e.Action == EntryAction.SetSupport));
     }
+
+    [Fact]
+    public void The_skill_pool_and_the_slot_lists_are_paged_tables_too()
+    {
+        var root = AppContext.BaseDirectory;
+        while (!File.Exists(Path.Combine(root, "WERA.slnx"))) root = Path.GetDirectoryName(root)!;
+        using var read = File.OpenRead(Path.Combine(root, "src", "Wera.Web", "wwwroot", "sample-pack.wra"));
+        var pack = GamePack.Load(read);
+        var s = GameSession.NewGame(pack);
+        s.AddCharacter(7001);
+        s.Party[0] = 7001;
+        s.Characters[7001] = s.Characters[7001] with { SkillPool = [.. Enumerable.Range(0, 45).Select(_ => pack.NewSkillInstance(1001))] };
+        s.Activate("105"); s.Activate("103"); s.Activate("1");                      // 스킬 설정: 1번 슬롯의 캐릭터
+        Assert.Equal(Screen.SkillCharacter, s.Screen);
+        Assert.Empty(s.Pager);                                                       // 스킬 슬롯은 20개 이하
+        s.Activate(GameSession.SkillPoolEntryCode);
+        Assert.Equal(Screen.SkillPoolList, s.Screen);
+        Assert.Equal(20, s.PageOf(s.SkillPoolRows).Count);
+        Assert.Equal("1 [104] 2 [106] 3", Layout(s));
+        s.Activate("106");
+        Assert.Equal([40, 41, 42, 43, 44], s.PageOf(s.SkillPoolRows).Select(r => r.Index));
+        Assert.Equal("999", s.Entries[^1].Code);
+    }
 }

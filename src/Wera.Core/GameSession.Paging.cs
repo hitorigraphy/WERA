@@ -8,7 +8,7 @@ public sealed record PagerButton(string Text, string? Code, bool Current)
     public const string Ellipsis = "...";
 }
 
-// 목록 화면(동료/장비/아이템 확인, 캐릭터/파트너 고르기, 장비 고르기, 상점/교환, 이벤트, 디버그 추가)은 한 페이지에 20개까지만 보여 주고
+// 목록 화면(동료/장비/아이템 확인, 캐릭터/파트너 고르기, 장비/스킬 슬롯과 고르기, 스킬 풀, 던전/파티 고르기, 상점/교환, 이벤트, 디버그 추가)은 한 페이지에 20개까지만 보여 주고
 // 나머지는 하단의 페이지 버튼(게시판처럼 [101] 1 ... [102] N-2 [103] N-1 N [104] N+1 [105] N+2 ... [106] 마지막)으로 본다.
 // 코드는 자리마다 정해져 있다: 101 첫 페이지, 102 지금-2, 103 지금-1, 104 지금+1, 105 지금+2, 106 마지막 페이지(지금 페이지에는 코드가 없다).
 public sealed partial class GameSession
@@ -31,14 +31,16 @@ public sealed partial class GameSession
     ];
 
     static bool IsPagedScreen(Screen screen) => screen is Screen.CompanionCheck or Screen.EquipmentCheck or Screen.ItemCheck
-        or Screen.CharacterSelect or Screen.SupportSelect or Screen.EquipmentSelect or Screen.ShopList or Screen.ShopTrades or Screen.Event;
+        or Screen.CharacterSelect or Screen.SupportSelect or Screen.EquipmentSelect or Screen.ShopList or Screen.ShopTrades or Screen.Event
+        or Screen.EquipmentList or Screen.SkillCharacter or Screen.SkillSlotSelect or Screen.SkillPoolList or Screen.DungeonSelect or Screen.DungeonPartySelect;
 
     static bool IsDebugListScreen(Screen screen) =>
         screen is Screen.DebugAddCharacter or Screen.DebugAddEquipment or Screen.DebugAddItem or Screen.DebugSkillCharacter or Screen.DebugAddSkill;
 
     /// <summary>페이지와 상관없이 늘 나오는 항목: 돌아가기와, 고르는 화면의 "[0] 비우기/해제"(동료 확인의 0번 줄은 그냥 항목이다).</summary>
     bool IsFixedEntry(ScreenEntry e) =>
-        e.Code == BackEntryCode || e.Code == ClearEntryCode && Screen is Screen.CharacterSelect or Screen.SupportSelect or Screen.EquipmentSelect;
+        e.Code == BackEntryCode
+        || e.Code == ClearEntryCode && Screen is Screen.CharacterSelect or Screen.SupportSelect or Screen.EquipmentSelect or Screen.SkillSlotSelect or Screen.SkillCharacter;
 
     /// <summary>항목이 count개일 때의 페이지 수(항목이 없어도 1).</summary>
     public static int PageCountOf(int count) => Math.Max(1, (count + ListPageSize - 1) / ListPageSize);
@@ -53,6 +55,7 @@ public sealed partial class GameSession
     {
         Screen.CharacterSelect => CharacterList.Select(c => Text(c.Code)).ToList(),
         Screen.SupportSelect => SupportList.Select(c => Text(c.Code)).ToList(),
+        Screen.SkillPoolList => SkillPoolRows.Select(r => Text(r.Index)).ToList(),
         _ => raw.Where(e => !IsFixedEntry(e)).Select(e => e.Code).ToList(),
     };
 

@@ -338,7 +338,7 @@ public sealed partial class GameSession
         CurrentEquipmentSlotCode is { } slotCode ? Pack.FindEquipmentSlot(slotCode) : null;
 
     /// <summary>선택한 캐릭터가 가진 장비 슬롯들.</summary>
-    IReadOnlyList<EquipmentSlotEntry> CurrentEquipmentSlots =>
+    public IReadOnlyList<EquipmentSlotEntry> CurrentEquipmentSlots =>
         CurrentCharacterCode is { } character ? Pack.EquipmentSlotsOf(character) : [];
 
     GameSession(
