@@ -159,7 +159,7 @@ public sealed partial class GameSession
                 (Pack.FindItem(code)?.Name ?? Text(code)) + (code == installed ? " (장착 중)" : ""), Screen.EquipmentEnhanceTarget, EntryAction.InstallMod,
                 code.ToString(CultureInfo.InvariantCulture), Enabled: code != installed && CountInventory(code) >= 1)),
             new ScreenEntry(RemoveModEntryCode, "빼기", Screen.EquipmentEnhanceTarget, EntryAction.RemoveMod,
-                Enabled: installed is { } held && Pack.FindItem(held) is { } info && CountInventory(held) < info.CarryLimit),
+                Enabled: installed is not null),
             new ScreenEntry(BackEntryCode, "돌아가기", Screen.EquipmentEnhanceTarget),
         ];
     }
@@ -185,12 +185,12 @@ public sealed partial class GameSession
         return $"개조했습니다: {Pack.FindUniqueItem(target.ItemCode)?.ItemName ?? Text(target.ItemCode)} {Pack.FindModSlot(slot)?.Name} {Pack.FindItem(itemCode)?.Name ?? Text(itemCode)}";
     }
 
-    /// <summary>고른 개조 슬롯에 낀 아이템을 빼서 인벤토리로 돌려주고 스테이터스를 다시 정한다. 낀 것이 없거나 돌려받으면 소지 한도를 넘으면 아무것도 바꾸지 않고 빈 문자열을 돌려준다.</summary>
+    /// <summary>고른 개조 슬롯에 낀 아이템을 빼서 인벤토리로 돌려주고 스테이터스를 다시 정한다. 낀 것이 없으면 아무것도 바꾸지 않고 빈 문자열을 돌려준다. 돌려받으면 소지 한도를 넘어도 막지 않고 한도까지만 받는다(넘친 것은 알리지 않고 사라진다).</summary>
     string RemoveMod()
     {
         if (SynthesisTarget is not { } target || ModSlotCode is not { } slot) return "";
         if (target.Mods is not { } current || !current.TryGetValue(slot, out var old)) return "";
-        if (Pack.FindItem(old) is not { } info || CountInventory(old) >= info.CarryLimit) return "";
+        if (Pack.FindItem(old) is not { } info) return "";
         AddInventory(old, 1);
         var mods = new Dictionary<long, long>(current);
         mods.Remove(slot);

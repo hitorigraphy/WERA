@@ -158,4 +158,20 @@ public class ModTests
         Assert.Equal(10, Atk(s));
         Assert.Equal("비어 있음", s.EquipmentDetail!.Parts[0].Value);
     }
+
+    [Fact]
+    public void Removing_and_replacing_ignore_the_carry_limit_and_the_overflow_vanishes()
+    {
+        var s = ModScreen(ore: 1);
+        PickSword(s);
+        s.Activate("1");
+        s.Activate("4");                                                                     // 철광석 1개를 끼움
+        s.AddInventory(4, 99);                                                               // 소지 한도(99)까지 채움
+        Assert.Equal(99, s.CountInventory(4));
+        s.Activate("1");
+        Assert.True(s.Entries.First(e => e.Code == GameSession.RemoveModEntryCode).Enabled);
+        s.Activate(GameSession.RemoveModEntryCode);
+        Assert.Equal(99, s.CountInventory(4));                                               // 넘친 1개는 사라진다
+        Assert.Equal(10, Atk(s));
+    }
 }
