@@ -6,10 +6,10 @@ namespace Wera.Core;
 public sealed record TimeSlotEntry(long Code, string Name);
 
 /// <summary>
-/// 턴 마스터의 한 행: 이 턴(TurnCount)의 게임상 날짜(Year, Month, Day)와 시간대(TimeSlotCode).
+/// 턴 마스터의 한 행: 이 턴(TurnCount)의 게임상 날짜(Year, Month, Day), 누계 날짜(DayCount: Day는 달이 바뀌면 1로 돌아오지만 DayCount는 계속 누계된다)와 시간대(TimeSlotCode).
 /// 게임은 가장 작은 턴에서 시작하고, 턴이 넘어가면 다음으로 큰 TurnCount의 날짜와 시간대로 바뀐다.
 /// </summary>
-public sealed record TurnEntry(long TurnCount, long Year, long Month, long Day, long TimeSlotCode);
+public sealed record TurnEntry(long TurnCount, long Year, long Month, long Day, long DayCount, long TimeSlotCode);
 
 // 턴과 시간대: 시간대 마스터(time_slot_master)와 턴 마스터(turn_master).
 public sealed partial class GamePack
@@ -28,7 +28,8 @@ public sealed partial class GamePack
 
     /// <summary>
     /// 턴 마스터: 턴 카운트가 키라 같은 턴을 두 번 쓸 수 없고, 시간대는 시간대 마스터에 있어야 하며, 한 행 이상 있어야 한다
-    /// (게임이 가장 작은 턴에서 시작한다). 날짜는 게임팩이 정하는 달력이라 범위를 검증하지 않는다.
+    /// (게임이 가장 작은 턴에서 시작한다). 날짜는 게임팩이 정하는 달력이라 범위를 검증하지 않는다. 다만 턴 순서(턴 카운트 순)로 day_count는 줄어들 수 없고,
+    /// 날짜(년, 월, 일)가 앞 턴과 같으면 day_count도 같아야 하고 날짜가 다르면 day_count가 커져야 한다.
     /// </summary>
     static List<TurnEntry>? LoadTurns(ZipArchive zip, List<TimeSlotEntry>? timeSlots)
     {
@@ -40,22 +41,35 @@ public sealed partial class GamePack
         var slotCodes = timeSlots.Select(s => s.Code).ToHashSet();
         var rows = new List<TurnEntry>();
         var seen = new HashSet<long>();
-        foreach (var r in Body(file, text, "turn_count", "year", "month", "day", "time_slot_code"))
+        foreach (var r in Body(file, text, "turn_count", "year", "month", "day", "day_count", "time_slot_code"))
         {
             var turn = ParseLong(file, "턴 카운트", r[0]);
             var who = $"턴 '{turn}'의";
             var year = ParseLong(file, $"{who} 연도", r[1]);
             var month = ParseLong(file, $"{who} 월", r[2]);
             var day = ParseLong(file, $"{who} 일", r[3]);
-            var slot = ParseLong(file, $"{who} 시간대 코드", r[4]);
+            var dayCount = ParseLong(file, $"{who} 누계 날짜(day_count)", r[4]);
+            var slot = ParseLong(file, $"{who} 시간대 코드", r[5]);
             if (!seen.Add(turn))
                 throw new PackFormatException($"{file}: 턴 카운트 '{turn}'가 중복됩니다.");
             if (!slotCodes.Contains(slot))
                 throw new PackFormatException($"{file}: {who} 시간대 '{slot}'가 시간대 마스터에 없습니다.");
-            rows.Add(new TurnEntry(turn, year, month, day, slot));
+            rows.Add(new TurnEntry(turn, year, month, day, dayCount, slot));
         }
         if (rows.Count == 0)
             throw new PackFormatException($"{file}에 턴이 한 개도 없습니다(게임은 가장 작은 턴에서 시작합니다).");
+        var ordered = rows.OrderBy(r => r.TurnCount).ToList();
+        for (var i = 1; i < ordered.Count; i++)
+        {
+            var (before, now) = (ordered[i - 1], ordered[i]);
+            var sameDate = (before.Year, before.Month, before.Day) == (now.Year, now.Month, now.Day);
+            if (now.DayCount < before.DayCount)
+                throw new PackFormatException($"{file}: 턴 '{now.TurnCount}'의 day_count '{now.DayCount}'가 앞 턴 '{before.TurnCount}'의 '{before.DayCount}'보다 작습니다(day_count는 줄어들 수 없습니다).");
+            if (sameDate && now.DayCount != before.DayCount)
+                throw new PackFormatException($"{file}: 턴 '{now.TurnCount}'은 앞 턴 '{before.TurnCount}'과 날짜가 같은데 day_count가 다릅니다('{now.DayCount}', '{before.DayCount}').");
+            if (!sameDate && now.DayCount == before.DayCount)
+                throw new PackFormatException($"{file}: 턴 '{now.TurnCount}'은 앞 턴 '{before.TurnCount}'과 날짜가 다른데 day_count가 같습니다('{now.DayCount}').");
+        }
         return rows;
     }
 
@@ -66,7 +80,7 @@ public sealed partial class GamePack
 
     public TurnEntry? FindTurn(long turnCount) =>
         Masters.TurnRowTable.TryFindByTurnCount(turnCount, out var r)
-            ? new TurnEntry(r.TurnCount, r.Year, r.Month, r.Day, r.TimeSlotCode) : null;
+            ? new TurnEntry(r.TurnCount, r.Year, r.Month, r.Day, r.DayCount, r.TimeSlotCode) : null;
 
     /// <summary>게임이 시작하는 턴: 가장 작은 턴 카운트.</summary>
     public TurnEntry FirstTurn
@@ -74,7 +88,7 @@ public sealed partial class GamePack
         get
         {
             var r = Masters.TurnRowTable.All.First();       // 기본키(턴 카운트) 순서의 첫 행
-            return new TurnEntry(r.TurnCount, r.Year, r.Month, r.Day, r.TimeSlotCode);
+            return new TurnEntry(r.TurnCount, r.Year, r.Month, r.Day, r.DayCount, r.TimeSlotCode);
         }
     }
 
@@ -83,7 +97,7 @@ public sealed partial class GamePack
     {
         foreach (var r in Masters.TurnRowTable.All)
             if (r.TurnCount > turnCount)
-                return new TurnEntry(r.TurnCount, r.Year, r.Month, r.Day, r.TimeSlotCode);
+                return new TurnEntry(r.TurnCount, r.Year, r.Month, r.Day, r.DayCount, r.TimeSlotCode);
         return null;
     }
 

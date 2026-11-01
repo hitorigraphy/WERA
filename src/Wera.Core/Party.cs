@@ -37,6 +37,12 @@ public sealed record CharacterInstance
     /// <summary>스킬 슬롯 코드 → <see cref="SkillPool"/>의 번호.</summary>
     public Dictionary<long, long> SkillSlots { get; init; } = [];
 
+    /// <summary>이벤트나 던전 탐사에 마지막으로 참가한 턴 카운트. 없으면(null) 한 번도 참가하지 않았다. 한 턴에는 한 번만 참가할 수 있다.</summary>
+    public long? ExploreTurn { get; init; }
+
+    /// <summary>아지트 방어전에 마지막으로 참가한 날의 day_count. 없으면(null) 한 번도 참가하지 않았다. 참가한 다음날은 하루종일 이벤트와 던전 탐사에 참가할 수 없다.</summary>
+    public long? DefenseDayCount { get; init; }
+
     // 예전 세이브의 고정 필드(Level, Hp, MaxHp, Xpp, XppMax). 읽을 때만 쓰고 세이브에는 쓰지 않는다(불러오면 Statuses로 옮긴다).
     [JsonPropertyName("Level")] public long? LegacyLevel { get; init; }
     [JsonPropertyName("Hp")] public long? LegacyHp { get; init; }

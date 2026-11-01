@@ -7,14 +7,14 @@ namespace Wera.Core.Tests;
 public class TurnTests
 {
     const string Slots = "code\tname\n2\t낮\n1\t아침\n3\t저녁\n";
-    const string TurnHeader = "turn_count\tyear\tmonth\tday\ttime_slot_code\n";
+    const string TurnHeader = "turn_count\tyear\tmonth\tday\tday_count\ttime_slot_code\n";
 
     // 파일 순서와 키 순서가 다르다: 턴 3이 먼저 적혀 있어도 턴 1이 첫 턴이다.
     const string Turns = TurnHeader +
-        "3\t1\t1\t2\t1\n" +
-        "1\t1\t1\t1\t1\n" +
-        "2\t1\t1\t1\t2\n" +
-        "10\t2\t12\t30\t3\n";
+        "3\t1\t1\t2\t2\t1\n" +
+        "1\t1\t1\t1\t1\t1\n" +
+        "2\t1\t1\t1\t1\t2\n" +
+        "10\t2\t12\t30\t3\t3\n";
 
     static GamePack Load(string slots = Slots, string turns = Turns) =>
         GamePack.Load(CoreTests.PackZip(
@@ -38,7 +38,7 @@ public class TurnTests
     public void Turns_are_keyed_by_turn_count_and_ordered_by_it()
     {
         var pack = Load();
-        Assert.Equal(new TurnEntry(10, 2, 12, 30, 3), pack.FindTurn(10));
+        Assert.Equal(new TurnEntry(10, 2, 12, 30, 3, 3), pack.FindTurn(10));
         Assert.Null(pack.FindTurn(4));
         Assert.Equal([3L, 1L, 2L, 10L], pack.Turns!.Select(t => t.TurnCount));                      // 파일 순서
         Assert.Equal([1L, 2L, 3L, 10L], pack.Masters.TurnRowTable.All.Select(t => t.TurnCount));     // 키 순서
@@ -68,16 +68,20 @@ public class TurnTests
     [InlineData("code\tname\nx\t아침\n", "정수")]
     [InlineData("id\tname\n1\t아침\n", "헤더")]
     public void Bad_time_slot_masters_are_rejected(string slots, string message) =>
-        Assert.Contains(message, Assert.Throws<PackFormatException>(() => Load(slots: slots, turns: TurnHeader + "1\t1\t1\t1\t1\n")).Message);
+        Assert.Contains(message, Assert.Throws<PackFormatException>(() => Load(slots: slots, turns: TurnHeader + "1\t1\t1\t1\t1\t1\n")).Message);
 
     [Theory]
-    [InlineData("1\t1\t1\t1\t1\n1\t1\t1\t2\t1\n", "중복")]               // 같은 턴을 두 번
-    [InlineData("1\t1\t1\t1\t9\n", "시간대 '9'")]                         // 시간대 마스터에 없다
-    [InlineData("1\t1\t1\t1\n", "시간대")]                                // 칸이 모자란다(빈 시간대)
-    [InlineData("x\t1\t1\t1\t1\n", "턴 카운트")]
-    [InlineData("1\t1\t1\t1.5\t1\n", "일")]
-    [InlineData("1\ta\t1\t1\t1\n", "연도")]
-    [InlineData("1\t1\t\t1\t1\n", "월")]
+    [InlineData("1\t1\t1\t1\t1\t1\n1\t1\t1\t2\t2\t1\n", "중복")]               // 같은 턴을 두 번
+    [InlineData("1\t1\t1\t1\t1\t9\n", "시간대 '9'")]                         // 시간대 마스터에 없다
+    [InlineData("1\t1\t1\t1\t1\n", "시간대")]                                // 칸이 모자란다(빈 시간대)
+    [InlineData("x\t1\t1\t1\t1\t1\n", "턴 카운트")]
+    [InlineData("1\t1\t1\t1.5\t1\t1\n", "일")]
+    [InlineData("1\ta\t1\t1\t1\t1\n", "연도")]
+    [InlineData("1\t1\t\t1\t1\t1\n", "월")]
+    [InlineData("1\t1\t1\t1\tx\t1\n", "day_count")]
+    [InlineData("1\t1\t1\t1\t5\t1\n2\t1\t1\t2\t4\t1\n", "줄어들 수 없습니다")]                 // day_count가 줄었다
+    [InlineData("1\t1\t1\t1\t1\t1\n2\t1\t1\t1\t2\t1\n", "날짜가 같은데")]                     // 같은 날인데 day_count가 달라졌다
+    [InlineData("1\t1\t1\t1\t1\t1\n2\t1\t1\t2\t1\t1\n", "날짜가 다른데")]                     // 날이 바뀌었는데 day_count가 그대로다
     [InlineData("", "한 개도 없습니다")]                                 // 턴이 하나도 없다
     public void Bad_turn_masters_are_rejected(string rows, string message) =>
         Assert.Contains(message, Assert.Throws<PackFormatException>(() => Load(turns: TurnHeader + rows)).Message);
@@ -85,8 +89,8 @@ public class TurnTests
     [Fact]
     public void Turn_values_are_longs_and_the_calendar_is_not_range_checked()
     {
-        var pack = Load(turns: TurnHeader + "5000000000\t9000000000\t13\t40\t1\n");           // 게임팩이 정하는 달력
-        Assert.Equal(new TurnEntry(5000000000, 9000000000, 13, 40, 1), pack.FirstTurn);
+        var pack = Load(turns: TurnHeader + "5000000000\t9000000000\t13\t40\t7000000000\t1\n");           // 게임팩이 정하는 달력
+        Assert.Equal(new TurnEntry(5000000000, 9000000000, 13, 40, 7000000000, 1), pack.FirstTurn);
     }
 
     [Fact]
@@ -104,7 +108,7 @@ public class TurnTests
     {
         var s = GameSession.NewGame(Load());
         Assert.Equal(1, s.TurnCount);
-        Assert.Equal(new TurnEntry(1, 1, 1, 1, 1), s.CurrentTurn);
+        Assert.Equal(new TurnEntry(1, 1, 1, 1, 1, 1), s.CurrentTurn);
         Assert.Equal("1년 1월 1일 아침", s.CurrentDateText);
     }
 
@@ -165,5 +169,80 @@ public class TurnTests
         Assert.Equal("1년 1월 1일 아침", s.CurrentDateText);
         s.AdvanceTurn(); s.AdvanceTurn(); s.AdvanceTurn(); s.AdvanceTurn();
         Assert.Equal("1년 1월 2일 아침", s.CurrentDateText);
+    }
+
+    [Fact]
+    public void Day_count_keeps_accumulating_while_day_restarts_each_month()
+    {
+        var pack = Load(turns: TurnHeader + "1\t1\t1\t30\t30\t1\n2\t1\t2\t1\t31\t1\n3\t1\t2\t1\t31\t2\n");   // 일은 1로 돌아와도 day_count는 누계
+        Assert.Equal([30L, 31L, 31L], pack.Turns!.Select(t => t.DayCount));
+        Assert.Equal(31, GameSession.NewGame(pack).AdvanceTurn() ? 31 : 0);
+    }
+
+    static GameSession Walk(int turns)
+    {
+        var s = GameSession.NewGame(Load(turns: TurnHeader +
+            "1\t1\t1\t1\t1\t1\n2\t1\t1\t1\t1\t2\n3\t1\t1\t2\t2\t1\n4\t1\t1\t2\t2\t2\n5\t1\t1\t3\t3\t1\n"));
+        for (var i = 0; i < turns; i++) s.AdvanceTurn();
+        return s;
+    }
+
+    [Fact]
+    public void A_character_can_take_part_in_an_event_or_exploration_once_per_turn()
+    {
+        var s = Walk(0);
+        Assert.False(s.CanExplore(7001));                                 // 보유하지 않은 캐릭터
+        s.AddCharacter(1);
+        Assert.True(s.CanExplore(1));
+        Assert.Null(s.Characters[1].ExploreTurn);
+        Assert.True(s.RecordExplore(1));
+        Assert.Equal(1, s.Characters[1].ExploreTurn);
+        Assert.False(s.CanExplore(1));                                    // 같은 턴에는 다시 못 한다
+        s.AdvanceTurn();
+        Assert.True(s.CanExplore(1));                                     // 다음 턴에는 다시 할 수 있다
+    }
+
+    [Fact]
+    public void A_character_that_defended_the_hideout_sits_out_the_whole_next_day()
+    {
+        var s = Walk(2);                                                  // 턴 3: day_count 2
+        s.AddCharacter(1);
+        Assert.True(s.RecordDefense(1));
+        Assert.Equal(2, s.Characters[1].DefenseDayCount);
+        Assert.True(s.CanExplore(1));                                     // 방어전에 참가한 날 당일은 제한 없음
+        s.AdvanceTurn();                                                  // 턴 4: 같은 날
+        Assert.True(s.CanExplore(1));
+        s.AdvanceTurn();                                                  // 턴 5: 다음날(day_count 3)
+        Assert.False(s.CanExplore(1));
+        Assert.Equal(3, s.CurrentDayCount);
+    }
+
+    [Fact]
+    public void The_exploration_turn_and_the_defense_day_survive_the_save()
+    {
+        var s = Walk(2);
+        s.AddCharacter(1);
+        s.RecordExplore(1);
+        s.RecordDefense(1);
+        var loaded = GameSession.FromSaveJson(Load(turns: TurnHeader +
+            "1\t1\t1\t1\t1\t1\n2\t1\t1\t1\t1\t2\n3\t1\t1\t2\t2\t1\n4\t1\t1\t2\t2\t2\n5\t1\t1\t3\t3\t1\n"), s.ToSaveJson());
+        Assert.Equal((3L, 2L), (loaded.Characters[1].ExploreTurn!.Value, loaded.Characters[1].DefenseDayCount!.Value));
+    }
+
+    [Fact]
+    public void End_turn_on_the_home_advances_the_turn_and_is_gray_on_the_last_turn()
+    {
+        var s = Walk(0);
+        var entry = s.HomeMenu[0].Entries.Single(e => e.Code == GameSession.EndTurnEntryCode);
+        Assert.Equal(("턴 종료", true), (entry.Label, entry.Enabled));
+        s.Activate("108");
+        Assert.Equal(2, s.TurnCount);
+        Assert.Equal(Screen.Home, s.Screen);
+        Assert.Equal("턴 종료: 1년 1월 1일 낮", s.Message);
+        s.Activate("108"); s.Activate("108"); s.Activate("108");
+        Assert.Equal(5, s.TurnCount);
+        Assert.False(s.HomeMenu[0].Entries.Single(e => e.Code == "108").Enabled);   // 마지막 턴
+        s.Activate("108");
+        Assert.Equal(5, s.TurnCount);
     }
 }

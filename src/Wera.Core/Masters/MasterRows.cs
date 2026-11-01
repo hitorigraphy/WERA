@@ -307,6 +307,7 @@ public record TurnRow
     public required long Year { get; init; }
     public required long Month { get; init; }
     public required long Day { get; init; }
+    public required long DayCount { get; init; }
     public required long TimeSlotCode { get; init; }
 }
 

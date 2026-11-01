@@ -35,9 +35,10 @@ public class HomeMenuEnabledTests
         var s = GameSession.NewGame(Pack());
         Assert.False(Enabled(s, "101"));
         Assert.False(Enabled(s, "104"));
-        foreach (var e in s.DataEntries.Where(e => e.Code is not ("101" or "104")))
+        Assert.False(Enabled(s, "108"));
+        foreach (var e in s.DataEntries.Where(e => e.Code is not ("101" or "104" or "108")))   // 108(턴 종료)은 이 팩에 다음 턴이 없어 회색
             Assert.True(e.Enabled, e.Code);
-        Assert.Equal(["101", "102", "103", "104", "105", "106", "107"], s.HomeMenu[0].Entries.Select(e => e.Code));
+        Assert.Equal(["101", "102", "103", "104", "105", "106", "107", "108"], s.HomeMenu[0].Entries.Select(e => e.Code));
     }
 
     [Fact]

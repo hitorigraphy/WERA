@@ -146,7 +146,7 @@ public sealed partial class GamePack
         }).ToList());
         builder.Append((timeSlots ?? []).Select(s => new TimeSlotRow { Code = s.Code, Name = s.Name }).ToList());
         builder.Append((turns ?? []).Select(t => new TurnRow
-            { TurnCount = t.TurnCount, Year = t.Year, Month = t.Month, Day = t.Day, TimeSlotCode = t.TimeSlotCode }).ToList());
+            { TurnCount = t.TurnCount, Year = t.Year, Month = t.Month, Day = t.Day, DayCount = t.DayCount, TimeSlotCode = t.TimeSlotCode }).ToList());
 
         builder.Append((events ?? []).Select(e => new EventRow { Code = e.Code, Name = e.Name }).ToList());
         builder.Append(eventConditions.Select(c => new EventConditionRow

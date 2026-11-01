@@ -187,6 +187,8 @@ public enum EntryAction
     ExecuteSmelt,
     /// <summary>골라 둔 합성/제련/개조로 진행할 장비를 고른다(Arg = 장비 인스턴스 ID).</summary>
     PickEnhanceEquipment,
+    /// <summary>턴을 하나 넘긴다(<see cref="GameSession.AdvanceTurn"/>). 홈 화면에 남는다.</summary>
+    EndTurn,
     /// <summary>개조 화면에서 개조 슬롯(Arg=슬롯 코드)을 골라 끼울 아이템 목록으로 간다.</summary>
     SelectModSlot,
     /// <summary>끼울 아이템(Arg=아이템 코드)을 골라 개조 슬롯에 끼운다: 인벤토리에서 1개를 쓰고 이미 낀 것은 인벤토리로 돌아온다.</summary>
@@ -247,6 +249,7 @@ public sealed partial class GameSession
     public const string PartyEntryCode = "105";
     public const string EquipmentEnhanceEntryCode = "106";
     public const string InteractionEntryCode = "107";
+    public const string EndTurnEntryCode = "108";
     /// <summary>장비 강화 화면의 합성/제련/개조 항목(장비 목록 아래, 페이지와 상관없이 늘 나온다).</summary>
     public const string SynthesisEntryCode = "901";
     public const string SmeltEntryCode = "902";
@@ -608,6 +611,8 @@ public sealed partial class GameSession
             rpg.Add(new ScreenEntry(PartyEntryCode, "파티 설정", Screen.PartySetup));
             rpg.Add(new ScreenEntry(EquipmentEnhanceEntryCode, "장비 강화", Screen.EquipmentEnhance));
             rpg.Add(new ScreenEntry(InteractionEntryCode, "교류", Screen.Interaction));
+            // 마지막 턴이라 넘길 다음 턴이 없으면 회색이다.
+            rpg.Add(new ScreenEntry(EndTurnEntryCode, "턴 종료", Screen.Home, EntryAction.EndTurn, Enabled: Pack.NextTurnAfter(TurnCount) is not null));
 
             return
             [
@@ -862,6 +867,9 @@ public sealed partial class GameSession
                 break;
             case EntryAction.CancelSynthesis:
                 ResetSynthesis();
+                break;
+            case EntryAction.EndTurn:
+                if (AdvanceTurn()) Message = $"턴 종료: {CurrentDateText}";
                 break;
             case EntryAction.SelectModSlot:
                 ModSlotCode = long.Parse(entry.Arg!, CultureInfo.InvariantCulture);

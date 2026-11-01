@@ -17,7 +17,7 @@ public class HomeMenuTests
         var menu = Session().HomeMenu;
         Assert.Equal(["RPG", "정보", "시스템"], menu.Select(g => g.Name));
         Assert.Equal(
-            [("101", "던전"), ("102", "아지트"), ("103", "이벤트"), ("104", "상점"), ("105", "파티 설정"), ("106", "장비 강화"), ("107", "교류")],
+            [("101", "던전"), ("102", "아지트"), ("103", "이벤트"), ("104", "상점"), ("105", "파티 설정"), ("106", "장비 강화"), ("107", "교류"), ("108", "턴 종료")],
             menu[0].Entries.Select(e => (e.Code, e.Label)));                      // 던전/상점은 항상 있고, 열려 있지 않으면 비활성
         Assert.Equal(
             [("201", "동료 확인"), ("202", "장비 확인"), ("203", "아이템 확인")],
@@ -30,8 +30,8 @@ public class HomeMenuTests
     {
         var s = GameSession.NewGame(SampleLoader.Pack());
         var rpg = s.HomeMenu[0].Entries;
-        Assert.Equal(["101", "102", "103", "104", "105", "106", "107"], rpg.Select(e => e.Code));
-        Assert.Equal(["던전", "아지트", "이벤트", "상점", "파티 설정", "장비 강화", "교류"], rpg.Select(e => e.Label));
+        Assert.Equal(["101", "102", "103", "104", "105", "106", "107", "108"], rpg.Select(e => e.Code));
+        Assert.Equal(["던전", "아지트", "이벤트", "상점", "파티 설정", "장비 강화", "교류", "턴 종료"], rpg.Select(e => e.Label));
     }
 
     [Fact]
@@ -39,7 +39,7 @@ public class HomeMenuTests
     {
         var s = Session();
         Assert.Equal(s.HomeMenu.SelectMany(g => g.Entries).Select(e => e.Code), s.DataEntries.Select(e => e.Code));
-        Assert.Equal(["101", "102", "103", "104", "105", "106", "107", "201", "202", "203", "200", "300", "400"], s.DataEntries.Select(e => e.Code));
+        Assert.Equal(["101", "102", "103", "104", "105", "106", "107", "108", "201", "202", "203", "200", "300", "400"], s.DataEntries.Select(e => e.Code));
     }
 
     [Fact]
