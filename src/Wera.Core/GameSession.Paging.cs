@@ -31,7 +31,7 @@ public sealed partial class GameSession
     ];
 
     static bool IsPagedScreen(Screen screen) => screen is Screen.CompanionCheck or Screen.EquipmentCheck or Screen.ItemCheck
-        or Screen.CharacterSelect or Screen.SupportSelect or Screen.EquipmentSelect or Screen.ShopList or Screen.ShopTrades or Screen.Event
+        or Screen.CharacterSelect or Screen.SupportSelect or Screen.HideoutBossSelect or Screen.EquipmentSelect or Screen.ShopList or Screen.ShopTrades or Screen.Event
         or Screen.EquipmentList or Screen.SkillCharacter or Screen.SkillSlotSelect or Screen.SkillPoolList or Screen.DungeonSelect or Screen.DungeonPartySelect
         or Screen.EquipmentEnhance;
 
@@ -42,7 +42,7 @@ public sealed partial class GameSession
     bool IsFixedEntry(ScreenEntry e) =>
         e.Code == BackEntryCode
         || e.Code is SynthesisEntryCode or SmeltEntryCode or ModifyEntryCode && Screen == Screen.EquipmentEnhance
-        || e.Code == ClearEntryCode && Screen is Screen.CharacterSelect or Screen.SupportSelect or Screen.EquipmentSelect or Screen.SkillSlotSelect or Screen.SkillCharacter;
+        || e.Code == ClearEntryCode && Screen is Screen.CharacterSelect or Screen.SupportSelect or Screen.HideoutBossSelect or Screen.EquipmentSelect or Screen.SkillSlotSelect or Screen.SkillCharacter;
 
     /// <summary>항목이 count개일 때의 페이지 수(항목이 없어도 1).</summary>
     public int PageCountOf(int count) => Math.Max(1, (count + ListPageSize - 1) / ListPageSize);
@@ -56,7 +56,7 @@ public sealed partial class GameSession
     IReadOnlyList<string> PageKeys(IReadOnlyList<ScreenEntry> raw) => Screen switch
     {
         Screen.CharacterSelect => CharacterList.Select(c => Text(c.Code)).ToList(),
-        Screen.SupportSelect => SupportList.Select(c => Text(c.Code)).ToList(),
+        Screen.SupportSelect or Screen.HideoutBossSelect => SupportList.Select(c => Text(c.Code)).ToList(),
         Screen.SkillPoolList => SkillPoolRows.Select(r => Text(r.Index)).ToList(),
         _ => raw.Where(e => !IsFixedEntry(e)).Select(e => e.Code).ToList(),
     };
@@ -78,7 +78,7 @@ public sealed partial class GameSession
             var onPage = PageOf(keys).ToHashSet();
             return [.. raw.Where(e => e.Code != BackEntryCode && (IsFixedEntry(e) || onPage.Contains(e.Code))), .. PagerEntries(keys.Count), .. raw.Where(e => e.Code == BackEntryCode)];
         }
-        if (Screen is Screen.CharacterSelect or Screen.SupportSelect or Screen.SkillPoolList)
+        if (Screen is Screen.CharacterSelect or Screen.SupportSelect or Screen.HideoutBossSelect or Screen.SkillPoolList)
         {
             // 목록 전체(선택할 수 없는 줄 포함)에서의 위치가 번호다: 항목 코드(캐릭터 코드 등)가 키.
             var position = PageOf(keys).Select((key, i) => (key, number: i + 1)).ToDictionary(x => x.key, x => x.number);

@@ -216,6 +216,56 @@
         }
     </div>;
 
+    // 아지트: 한 번에 3개 층을 보여 주는 3×3. 줄마다 왼쪽이 계층("[4] 1층", 맨 위 줄은 "[1] 확장 가능"), 가운데가 시설("공터", 아직 정의되지 않음),
+    // 오른쪽이 보스 슬롯(캐릭터 한 명, 비면 "미지정")이다. 층이 없는 줄은 "----"이다.
+    RenderFragment hideoutGrid = @<div class="party-grid hideout-grid">
+        @foreach (var row in session!.HideoutRows)
+        {
+            var floorCode = row.FloorCode.ToString();
+            var bossCode = row.BossCode.ToString();
+            <div class="slot">
+                <div class="slot-icon" title="@row.FloorName">@noImage</div>
+                <div class="slot-info">
+                    @if (row.IsExpandRow)
+                    {
+                        <button class="slot-name" @onclick="() => Activate(floorCode)"><span class="slot-level"></span><span class="slot-char">[@floorCode] @row.FloorName</span></button>
+                    }
+                    else if (row.IsEmpty)
+                    {
+                        <div class="slot-name gray"><span class="slot-level"></span><span class="slot-char">----</span></div>
+                    }
+                    else
+                    {
+                        <div class="slot-name"><span class="slot-level"></span><span class="slot-char">[@floorCode] @row.FloorName</span></div>
+                    }
+                </div>
+            </div>
+            <div class="slot">
+                <div class="slot-icon" title="공터">@noImage</div>
+                <div class="slot-info">
+                    <div class="slot-name @(row.Floor is >= 0 ? "" : "gray")"><span class="slot-level"></span><span class="slot-char">@(row.Floor is >= 0 ? $"[{row.FacilityCode}] 공터" : "----")</span></div>
+                </div>
+            </div>
+            @if (row.Boss is { } boss)
+            {
+                <div class="slot">
+                    <button class="slot-icon" title="@boss.Name" @onclick="() => Activate(bossCode)">@noImage</button>
+                    <div class="slot-info">
+                        <button class="@("slot-name" + (boss.IsUnavailable ? " unavailable" : ""))" @onclick="() => Activate(bossCode)">
+                            <span class="slot-level">@boss.LevelText</span><span class="slot-char">[@bossCode] @(boss.IsEmpty ? "미지정" : boss.Name)</span>
+                        </button>
+                        <div class="gauge-line">HP  : <span class="gauge gauge-@boss.Hp.Color.ToString().ToLowerInvariant()">@boss.Hp.Text</span></div>
+                        <div class="gauge-line"><XpLabelView Tag="@boss.XpTag" /><span class="gauge gauge-@boss.Xp.Color.ToString().ToLowerInvariant()">@boss.Xp.Text</span></div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="slot"><div class="slot-icon">@noImage</div><div class="slot-info"><div class="slot-name gray"><span class="slot-level"></span><span class="slot-char">----</span></div></div></div>
+            }
+        }
+    </div>;
+
     // ADV 대사 한 줄(상자). 나의 대사는 왼쪽에 슬롯 크기의 이미지와 이름 자리가 왼쪽 위에 걸친 텍스트 상자, 상대의 대사는 그 좌우 반전,
     // 일반 텍스트는 상자 없이 글만 나온다.
     RenderFragment<AdvStep> advLine = line => @<text>
@@ -482,7 +532,26 @@
 
             case Screen.Hideout:
                 <h2>아지트</h2>
+                @if (session.Message is not null)
+                {
+                    <p class="message" role="status">@session.Message</p>
+                }
+                @hideoutGrid
+                <div class="menu-separator"></div>
+                <div class="battle-scroll">@entryList(session.Entries.Where(e => e.Action == EntryAction.HideoutScroll))</div>
+                <div class="commands">@entryList(session.Entries.Where(e => e.Action != EntryAction.HideoutScroll && e.Code == GameSession.BackEntryCode))</div>
+                break;
+
+            case Screen.HideoutExpand:
+                <h2>아지트 확장 (@(session.HideoutFloorCount + 1)층째)</h2>
+                @* 쓸 재료 그룹을 고른다: 그룹 안은 모두, 그룹끼리는 하나만 갖추면 된다(갖추지 못한 그룹은 회색) *@
                 @commands
+                break;
+
+            case Screen.HideoutBossSelect:
+                <h2>@(session.CurrentHideoutFloorName) 보스로 지정할 캐릭터</h2>
+                @* 파란색: 다른 층의 보스(고르면 서로 바뀐다), 흰색: 파티원(고르면 파티에서 빠진다)과 나머지 *@
+                @characterTable((session.Entries.Where(e => e.Code == GameSession.ClearEntryCode), session.PageOf(session.SupportList)))
                 break;
 
             case Screen.EquipmentEnhance:
