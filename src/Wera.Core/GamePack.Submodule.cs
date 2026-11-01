@@ -150,8 +150,8 @@ public sealed partial class GamePack
         Kind<CharacterAfterCreateEffectType>(CharacterAfterCreateSubmoduleMasterPath, CharacterAfterCreateEffectMasterPath,
             (f, w, t, a, b, c) => EffectArgs.CheckCharacterCreate(f, w, t, a, b, c, check), DefaultJump<CharacterAfterCreateEffectType>(),
             characterAfterCreate?.Select(e => ($"캐릭터 '{e.CharacterCode}'의 실행 {e.ExecuteNumber}의", (int)e.EffectType, e.Value1)));
-        Kind<EffectType>(SkillExecuteSubmoduleMasterPath, SkillExecuteEffectMasterPath,
-            (f, w, t, a, b, c) => CheckStandard(f, w, t, a, b, c), DefaultJump<EffectType>(),
+        Kind<SkillExecuteEffectType>(SkillExecuteSubmoduleMasterPath, SkillExecuteEffectMasterPath,
+            (f, w, t, a, b, c) => EffectArgs.CheckSkillExecute(f, w, t, a, b, c, check), DefaultJump<SkillExecuteEffectType>(),
             skillExecute?.Select(e => ($"스킬 '{e.SkillCode}'의 실행 {e.ExecuteNumber}의", (int)e.EffectType, e.Value1)));
         Kind<AutoTargetEffectType>(SkillAutoTargetSubmoduleMasterPath, SkillAutoTargetEffectMasterPath,
             (f, w, t, a, b, c) =>

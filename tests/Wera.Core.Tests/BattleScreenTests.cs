@@ -819,7 +819,7 @@ public class BattleScreenTests
     // 스킬 3(치유)은 메인 타겟 없음(None), 스킬 4(집중)는 아군 기절 유닛(AllyFallen)으로 바꾼 예시 팩
     static GameSession StartedWithFallenTypes()
     {
-        var pack = SamplePackWith((GamePack.SkillMasterPath, "code\tname\tmain_target_type\tsub_target_type\n1001\t베기\tEnemy\t\n1002\t불꽃\tEnemy\tSameRow\n1003\t치유\tNone\t\n1004\t집중\tAllyFallen\t\n1005\t부활\tAllyFallen\t\n"));
+        var pack = SamplePackWith((GamePack.SkillMasterPath, "code\tname\tmain_target_type\tsub_target_type\n1001\t베기\tEnemy\t\n1002\t불꽃\tEnemy\tSameRow\n1003\t치유\tNone\t\n1004\t집중\tAllyFallen\t\n1005\t부활\tAllyFallen\t\n1006\t속성 베기\tEnemy\t\n"));
         var s = GameSession.NewGame(pack);
         s.NextRandom = _ => 0;
         s.Pick("105"); s.Pick("1"); s.Pick("1"); s.Pick("999");

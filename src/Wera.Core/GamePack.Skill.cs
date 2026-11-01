@@ -27,7 +27,7 @@ public static class SkillSlotRules
 }
 
 /// <summary>스킬 마스터의 한 행.</summary>
-public sealed record SkillEntry(long Code, string Name, SkillMainTargetType MainTargetType = SkillMainTargetType.Enemy, SkillSubTargetType SubTargetType = SkillSubTargetType.None, string Description = "");
+public sealed record SkillEntry(long Code, string Name, SkillMainTargetType MainTargetType = SkillMainTargetType.Enemy, SkillSubTargetType SubTargetType = SkillSubTargetType.None, string Description = "", long? AttributeCode = null);
 
 /// <summary>스킬의 메인 타겟 대상(skill_master의 main_target_type): 시전자 기준으로 메인 타겟이 될 수 있는 유닛. 기절(쓰러진) 유닛을 대상으로 하는 종류(<see cref="AllyFallen"/>, <see cref="EnemyFallen"/>)를 뺀 나머지는 쓰러진 유닛을 제외한다.</summary>
 public enum SkillMainTargetType
@@ -149,7 +149,7 @@ public static class SkillJump
 }
 
 /// <summary>스킬 이펙트 마스터의 한 행: 스킬을 쓰면 execute_number 순서대로 실행하는 이펙트 하나(종류와 값 셋).</summary>
-public sealed record SkillExecuteEffect(long SkillCode, long ExecuteNumber, EffectType EffectType, long Value1, long Value2, long Value3);
+public sealed record SkillExecuteEffect(long SkillCode, long ExecuteNumber, SkillExecuteEffectType EffectType, long Value1, long Value2, long Value3);
 
 // 스킬 마스터: skill_slot_master(code, name; code가 키), character_skill_slot_tag_master(character_code, skill_slot_code, group_number, tag_code, is_positive; 앞의 네 열이 키),
 // skill_master(code, name; code가 키), skill_tag_master(skill_code, tag_code; 두 열이 키), skill_execute_effect_master(skill_code, execute_number, effect_type, value_1, value_2, value_3; 앞의 두 열이 키).
@@ -185,17 +185,18 @@ public sealed partial class GamePack
 
     /// <summary>
     /// 스킬 마스터: code, name과 선택 열 main_target_type(<see cref="SkillMainTargetType"/>: Enemy/Ally/Self/Any/AllyFallen/EnemyFallen/None, 비우거나 열이 없으면 Enemy),
-    /// sub_target_type(<see cref="SkillSubTargetType"/> 이름, 비우거나 열이 없으면 None), description(스킬 상세 화면의 설명문). 이름만 쓰고 대소문자는 무시한다.
-    /// 선택 열은 이 이름으로 어떤 순서로든 둘 수 있다.
+    /// sub_target_type(<see cref="SkillSubTargetType"/> 이름, 비우거나 열이 없으면 None), description(스킬 상세 화면의 설명문),
+    /// attribute_code(스킬의 속성: 속성 마스터의 코드, 비우거나 열이 없으면 속성 없음. 속성 배율은 <see cref="SkillExecuteEffectType.AttributeMultiplierToCache"/>가 계산한다).
+    /// 이름만 쓰고 대소문자는 무시한다. 선택 열은 이 이름으로 어떤 순서로든 둘 수 있다.
     /// </summary>
-    static List<SkillEntry>? LoadSkills(ZipArchive zip)
+    static List<SkillEntry>? LoadSkills(ZipArchive zip, List<AttributeEntry>? attributes)
     {
         var text = TryReadEntry(zip, SkillMasterPath);
         if (text is null) return null;
         var rows = Tsv.WithoutMemo(Tsv.Parse(text));
-        string[] optional = rows.Count > 0 ? [.. rows[0].Skip(2).TakeWhile(h => h is "main_target_type" or "sub_target_type" or "description")] : [];
+        string[] optional = rows.Count > 0 ? [.. rows[0].Skip(2).TakeWhile(h => h is "main_target_type" or "sub_target_type" or "description" or "attribute_code")] : [];
         int At(string name) => Array.IndexOf(optional, name) is var i and >= 0 ? i + 2 : -1;
-        int mainAt = At("main_target_type"), subAt = At("sub_target_type"), descriptionAt = At("description");
+        int mainAt = At("main_target_type"), subAt = At("sub_target_type"), descriptionAt = At("description"), attributeAt = At("attribute_code");
         string[] header = ["code", "name", .. optional];
 
         static T ParseName<T>(string cell, long code, string column) where T : struct, Enum
@@ -215,7 +216,16 @@ public sealed partial class GamePack
                 throw new PackFormatException($"{SkillMasterPath}: 스킬 코드 '{code}'가 중복됩니다.");
             var main = mainAt >= 0 ? ParseName<SkillMainTargetType>(r[mainAt], code, "main_target_type") : SkillMainTargetType.Enemy;
             var subType = subAt >= 0 ? ParseName<SkillSubTargetType>(r[subAt], code, "sub_target_type") : SkillSubTargetType.None;
-            skills.Add(new SkillEntry(code, r[1], main, subType, descriptionAt >= 0 ? r[descriptionAt] : ""));
+            long? attribute = null;
+            if (attributeAt >= 0 && r[attributeAt].Trim().Length > 0)
+            {
+                attribute = ParseLong(SkillMasterPath, $"스킬 '{code}'의 attribute_code", r[attributeAt]);
+                if (attributes is null)
+                    throw new PackFormatException($"{SkillMasterPath}: 스킬 '{code}'가 속성 '{attribute}'를 가지려면 {AttributeMasterPath}도 필요합니다.");
+                if (attributes.All(a => a.Code != attribute))
+                    throw new PackFormatException($"{SkillMasterPath}: 스킬 '{code}'의 속성 '{attribute}'가 속성 마스터에 없습니다.");
+            }
+            skills.Add(new SkillEntry(code, r[1], main, subType, descriptionAt >= 0 ? r[descriptionAt] : "", attribute));
         }
         return skills;
     }
@@ -307,10 +317,10 @@ public sealed partial class GamePack
             var number = ParseLong(file, $"{who} 실행 번호", r[1]);
             var where = $"{who} 실행 {number}의";
             // 숫자("0")도 Enum.TryParse를 통과하므로 이름 목록으로 먼저 거른다.
-            if (!Enum.GetNames<EffectType>().Contains(r[2], StringComparer.OrdinalIgnoreCase)
-                || !Enum.TryParse<EffectType>(r[2], ignoreCase: true, out var type))
+            if (!Enum.GetNames<SkillExecuteEffectType>().Contains(r[2], StringComparer.OrdinalIgnoreCase)
+                || !Enum.TryParse<SkillExecuteEffectType>(r[2], ignoreCase: true, out var type))
                 throw new PackFormatException(
-                    $"{file}: {where} 이펙트 종류 '{r[2]}'을(를) 알 수 없습니다. ({string.Join(", ", Enum.GetNames<EffectType>())})");
+                    $"{file}: {where} 이펙트 종류 '{r[2]}'을(를) 알 수 없습니다. ({string.Join(", ", Enum.GetNames<SkillExecuteEffectType>())})");
             var value1 = r[3].Trim().Length == 0 ? 0 : ParseLong(file, $"{where} value_1", r[3]);
             var value2 = r[4].Trim().Length == 0 ? 0 : ParseLong(file, $"{where} value_2", r[4]);
             var value3 = r[5].Trim().Length == 0 ? 0 : ParseLong(file, $"{where} value_3", r[5]);
@@ -319,14 +329,14 @@ public sealed partial class GamePack
                 throw new PackFormatException($"{file}: 스킬 코드 '{owner}'가 스킬 마스터에 없습니다.");
             if (!seen.Add((owner, number)))
                 throw new PackFormatException($"{file}: 스킬 '{owner}'의 실행 번호 '{number}'가 두 번 적혀 있습니다.");
-            EffectArgs.Check(file, where, (EffectType)(int)type, value1, value2, value3, check);
+            EffectArgs.CheckSkillExecute(file, where, type, value1, value2, value3, check);
             rows.Add(new SkillExecuteEffect(owner, number, type, value1, value2, value3));
         }
 
         // 점프는 같은 스킬에 있는, 자신보다 큰 execute_number로만 갈 수 있다.
         var numbers = rows.GroupBy(e => e.SkillCode).ToDictionary(g => g.Key, g => g.Select(e => e.ExecuteNumber).ToHashSet());
         foreach (var e in rows)
-            if (EffectArgs.JumpTargetOf((EffectType)(int)e.EffectType, e.Value1, e.Value3) is { } target)
+            if ((int)e.EffectType < 33 && EffectArgs.JumpTargetOf((EffectType)(int)e.EffectType, e.Value1, e.Value3) is { } target)
             {
                 var where = $"스킬 '{e.SkillCode}'의 실행 {e.ExecuteNumber}의";
                 if (target <= e.ExecuteNumber)
@@ -343,7 +353,7 @@ public sealed partial class GamePack
         Masters.SkillSlotRowTable.TryFindByCode(code, out var r) ? new SkillSlotEntry(r.Code, r.Name) : null;
 
     public SkillEntry? FindSkill(long code) =>
-        Masters.SkillRowTable.TryFindByCode(code, out var r) ? new SkillEntry(r.Code, r.Name, (SkillMainTargetType)r.MainTargetType, (SkillSubTargetType)r.SubTargetType, r.Description) : null;
+        Masters.SkillRowTable.TryFindByCode(code, out var r) ? new SkillEntry(r.Code, r.Name, (SkillMainTargetType)r.MainTargetType, (SkillSubTargetType)r.SubTargetType, r.Description, r.AttributeCode) : null;
 
     /// <summary>캐릭터가 가진 스킬 슬롯들: 스킬 슬롯 마스터의 모든 슬롯(슬롯 코드 순). 태그 마스터는 슬롯의 유무가 아니라 무엇을 넣을 수 있는지만 정한다.</summary>
     public IReadOnlyList<SkillSlotEntry> SkillSlotsOf(long characterCode) =>

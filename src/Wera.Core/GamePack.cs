@@ -215,7 +215,7 @@ public sealed partial class GamePack
         var partSlots = LoadPartSlots(zip);
         var modSlots = LoadModSlots(zip);
         var partSlotTags = LoadPartSlotTags(zip, uniqueItems, partSlots, tags);
-        var skills = LoadSkills(zip);
+        var skills = LoadSkills(zip, attributes);
         var skillTags = LoadSkillTags(zip, skills, tags);
         CheckItemSkills(
             (itemInventory ?? []).Select(i => (CommonItemInventoryMasterPath, $"아이템 '{i.Code}'", i.SkillCode))

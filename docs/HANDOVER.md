@@ -68,7 +68,7 @@ dotnet run --project src/Wera.Web      # 로컬 실행
 
 엔진이 정한 규칙(사용자 결정):
 - **슬롯 규칙:** 모든 캐릭터는 슬롯 마스터(장비/스킬/부품/개조/오퍼레이터)의 **모든 슬롯을 가집니다**. 슬롯 태그 마스터는 슬롯의 유무가 아니라 "무엇을 낄 수 있는가"만 정합니다(규칙 행이 없는 슬롯에는 아무것도 못 낌).
-- **속성 상성(결정만 됨, 전투에는 아직 미적용):** 유리속성 공격 ×1.5, 불리속성 공격 ×0.5, 피격 쪽은 유리속성이면 ×0.5·불리속성이면 ×1.5, 두 보정은 곱(최대 ×2.25). 배율은 게임 설정으로 바꿀 수 있습니다(§4.8).
+- **속성 상성(스킬이 속성을 가짐, 배율은 이펙트로 계산):** 스킬 속성(`skill_master.attribute_code`)이 시전자의 유리속성이면 ×1.5, 불리속성이면 ×0.5, 피격 쪽은 스킬 속성이 자신의 유리속성이면 ×0.5·불리속성이면 ×1.5, 두 보정은 곱(최대 ×2.25). 배율은 게임 설정으로 바꿀 수 있습니다(§4.8). 엔진에 기본 데미지 공식이 없어서 스킬 실행 이펙트 `AttributeMultiplierToCache`(33)가 배율을 캐시에 쓰고 게임팩이 `CacheMultiply`로 데미지와 명중률에 곱합니다(자동 적용 아님).
 
 ---
 
@@ -138,10 +138,10 @@ dotnet run --project src/Wera.Web      # 로컬 실행
 
 | 마스터 | 필수 | 키 | 열 | 용도 / 참조 |
 |---|---|---|---|---|
-| `skill_master` | 선택 | `code` | `code`, `name`, (선택, 순서 자유) `main_target_type`, `sub_target_type`, `description` | 스킬. `main_target_type`: `Enemy`(기본), `Ally`, `Self`, `Any`, `AllyFallen`, `EnemyFallen`, `None`(직접 못 쓰는 패시브용). `sub_target_type`: `None`(기본), `SameRow`, `SameColumn`, `Right`, `Left`, `Back`, `Front`, `Cross`, `All`, `Random1`~`7`, 대각선들(README 스킬 마스터 항목) |
+| `skill_master` | 선택 | `code` | `code`, `name`, (선택, 순서 자유) `main_target_type`, `sub_target_type`, `description`, `attribute_code` | 스킬. `attribute_code`: 스킬의 속성(속성 마스터의 코드, 비우면 속성 없음; 상성 배율은 §1.5, §3 참조). `main_target_type`: `Enemy`(기본), `Ally`, `Self`, `Any`, `AllyFallen`, `EnemyFallen`, `None`(직접 못 쓰는 패시브용). `sub_target_type`: `None`(기본), `SameRow`, `SameColumn`, `Right`, `Left`, `Back`, `Front`, `Cross`, `All`, `Random1`~`7`, 대각선들(README 스킬 마스터 항목) |
 | `skill_tag_master` | 선택 | `(skill_code, tag_code)` | `skill_code`, `tag_code` | 스킬 태그(스킬 슬롯 규칙에 쓰임) |
 | `skill_status_master` | 선택 | `(skill_code, status_code)` | `skill_code`, `status_code`, `initial_value`, `min_value`, `max_value` | 스킬 인스턴스의 스테이터스(스킬 경험치 등) 초깃값 |
-| `skill_execute_effect_master` | 선택 | `(skill_code, execute_number)` | `skill_code`, `execute_number`, `effect_type`, `value_1`~`3` | **스킬 실행 서킷**: 스킬의 동작 |
+| `skill_execute_effect_master` | 선택 | `(skill_code, execute_number)` | `skill_code`, `execute_number`, `effect_type`, `value_1`~`3` | **스킬 실행 서킷**: 스킬의 동작. `effect_type`은 `SkillExecuteEffectType`(`EffectType` 0~32 + 33 `AttributeMultiplierToCache`) |
 | `skill_order_effect_master` | 선택 | `(skill_code, execute_number)` | 위와 같음 | **스킬 순서 서킷**: 행동 순서 점수(OrderPoint, 큰 쪽이 먼저) 계산 |
 | `skill_auto_target_effect_master` | 선택 | `(skill_code, execute_number)` | 위와 같음 | **자동 타겟 서킷**: 적/쓰러진 메인 타겟 대신 고를 대상 결정 |
 | `after_hit_effect_master` | 선택 | `execute_number` | `execute_number`, `effect_type`, `value_1`~`3` | 피격 후 서킷(범용) |
@@ -282,6 +282,7 @@ hideout_defense_enemy ──▶ preset_party;  (+ ThreatFlagCode 설정)
 | 캐릭터 생성 후 | `AddSkillToPool` 33 (v1 = 스킬 코드, 만든 스킬을 포커스), `SetSkillToSlot` 34 (v1 = 스킬 슬롯 코드) |
 | 스킬 자동 타겟 | `SubTargetToResult` 33 (v1 = 후보 번호; 마지막으로 놓은 값이 메인 타겟) — 이 서킷에는 `CacheToFocused*` 계열이 없음 |
 | 스킬 순서 | `CacheToResult` 33 (`Result = cache[v1]`; Result가 OrderPoint) — 이 서킷에는 `CacheToFocused*` 계열이 없음 |
+| 스킬 실행 | `AttributeMultiplierToCache` 33 (v1 = 배율을 쓸 cache_index, v2 = 타겟 선택(0 메인, n 서브 n-1번); 스킬 속성과 시전자·타겟의 유리/불리속성으로 배율을 계산해 캐시에 씀, 스킬에 속성이 없거나 시전자·타겟이 없으면 1). 이 서킷의 이펙트 종류 enum은 `SkillExecuteEffectType`(0~32는 `EffectType`과 같고 33부터 전용) |
 | 제련 | `FocusSmeltTarget` 33, `DeleteSmeltTarget` 34, `ConsumeSmeltStone` 35, `RandomToCache` 36 (`cache[v1] = 0 이상 v2 미만 난수`) |
 | 합성 | `FocusSynthesisTarget` 33, `FocusSacrifice` 34 (v1 = 제물 번호), `DeleteSacrifice` 35, `DeleteAllSacrifices` 36 |
 
@@ -427,7 +428,7 @@ zip(UTF-8 TSV). 항목: `pack.tsv` + `master/*_v1.tsv`. `GamePack.Load(Stream)`�
 
 | 이름(번호) | 값 종류 | 기본/규칙 |
 |---|---|---|
-| `AttributeAdvantageMultiplier` (1) | Decimal | 1.5. **읽는 곳(전투 계산)이 아직 없음** |
+| `AttributeAdvantageMultiplier` (1) | Decimal | 1.5. 스킬 실행 이펙트 `AttributeMultiplierToCache`가 읽는다 |
 | `AttributeDisadvantageMultiplier` (2) | Decimal | 0.5. 위와 같음 |
 | `ListPageSize` (3) | Long | 20, 1 이상 100 이하(목록 한 페이지 항목 수) |
 | `SynthesisSacrificeCount` (4) | Long | 1, 1 이상(합성에 바칠 같은 코드의 다른 유니크 아이템 수) |
@@ -444,7 +445,7 @@ zip(UTF-8 TSV). 항목: `pack.tsv` + `master/*_v1.tsv`. `GamePack.Load(Stream)`�
 ### 4.9 스테이터스 예약 코드, 경험치/레벨업, 속성
 - **예약 스테이터스 코드**: `1 level`, `2 hp`, `3 xpp`, `4 max_hp`, `5 xpp_max`, `6 exp`, `7 exp_max`(이름은 자유), 유니크 아이템 `8 enhance_count`. **9번 이상은 게임팩 마음대로.** `level`과 `hp`(및 그 레벨 0 행)만 필수입니다. 새 캐릭터는 레벨 0 행의 `initial_value`로 채워지고 `max_hp`/`xpp_max`는 없으면 각각 hp/xpp 행의 `max_value`로 폴백합니다.
 - **경험치/레벨업은 엔진이 하지 않습니다.** 코드에서 `exp`/`exp_max`는 **캐릭터 상세의 Exp 바 표시**와 `0 ≤ exp ≤ exp_max` 범위 보정에만 쓰이고, 레벨이 오르거나 스펙이 자라는 로직은 **엔진에 없습니다.** 게임팩이 `after_battle_win_effect_master`(승리 후 서킷: 참가한 아군 유닛마다, 그 캐릭터가 포커스된 채 시작)에서 `exp` 증가, 레벨 비교, 스테이터스 성장을 이펙트(`CacheAdd`, `CacheToFocusedCharacterModValue`, `JumpCache*` 등)로 직접 구현해야 합니다. 상세 규칙은 README의 전투 승리 후 이펙트 문단.
-- **속성**: `character_inventory_master`의 유리/불리속성 코드와 `attribute_master`는 있고 상성 규칙은 §1.5에 결정만 적혀 있지만 **전투 계산에는 아직 적용되지 않습니다**(설정값만 읽을 수 있음: `GamePack.AttributeAdvantageMultiplier`/`AttributeDisadvantageMultiplier`).
+- **속성**: `character_inventory_master`의 유리/불리속성 코드와 `attribute_master`, 스킬의 `attribute_code`가 있고, 상성 배율은 스킬 실행 서킷의 이펙트 `AttributeMultiplierToCache`(`SkillExecuteEffectType` 33; 로직은 `src/Wera.Core/AttributeMultiplier.cs`)가 캐시에 써 줍니다. **자동으로 데미지에 곱해지지는 않으니** 게임팩의 스킬 이펙트가 `CacheMultiply`로 데미지와 명중률에 곱해야 합니다. AfterHit/AfterAttack 서킷에는 이 이펙트가 없습니다.
 
 ### 4.10 여러 아지트
 - **마스터**: `hideout_master`(`hideout_code`, `name`)는 선택입니다. 없으면 아지트는 코드 1 하나이고 동작은 이전과 같습니다. 있으면 시작 아지트는 게임 설정 `StartHideoutCode`(없으면 첫 행)입니다.
@@ -471,7 +472,7 @@ zip(UTF-8 TSV). 항목: `pack.tsv` + `master/*_v1.tsv`. `GamePack.Load(Stream)`�
 |---|---|
 | **턴 종료 캐릭터 서킷**(개별 캐릭터 서킷이 정의돼 있으면 그것, 없으면 범용; 식량 소모, 구금된 아군이 확률로 적이 되거나 사망·삭제) | **엔진에 없음.** 사용자가 **엔진 작업이 아니라고 판단**(게임팩 쪽 몫). `AfterTurnEnd`는 상태이상 트리거 이름일 뿐 캐릭터 서킷이 아님 |
 | **구금된 적의 설득·석방** | **엔진에 없음.** 엔진 작업이 아니라고 판단. 구금된 적은 교류(파트너/어시스트)에서만 쓸 수 있으니, 게임팩이 교류 흐름에서 `AddInventory`/태그 점프 등으로 연출할 수 있는지 먼저 보고 모자라면 엔진에 요청 |
-| **속성 상성 배율** | 설정값은 있으나 **전투 계산에 미적용**(`AttributeAdvantageMultiplier`/`DisadvantageMultiplier`를 읽는 전투 코드가 없음). 결정된 규칙은 §1.5 |
+| **속성 상성 배율의 자동 적용** | 엔진에 기본 데미지·명중 공식이 없어 자동으로 곱하지 않음. 게임팩이 스킬 실행 이펙트 `AttributeMultiplierToCache`로 배율을 얻어 `CacheMultiply`로 곱함(구현됨). 규칙은 §1.5 |
 | **경험치/레벨업** | 엔진에 **없음**(§4.9). 승리 후 서킷에서 게임팩이 구현 |
 | 전투의 **적 포획**(일반 전투에서 잡아 보유) | 없음(방어전 패배한 적의 구금만 있음). README의 "적을 포획하면 …옮길 예정" 문장은 미구현 |
 | 던전 클리어 | 엔진 개념 없음(플래그로 다룸). `ReleaseCaptives`만 구출을 담당 |

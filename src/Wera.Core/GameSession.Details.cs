@@ -68,13 +68,14 @@ public sealed partial class GameSession
         }
     }
 
-    /// <summary>스킬 상세 화면의 내용: 스킬 이름, 쓸 수 있는 대상(메인 타겟 종류), 설명문.</summary>
-    public sealed record SkillDetailView(string Name, string Target, string Description, long SkillCode = 0);
+    /// <summary>스킬 상세 화면의 내용: 스킬 이름, 쓸 수 있는 대상(메인 타겟 종류), 설명문, 속성 이름(속성이 없는 스킬은 null).</summary>
+    public sealed record SkillDetailView(string Name, string Target, string Description, long SkillCode = 0, string? AttributeName = null);
 
     /// <summary>지금 보는 스킬 상세 화면의 내용. 스킬 상세 화면이 아니거나 그 스킬이 없으면 null.</summary>
     public SkillDetailView? SkillDetail =>
         Screen == Screen.SkillDetail && DetailSkillCode is { } code && Pack.FindSkill(code) is { } skill
-            ? new SkillDetailView(skill.Name, TargetText(skill.MainTargetType), skill.Description, code)
+            ? new SkillDetailView(skill.Name, TargetText(skill.MainTargetType), skill.Description, code,
+                skill.AttributeCode is { } attribute ? Pack.FindAttribute(attribute)?.Name ?? Text(attribute) : null)
             : null;
 
     static string TargetText(SkillMainTargetType type) => type switch

@@ -14,3 +14,8 @@ skill_code	execute_number	effect_type	value_1	value_2	value_3	memo
 1005	1	SetCacheValue	0	20		회복 20(쓰러진 유닛이 일어난다)
 1005	2	FocusMainTargetCharacter				
 1005	3	CacheToFocusedCharacterModValue	2	0		
+1006	1	AttributeMultiplierToCache	1	0		속성 배율을 캐시 1에(메인 타겟)
+1006	2	SetCacheValue	0	-10		기본 피해 10
+1006	3	CacheMultiply	0	0	1	피해 x 속성 배율
+1006	4	FocusMainTargetCharacter				
+1006	5	CacheToFocusedCharacterModValue	2	0		메인 타겟의 hp에 더함

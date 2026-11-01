@@ -54,7 +54,7 @@ public class SkillMasterTests
 
         var effects = pack.SkillExecuteEffectsOf(1);
         Assert.Equal([1L, 2L], effects.Select(e => e.ExecuteNumber));                                   // 실행 번호 순
-        Assert.All(effects, e => Assert.Equal(EffectType.None, e.EffectType));
+        Assert.All(effects, e => Assert.Equal(SkillExecuteEffectType.None, e.EffectType));
         Assert.Equal((0L, 0L, 0L), (effects[0].Value1, effects[0].Value2, effects[0].Value3));         // 빈 값은 0
         Assert.Equal((7L, 8L, 9L), (effects[1].Value1, effects[1].Value2, effects[1].Value3));
         Assert.Single(pack.SkillExecuteEffectsOf(2));

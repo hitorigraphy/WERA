@@ -13,4 +13,15 @@ public sealed class SkillExecuteCircuit(GamePack pack, UnitStore store, long ski
     /// <summary>스킬의 이펙트를 실행 번호 순서로 실행한다. Jump와 JumpCache*는 뒤의 실행 번호로 건너뛰고 Finish는 거기서 끝낸다(점프는 뒤로만 가므로 반드시 끝난다).</summary>
     public void Execute() =>
         Run(Pack.SkillExecuteEffectsOf(SkillCode).Select(e => new CircuitEffect(e.ExecuteNumber, (int)e.EffectType, e.Value1, e.Value2, e.Value3)).ToList(), Pack.SubmodulesOf(GamePack.SkillExecuteSubmoduleMasterPath));
+
+    protected override void ApplyOther(CircuitEffect effect)
+    {
+        if (effect.TypeNumber != (int)SkillExecuteEffectType.AttributeMultiplierToCache) return;
+        // 타겟 선택: 0이면 메인 타겟, n이면 서브 타겟 n-1번(없으면 타겟 보정 없이 계산한다).
+        var target = effect.Value2 == 0 ? MainTarget : effect.Value2 - 1 is >= 0 and var at && at < SubTarget.Count ? SubTarget[(int)at] : null;
+        long? CodeOf(PartyUnit? unit) => unit is null ? null : Store.CharacterOf(unit)?.CharacterCode;
+        var (casterCode, targetCode) = (CodeOf(Caster), CodeOf(target));
+        var multiplier = casterCode is null || targetCode is null ? 1m : AttributeMultiplier.Of(Pack, Pack.FindSkill(SkillCode)?.AttributeCode, casterCode, targetCode);
+        SkillCache.Write(CacheValues, effect.Value1, multiplier);
+    }
 }

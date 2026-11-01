@@ -877,7 +877,7 @@
                         <div class="char-info">
                             <div class="char-head"><span class="char-name">@skillView.Name</span></div>
                             <hr />
-                            <div class="char-columns"><div>대상 : @skillView.Target</div></div>
+                            <div class="char-columns"><div>대상 : @skillView.Target</div>@if (skillView.AttributeName is { } skillAttribute) { <div>속성 : @skillAttribute</div> }</div>
                             <hr />
                             <p class="char-description">@skillView.Description</p>
                         </div>

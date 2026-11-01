@@ -1,6 +1,7 @@
-code	name	main_target_type	sub_target_type	description	memo
-1001	베기	Enemy		검으로 적 한 명을 벤다.	테스트용: 적 1체
-1002	불꽃	Enemy	SameRow	불꽃을 일으켜 적 한 명과 같은 줄의 적들을 태운다.	테스트용
-1003	치유	Ally		아군 한 명의 상처를 치유한다.	테스트용: 같은 편(자신 포함) 1체
-1004	집중	Self		정신을 모아 스스로를 강화한다.	테스트용: 자신
-1005	부활	AllyFallen		쓰러진 아군 한 명을 일으켜 세운다.	테스트용: 같은 편의 기절 유닛 1체
+code	name	main_target_type	sub_target_type	description	attribute_code	memo
+1001	베기	Enemy		검으로 적 한 명을 벤다.		테스트용: 적 1체
+1002	불꽃	Enemy	SameRow	불꽃을 일으켜 적 한 명과 같은 줄의 적들을 태운다.	1	테스트용
+1003	치유	Ally		아군 한 명의 상처를 치유한다.		테스트용: 같은 편(자신 포함) 1체
+1004	집중	Self		정신을 모아 스스로를 강화한다.		테스트용: 자신
+1005	부활	AllyFallen		쓰러진 아군 한 명을 일으켜 세운다.		테스트용: 같은 편의 기절 유닛 1체
+1006	속성 베기	Enemy		검으로 적 한 명을 벤다. 속성 배율이 데미지에 곱해진다.	4	속성 배율 데모: 속성 빛(4), 테스트용

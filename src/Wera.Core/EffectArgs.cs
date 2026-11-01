@@ -42,6 +42,17 @@ public static class EffectArgs
     /// 캐릭터 생성 후 이펙트 한 행의 인자를 검사한다. 생성 후에만 있는 종류(AddSkillToPool, SetSkillToSlot)는
     /// value_1이 각각 스킬 마스터, 스킬 슬롯 마스터의 코드여야 하고, 나머지 종류는 <see cref="Check"/>를 따른다.
     /// </summary>
+    /// <summary>스킬 실행 이펙트 한 행의 인자 검사: 스킬 실행에만 있는 종류(AttributeMultiplierToCache)는 value_1이 cache_index, value_2가 0 이상(타겟 선택)이고, 나머지는 <see cref="Check"/>를 따른다.</summary>
+    public static void CheckSkillExecute(string file, string where, SkillExecuteEffectType type, long value1, long value2, long value3, EffectCheck check)
+    {
+        if (type == SkillExecuteEffectType.AttributeMultiplierToCache)
+        {
+            CheckCacheIndex(file, where, value1, "value_1");
+            if (value2 < 0) throw new PackFormatException($"{file}: {where} value_2(타겟 선택) '{value2}'는 0 이상이어야 합니다.");
+        }
+        else Check(file, where, (EffectType)(int)type, value1, value2, value3, check);
+    }
+
     public static void CheckCharacterCreate(string file, string where, CharacterAfterCreateEffectType type, long value1, long value2, long value3, EffectCheck check)
     {
         switch (type)
