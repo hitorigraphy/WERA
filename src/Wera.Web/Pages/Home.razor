@@ -495,14 +495,14 @@
                 @entryTable(new TableSpec(ListEntries(e => e.Code is not (GameSession.SynthesisEntryCode or GameSession.SmeltEntryCode or GameSession.ModifyEntryCode)), CodeNameWidths, [.. GameSession.EquipmentColumnNames], e => [e.Code, e.Label], session.ListPageSize))
                 <div class="menu-separator"></div>
                 @* 고른 작업(합성/제련/개조)은 굵게 보인다 *@
-                <div class="entries">
+                <div class="menu-grid"><div class="entries">
                     @foreach (var e in session.Entries.Where(e => e.Code is GameSession.SynthesisEntryCode or GameSession.SmeltEntryCode or GameSession.ModifyEntryCode))
                     {
                         var code = e.Code;
                         var chosen = session.EnhanceMode?.ToString() == e.Arg;
                         <div><button class="textlink @(chosen ? "chosen" : "")" disabled="@(!e.Enabled)" @onclick="() => Activate(code)">[@e.Code] @e.Label</button></div>
                     }
-                </div>
+                </div></div>
                 break;
 
             case Screen.EquipmentEnhanceTarget:
