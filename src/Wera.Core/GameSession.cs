@@ -403,6 +403,11 @@ public sealed partial class GameSession
         }
     }
 
+    /// <summary>확인 화면(동료/장비/아이템)의 첫 줄에 나오는 열 이름들: 줄과 같은 칸 너비로 맨 위에 한 번 나오고 눌러도 아무 일이 없다.</summary>
+    public static readonly IReadOnlyList<string> CompanionColumnNames = ["#", "이름", "레벨", "체력", "XP"];
+    public static readonly IReadOnlyList<string> EquipmentColumnNames = ["#", "이름"];
+    public static readonly IReadOnlyList<string> ItemColumnNames = ["#", "이름", "수량"];
+
     /// <summary>동료 확인 화면의 줄들을 글로 쓴 것(각 칸을 정해진 칸 수까지 공백으로 채움). 화면은 <see cref="Companions"/>로 같은 줄을 그린다.</summary>
     public IReadOnlyList<string> CompanionLines =>
         Companions.Select(r => $"{PadColumns(r.Order, CompanionCodeColumns)} {PadColumns(r.Name, CompanionNameColumns)} {PadColumns(r.Level, CompanionStatColumns)} " +

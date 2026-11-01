@@ -17,6 +17,12 @@
         }
     </div>;
 
+    // 확인 화면 첫 줄의 열 이름: 줄의 칸과 같은 너비(반각 칸 수, ch)로 늘어놓는다.
+    RenderFragment<(int[] Widths, IReadOnlyList<string> Names)> columnHead = head => @<text>@for (var i = 0; i < head.Names.Count; i++)
+        {
+            <span class="companion-cell" style="width: @(head.Widths[i])ch">@head.Names[i]</span>@(i < head.Names.Count - 1 ? " " : "")
+        }</text>;
+
     /// <summary>던전 맵 한 칸의 CSS 클래스: 플레이어 표시, 칸의 표시용 효과들(벽, 계단 등), 이동불가.</summary>
     static string DungeonCellClass(DungeonCellView cell)
     {
@@ -658,6 +664,8 @@
                 <h2>동료 확인</h2>
                 @* 지금 가진 캐릭터(당신 포함)를 OrderNumber순, 같으면 인스턴스 ID순으로. 줄을 누르면(또는 번호를 입력하면) 캐릭터 상세 화면으로 간다 *@
                 <ul class="companions">
+                    @* 첫 줄은 열 이름(#, 이름, 레벨, 체력, XP): 줄과 같은 칸 너비에 눌러도 아무 일이 없는 글자다 *@
+                    <li class="companions-head">@columnHead((new[] { GameSession.CompanionCodeColumns, GameSession.CompanionNameColumns, GameSession.CompanionStatColumns, GameSession.CompanionStatColumns, GameSession.CompanionStatColumns }, GameSession.CompanionColumnNames))</li>
                     @foreach (var (r, entry) in session.PageOf(session.Companions).Zip(session.Entries))
                     {
                         var code = entry.Code;
@@ -671,6 +679,7 @@
                 <h2>장비 확인</h2>
                 @* 지금 가진 장비(유니크 아이템)를 OrderNumber순, 같으면 인스턴스 ID순으로 "[순서 번호] 이름". 줄을 누르면 장비 상세 화면으로 간다 *@
                 <ul class="companions">
+                    <li class="companions-head">@columnHead((new[] { GameSession.CompanionCodeColumns, GameSession.CompanionNameColumns }, GameSession.EquipmentColumnNames))</li>
                     @foreach (var (e, entry) in session.PageOf(session.Equipments).Zip(session.Entries))
                     {
                         var code = entry.Code;
@@ -683,6 +692,7 @@
                 <h2>아이템 확인</h2>
                 @* 지금 가진 커먼 아이템을 인벤토리 마스터 순서대로 "[아이템 코드] 이름 수량 N". 줄을 누르면 아이템 상세 화면으로 간다 *@
                 <ul class="companions">
+                    <li class="companions-head">@columnHead((new[] { GameSession.CompanionCodeColumns, GameSession.CompanionNameColumns, GameSession.ItemAmountColumns }, GameSession.ItemColumnNames))</li>
                     @foreach (var (r, entry) in session.PageOf(session.Items).Zip(session.Entries))
                     {
                         var code = entry.Code;

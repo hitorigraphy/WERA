@@ -92,6 +92,14 @@ public class DetailScreenTests
     }
 
     [Fact]
+    public void The_check_lists_name_their_columns_on_the_first_line()
+    {
+        Assert.Equal(["#", "이름", "레벨", "체력", "XP"], GameSession.CompanionColumnNames);
+        Assert.Equal(["#", "이름"], GameSession.EquipmentColumnNames);
+        Assert.Equal(["#", "이름", "수량"], GameSession.ItemColumnNames);
+    }
+
+    [Fact]
     public void The_status_check_shows_the_party_slots_and_only_occupied_slots_open_the_character_detail()
     {
         var s = SampleSession();
