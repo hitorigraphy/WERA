@@ -78,20 +78,20 @@ public class CharacterInstanceTests
 
         var rows = s.Companions;
         var wizard = rows.Single(r => r.Name == "마법사");
-        Assert.Equal(("[10]", "Lv 3", "Hp 7", "Xpp 250"), (wizard.Order, wizard.Level, wizard.Hp, wizard.Xpp));
+        Assert.Equal(("[10]", "3", "7", "250"), (wizard.Order, wizard.Level, wizard.Hp, wizard.Xpp));
         Assert.Equal("[1]", rows.Single(r => r.Name == "용사").Order);
         Assert.Equal("[0]", rows.Single(r => r.Name == "당신").Order);
 
-        // 글로 쓴 줄: 코드 8칸 + 공백 + 이름 32칸 + 공백 + Lv 8칸 + 공백 + Hp 8칸 + 공백 + Xpp 8칸(한글은 2칸)
+        // 글로 쓴 줄: 코드 8칸 + 공백 + 이름 32칸 + 공백 + 레벨 8칸 + 공백 + HP 8칸 + 공백 + XPP 8칸(한글은 2칸)
         static int Width(string text) => text.Sum(ch => ch is >= '가' and <= '힣' ? 2 : 1);
         foreach (var line in s.CompanionLines)
         {
             Assert.Equal(8 + 1 + 32 + 1 + 8 + 1 + 8 + 1 + 8, Width(line));
-            Assert.Equal(8 + 1 + 32 + 1, Width(line[..line.IndexOf("Lv ", StringComparison.Ordinal)]));          // Lv 칸은 모든 줄에서 같은 자리에서 시작
+            Assert.Equal(8 + 1 + 32 + 1, Width(line[..(line.Length - (8 + 1 + 8 + 1 + 8))]));                    // 레벨 칸은 모든 줄에서 같은 자리에서 시작
             Assert.Equal(8 + 1, Width(line[..line.IndexOfAny(['당', '용', '마'])]));                               // 이름은 코드 8칸 뒤에서 시작
         }
-        Assert.Contains(s.CompanionLines, l => l.Contains("Lv 12    Hp 100   Xpp 5   "));
-        Assert.Contains(s.CompanionLines, l => l.Contains("Lv 3     Hp 7     Xpp 250 "));
+        Assert.Contains(s.CompanionLines, l => l.EndsWith("12       100      5       "));
+        Assert.Contains(s.CompanionLines, l => l.EndsWith("3        7        250     "));
     }
 
     [Fact]

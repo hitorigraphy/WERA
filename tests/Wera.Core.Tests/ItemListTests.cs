@@ -21,7 +21,7 @@ public class ItemListTests
         var s = Session();
         s.AddInventory(4, 7);
         s.AddInventory(2, 120);                      // 얻은 순서와 상관없이 마스터 순서
-        Assert.Equal([("[2]", "금화", "수량 120"), ("[4]", "철광석", "수량 7")], s.Items.Select(r => (r.Code, r.Name, r.Amount)));
+        Assert.Equal([("[2]", "금화", "120"), ("[4]", "철광석", "7")], s.Items.Select(r => (r.Code, r.Name, r.Amount)));
 
         s.AddInventory(4, -7);                       // 다 쓰면 목록에서 빠진다
         Assert.Equal(["금화"], s.Items.Select(r => r.Name));

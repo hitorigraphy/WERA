@@ -379,10 +379,10 @@ public sealed partial class GameSession
     /// <summary>동료 확인 이름 칸의 너비(반각 칸 수; 한글 등 전각 문자는 2칸).</summary>
     public const int CompanionNameColumns = 32;
 
-    /// <summary>동료 확인 Lv, Hp, Xpp 칸 하나의 너비(반각 칸 수). 칸 안에는 "Lv 12"처럼 이름표와 값이 왼쪽 맞춤으로 들어간다.</summary>
+    /// <summary>동료 확인 Lv, Hp, Xpp 칸 하나의 너비(반각 칸 수). 칸 안에는 값만 왼쪽 맞춤으로 들어간다(이름표는 첫 줄의 열 이름).</summary>
     public const int CompanionStatColumns = 8;
 
-    /// <summary>동료 확인 화면의 한 줄: 코드 칸("[순서 번호]"), 이름, 그리고 "Lv 값", "Hp 값", "Xpp 값" 칸.</summary>
+    /// <summary>동료 확인 화면의 한 줄: 코드 칸("[순서 번호]"), 이름, 그리고 레벨, HP, XPP 값 칸.</summary>
     public sealed record CompanionRow(string Order, string Name, string Level, string Hp, string Xpp);
 
     /// <summary>
@@ -397,9 +397,9 @@ public sealed partial class GameSession
             return OwnedCharacters.Select(c => new CompanionRow(
                 $"[{c.OrderNumber.ToString(CultureInfo.InvariantCulture)}]",
                 Pack.FindCharacter(c.CharacterCode)?.Name ?? Text(c.CharacterCode),
-                $"Lv {c.Level.ToString(CultureInfo.InvariantCulture)}",
-                $"Hp {c.Hp.ToString(CultureInfo.InvariantCulture)}",
-                $"Xpp {c.Xpp.ToString(CultureInfo.InvariantCulture)}")).ToList();
+                c.Level.ToString(CultureInfo.InvariantCulture),
+                c.Hp.ToString(CultureInfo.InvariantCulture),
+                c.Xpp.ToString(CultureInfo.InvariantCulture))).ToList();
         }
     }
 
@@ -413,10 +413,10 @@ public sealed partial class GameSession
         Companions.Select(r => $"{PadColumns(r.Order, CompanionCodeColumns)} {PadColumns(r.Name, CompanionNameColumns)} {PadColumns(r.Level, CompanionStatColumns)} " +
                                $"{PadColumns(r.Hp, CompanionStatColumns)} {PadColumns(r.Xpp, CompanionStatColumns)}").ToList();
 
-    /// <summary>아이템 확인 수량 칸의 너비(반각 칸 수). 칸 안에는 "수량 99"처럼 이름표와 값이 왼쪽 맞춤으로 들어간다.</summary>
+    /// <summary>아이템 확인 수량 칸의 너비(반각 칸 수). 칸 안에는 값만 왼쪽 맞춤으로 들어간다(이름표는 첫 줄의 열 이름).</summary>
     public const int ItemAmountColumns = 16;
 
-    /// <summary>아이템 확인 화면의 한 줄: 코드 칸("[아이템 코드]"), 이름, "수량 값" 칸.</summary>
+    /// <summary>아이템 확인 화면의 한 줄: 코드 칸("[아이템 코드]"), 이름, 수량 값 칸.</summary>
     public sealed record ItemRow(string Code, string Name, string Amount);
 
     /// <summary>
@@ -430,7 +430,7 @@ public sealed partial class GameSession
             .Select(i => new ItemRow(
                 $"[{i.Code.ToString(CultureInfo.InvariantCulture)}]",
                 i.Name,
-                $"수량 {InventoryItems[i.Code].Amount.ToString(CultureInfo.InvariantCulture)}")).ToList();
+                InventoryItems[i.Code].Amount.ToString(CultureInfo.InvariantCulture))).ToList();
 
     static string PadColumns(string text, int columns) => text + new string(' ', Math.Max(0, columns - DisplayColumns(text)));
 
