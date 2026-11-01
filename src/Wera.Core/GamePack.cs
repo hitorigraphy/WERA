@@ -191,6 +191,7 @@ public sealed partial class GamePack
         var facilityOperatorSlots = LoadFacilityOperatorSlots(zip, facilities, operatorSlots);
         var advs = LoadAdvs(zip);
         var battles = LoadBattles(zip);
+        var openingEvent = ResolveOpeningEvent(gameSettings, events?.Select(e => e.Code));
         var eventFlows = LoadEventFlows(zip, events?.Select(e => e.Code).ToList(), advs, battles, tags, inventory);
         var dungeonEvents = LoadCodeNames(zip, DungeonEventMasterPath, "code", "name", "던전 이벤트", (code, name) => new DungeonEventEntry(code, name));
         var dungeonEventFlows = LoadEventFlows(zip, dungeonEvents?.Select(e => e.Code).ToList(), advs, battles, tags, inventory, dungeon: true);
@@ -319,6 +320,7 @@ public sealed partial class GamePack
             ModSlots = modSlots,
             Hideouts = hideouts,
             StartHideoutCode = startHideout,
+            OpeningEventCode = openingEvent,
             HideoutExpandCosts = LoadHideoutExpandCosts(zip, itemInventory, hideoutCodes),
             Facilities = facilities,
             FacilityBuildCosts = LoadFacilityBuildCosts(zip, facilities, itemInventory),

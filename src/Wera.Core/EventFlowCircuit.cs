@@ -192,9 +192,12 @@ public sealed partial class GameSession
     public EventFlowCircuit? StartEvent(long eventCode)
     {
         if (Pack.FindEvent(eventCode) is not { } gameEvent || !gameEvent.IsAvailable(PlayerFlags)) return null;
-        return new EventFlowCircuit(Pack, eventCode, PlayerFlags, AddInventory, CountInventory, CharacterHasTag, UniqueItemHasTag, NextRandom)
+        return NewEventCircuit(eventCode);
+    }
+
+    EventFlowCircuit NewEventCircuit(long eventCode) =>
+        new(Pack, eventCode, PlayerFlags, AddInventory, CountInventory, CharacterHasTag, UniqueItemHasTag, NextRandom)
         {
             OnSwitchHideout = code => SwitchHideout(code),
         };
-    }
 }

@@ -41,6 +41,9 @@ public enum GameSettingType
     CapturedAllyTagCode = 12,
     /// <summary>게임을 시작할 때의 현재 아지트 코드(Long, 1 이상, 아지트 마스터에 있어야 한다). 행이 없으면 아지트 마스터의 첫 행(마스터가 없으면 아지트 1)이다.</summary>
     StartHideoutCode = 13,
+    /// <summary>오프닝 이벤트의 코드(Long, 1 이상, 이벤트 마스터에 있어야 한다). 세이브 없이 새 게임을 시작하면 이 이벤트를 조건과 상관없이 먼저 재생하고, 끝나면 홈으로 간다.
+    /// 세이브를 불러올 때는 재생하지 않는다. 행이 없으면 오프닝이 없다(새 게임은 바로 홈).</summary>
+    OpeningEventCode = 14,
 }
 
 /// <summary>
@@ -149,7 +152,22 @@ public sealed partial class GamePack
         [GameSettingType.CapturedEnemyTagCode] = (GameSettingValueType.Long, 1),
         [GameSettingType.CapturedAllyTagCode] = (GameSettingValueType.Long, 1),
         [GameSettingType.StartHideoutCode] = (GameSettingValueType.Long, 1),
+        [GameSettingType.OpeningEventCode] = (GameSettingValueType.Long, 1),
     };
+
+    /// <summary>오프닝 이벤트 코드(설정 OpeningEventCode). 설정이 없으면 null(오프닝 없음).</summary>
+    public long? OpeningEventCode { get; init; }
+
+    /// <summary>게임 설정 OpeningEventCode(있으면)를 확인한다: 이벤트 마스터에 있는 코드여야 한다.</summary>
+    static long? ResolveOpeningEvent(List<GameSettingEntry>? settings, IEnumerable<long>? eventCodes)
+    {
+        if (settings?.FirstOrDefault(s => s.SettingType == GameSettingType.OpeningEventCode) is not { ValueType: GameSettingValueType.Long } setting) return null;
+        if (eventCodes is null)
+            throw new PackFormatException($"{GameSettingMasterPath}: OpeningEventCode '{setting.LongValue}'가 있으려면 {EventMasterPath}도 필요합니다.");
+        if (!eventCodes.Contains(setting.LongValue))
+            throw new PackFormatException($"{GameSettingMasterPath}: OpeningEventCode '{setting.LongValue}'가 {EventMasterPath}에 없습니다.");
+        return setting.LongValue;
+    }
 
     public GameSettingEntry? FindGameSetting(GameSettingType type) => GameSettings?.FirstOrDefault(s => s.SettingType == type);
 

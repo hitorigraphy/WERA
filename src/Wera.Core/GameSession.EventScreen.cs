@@ -40,6 +40,22 @@ public sealed partial class GameSession
         _ => null,
     };
 
+    // 오프닝 이벤트를 재생 중이면 true: 이벤트가 끝나면 이벤트 목록이 아니라 홈으로 간다.
+    bool openingEventPlaying;
+
+    /// <summary>
+    /// 새 게임의 오프닝 이벤트(게임 설정 OpeningEventCode)를 시작한다. 설정이 없으면 아무 일도 없다(홈에 머문다).
+    /// 이벤트 조건은 보지 않고(강제로 재생), 파티 참가 제한이나 탐사 기록도 하지 않는다. 끝나면 홈으로 가고, 게임 오버로 끝나면 게임 오버 화면이다.
+    /// 세이브는 홈과 던전 이동 화면에서만 할 수 있어 오프닝 도중에는 저장되지 않으며, 세이브를 불러올 때는 오프닝을 재생하지 않는다.
+    /// </summary>
+    void BeginOpeningEvent()
+    {
+        if (Pack.OpeningEventCode is not { } code) return;
+        CurrentEvent = NewEventCircuit(code);
+        openingEventPlaying = true;
+        ShowNextEventStep();
+    }
+
     /// <summary>이벤트를 시작해 첫 장면으로 간다. 시작할 수 없으면 이벤트 화면에 머문다.</summary>
     void BeginEvent(long eventCode)
     {
@@ -79,13 +95,15 @@ public sealed partial class GameSession
                 ContinueTileEffects();
                 return;
             }
-            Screen = Screen.Event;
+            Screen = openingEventPlaying ? Screen.Home : Screen.Event;
+            openingEventPlaying = false;
             return;
         }
         if (step.Kind == EventStepKind.GameOver)
         {
             CurrentEvent = null;
             CurrentStep = null;
+            openingEventPlaying = false;
             if (CurrentDungeonCode is not null) LeaveDungeon();
             gameOver = true;
             Screen = Screen.GameOver;

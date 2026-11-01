@@ -355,7 +355,7 @@ zip(UTF-8 TSV). 항목: `pack.tsv` + `master/*_v1.tsv`. `GamePack.Load(Stream)`�
 - **만들기·진단:** `python tools/zip-wrapper-pack.py <폴더> <출력.wra>`로 묶고, 읽은 뒤 `GamePack.Layers`(`Name`, `OrderNumber`, `Id`, `Title`)로 적용된 레이어를 봅니다. 구현은 `GamePack.Layers.cs`(`ResolveLayers`, `Merge`, `MergeTsv`), 테스트는 `PackLayerTests.cs`.
 
 ### 4.2 `GameSession` (게임 중 상태, `src/Wera.Core/GameSession*.cs`)
-`GameSession.NewGame(pack)`이 새 게임을, `GameSession.FromSaveJson(pack, json)` / `ToSaveJson()`이 세이브를 다룹니다. 주요 상태:
+`GameSession.NewGame(pack)`이 새 게임을, `GameSession.FromSaveJson(pack, json)` / `ToSaveJson()`이 세이브를 다룹니다. `NewGame`은 게임 설정 `OpeningEventCode`가 있으면 그 이벤트를 먼저 재생합니다(`FromSaveJson`은 재생하지 않음). 주요 상태:
 
 | 상태 | 내용 |
 |---|---|
@@ -440,6 +440,7 @@ zip(UTF-8 TSV). 항목: `pack.tsv` + `master/*_v1.tsv`. `GamePack.Load(Stream)`�
 | `PlayerTagCode` (8) / `LeaderTagCode` (9) / `MainCurrencyTagCode` (10) | Long | 1 이상, 행이 없으면 1 / 2 / 3, 태그 마스터에 있어야 함 |
 | `CapturedEnemyTagCode` (11) / `CapturedAllyTagCode` (12) | Long | 1 이상, 행이 없으면 그 기능 없음, 태그 마스터에 있어야 함 |
 | `StartHideoutCode` (13) | Long | 1 이상, 시작 아지트 코드. 아지트 마스터에 있어야 함(마스터가 없으면 1만). 행이 없으면 첫 아지트 |
+| `OpeningEventCode` (14) | Long | 1 이상, 오프닝 이벤트 코드. 이벤트 마스터에 있어야 함. **새 게임**(세이브 없이 시작)이 이 이벤트를 조건과 상관없이 먼저 재생하고 끝나면 홈으로 감. 세이브 불러오기는 재생하지 않음. 행이 없으면 오프닝 없음 |
 | `None` (0) | — | 자리 표시 |
 
 다섯 태그 코드는 서로 달라야 하고 값 종류·최솟값을 어기면 로드 오류입니다.

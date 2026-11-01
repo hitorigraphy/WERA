@@ -576,6 +576,7 @@ public sealed partial class GameSession
         session.AddCharacter(GamePack.PlayerCharacterCode);      // 플레이어(캐릭터 1)는 처음부터 보유한다
         foreach (var itemCode in pack.DebugStartUniqueItems) session.AddUniqueItem(itemCode);   // 디버깅용 초기 부여
         session.TurnCount = pack.FirstTurn.TurnCount;            // 가장 작은 턴에서 시작한다
+        session.BeginOpeningEvent();                             // 오프닝 이벤트(게임 설정)가 있으면 먼저 재생한다
         return session;
     }
 
