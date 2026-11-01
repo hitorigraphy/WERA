@@ -168,6 +168,8 @@ public class CommunicationPlayTests
         Assert.Equal(Screen.Interaction, s.Screen);
         Assert.Equal(2, s.CurrentCommunicationGroupCode);                           // 끝난 뒤에는 고른 그룹 그대로
         s.Pick("999");
+        Assert.False(s.Entries.Single(e => e.Code == "107").Enabled);                // 같은 턴에는 교류를 다시 할 수 없다
+        foreach (var c in s.Characters.Keys.ToList()) s.Characters[c] = s.Characters[c] with { ExploreTurn = null };
         s.Pick("107");
         Assert.Equal(1, s.CurrentCommunicationGroupCode);
     }

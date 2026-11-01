@@ -527,7 +527,11 @@ public sealed partial class GameSession
         Enumerable.Range(0, PartySlotCount).Select(SlotView).ToList();
 
     PartySlotView SlotView(int slot) =>
-        CharacterView(slot, Party[slot]) with { IsLeader = PartyInstance.Units[slot]?.IsLeader == true };
+        CharacterView(slot, Party[slot]) with
+        {
+            IsLeader = PartyInstance.Units[slot]?.IsLeader == true,
+            IsUnavailable = Party[slot] is { } code && Characters.ContainsKey(code) && !CanExplore(code),
+        };
 
     /// <summary>캐릭터 한 명의 슬롯 표시. 코드가 없거나 보유하지 않으면 빈 슬롯. 슬롯 번호가 없는 슬롯은 -1.</summary>
     PartySlotView CharacterView(int slot, long? characterCode)
@@ -610,7 +614,7 @@ public sealed partial class GameSession
             rpg.Add(new ScreenEntry(ShopEntryCode, "상점", Screen.ShopList, Enabled: AvailableShops.Count > 0));
             rpg.Add(new ScreenEntry(PartyEntryCode, "파티 설정", Screen.PartySetup));
             rpg.Add(new ScreenEntry(EquipmentEnhanceEntryCode, "장비 강화", Screen.EquipmentEnhance));
-            rpg.Add(new ScreenEntry(InteractionEntryCode, "교류", Screen.Interaction));
+            rpg.Add(new ScreenEntry(InteractionEntryCode, "교류", Screen.Interaction, Enabled: CanStartCommunication));
             // 마지막 턴이라 넘길 다음 턴이 없으면 회색이다.
             rpg.Add(new ScreenEntry(EndTurnEntryCode, "턴 종료", Screen.Home, EntryAction.EndTurn, Enabled: Pack.NextTurnAfter(TurnCount) is not null));
 
@@ -740,7 +744,7 @@ public sealed partial class GameSession
                 case Screen.Event:
                     // 조건을 만족하는 이벤트를 코드로 입력하거나 클릭하면 시작한다.
                     return AvailableEvents
-                        .Select(e => new ScreenEntry(Text(e.Code), e.Name, Screen.EventPlay, EntryAction.StartEvent))
+                        .Select(e => new ScreenEntry(Text(e.Code), e.Name, Screen.EventPlay, EntryAction.StartEvent, Enabled: CanStartEvent))
                         .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home))
                         .ToList();
                 case Screen.EventPlay:
@@ -1144,7 +1148,7 @@ public sealed partial class GameSession
 
     /// <summary>
     /// 이 슬롯의 유닛을 리더로 지정하거나(이미 리더면) 해제한다. 리더 태그가 없으면 할 수 없고, 마지막 리더는 해제할 수 없다
-    /// (파티에는 리더가 한 명 이상 있어야 한다).
+    /// (파티에는 리더가 한 명 이상 있어야 한다). 한 파티의 리더는 한 명이라, 다른 유닛을 리더로 지정하면 원래 리더는 리더에서 해제된다.
     /// </summary>
     void ToggleLeader(int slot)
     {
@@ -1154,6 +1158,9 @@ public sealed partial class GameSession
             Message = "파티에는 리더가 한 명 이상 있어야 합니다.";
             return;
         }
+        for (var i = 0; i < PartyInstance.Units.Length; i++)
+            if (i != slot && PartyInstance.Units[i] is { IsLeader: true } other)
+                PartyInstance.Units[i] = other with { IsLeader = false };      // 리더는 파티에 한 명이다
         PartyInstance.Units[slot] = unit with { IsLeader = !unit.IsLeader };
     }
 

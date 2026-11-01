@@ -98,13 +98,13 @@ public class LeaderTests
         s.Pick("2");                                          // 리더 태그가 없는 캐릭터: 반응 없음
         Assert.False(s.PartyInstance.Units[1]!.IsLeader);
 
-        s.Pick("3");                                          // 전사를 리더로
-        Assert.Equal([true, false, true], s.PartyInstance.Units.Take(3).Select(u => u!.IsLeader));
-        s.Pick("1");                                          // 용사 해제(전사가 남아 있다)
-        Assert.False(s.PartyInstance.Units[0]!.IsLeader);
+        s.Pick("3");                                          // 전사를 리더로: 원래 리더(용사)는 해제된다
+        Assert.Equal([false, false, true], s.PartyInstance.Units.Take(3).Select(u => u!.IsLeader));
+        s.Pick("1");                                          // 다시 용사를 리더로: 전사가 해제된다
+        Assert.Equal([true, false, false], s.PartyInstance.Units.Take(3).Select(u => u!.IsLeader));
 
-        s.Pick("3");                                          // 마지막 리더는 해제할 수 없다
-        Assert.True(s.PartyInstance.Units[2]!.IsLeader);
+        s.Pick("1");                                          // 마지막 리더는 해제할 수 없다
+        Assert.True(s.PartyInstance.Units[0]!.IsLeader);
         Assert.Equal("파티에는 리더가 한 명 이상 있어야 합니다.", s.Message);
         Assert.Equal(Screen.LeaderSetup, s.Screen);
     }
@@ -140,7 +140,7 @@ public class LeaderTests
         s.Pick("2"); s.Pick("7003");
         s.Pick("104"); s.Pick("2");                       // 전사도 리더
         var loaded = GameSession.FromSaveJson(s.Pack, s.ToSaveJson());
-        Assert.Equal([true, true], loaded.PartyInstance.Units.Take(2).Select(u => u!.IsLeader));
+        Assert.Equal([false, true], loaded.PartyInstance.Units.Take(2).Select(u => u!.IsLeader));
 
         // 리더 정보가 없던 예전 세이브: 리더가 없는 파티로 읽는다(리더 지정에서 다시 지정한다)
         var old = GameSession.FromSaveJson(s.Pack,
@@ -211,5 +211,50 @@ public class LeaderTests
         Assert.Equal(Screen.LeaderSetup, s.Screen);
         s.Pick("999");
         Assert.Equal(Screen.Home, s.Screen);
+    }
+
+    [Fact]
+    public void A_party_member_that_cannot_explore_greys_the_party_and_shows_dark_green_but_the_slot_stays_selectable()
+    {
+        var s = Session();
+        s.AddCharacter(1);
+        s.Pick("105"); s.Pick("1"); s.Pick("7001");
+        s.Pick("2"); s.Pick("7003");
+        s.Pick("3"); s.Pick("1");                                  // 당신(캐릭터 1)도 파티에
+        Assert.True(s.PartyCanExplore(0));
+        Assert.True(s.CanStartEvent);
+        Assert.True(s.CanStartCommunication);
+
+        Assert.True(s.RecordExplore(7003));                         // 전사가 이번 턴에 이미 참가했다
+        Assert.False(s.PartyCanExplore(0));
+        Assert.False(s.CanStartEvent);
+        Assert.Equal([false, true, false], s.PartySlotViews.Take(3).Select(v => v.IsUnavailable));
+        Assert.True(s.Entries.Single(e => e.Code == "2").Enabled);   // 진한 녹색은 정보일 뿐 슬롯은 그대로 고를 수 있다
+    }
+
+    [Fact]
+    public void The_event_is_gray_while_the_hero_cannot_take_part()
+    {
+        var s = Session();
+        s.AddCharacter(1);
+        Assert.True(s.CanStartEvent);
+        s.RecordExplore(1);
+        Assert.False(s.CanStartEvent);
+    }
+
+    [Fact]
+    public void The_home_interaction_button_is_gray_when_the_hero_partner_or_assist_cannot_take_part()
+    {
+        var s = Session();
+        s.AddCharacter(1);
+        s.SetSupport(SupportRole.Partner, 7001);
+        s.SetSupport(SupportRole.Assist, 7002);
+        Assert.True(s.Entries.Single(e => e.Code == GameSession.InteractionEntryCode).Enabled);
+        Assert.False(s.PartnerSlot.IsUnavailable);
+
+        s.RecordExplore(7002);
+        Assert.True(s.AssistSlot.IsUnavailable);
+        Assert.False(s.PartnerSlot.IsUnavailable);
+        Assert.False(s.Entries.Single(e => e.Code == GameSession.InteractionEntryCode).Enabled);
     }
 }

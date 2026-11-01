@@ -43,12 +43,14 @@ public sealed partial class GameSession
     /// <summary>이벤트를 시작해 첫 장면으로 간다. 시작할 수 없으면 이벤트 화면에 머문다.</summary>
     void BeginEvent(long eventCode)
     {
+        if (!CanStartEvent) return;                      // 파티의 누군가가 참가할 수 없으면 시작할 수 없다(항목은 회색이다)
         CurrentEvent = StartEvent(eventCode);
         if (CurrentEvent is null)
         {
             Message = "이벤트를 시작할 수 없습니다.";
             return;
         }
+        RecordExploreOf(EventParticipants());              // 플레이어가 속한 파티 전원이 이 턴에 참가했다
         ShowNextEventStep();
     }
 
@@ -182,6 +184,8 @@ public sealed partial class GameSession
             Message = "교류 내용이 없습니다.";
             return;
         }
+        if (!CanStartCommunication) return;       // 참가할 수 없는 사람이 있으면 시작할 수 없다(홈의 교류 버튼은 회색이다)
+        RecordExploreOf(CommunicationParticipants());
         CurrentCommunicationCode = communicationCode;
         advLog.Clear();
         CurrentAdvStep = null;

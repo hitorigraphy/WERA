@@ -170,8 +170,9 @@ public sealed record StatusBadge(long StatusEffectCode, string Name);
 /// </summary>
 public sealed record PartySlotView(
     int Slot, long? CharacterCode, string LevelText, string Name, GaugeView Hp, GaugeView Xp, XpTag XpTag,
-    IReadOnlyList<AttributeBadge> Badges, IReadOnlyList<StatusBadge> StatusBadges, bool IsLeader = false, bool IsSelected = false, bool IsGray = false)
+    IReadOnlyList<AttributeBadge> Badges, IReadOnlyList<StatusBadge> StatusBadges, bool IsLeader = false, bool IsSelected = false, bool IsGray = false, bool IsUnavailable = false)
 {
+    // IsUnavailable: 지금 이벤트와 던전 탐사에 참가할 수 없는 캐릭터(파티 설정 화면에서 진한 녹색으로 보인다).
     public const string EmptyName = "빈 슬롯";
 
     /// <summary>빈 슬롯의 표시(회색 0/0). 슬롯 번호가 없는 슬롯(파트너, 어시스트)은 -1.</summary>

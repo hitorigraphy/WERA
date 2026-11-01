@@ -55,7 +55,7 @@ public sealed partial class GameSession
     {
         get
         {
-            var view = CharacterView(-1, GamePack.PlayerCharacterCode);
+            var view = Unavailable(CharacterView(-1, GamePack.PlayerCharacterCode), GamePack.PlayerCharacterCode);
             return view.IsEmpty ? view with { Name = PlayerSlotName } : view;
         }
     }
@@ -63,10 +63,13 @@ public sealed partial class GameSession
     public const string PlayerSlotName = "당신";
 
     /// <summary>홈 화면의 파트너 슬롯.</summary>
-    public PartySlotView PartnerSlot => CharacterView(-1, PartnerCode);
+    public PartySlotView PartnerSlot => Unavailable(CharacterView(-1, PartnerCode), PartnerCode);
 
     /// <summary>홈 화면의 어시스트 슬롯.</summary>
-    public PartySlotView AssistSlot => CharacterView(-1, AssistCode);
+    public PartySlotView AssistSlot => Unavailable(CharacterView(-1, AssistCode), AssistCode);
+
+    PartySlotView Unavailable(PartySlotView view, long? code) =>
+        view with { IsUnavailable = code is { } c && Characters.ContainsKey(c) && !CanExplore(c) };
 
     /// <summary>홈 화면에서만 쓸 수 있는 슬롯 항목(홈 항목 목록에는 나오지 않는다): [1] 파트너, [2] 어시스트.</summary>
     IReadOnlyList<ScreenEntry> HomeSlotEntries => Screen != Screen.Home
