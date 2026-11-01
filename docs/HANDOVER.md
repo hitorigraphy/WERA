@@ -4,7 +4,7 @@
 각 마스터와 규칙의 **상세 명세는 [`README.md`](../README.md)** 가 정본입니다(아래에서는 README의 어느 대목을 보면 되는지 가리킵니다).
 이 문서의 사실은 코드(`src/Wera.Core`)와 샘플 게임팩(`samples/sample-pack`)에서 직접 확인했습니다. README와 코드가 어긋난 곳은 부록 A에 따로 모았습니다 — **어긋나면 코드가 맞습니다.**
 
-기준 시점: 브랜치 `develop`, 마지막 기능 커밋 `ece3e91`(시설 확인 화면), 테스트 1527개 통과, `SaveVersion = 1`.
+기준 시점: 브랜치 `develop`, 마지막 기능 커밋 `ece3e91`(시설 확인 화면), 테스트 1583개 통과, `SaveVersion = 1`.
 
 ---
 
@@ -193,15 +193,16 @@ dotnet run --project src/Wera.Web      # 로컬 실행
 | `facility_master` | 선택 | `code` | `code`, `name` | 시설 종류 |
 | `facility_condition_master` | 선택(시설 필요) | `(facility_code, group_number, flag_code)` | `facility_code`, `group_number`, `flag_code`, `condition_type`, `condition_value` | **설치 조건**(없으면 늘 지을 수 있음) |
 | `facility_build_master` | 선택(시설·커먼 아이템 필요) | `(facility_code, group_code, item_code)` | `facility_code`, `group_code`, `item_code`, `amount` | 짓는 재료(같은 그룹 AND, 그룹끼리 OR; **행이 없으면 재료 없이 바로 지어짐**) |
-| `hideout_floor_master` | 선택(시설 필요) | `floor_order` | `floor_order`, `facility_code` | 층이 생긴 **순서**(1 = 처음부터 있던 층)별 **기본 시설** |
-| `hideout_expand_master` | 선택(커먼 아이템 필요) | `(expand_count, group_code, item_code)` | `expand_count`, `group_code`, `item_code`, `amount` | 아지트 확장 재료(첫 확장이 `expand_count` 1; 다음 번호 행이 없으면 더 확장 불가) |
+| `hideout_master` | 선택 | `hideout_code` | `hideout_code`, `name` | **아지트 종류**(없으면 아지트 = 코드 1 하나. §4.10) |
+| `hideout_floor_master` | 선택(시설 필요) | `floor_order` | `floor_order`, `facility_code` | 층이 생긴 **순서**(1 = 처음부터 있던 층)별 **기본 시설** (+ 선택 열 `hideout_code`: 아지트 전용 행, 단위 `floor_order`; §4.10) |
+| `hideout_expand_master` | 선택(커먼 아이템 필요) | `(expand_count, group_code, item_code)` | `expand_count`, `group_code`, `item_code`, `amount` | 아지트 확장 재료(첫 확장이 `expand_count` 1; 다음 번호 행이 없으면 더 확장 불가) (+ 선택 열 `hideout_code`: 아지트 전용 행, 단위 `expand_count`; §4.10) |
 | `operator_slot_master` | 선택 | `code` | `code`, `name` | 오퍼레이터 슬롯 종류 |
 | `facility_operator_slot_master` | 선택(시설·슬롯 필요) | `(facility_code, operator_slot_code)` | `facility_code`, `operator_slot_code` | 시설이 가진 오퍼레이터 슬롯 |
 | `operator_slot_tag_master` | 선택 | `(operator_slot_code, tag_code)` | `operator_slot_code`, `tag_code` | 슬롯에 서려면 캐릭터가 **모두** 가져야 하는 태그(행이 없으면 누구나) |
 | `facility_flow_master` | 선택(시설 필요) | `(facility_code, flow_number)` | `facility_code`, `flow_number`, `flow_type`, `param_1`~`3` | **시설 서킷**: 턴 종료 때 생산(§3.2) |
 | `operator_slot_defense_flow_master` | 선택(슬롯 필요) | `(operator_slot_code, flow_number)` | `operator_slot_code`, `flow_number`, `flow_type`, `param_1`~`3` | **방어력 계산 서킷**: 그 슬롯의 오퍼레이터 1명의 최대 방어력 |
 | `facility_defense_master` | 선택(시설 필요) | `facility_code` | `facility_code`, `defense` | 시설 자체의 방어력(없으면 0) |
-| `hideout_defense_enemy_master` | 선택(프리셋 파티 + `ThreatFlagCode` 필요) | `code` | `code`, `preset_party_code`, `min_threat`, `consume_threat`, `priority`, `chance` | **방어전 적 파티**(위협도·확률·우선순위; §4.6) |
+| `hideout_defense_enemy_master` | 선택(프리셋 파티 + `ThreatFlagCode` 필요) | `code` | `code`, `preset_party_code`, `min_threat`, `consume_threat`, `priority`, `chance` | **방어전 적 파티**(위협도·확률·우선순위; §4.6) (+ 선택 열 `hideout_code`: 아지트 전용 행, 단위 `code`; §4.10) |
 
 ### 2.7 서브모듈 마스터(서킷 종류마다 하나, 모두 선택)
 이름 규칙: 이펙트(흐름) 마스터 이름에서 `_effect_master` 또는 `_flow_master`를 뗀 것 + `_submodule_master_v1.tsv`. 전체 목록과 열은 §3.4.
@@ -311,7 +312,7 @@ hideout_defense_enemy ──▶ preset_party;  (+ ThreatFlagCode 설정)
 
 | 서킷 | 흐름 마스터 | 흐름 종류(번호) | 서브모듈 마스터 / `JumpToSubmodule` 번호 |
 |---|---|---|---|
-| `EventFlowCircuit` (이벤트) | `event_flow_master` | `None`0, `Finish`1, `Jump`2, `Adv`3, `Battle`4, `SetFlag`5, `ModFlag`6, `AddInventory`7, `JumpFlagEqual…LessOrEqual`8~13, `JumpInventoryEqual…LessOrEqual`14~19, `JumpCharacterHaveTag`20, `JumpUniqueItemHaveTag`21, `JumpRandom`22, `GameOver`23, `ReleaseCaptives`24, **`JumpToSubmodule`25** | `event_submodule_master_v1` / 25 |
+| `EventFlowCircuit` (이벤트) | `event_flow_master` | `None`0, `Finish`1, `Jump`2, `Adv`3, `Battle`4, `SetFlag`5, `ModFlag`6, `AddInventory`7, `JumpFlagEqual…LessOrEqual`8~13, `JumpInventoryEqual…LessOrEqual`14~19, `JumpCharacterHaveTag`20, `JumpUniqueItemHaveTag`21, `JumpRandom`22, `GameOver`23, `ReleaseCaptives`24, **`JumpToSubmodule`25**, `SwitchHideout`26 | `event_submodule_master_v1` / 25 |
 | `EventFlowCircuit` (던전 이벤트) | `dungeon_event_flow_master` | 위와 같음(`ReleaseCaptives`는 던전 이벤트에서만 효과) | `dungeon_event_submodule_master_v1` / 25 |
 | `AdvFlowCircuit` | `adv_flow_master` | `None`0, `Finish`1, `Jump`2, `TextMe`3, `Choice`4, `TextYou`5, `TextPlain`6, `SetFlag`7, `ModFlag`8, `AddInventory`9, `JumpFlag*`10~15, `JumpInventory*`16~21, `JumpCharacterHaveTag`22, `JumpUniqueItemHaveTag`23, `JumpRandom`24, `TextLog`25, **`JumpToSubmodule`26** | `adv_submodule_master_v1` / 26 |
 | `CommunicationFlowCircuit` | `communication_{solo,duo,default}_flow_master` | `None`0, `Finish`1, `Jump`2, `Text`3, `Choice`4, `TextPlain`5, `SetFlag`6, `ModFlag`7, `AddInventory`8, `JumpFlag*`9~14, `JumpInventory*`15~20, `JumpCharacterHaveTag`21, `JumpUniqueItemHaveTag`22, `JumpRandom`23, `TextLog`24, **`JumpToSubmodule`25** | `communication_submodule_master_v1`(세 마스터가 **하나를 공유**) / 25 |
@@ -393,7 +394,7 @@ zip(UTF-8 TSV). 항목: `pack.tsv` + `master/*_v1.tsv`. `GamePack.Load(Stream)`�
 던전 이동: 코드 입력칸에 `W A S D`(대소문자 무시, 한글 `ㅈ ㅁ ㄴ ㅇ` 입력 상태·방향키도 동작) 즉시 이동, `Enter`는 지금 칸 상호작용(출구 `Exit`, `Interact`가 겹친 전투/ADV/워프/던전 이벤트). **던전에서 나가는 곳은 `Exit` 칸뿐**입니다. 새 게임과 불러오기는 항상 홈으로 들어갑니다(세이브에 저장된 화면은 무시).
 
 ### 4.5 세이브 (`.wsv`, JSON)
-`SaveData`(`GameSession.cs`) 필드(앞에서부터, 위치 인자): `Version`, `PackId`, `Screen`, `PlayerFlags`, `InventoryItems`, `Characters`, `Party`(예전), `StatusEffects`, `UniqueItems`, `CharacterTags`, `EquippedItems`(예전), `Partner`, `Assist`(예전), `Turn`, `PartyInstance`(예전), `Parties`, `CurrentParty`, `HideoutParties`, `HideoutFacilities`, `HideoutOperators`(`{FloorOrder, Built, SlotCode, CharacterCode, InstanceId}`), `PartnerId`, `AssistId`, `DungeonCaptives`. **새 필드는 항상 맨 뒤에 추가**하고 null이면 JSON에서 생략됩니다.
+`SaveData`(`GameSession.cs`) 필드(앞에서부터, 위치 인자): `Version`, `PackId`, `Screen`, `PlayerFlags`, `InventoryItems`, `Characters`, `Party`(예전), `StatusEffects`, `UniqueItems`, `CharacterTags`, `EquippedItems`(예전), `Partner`, `Assist`(예전), `Turn`, `PartyInstance`(예전), `Parties`, `CurrentParty`, `HideoutParties`, `HideoutFacilities`, `HideoutOperators`(`{FloorOrder, Built, SlotCode, CharacterCode, InstanceId}`), `PartnerId`, `AssistId`, `DungeonCaptives`, `CurrentHideout`(현재 아지트 코드; 아지트 마스터가 있을 때만), `OtherHideouts`(현재가 아닌 아지트 코드 → `{Parties, Facilities, Operators}`; 현재 아지트의 상태는 위의 `HideoutParties`/`HideoutFacilities`/`HideoutOperators`에 있음). **새 필드는 항상 맨 뒤에 추가**하고 null이면 JSON에서 생략됩니다.
 
 - **`SaveVersion = 1`**: 릴리스 전이라 **올리지 않습니다**(사용자 지시: 지시 전까지 유지). 기존 세이브와의 호환·마이그레이션은 **신경 쓰지 않습니다**(예전 필드를 읽는 코드는 남아 있지만 더 늘리지 않음).
 - 불러올 때 **검증**: 캐릭터/스킬/상태이상/장비/태그 코드가 마스터에 있는지, `0 ≤ HP ≤ max_hp`, 같은 인스턴스 ID 중복·ULID 형식, 한 캐릭터 복사본이 두 곳에 있는지, `carry_limit` 초과, 슬롯 태그 규칙 부합, 구금된 적이 파티·아지트에 있는지, 구금된 아군은 던전 마스터에 있고 태그가 있는지 등. 어기면 `SaveFormatException`.
@@ -435,6 +436,7 @@ zip(UTF-8 TSV). 항목: `pack.tsv` + `master/*_v1.tsv`. `GamePack.Load(Stream)`�
 | `ThreatFlagCode` (7) | Long | 1 이상, 위협도를 담는 플레이어 플래그 코드. 방어전 적 마스터에 필요 |
 | `PlayerTagCode` (8) / `LeaderTagCode` (9) / `MainCurrencyTagCode` (10) | Long | 1 이상, 행이 없으면 1 / 2 / 3, 태그 마스터에 있어야 함 |
 | `CapturedEnemyTagCode` (11) / `CapturedAllyTagCode` (12) | Long | 1 이상, 행이 없으면 그 기능 없음, 태그 마스터에 있어야 함 |
+| `StartHideoutCode` (13) | Long | 1 이상, 시작 아지트 코드. 아지트 마스터에 있어야 함(마스터가 없으면 1만). 행이 없으면 첫 아지트 |
 | `None` (0) | — | 자리 표시 |
 
 다섯 태그 코드는 서로 달라야 하고 값 종류·최솟값을 어기면 로드 오류입니다.
@@ -444,7 +446,16 @@ zip(UTF-8 TSV). 항목: `pack.tsv` + `master/*_v1.tsv`. `GamePack.Load(Stream)`�
 - **경험치/레벨업은 엔진이 하지 않습니다.** 코드에서 `exp`/`exp_max`는 **캐릭터 상세의 Exp 바 표시**와 `0 ≤ exp ≤ exp_max` 범위 보정에만 쓰이고, 레벨이 오르거나 스펙이 자라는 로직은 **엔진에 없습니다.** 게임팩이 `after_battle_win_effect_master`(승리 후 서킷: 참가한 아군 유닛마다, 그 캐릭터가 포커스된 채 시작)에서 `exp` 증가, 레벨 비교, 스테이터스 성장을 이펙트(`CacheAdd`, `CacheToFocusedCharacterModValue`, `JumpCache*` 등)로 직접 구현해야 합니다. 상세 규칙은 README의 전투 승리 후 이펙트 문단.
 - **속성**: `character_inventory_master`의 유리/불리속성 코드와 `attribute_master`는 있고 상성 규칙은 §1.5에 결정만 적혀 있지만 **전투 계산에는 아직 적용되지 않습니다**(설정값만 읽을 수 있음: `GamePack.AttributeAdvantageMultiplier`/`AttributeDisadvantageMultiplier`).
 
-### 4.10 기타 알아둘 것
+### 4.10 여러 아지트
+- **마스터**: `hideout_master`(`hideout_code`, `name`)는 선택입니다. 없으면 아지트는 코드 1 하나이고 동작은 이전과 같습니다. 있으면 시작 아지트는 게임 설정 `StartHideoutCode`(없으면 첫 행)입니다.
+- **무엇이 아지트마다 다른가**: 층 구조(`hideout_floor_master`의 기본 시설), 확장 재료(`hideout_expand_master`), 방어전 적(`hideout_defense_enemy_master`)은 선택 열 `hideout_code`로 아지트별 행을 둘 수 있습니다. **공용 행**(칸이 비었거나 열 없음)은 모든 아지트가 쓰고 **전용 행**은 그 아지트만 씁니다. 전용 행이 같은 항목을 다시 적으면 그 아지트에서는 전용 행이 공용 행을 대신합니다(덮어쓰는 단위: 층 `floor_order`, 확장 `expand_count`의 모든 행, 적 `code`). 시설 마스터와 하위 마스터, 오퍼레이터 슬롯, 방어 흐름은 전역입니다.
+- **런타임**: 아지트마다 따로 층별 방어 파티·지은 시설·오퍼레이터·화면 위치를 가집니다. 화면, 방어전(적 후보 포함), 시설 생산은 **현재 아지트만** 다룹니다. 캐릭터는 모든 아지트를 통틀어 한 자리(파티 또는 오퍼레이터 슬롯)에만 서고, 다른 아지트의 자리에 세우면 원래 자리에서 빠집니다.
+- **전환**: 이벤트·던전 이벤트 흐름(서브모듈 안 포함)의 `SwitchHideout`(26, `param_1` = 아지트 코드). 플래그에 따라 바꾸려면 앞에 `JumpFlag*`를 둡니다. 코드에서는 `GameSession.SwitchHideout(code)`(없는 아지트면 false). 이미 그 아지트면 아무 일도 없습니다. 존재하지 않는 코드는 로드 오류입니다(마스터가 없으면 1만 유효).
+- **세이브**: 현재 아지트는 기존 필드(`HideoutParties` 등)에, 나머지는 `OtherHideouts`에 저장하고 `CurrentHideout`을 적습니다. 불러올 때 아지트 코드가 마스터에 없거나 한 캐릭터가 두 자리에 있으면 거부합니다.
+- **모딩**: `hideout_code`는 병합 키의 선택 열입니다(`MasterKeySpec.OptionalKey`): 레이어에 열이 없어도 되고 없으면 빈 칸(공용)으로 봅니다. 공용 행과 전용 행은 서로 다른 키입니다.
+- **화면**: 아지트가 둘 이상이면 아지트·시설 확인 화면 제목에 아지트 이름이 붙습니다.
+
+### 4.11 기타 알아둘 것
 - **홈 화면 위쪽 슬롯**: 당신(플레이어, 불변), `[1]` 파트너, `[2]` 어시스트(교류의 상대; 파티와 독립). 참가 불가 캐릭터는 진한 녹색(`#2f8f5b`)으로 보이는 알림이 있음.
 - **상세 화면**과 목록 표(열 이름이 있는 표, 20개씩 페이지), BBCode 일부(`[b]`, `[color=…]`, 이스케이프 `\[`, `\]`, `\\`), ADV 대사 상자 크기 검증(한 줄 83칸 × 3줄, `TextPlain` 94칸 × 3줄)은 README의 해당 문단.
 - **임베디드 이펙트**(상태이상 이펙트가 가리키는 하드코딩 클래스)는 `EmbeddedEffectRegistry.Default`에 등록하고 지금은 `1 = HealEffect`만 있습니다. 새 임베디드 이펙트는 코드를 써야 하는 엔진 작업입니다.
@@ -528,6 +539,7 @@ master/common_item_tag_master_v1.tsv         item_code, tag_code        2 3   (�
 - [ ] `ADV`/교류 `text`의 BBCode가 올바른가, 대사 상자 크기(83칸×3줄 등)를 넘지 않는가.
 - [ ] 던전: 맵이 있으면 도입 지점(`entry_*` 셋 모두), 도입 지점·`Warp` 도착 칸이 맵의 글자 칸인가, `pos_y` < 30, `dungeon_tile`의 글자가 맵에서 쓰이는 글자와 일치하는가.
 - [ ] `EnhanceLevelMax`를 정했다면 강화 스테이터스 마스터에 레벨 1~상한이 모두 있는가. `SmeltStoneItemCode`가 커먼 아이템인가. `ListPageSize` ≤ 100.
+- [ ] 아지트가 여럿이면: `hideout_master`가 있고 `hideout_code` 열의 코드가 모두 그 마스터에 있는가, `StartHideoutCode`·`SwitchHideout`의 `param_1`이 있는 아지트인가, 아지트마다 다른 마스터 행(층 기본 시설·확장 재료·방어전 적)이 의도한 대로 덮어쓰는가(§4.10).
 - [ ] 방어전: `hideout_defense_enemy_master`에 `ThreatFlagCode` 설정과 프리셋 파티 마스터가 있는가, `priority`가 겹치지 않는가, 프리셋 파티의 캐릭터 수가 `carry_limit`을 넘기지 않는가(넘기면 런타임에 침입 실패).
 - [ ] 폐지 파일(`event_flow_condition_master`, `adv_flow_condition_master`, `communication_flow_master`)을 넣지 않았는가.
 

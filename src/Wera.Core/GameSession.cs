@@ -272,7 +272,15 @@ public sealed record SaveData(
     HideoutOperatorSave[]? HideoutOperators = null,
     string? PartnerId = null,
     string? AssistId = null,
-    Dictionary<long, PartyUnit[]>? DungeonCaptives = null);
+    Dictionary<long, PartyUnit[]>? DungeonCaptives = null,
+    long? CurrentHideout = null,
+    Dictionary<long, HideoutSave>? OtherHideouts = null);
+
+/// <summary>
+/// 세이브의 아지트 하나의 상태(<see cref="SaveData.OtherHideouts"/>의 값): <see cref="SaveData.HideoutParties"/>, <see cref="SaveData.HideoutFacilities"/>,
+/// <see cref="SaveData.HideoutOperators"/>와 같은 모양이다. 현재 아지트의 상태는 그 세 필드에 있고, 나머지 아지트의 상태가 여기 있다(아지트 마스터가 없으면 쓰지 않는다).
+/// </summary>
+public sealed record HideoutSave(PartyInstance?[]? Parties = null, long?[]? Facilities = null, HideoutOperatorSave[]? Operators = null);
 
 /// <summary>세이브의 오퍼레이터 한 명: 층이 생긴 순서(1은 처음부터 있는 층), 지은 시설인가(아니면 기본 시설), 오퍼레이터 슬롯 코드, 캐릭터 코드, 캐릭터 인스턴스 ID(비어 있으면 코드의 첫 인스턴스).</summary>
 public sealed record HideoutOperatorSave(long FloorOrder, bool Built, long SlotCode, long CharacterCode, string InstanceId = "");
@@ -1630,10 +1638,17 @@ public sealed partial class GameSession
                 CurrentPartyIndex,
                 hideoutParties.Select(p => p.Copy()).ToArray(),
                 hideoutFacilities.ToArray(),
-                hideoutOperators.Select(o => new HideoutOperatorSave(o.Key.FloorOrder, o.Key.Built, o.Key.Slot, CodeOfInstance(o.Value) ?? 0, o.Value)).ToArray(),
+                SaveHideoutOperators(CurrentHideout),
                 PartnerId, AssistId,
-                DungeonCaptives.Count == 0 ? null : DungeonCaptives.ToDictionary(d => d.Key, d => d.Value.Select(u => u.Copy()).ToArray())),
+                DungeonCaptives.Count == 0 ? null : DungeonCaptives.ToDictionary(d => d.Key, d => d.Value.Select(u => u.Copy()).ToArray()),
+                Pack.Hideouts is null ? null : CurrentHideoutCode,
+                Pack.Hideouts is null || hideoutStates.Count <= 1 ? null
+                    : hideoutStates.Where(h => h.Key != CurrentHideoutCode).ToDictionary(h => h.Key,
+                        h => new HideoutSave(h.Value.Parties.Select(p => p.Copy()).ToArray(), h.Value.Facilities.ToArray(), SaveHideoutOperators(h.Value)))),
             SaveJsonContext.Default.SaveData);
+
+    HideoutOperatorSave[] SaveHideoutOperators(HideoutState state) =>
+        state.Operators.Select(o => new HideoutOperatorSave(o.Key.FloorOrder, o.Key.Built, o.Key.Slot, CodeOfInstance(o.Value) ?? 0, o.Value)).ToArray();
 
     public static GameSession FromSaveJson(GamePack pack, string json)
     {
@@ -1830,22 +1845,43 @@ public sealed partial class GameSession
             throw new SaveFormatException($"세이브의 현재 파티 '{currentParty}'가 0~{PartyCount - 1} 범위를 벗어납니다.");
 
         // 아지트의 층별 방어 파티(1층부터): 보통 파티와 같은 형식이고 파티끼리 캐릭터를 공유할 수 없다. 층이 없으면 1층뿐이다.
-        var floorSaved = save.HideoutParties is { Length: > 0 } savedFloors ? savedFloors : [null];
-        var floorIds = floorSaved.Select(_ => new string?[PartySlotCount]).ToArray();
-        var floorLeaders = floorSaved.Select(_ => new bool[PartySlotCount]).ToArray();
-        for (var f = 0; f < floorSaved.Length; f++)
+        // 현재 아지트(CurrentHideout, 없으면 시작 아지트)의 상태는 HideoutParties 등에, 나머지 아지트의 상태는 OtherHideouts에 있다.
+        var currentHideout = save.CurrentHideout ?? pack.StartHideoutCode;
+        if (!pack.HideoutCodes.Contains(currentHideout))
+            throw new SaveFormatException($"세이브의 현재 아지트 '{currentHideout}'가 아지트 마스터에 없습니다.");
+        var hideoutSaves = new Dictionary<long, HideoutSave> { [currentHideout] = new(save.HideoutParties, save.HideoutFacilities, save.HideoutOperators) };
+        foreach (var (code, other) in save.OtherHideouts ?? [])
         {
-            var savedUnits = floorSaved[f]?.Units ?? [];
-            if (savedUnits.Length > PartySlotCount)
-                throw new SaveFormatException($"세이브의 {f + 1}층 방어 파티의 슬롯이 {PartySlotCount}칸보다 많습니다: {savedUnits.Length}");
-            for (var i = 0; i < savedUnits.Length; i++)
+            if (!pack.HideoutCodes.Contains(code))
+                throw new SaveFormatException($"세이브의 아지트 '{code}'가 아지트 마스터에 없습니다.");
+            if (code == currentHideout)
+                throw new SaveFormatException($"세이브의 아지트 '{code}'가 현재 아지트와 OtherHideouts에 모두 있습니다.");
+            hideoutSaves[code] = other ?? new HideoutSave();
+        }
+        var floorIdsOf = new Dictionary<long, string?[][]>();
+        var floorLeadersOf = new Dictionary<long, bool[][]>();
+        foreach (var (hideoutCode, hideoutSave) in hideoutSaves)
+        {
+            var floorSaved = hideoutSave.Parties is { Length: > 0 } savedFloors ? savedFloors : [null];
+            var floorIds = floorSaved.Select(_ => new string?[PartySlotCount]).ToArray();
+            var floorLeaders = floorSaved.Select(_ => new bool[PartySlotCount]).ToArray();
+            var where = pack.Hideouts is null ? "" : $"아지트 '{hideoutCode}'의 ";
+            for (var f = 0; f < floorSaved.Length; f++)
             {
-                if (savedUnits[i] is not { } unit) continue;
-                var id = ResolveUnit(unit);
-                floorIds[f][i] = id;
-                floorLeaders[f][i] = unit.IsLeader;
-                if (unit.Equipment is { Count: > 0 }) partyEquipment[id] = unit.Equipment;
+                var savedUnits = floorSaved[f]?.Units ?? [];
+                if (savedUnits.Length > PartySlotCount)
+                    throw new SaveFormatException($"세이브의 {where}{f + 1}층 방어 파티의 슬롯이 {PartySlotCount}칸보다 많습니다: {savedUnits.Length}");
+                for (var i = 0; i < savedUnits.Length; i++)
+                {
+                    if (savedUnits[i] is not { } unit) continue;
+                    var id = ResolveUnit(unit);
+                    floorIds[f][i] = id;
+                    floorLeaders[f][i] = unit.IsLeader;
+                    if (unit.Equipment is { Count: > 0 }) partyEquipment[id] = unit.Equipment;
+                }
             }
+            floorIdsOf[hideoutCode] = floorIds;
+            floorLeadersOf[hideoutCode] = floorLeaders;
         }
 
         var captiveIds = new Dictionary<long, List<string>>();
@@ -1862,7 +1898,7 @@ public sealed partial class GameSession
             }
         }
 
-        var allIds = partyIds.Concat(floorIds).SelectMany(p => p).OfType<string>().Concat(captiveIds.Values.SelectMany(ids => ids)).ToList();
+        var allIds = partyIds.Concat(floorIdsOf.Values.SelectMany(f => f)).SelectMany(p => p).OfType<string>().Concat(captiveIds.Values.SelectMany(ids => ids)).ToList();
         if (allIds.GroupBy(c => c).Any(g => g.Count() > 1))
             throw new SaveFormatException("세이브의 파티에 같은 캐릭터가 두 번 이상 있습니다(파티끼리도 공유할 수 없습니다).");
 
@@ -1889,36 +1925,44 @@ public sealed partial class GameSession
         if (partnerId is not null && partnerId == assistId)
             throw new SaveFormatException("세이브의 파트너와 어시스트가 같은 캐릭터입니다.");
 
-        var floors = floorSaved.Length;
-        var floorParties = floorIds.Select((ids, f) => new PartyInstance("",
-            ids.Select((id, i) => id is not null ? UnitOfId(id, floorLeaders[f][i]) : null).ToArray())).ToList();
-
-        var facilities = new List<long?>(new long?[floors]);
-        for (var i = 0; i < floors && save.HideoutFacilities is { } savedFacilities && i < savedFacilities.Length; i++)
+        var hideoutLoaded = new Dictionary<long, (List<PartyInstance> Parties, List<long?> Facilities, Dictionary<(long, bool, long), string> Operators)>();
+        var operatorIds = new List<string>();
+        foreach (var (hideoutCode, hideoutSave) in hideoutSaves)
         {
-            if (savedFacilities[i] is { } facility && pack.FindFacility(facility) is null)
-                throw new SaveFormatException($"세이브의 아지트 시설 '{facility}'가 시설 마스터에 없습니다.");
-            facilities[i] = savedFacilities[i];
-        }
+            var floorIds = floorIdsOf[hideoutCode];
+            var floorLeaders = floorLeadersOf[hideoutCode];
+            var floors = floorIds.Length;
+            var floorParties = floorIds.Select((ids, f) => new PartyInstance("",
+                ids.Select((id, i) => id is not null ? UnitOfId(id, floorLeaders[f][i]) : null).ToArray())).ToList();
 
-        var operators = new Dictionary<(long, bool, long), string>();
-        foreach (var op in save.HideoutOperators ?? [])
-        {
-            if (op.FloorOrder < 1 || op.FloorOrder > floors)
-                throw new SaveFormatException($"세이브의 오퍼레이터 층 순서 '{op.FloorOrder}'가 1~{floors} 범위를 벗어납니다.");
-            string? operatorId;
-            if (!string.IsNullOrEmpty(op.InstanceId))
+            var facilities = new List<long?>(new long?[floors]);
+            for (var i = 0; i < floors && hideoutSave.Facilities is { } savedFacilities && i < savedFacilities.Length; i++)
             {
-                operatorId = Resolve(op.InstanceId);
-                if (operatorId is not null) placed.Add(operatorId);
+                if (savedFacilities[i] is { } facility && pack.FindFacility(facility) is null)
+                    throw new SaveFormatException($"세이브의 아지트 시설 '{facility}'가 시설 마스터에 없습니다.");
+                facilities[i] = savedFacilities[i];
             }
-            else operatorId = ResolveUnused(op.CharacterCode);
-            if (operatorId is null)
-                throw new SaveFormatException($"세이브의 오퍼레이터 캐릭터 '{(string.IsNullOrEmpty(op.InstanceId) ? op.CharacterCode : op.InstanceId)}'가 보유 캐릭터에 없습니다.");
-            if (!operators.TryAdd((op.FloorOrder, op.Built, op.SlotCode), operatorId))
-                throw new SaveFormatException($"세이브의 오퍼레이터 슬롯 (층 {op.FloorOrder}, 슬롯 {op.SlotCode})이 두 번 있습니다.");
+
+            var operators = new Dictionary<(long, bool, long), string>();
+            foreach (var op in hideoutSave.Operators ?? [])
+            {
+                if (op.FloorOrder < 1 || op.FloorOrder > floors)
+                    throw new SaveFormatException($"세이브의 오퍼레이터 층 순서 '{op.FloorOrder}'가 1~{floors} 범위를 벗어납니다.");
+                string? operatorId;
+                if (!string.IsNullOrEmpty(op.InstanceId))
+                {
+                    operatorId = Resolve(op.InstanceId);
+                    if (operatorId is not null) placed.Add(operatorId);
+                }
+                else operatorId = ResolveUnused(op.CharacterCode);
+                if (operatorId is null)
+                    throw new SaveFormatException($"세이브의 오퍼레이터 캐릭터 '{(string.IsNullOrEmpty(op.InstanceId) ? op.CharacterCode : op.InstanceId)}'가 보유 캐릭터에 없습니다.");
+                if (!operators.TryAdd((op.FloorOrder, op.Built, op.SlotCode), operatorId))
+                    throw new SaveFormatException($"세이브의 오퍼레이터 슬롯 (층 {op.FloorOrder}, 슬롯 {op.SlotCode})이 두 번 있습니다.");
+            }
+            operatorIds.AddRange(operators.Values);
+            hideoutLoaded[hideoutCode] = (floorParties, facilities, operators);
         }
-        var operatorIds = operators.Values.ToList();
         if (operatorIds.GroupBy(c => c).Any(g => g.Count() > 1))
             throw new SaveFormatException("세이브에서 같은 캐릭터가 오퍼레이터 슬롯 두 곳 이상에 있습니다(한 곳에만 있을 수 있습니다).");
         if (operatorIds.Any(c => allIds.Contains(c)))
@@ -1939,12 +1983,17 @@ public sealed partial class GameSession
             AssistId = assistId,
             TurnCount = save.Turn ?? pack.FirstTurn.TurnCount,
         };
-        session.hideoutParties.Clear();
-        session.hideoutParties.AddRange(floorParties);
-        foreach (var (key, id) in operators) session.hideoutOperators[key] = id;
+        session.currentHideoutCode = currentHideout;
+        foreach (var (hideoutCode, (floorParties, facilities, operators)) in hideoutLoaded)
+        {
+            var state = session.HideoutStateOf(hideoutCode);
+            state.Parties.Clear();
+            state.Parties.AddRange(floorParties);
+            foreach (var (key, id) in operators) state.Operators[key] = id;
+            state.Facilities.Clear();
+            state.Facilities.AddRange(facilities);
+        }
         foreach (var (dungeon, ids) in captiveIds) session.DungeonCaptives[dungeon] = ids.Select(id => UnitOfId(id, false)).ToList();
-        session.hideoutFacilities.Clear();
-        session.hideoutFacilities.AddRange(facilities);
         return session;
     }
 

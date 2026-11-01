@@ -552,7 +552,7 @@
                 break;
 
             case Screen.Hideout:
-                <h2>아지트</h2>
+                <h2>@(session.CurrentHideoutName is { } hideoutName ? $"아지트: {hideoutName}" : "아지트")</h2>
                 @if (session.Message is not null)
                 {
                     <p class="message" role="status">@session.Message</p>
@@ -564,7 +564,7 @@
                 break;
 
             case Screen.FacilityCheck:
-                <h2>시설 확인</h2>
+                <h2>@(session.CurrentHideoutName is { } checkHideoutName ? $"시설 확인: {checkHideoutName}" : "시설 확인")</h2>
                 @* 읽기만 하는 화면: 층마다 기본 시설, 지은 시설의 오퍼레이터와 방어력, 생산 내용 *@
                 <div class="facility-check">
                     @foreach (var line in session.FacilityCheckLines)

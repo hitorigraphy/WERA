@@ -25,8 +25,71 @@ public sealed partial class GameSession
     /// <summary>한 번에 보이는 줄 수.</summary>
     public const int HideoutVisibleRows = 3;
 
-    /// <summary>층별 방어 파티(보스 슬롯). 맨 앞이 가장 새 층(1층)이다. 이름은 층 이름("n층")이라 바꿀 수 없다.</summary>
-    readonly List<PartyInstance> hideoutParties = [PartyInstance.Empty("")];
+    // 아지트마다 따로 가지는 상태: 층별 방어 파티, 지은 시설, 오퍼레이터, 보이는 범위. 아지트 마스터가 없으면 아지트 하나(GamePack.DefaultHideoutCode)뿐이다.
+    sealed class HideoutState
+    {
+        /// <summary>층별 방어 파티(보스 슬롯). 맨 앞이 가장 새 층(1층)이다. 이름은 층 이름("n층")이라 바꿀 수 없다.</summary>
+        public List<PartyInstance> Parties { get; } = [PartyInstance.Empty("")];
+
+        /// <summary>층별로 유저가 지은(가운데 슬롯) 시설 코드(없으면 null). 파티와 같은 순서이고 층이 생기면 같이 늘어난다.</summary>
+        public List<long?> Facilities { get; } = [null];
+
+        /// <summary>시설의 오퍼레이터 슬롯에 선 캐릭터: (층이 생긴 순서, 지은 시설인가(아니면 기본 시설), 오퍼레이터 슬롯 코드) → 캐릭터 인스턴스 ID.</summary>
+        public Dictionary<(long FloorOrder, bool Built, long Slot), string> Operators { get; } = [];
+
+        /// <summary>보이는 첫 줄의 위치: -1은 "확장 가능" 줄, 0은 1층, 1은 2층…</summary>
+        public int ViewTop { get; set; } = -1;
+    }
+
+    // 아지트 코드 → 그 아지트의 상태(쓰기 시작할 때 만든다). 현재 아지트(currentHideoutCode, 없으면 시작 아지트)만 화면, 방어전, 시설 생산이 본다.
+    readonly Dictionary<long, HideoutState> hideoutStates = [];
+    long? currentHideoutCode;
+
+    /// <summary>지금 쓰는 아지트의 코드(처음에는 게임 설정 StartHideoutCode). 이벤트의 SwitchHideout 흐름이나 <see cref="SwitchHideout"/>으로 바꾼다.</summary>
+    public long CurrentHideoutCode => currentHideoutCode ?? Pack.StartHideoutCode;
+
+    /// <summary>현재 아지트의 이름. 아지트가 둘 이상일 때만 있다(하나뿐이면 null).</summary>
+    public string? CurrentHideoutName => Pack.Hideouts is { Count: > 1 } ? Pack.HideoutNameOf(CurrentHideoutCode) : null;
+
+    HideoutState HideoutStateOf(long code)
+    {
+        if (!hideoutStates.TryGetValue(code, out var state)) hideoutStates[code] = state = new HideoutState();
+        return state;
+    }
+
+    HideoutState CurrentHideout => HideoutStateOf(CurrentHideoutCode);
+
+    /// <summary>현재 아지트의 층별 방어 파티.</summary>
+    List<PartyInstance> hideoutParties => CurrentHideout.Parties;
+
+    /// <summary>현재 아지트의 층별로 지은 시설.</summary>
+    List<long?> hideoutFacilities => CurrentHideout.Facilities;
+
+    /// <summary>현재 아지트의 오퍼레이터.</summary>
+    Dictionary<(long FloorOrder, bool Built, long Slot), string> hideoutOperators => CurrentHideout.Operators;
+
+    /// <summary>모든 아지트의 방어 파티(캐릭터는 어느 아지트의 파티나 오퍼레이터 슬롯 한 곳에만 있을 수 있다).</summary>
+    IEnumerable<PartyInstance> AllHideoutParties => hideoutStates.Values.SelectMany(s => s.Parties);
+
+    /// <summary>모든 아지트의 오퍼레이터 슬롯에 선 캐릭터 인스턴스 ID.</summary>
+    IEnumerable<string> AllHideoutOperatorIds => hideoutStates.Values.SelectMany(s => s.Operators.Values);
+
+    /// <summary>
+    /// 현재 아지트를 바꾼다: 아지트 마스터에 있는 코드(마스터가 없으면 1)여야 한다. 모든 아지트의 상태는 그대로 남고 방어전과 시설 생산은 새 현재 아지트에서만 일어난다.
+    /// 이미 그 아지트면 아무 일도 없이 true, 없는 아지트면 false.
+    /// </summary>
+    public bool SwitchHideout(long hideoutCode)
+    {
+        if (!Pack.HideoutCodes.Contains(hideoutCode)) return false;
+        if (hideoutCode == CurrentHideoutCode) return true;
+        currentHideoutCode = hideoutCode;
+        hideoutEditFloor = null;
+        selectedFacilityCode = null;
+        return true;
+    }
+
+    /// <summary>이 게임팩의 아지트 코드들.</summary>
+    public IReadOnlyList<long> HideoutCodes => Pack.HideoutCodes;
 
     /// <summary>파티 설정 화면에서 편집 중인 방어 파티의 층(0이 1층). null이면 보통 파티를 편집한다.</summary>
     int? hideoutEditFloor;
@@ -34,8 +97,8 @@ public sealed partial class GameSession
     /// <summary>파티 설정 화면이 방어 파티를 편집하는 중인가(파티 선택 버튼과 이름 바꾸기가 없고 돌아가기는 아지트).</summary>
     public bool IsHideoutPartyEdit => hideoutEditFloor is not null;
 
-    /// <summary>모든 파티: 보통 파티들과 층별 방어 파티들.</summary>
-    IEnumerable<PartyInstance> AllParties => Parties.Concat(hideoutParties);
+    /// <summary>모든 파티: 보통 파티들과 모든 아지트의 층별 방어 파티들.</summary>
+    IEnumerable<PartyInstance> AllParties => Parties.Concat(AllHideoutParties);
 
     /// <summary>이 캐릭터 인스턴스가 지금 보는 파티가 아닌 다른 파티(방어 파티 포함)에 있는가.</summary>
     bool InOtherParty(string instanceId) => AllParties.Any(p => !ReferenceEquals(p, PartyInstance) && IndexOfId(p, instanceId) >= 0);
@@ -46,12 +109,6 @@ public sealed partial class GameSession
     /// <summary>이 층의 방어 파티의 리더 캐릭터 인스턴스의 ID(보스 슬롯에 보인다). 리더가 없으면 null.</summary>
     string? HideoutLeaderOf(int floor) => hideoutParties[floor].Units.OfType<PartyUnit>().FirstOrDefault(u => u.IsLeader) is { } leader ? IdOf(leader) : null;
 
-    /// <summary>층별로 유저가 지은(가운데 슬롯) 시설 코드(없으면 null). <see cref="hideoutBosses"/>와 같은 순서이고 층이 생기면 같이 늘어난다.</summary>
-    readonly List<long?> hideoutFacilities = [null];
-
-    /// <summary>시설의 오퍼레이터 슬롯에 선 캐릭터: (층이 생긴 순서, 지은 시설인가(아니면 기본 시설), 오퍼레이터 슬롯 코드) → 캐릭터 인스턴스 ID.</summary>
-    readonly Dictionary<(long FloorOrder, bool Built, long Slot), string> hideoutOperators = [];
-
     /// <summary>오퍼레이터 슬롯을 고르는 중인 슬롯(오퍼레이터 선택 화면에서만 있다): 층은 CurrentSlot, 지은 시설인가, 슬롯 코드.</summary>
     bool hideoutOperatorBuilt;
     long hideoutOperatorSlot;
@@ -59,8 +116,11 @@ public sealed partial class GameSession
     /// <summary>시설을 고르는 중인 시설의 코드(재료 그룹을 고르는 화면에서만 있다).</summary>
     long? selectedFacilityCode;
 
-    /// <summary>보이는 첫 줄의 위치: -1은 "확장 가능" 줄, 0은 1층, 1은 2층…</summary>
-    int hideoutViewTop = -1;
+    int hideoutViewTop
+    {
+        get => CurrentHideout.ViewTop;
+        set => CurrentHideout.ViewTop = value;
+    }
 
     /// <summary>지금 층 수(처음에는 1).</summary>
     public int HideoutFloorCount => hideoutParties.Count;
@@ -76,7 +136,7 @@ public sealed partial class GameSession
 
     /// <summary>이 층의 기본 시설(층계 마스터, 계층 슬롯). 정하지 않았으면 null.</summary>
     public FacilityEntry? BaseFacilityOfFloor(int floor) =>
-        Pack.BaseFacilityOf(HideoutFloorOrderOf(floor)) is { } code ? Pack.FindFacility(code) : null;
+        Pack.BaseFacilityOf(CurrentHideoutCode, HideoutFloorOrderOf(floor)) is { } code ? Pack.FindFacility(code) : null;
 
     /// <summary>이 층의 가운데 슬롯에 지은 시설. 없으면 null.</summary>
     public FacilityEntry? BuiltFacilityOfFloor(int floor) =>
@@ -94,7 +154,7 @@ public sealed partial class GameSession
     int HideoutViewTopMax => Math.Max(-1, HideoutFloorCount - HideoutVisibleRows);
 
     /// <summary>다음 확장에 쓸 수 있는 재료 그룹들. 비어 있으면 더 확장할 수 없다.</summary>
-    public IReadOnlyList<HideoutExpandGroup> HideoutExpandGroups => Pack.HideoutExpandGroupsOf(HideoutFloorCount);
+    public IReadOnlyList<HideoutExpandGroup> HideoutExpandGroups => Pack.HideoutExpandGroupsOf(CurrentHideoutCode, HideoutFloorCount);
 
     /// <summary>이 그룹의 재료를 모두 갖췄는가(장비에 끼워 둔 것은 셈에서 뺀다).</summary>
     public bool CanAffordHideoutExpand(HideoutExpandGroup group) =>
@@ -120,7 +180,8 @@ public sealed partial class GameSession
 
     void RemoveFromHideout(string instanceId)
     {
-        foreach (var key in hideoutOperators.Where(o => o.Value == instanceId).Select(o => o.Key).ToList()) hideoutOperators.Remove(key);
+        foreach (var state in hideoutStates.Values)
+            foreach (var key in state.Operators.Where(o => o.Value == instanceId).Select(o => o.Key).ToList()) state.Operators.Remove(key);
     }
 
     /// <summary>아지트 화면의 보이는 세 줄(위에서부터).</summary>
@@ -320,7 +381,7 @@ public sealed partial class GameSession
         var mine = HideoutOperatorInstanceOf(floor, hideoutOperatorBuilt, hideoutOperatorSlot);
         return OwnedByMasterOrder().Where(x => mine != x.Instance.InstanceId && CanOperate(x.Instance.InstanceId, hideoutOperatorSlot))
             .Select(x => new CharacterListItem(x.Entry.Code, x.Entry.Name,
-                HideoutFloorOf(x.Instance.InstanceId) >= 0 || hideoutOperators.ContainsValue(x.Instance.InstanceId) ? CharacterListColor.Green : CharacterListColor.White, x.Instance.InstanceId)).ToList();
+                IsPlaced(x.Instance.InstanceId) ? CharacterListColor.Green : CharacterListColor.White, x.Instance.InstanceId)).ToList();
     }
 
     Screen HideoutOperatorReturnScreen => hideoutOperatorBuilt ? Screen.HideoutFacilityDetail : Screen.HideoutFloorDetail;
@@ -388,7 +449,7 @@ public sealed partial class GameSession
     public DefenseEnemy? RollDefenseEnemy()
     {
         if (Pack.ThreatFlagCode is not { } flag) return null;
-        foreach (var enemy in (Pack.DefenseEnemies ?? []).OrderBy(e => e.Priority))
+        foreach (var enemy in Pack.DefenseEnemiesOf(CurrentHideoutCode).OrderBy(e => e.Priority))
         {
             if (Threat < enemy.MinThreat || !RandomJump.Hit(enemy.Chance, RandomJump.Roll(100, NextRandom))) continue;
             if (!CanCreateEnemyParty(enemy.PresetPartyCode)) return null;

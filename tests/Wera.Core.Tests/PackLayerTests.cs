@@ -297,7 +297,7 @@ public class PackLayerTests
             if (!PackMasterKeys.All.TryGetValue(path, out var spec)) { problems.Add($"{path}: 등록 안 됨"); continue; }
             var header = Tsv.Parse(File.ReadAllText(file))[0];
             foreach (var column in spec.Key.Concat(spec.Alternates.SelectMany(a => a)))
-                if (!header.Contains(column)) problems.Add($"{path}: 키 열 '{column}'이(가) 헤더에 없음");
+                if (!header.Contains(column) && spec.OptionalKey?.Contains(column) != true) problems.Add($"{path}: 키 열 '{column}'이(가) 헤더에 없음");
         }
         Assert.True(problems.Count == 0, string.Join("\n", problems));
     }

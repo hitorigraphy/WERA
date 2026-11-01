@@ -44,6 +44,9 @@ public sealed class EventFlowCircuit
     /// <summary>ReleaseCaptives 칸이 부르는 동작. 세션이 던전 이벤트에서만 넘기며, null이면 ReleaseCaptives 칸은 아무 일도 하지 않는다.</summary>
     public Action? OnReleaseCaptives { get; init; }
 
+    /// <summary>SwitchHideout 칸이 부르는 동작(아지트 코드). 세션이 넘기며, null이면 SwitchHideout 칸은 아무 일도 하지 않는다.</summary>
+    public Action<long>? OnSwitchHideout { get; init; }
+
     /// <summary>끝났는가(끝난 뒤의 <see cref="Advance"/>는 계속 Finished를 돌려준다).</summary>
     public bool IsFinished { get; private set; }
 
@@ -127,6 +130,9 @@ public sealed class EventFlowCircuit
                 case EventFlowType.JumpToSubmodule:
                     Call(flow.Param1);
                     break;
+                case EventFlowType.SwitchHideout:
+                    OnSwitchHideout?.Invoke(flow.Param1);
+                    break;
                 case EventFlowType.SetFlag:
                     PlayerFlagOps.Set(flags, flow.Param1, flow.Param2);
                     break;
@@ -186,6 +192,9 @@ public sealed partial class GameSession
     public EventFlowCircuit? StartEvent(long eventCode)
     {
         if (Pack.FindEvent(eventCode) is not { } gameEvent || !gameEvent.IsAvailable(PlayerFlags)) return null;
-        return new EventFlowCircuit(Pack, eventCode, PlayerFlags, AddInventory, CountInventory, CharacterHasTag, UniqueItemHasTag, NextRandom);
+        return new EventFlowCircuit(Pack, eventCode, PlayerFlags, AddInventory, CountInventory, CharacterHasTag, UniqueItemHasTag, NextRandom)
+        {
+            OnSwitchHideout = code => SwitchHideout(code),
+        };
     }
 }

@@ -181,7 +181,7 @@ public sealed partial class GamePack
         if (keyed)
             foreach (var (layer, rows) in tables)
                 foreach (var column in spec.Key.Concat(spec.Alternates.SelectMany(a => a)))
-                    if (!rows[0].Contains(column))
+                    if (!rows[0].Contains(column) && spec.OptionalKey?.Contains(column) != true)
                         throw new PackFormatException($"{path}: 팩 '{layer}'의 헤더에 키 열 '{column}'이(가) 없어 합칠 수 없습니다.");
 
         var result = new List<Dictionary<string, string>?>();
@@ -239,9 +239,9 @@ public sealed partial class GamePack
     static string KeyOf(string[] columns, Dictionary<string, string> row) =>
         string.Join('\u001f', columns.Select(c =>
         {
-            var cell = row[c].Trim();
+            var cell = row.GetValueOrDefault(c, "").Trim();
             if (long.TryParse(cell, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n)) return n.ToString(CultureInfo.InvariantCulture);
-            return c == "local_tile_text" ? row[c] : cell.ToLowerInvariant();
+            return c == "local_tile_text" ? row.GetValueOrDefault(c, "") : cell.ToLowerInvariant();
         }));
 
     static string Quote(string cell) =>

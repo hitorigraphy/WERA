@@ -44,7 +44,7 @@ public sealed partial class GameSession
 
     /// <summary>이 인스턴스가 파티(방어 파티 포함)나 오퍼레이터 슬롯 어딘가에 서 있는가.</summary>
     bool IsPlaced(string instanceId) =>
-        AllParties.Any(p => IndexOfId(p, instanceId) >= 0) || hideoutOperators.ContainsValue(instanceId);
+        AllParties.Any(p => IndexOfId(p, instanceId) >= 0) || AllHideoutOperatorIds.Contains(instanceId);
 
     /// <summary>
     /// 코드로 캐릭터를 가리켜 어딘가에 새로 세울 때 고르는 인스턴스: 아직 파티와 오퍼레이터 슬롯 어디에도 서지 않은 첫 인스턴스,

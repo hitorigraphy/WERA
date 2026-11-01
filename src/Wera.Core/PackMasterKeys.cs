@@ -17,7 +17,8 @@ public enum MasterMergeKind
 /// (나중 팩의 행이 앞선 팩의 행과 이 묶음 가운데 어느 것으로든 같으면 그 행을 덮어쓴다. 예: 이미지 마스터의 (kind, target_code, variation_number)).
 /// <paramref name="ColumnOrder"/>가 있으면 합친 마스터의 열을 그 순서로 놓는다(로더가 선택 열의 위치를 정해 둔 마스터용; 목록에 없는 열은 그 뒤에 처음 나온 순서로).
 /// </summary>
-public sealed record MasterKeySpec(MasterMergeKind Kind, string[] Key, string[][] Alternates, string[]? ColumnOrder = null);
+/// <paramref name="OptionalKey"/>는 <paramref name="Key"/>(와 <paramref name="Alternates"/>)의 열 가운데 레이어의 헤더에 없어도 되는 열이다(없는 열은 빈 칸으로 보고 키에 넣는다. 예: 아지트 마스터들의 hideout_code).
+public sealed record MasterKeySpec(MasterMergeKind Kind, string[] Key, string[][] Alternates, string[]? ColumnOrder = null, string[]? OptionalKey = null);
 
 /// <summary>
 /// 모든 마스터 파일의 병합 규칙(<see cref="MasterKeySpec"/>) 목록. 모드 팩(중첩 팩)을 합칠 때 같은 키의 행이 나중 팩에 있으면 덮어쓰는 데 쓴다.
@@ -27,6 +28,9 @@ public sealed record MasterKeySpec(MasterMergeKind Kind, string[] Key, string[][
 public static class PackMasterKeys
 {
     static MasterKeySpec Keyed(params string[] key) => new(MasterMergeKind.Keyed, key, []);
+
+    /// <summary>선택 열 hideout_code가 키의 앞에 붙는 마스터(아지트별 행).</summary>
+    static MasterKeySpec KeyedHideout(params string[] key) => new(MasterMergeKind.Keyed, ["hideout_code", .. key], [], null, ["hideout_code"]);
 
     static MasterKeySpec KeyedAlt(string[] key, params string[][] alternates) => new(MasterMergeKind.Keyed, key, alternates);
 
@@ -165,8 +169,9 @@ public static class PackMasterKeys
         [GamePack.FacilityMasterPath] = Keyed("code"),
         [GamePack.FacilityConditionMasterPath] = Keyed("facility_code", "group_number", "flag_code"),
         [GamePack.FacilityBuildMasterPath] = Keyed("facility_code", "group_code", "item_code"),
-        [GamePack.HideoutFloorMasterPath] = Keyed("floor_order"),
-        [GamePack.HideoutExpandMasterPath] = Keyed("expand_count", "group_code", "item_code"),
+        [GamePack.HideoutMasterPath] = Keyed("hideout_code"),
+        [GamePack.HideoutFloorMasterPath] = KeyedHideout("floor_order"),
+        [GamePack.HideoutExpandMasterPath] = KeyedHideout("expand_count", "group_code", "item_code"),
         [GamePack.OperatorSlotMasterPath] = Keyed("code"),
         [GamePack.FacilityOperatorSlotMasterPath] = Keyed("facility_code", "operator_slot_code"),
         [GamePack.OperatorSlotTagMasterPath] = Keyed("operator_slot_code", "tag_code"),
@@ -174,7 +179,8 @@ public static class PackMasterKeys
         [GamePack.DefenseFlowMasterPath] = Keyed("operator_slot_code", "flow_number"),
         [GamePack.FacilityDefenseMasterPath] = Keyed("facility_code"),
         // 코드가 키이고 priority도 따로 유일해야 한다.
-        [GamePack.DefenseEnemyMasterPath] = KeyedAlt(["code"], ["priority"]),
+        // (아지트, code)가 키이고 (아지트, priority)도 따로 유일해야 한다(공용 행과 그 아지트 전용 행 사이에서도).
+        [GamePack.DefenseEnemyMasterPath] = new MasterKeySpec(MasterMergeKind.Keyed, ["hideout_code", "code"], [["hideout_code", "priority"]], null, ["hideout_code"]),
 
         // 이미지: image_code가 키이고 (kind, target_code, variation_number)도 따로 유일해야 한다.
         [GamePack.ImageMasterPath] = KeyedAlt(["image_code"], ["kind", "target_code", "variation_number"]),

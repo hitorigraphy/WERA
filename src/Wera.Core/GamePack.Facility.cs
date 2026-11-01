@@ -15,10 +15,11 @@ public sealed record FacilityBuildCost(long FacilityCode, long GroupCode, long I
 public sealed record FacilityBuildGroup(long GroupCode, IReadOnlyList<FacilityBuildCost> Costs);
 
 /// <summary>아지트 층계 마스터의 한 행: FloorOrder번째로 생긴 층(1은 처음부터 있는 층, 2는 첫 확장으로 생긴 층…)의 기본 시설.</summary>
-public sealed record HideoutFloorEntry(long FloorOrder, long FacilityCode);
+/// <param name="HideoutCode">이 행을 쓰는 아지트(null이면 모든 아지트가 함께 쓴다).</param>
+public sealed record HideoutFloorEntry(long FloorOrder, long FacilityCode, long? HideoutCode = null);
 
 // facility_master(code, name)와 facility_condition_master(facility_code, group_number, flag_code, condition_type, condition_value; 복합키 (facility_code, group_number, flag_code)),
-// facility_build_master(facility_code, group_code, item_code; 세 열이 키, amount), hideout_floor_master(floor_order(키), facility_code). 모두 선택이다.
+// facility_build_master(facility_code, group_code, item_code; 세 열이 키, amount), hideout_floor_master(floor_order(키), facility_code, 선택 열 hideout_code; (hideout_code, floor_order)가 키). 모두 선택이다.
 public sealed partial class GamePack
 {
     public const string FacilityMasterPath = "master/facility_master_v1.tsv";
@@ -42,8 +43,12 @@ public sealed partial class GamePack
         (FacilityBuildCosts ?? []).Where(c => c.FacilityCode == facilityCode).GroupBy(c => c.GroupCode)
             .Select(g => new FacilityBuildGroup(g.Key, g.ToList())).ToList();
 
-    /// <summary>FloorOrder번째로 생긴 층의 기본 시설 코드. 정하지 않았으면 null.</summary>
-    public long? BaseFacilityOf(long floorOrder) => HideoutFloors?.FirstOrDefault(f => f.FloorOrder == floorOrder)?.FacilityCode;
+    /// <summary>시작 아지트에서 FloorOrder번째로 생긴 층의 기본 시설 코드. 정하지 않았으면 null.</summary>
+    public long? BaseFacilityOf(long floorOrder) => BaseFacilityOf(StartHideoutCode, floorOrder);
+
+    /// <summary>이 아지트에서 FloorOrder번째로 생긴 층의 기본 시설 코드(그 아지트 전용 행이 공용 행을 대신한다). 정하지 않았으면 null.</summary>
+    public long? BaseFacilityOf(long hideoutCode, long floorOrder) =>
+        ForHideout(HideoutFloors ?? [], hideoutCode, f => f.HideoutCode, f => f.FloorOrder).FirstOrDefault(f => f.FloorOrder == floorOrder)?.FacilityCode;
 
     /// <summary>시설 설치 재료 마스터: 시설은 시설 마스터에, 아이템은 커먼 아이템 인벤토리에 있어야 하고 개수는 1 이상이다. 세 열이 키라 같은 키를 두 번 쓸 수 없다.</summary>
     static List<FacilityBuildCost>? LoadFacilityBuildCosts(ZipArchive zip, List<FacilityEntry>? facilities, List<ItemEntry>? items)
@@ -78,8 +83,8 @@ public sealed partial class GamePack
         return rows;
     }
 
-    /// <summary>아지트 층계 마스터: 층 순서는 1 이상이고 한 번씩만, 시설은 시설 마스터에 있어야 한다.</summary>
-    static List<HideoutFloorEntry>? LoadHideoutFloors(ZipArchive zip, List<FacilityEntry>? facilities)
+    /// <summary>아지트 층계 마스터: 층 순서는 1 이상이고 (아지트, 층 순서)마다 한 번씩만, 시설은 시설 마스터에 있어야 한다. 선택 열 hideout_code는 <see cref="HideoutBody"/>를 따른다.</summary>
+    static List<HideoutFloorEntry>? LoadHideoutFloors(ZipArchive zip, List<FacilityEntry>? facilities, IReadOnlySet<long>? hideoutCodes)
     {
         const string file = HideoutFloorMasterPath;
         var text = TryReadEntry(zip, file);
@@ -88,18 +93,18 @@ public sealed partial class GamePack
 
         var facilityCodes = facilities.Select(f => f.Code).ToHashSet();
         var rows = new List<HideoutFloorEntry>();
-        var seen = new HashSet<long>();
-        foreach (var r in Body(file, text, "floor_order", "facility_code"))
+        var seen = new HashSet<(long?, long)>();
+        foreach (var (r, hideout) in HideoutBody(file, text, hideoutCodes, "floor_order", "facility_code"))
         {
             var order = ParseLong(file, "층 순서", r[0]);
             var facility = ParseLong(file, $"층 {order}의 기본 시설 코드", r[1]);
             if (order < 1)
                 throw new PackFormatException($"{file}: 층 순서 '{order}'는 1 이상이어야 합니다.");
-            if (!seen.Add(order))
-                throw new PackFormatException($"{file}: 층 순서 '{order}'가 두 번 있습니다.");
+            if (!seen.Add((hideout, order)))
+                throw new PackFormatException($"{file}: {HideoutLabel(hideout)}층 순서 '{order}'가 두 번 있습니다.");
             if (!facilityCodes.Contains(facility))
                 throw new PackFormatException($"{file}: 층 {order}의 기본 시설 '{facility}'가 {FacilityMasterPath}에 없습니다.");
-            rows.Add(new HideoutFloorEntry(order, facility));
+            rows.Add(new HideoutFloorEntry(order, facility, hideout));
         }
         return rows;
     }

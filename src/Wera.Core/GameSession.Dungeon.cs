@@ -276,6 +276,7 @@ public sealed partial class GameSession
             Pack.DungeonEventFlowsOf(dungeonEventCode), Pack.DungeonEventSubmodules)
         {
             OnReleaseCaptives = () => { if (CurrentDungeonCode is { } dungeon) RescueCaptives(dungeon); },
+            OnSwitchHideout = code => SwitchHideout(code),
         };
         ShowNextEventStep();
     }

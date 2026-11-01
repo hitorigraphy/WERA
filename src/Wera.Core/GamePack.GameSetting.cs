@@ -39,6 +39,8 @@ public enum GameSettingType
     CapturedEnemyTagCode = 11,
     /// <summary>[구금] 태그 중 구금된 아군을 뜻하는 것의 코드(Long, 1 이상, 행이 없으면 구금된 아군 기능이 없다). 태그 마스터에 있어야 한다.</summary>
     CapturedAllyTagCode = 12,
+    /// <summary>게임을 시작할 때의 현재 아지트 코드(Long, 1 이상, 아지트 마스터에 있어야 한다). 행이 없으면 아지트 마스터의 첫 행(마스터가 없으면 아지트 1)이다.</summary>
+    StartHideoutCode = 13,
 }
 
 /// <summary>
@@ -146,6 +148,7 @@ public sealed partial class GamePack
         [GameSettingType.MainCurrencyTagCode] = (GameSettingValueType.Long, 1),
         [GameSettingType.CapturedEnemyTagCode] = (GameSettingValueType.Long, 1),
         [GameSettingType.CapturedAllyTagCode] = (GameSettingValueType.Long, 1),
+        [GameSettingType.StartHideoutCode] = (GameSettingValueType.Long, 1),
     };
 
     public GameSettingEntry? FindGameSetting(GameSettingType type) => GameSettings?.FirstOrDefault(s => s.SettingType == type);

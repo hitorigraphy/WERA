@@ -157,6 +157,9 @@ public sealed partial class GamePack
         var attributes = LoadAttributes(zip);
         var xpTypes = LoadXpTypes(zip);
         var gameSettings = LoadGameSettings(zip);
+        var hideouts = LoadHideouts(zip);
+        var startHideout = ResolveStartHideout(gameSettings, hideouts);
+        var hideoutCodes = hideouts?.Select(h => h.Code).ToHashSet();
         var characterInventory = LoadCharacterInventory(zip, attributes, xpTypes);
         var uniqueItems = LoadUniqueItems(zip);
         var debugStartUniqueItems = LoadDebugStartUniqueItems(meta, uniqueItems);
@@ -244,6 +247,7 @@ public sealed partial class GamePack
             skills?.Select(s => s.Code), statusEffects?.Select(s => s.Code), attributes?.Select(a => a.Code), facilities?.Select(f => f.Code));
         var flowSubmodules = LoadFlowSubmodules(zip, advs, battles, tags, inventory, statuses, facilityOperatorSlots,
             eventFlows, dungeonEventFlows, advFlows, communicationSoloFlows, communicationDuoFlows, communicationDefaultFlows, facilityFlows, defenseFlows);
+        CheckSwitchHideoutCalls(eventFlows, dungeonEventFlows, flowSubmodules.Event, flowSubmodules.DungeonEvent, hideouts);
         var skillStatuses = LoadOwnerStatuses(zip, SkillStatusMasterPath, "skill_code", "스킬", SkillMasterPath, skills?.Select(s => s.Code), statuses);
         var uniqueItemStatuses = LoadOwnerStatuses(zip, UniqueItemStatusMasterPath, "item_code", "유니크 아이템", UniqueItemInventoryMasterPath, uniqueItems?.Select(u => u.ItemCode), statuses);
 
@@ -313,14 +317,16 @@ public sealed partial class GamePack
             SynthesisFlows = synthesisFlows,
             SmeltFlows = smeltFlows,
             ModSlots = modSlots,
-            HideoutExpandCosts = LoadHideoutExpandCosts(zip, itemInventory),
+            Hideouts = hideouts,
+            StartHideoutCode = startHideout,
+            HideoutExpandCosts = LoadHideoutExpandCosts(zip, itemInventory, hideoutCodes),
             Facilities = facilities,
             FacilityBuildCosts = LoadFacilityBuildCosts(zip, facilities, itemInventory),
-            HideoutFloors = LoadHideoutFloors(zip, facilities),
+            HideoutFloors = LoadHideoutFloors(zip, facilities, hideoutCodes),
             OperatorSlots = operatorSlots,
             FacilityOperatorSlots = facilityOperatorSlots,
             OperatorSlotTags = LoadOperatorSlotTags(zip, operatorSlots, tags),
-            DefenseEnemies = LoadDefenseEnemies(zip, presetParties, gameSettings),
+            DefenseEnemies = LoadDefenseEnemies(zip, presetParties, gameSettings, hideoutCodes),
             DefenseFlows = defenseFlows,
             FacilityDefenses = LoadFacilityDefenses(zip, facilities),
             FacilityFlows = facilityFlows,
@@ -860,9 +866,12 @@ public sealed partial class GamePack
         TryReadEntry(zip, name) ?? throw new PackFormatException($"게임팩에 '{name}'이 없습니다.");
 
     /// <summary>헤더를 검사하고 데이터 행만 반환한다. 열이 모자란 행은 빈 셀로 채운다.</summary>
-    static IEnumerable<string[]> Body(string file, string tsv, params string[] header)
+    static IEnumerable<string[]> Body(string file, string tsv, params string[] header) =>
+        BodyRows(file, Tsv.WithoutMemo(Tsv.Parse(tsv)), header);
+
+    /// <summary><see cref="Body"/>와 같지만 이미 메모 열을 뺀 행 목록(첫 줄이 헤더)을 받는다.</summary>
+    static IEnumerable<string[]> BodyRows(string file, List<string[]> rows, string[] header)
     {
-        var rows = Tsv.WithoutMemo(Tsv.Parse(tsv));
         if (rows.Count == 0 || !rows[0].Take(header.Length).SequenceEqual(header))
             throw new PackFormatException($"{file}: 헤더가 '{string.Join("\\t", header)}'이어야 합니다.");
         foreach (var raw in rows.Skip(1))

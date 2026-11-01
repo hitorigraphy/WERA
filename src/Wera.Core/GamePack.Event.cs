@@ -5,7 +5,7 @@ namespace Wera.Core;
 
 /// <summary>
 /// 이벤트 흐름 한 칸이 하는 일의 종류. TSV에는 이름(대소문자 무시)으로 적는다.
-/// 숫자 값은 정해진 번호다: None 0, Finish 1, Jump 2, Adv 3, Battle 4, SetFlag 5, ModFlag 6, AddInventory 7, JumpFlagEqual 8, JumpFlagNotEqual 9, JumpFlagGreaterThan 10, JumpFlagGreaterOrEqual 11, JumpFlagLessThan 12, JumpFlagLessOrEqual 13, JumpInventoryEqual 14, JumpInventoryNotEqual 15, JumpInventoryGreaterThan 16, JumpInventoryGreaterOrEqual 17, JumpInventoryLessThan 18, JumpInventoryLessOrEqual 19, JumpCharacterHaveTag 20, JumpUniqueItemHaveTag 21, JumpRandom 22, GameOver 23, ReleaseCaptives 24, JumpToSubmodule 25.
+/// 숫자 값은 정해진 번호다: None 0, Finish 1, Jump 2, Adv 3, Battle 4, SetFlag 5, ModFlag 6, AddInventory 7, JumpFlagEqual 8, JumpFlagNotEqual 9, JumpFlagGreaterThan 10, JumpFlagGreaterOrEqual 11, JumpFlagLessThan 12, JumpFlagLessOrEqual 13, JumpInventoryEqual 14, JumpInventoryNotEqual 15, JumpInventoryGreaterThan 16, JumpInventoryGreaterOrEqual 17, JumpInventoryLessThan 18, JumpInventoryLessOrEqual 19, JumpCharacterHaveTag 20, JumpUniqueItemHaveTag 21, JumpRandom 22, GameOver 23, ReleaseCaptives 24, JumpToSubmodule 25, SwitchHideout 26.
 /// </summary>
 public enum EventFlowType
 {
@@ -87,6 +87,12 @@ public enum EventFlowType
     /// 서브모듈 안에서는 쓸 수 없다(서브모듈이 서브모듈을 부를 수 없다). 서브모듈 마스터에 그 코드가 있어야 한다(로드 검증). 값은 부르는 쪽과 공유하는 상태(플래그 등)로 주고받는다.
     /// </summary>
     JumpToSubmodule = 25,
+    /// <summary>
+    /// 현재 아지트를 바꾼다: param_1이 아지트 코드(아지트 마스터. 마스터가 없으면 1)다. 이벤트와 던전 이벤트의 흐름에서 쓰고(서브모듈 안에서도 된다) 다른 흐름 종류에는 없다.
+    /// 전환해도 모든 아지트의 층, 시설, 오퍼레이터, 방어 파티는 그대로이고, 방어전과 시설 생산은 현재 아지트에서만 일어난다. 이미 그 아지트면 아무 일도 없다.
+    /// 플래그에 따라 바꾸려면 앞에 JumpFlag*를 둔다. 인자 2, 3은 쓰이지 않는다.
+    /// </summary>
+    SwitchHideout = 26,
 }
 
 /// <summary>이벤트 마스터의 한 행. 이벤트 조건 마스터의 그룹 규칙(그룹 안은 AND, 그룹끼리는 OR)으로 열리고, 조건이 없으면 늘 열린다.</summary>
