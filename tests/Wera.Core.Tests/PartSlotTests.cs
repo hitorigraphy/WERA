@@ -223,6 +223,15 @@ public class PartSlotTests
         Assert.All(swords, e => Assert.True(e.Enabled));                                    // 서로가 제물이 된다
         Assert.False(s.Entries.First(e => e.Label != "철검" && e.Action == EntryAction.PickEnhanceEquipment).Enabled);   // 다른 코드는 그대로 회색
 
+        var worn = s.UniqueItemInstances.Values.Where(i => i.ItemCode == 8001).Select(i => i.InstanceId).ToList();
+        s.AddCharacter(7001);
+        s.Party[0] = 7001;
+        Assert.True(s.Equip(7001, 1, EquipRef.Unique(worn[0])));                            // 한 개를 장착하면 그 개체는 제물이 못 된다
+        var swordsNow = s.Entries.Where(e => e.Label == "철검").ToList();
+        Assert.Equal([true, false], swordsNow.Select(e => e.Enabled).OrderByDescending(x => x));   // 장착한 개체는 합성할 수 있고(제물은 안 낀 쪽), 안 낀 쪽은 제물이 없어 회색
+        s.AddUniqueItem(8001);
+        Assert.All(s.Entries.Where(e => e.Label == "철검"), e => Assert.True(e.Enabled));   // 안 낀 개체가 둘이면 모두 가능
+
         s.Activate("902");                                                                  // 제련은 제물이 필요 없다
         Assert.All(s.Entries.Where(e => e.Action == EntryAction.PickEnhanceEquipment), e => Assert.True(e.Enabled));
     }

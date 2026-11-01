@@ -183,7 +183,7 @@ public sealed partial class GameSession
 
     /// <summary>
     /// 장비 강화 화면: 가진 장비 목록(장비 확인과 같은 줄)과 그 아래 합성/제련/개조. 셋 중 하나를 먼저 골라 두면 장비를 눌러 그 장비로 진행하고,
-    /// 고르기 전에는 장비 줄이 회색이다. 합성은 제물(같은 코드의 다른 장비 SynthesisSacrificeCount개)이 모자라는 장비도 회색이다.
+    /// 고르기 전에는 장비 줄이 회색이다. 합성은 제물(장착하지 않은 같은 코드의 다른 장비 SynthesisSacrificeCount개)이 모자라는 장비도 회색이다.
     /// </summary>
     IReadOnlyList<ScreenEntry> EquipmentEnhanceEntries() =>
     [
@@ -195,11 +195,11 @@ public sealed partial class GameSession
         new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home),
     ];
 
-    /// <summary>골라 둔 작업이 있고, 합성이면 이 장비 말고 같은 코드의 장비가 제물 수만큼 있다.</summary>
+    /// <summary>골라 둔 작업이 있고, 합성이면 이 장비 말고, 장착하지 않은 같은 코드의 장비가 제물 수만큼 있다.</summary>
     bool CanPickForEnhance(UniqueItemInstance item) => EnhanceMode switch
     {
         null => false,
-        Wera.Core.EnhanceMode.Synthesis => OwnedUniqueItems.Count(o => o.ItemCode == item.ItemCode && o.InstanceId != item.InstanceId) >= Pack.SynthesisSacrificeCount,
+        Wera.Core.EnhanceMode.Synthesis => OwnedUniqueItems.Count(o => o.ItemCode == item.ItemCode && o.InstanceId != item.InstanceId && EquippedCount(EquipRef.Unique(o.InstanceId)) == 0) >= Pack.SynthesisSacrificeCount,
         _ => true,
     };
 
