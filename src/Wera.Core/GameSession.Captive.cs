@@ -4,7 +4,7 @@ namespace Wera.Core;
 // 그 던전(의 인스턴스)에 갇힌다. 장비는 그대로 들고 가고, 구금된 아군은 파티 편성, 캐릭터 확인 등 어디에도 나오지 않으며 그가 낀 유니크 아이템도 나오지 않는다.
 public sealed partial class GameSession
 {
-    /// <summary>던전에 갇힌 구금된 아군: 던전 코드 → 갇힌 유닛들(캐릭터 인스턴스와 그가 낀 장비). 던전을 다른 파티로 클리어해 구출한다(구출은 아직 없다).</summary>
+    /// <summary>던전에 갇힌 구금된 아군: 던전 코드 → 갇힌 유닛들(캐릭터 인스턴스와 그가 낀 장비). 던전을 다른 파티로 클리어(ClearDungeon 타일 효과)해 구출한다.</summary>
     public Dictionary<long, List<PartyUnit>> DungeonCaptives { get; } = [];
 
     // 던전 전투에서 졌을 때 서킷이 구금하라고 한 캐릭터들(전투 화면을 떠날 때 한꺼번에 적용한다).
@@ -31,6 +31,18 @@ public sealed partial class GameSession
         if (!DungeonCaptives.TryGetValue(dungeonCode, out var captives)) DungeonCaptives[dungeonCode] = captives = [];
         captives.Add(new PartyUnit(character.CharacterCode, new Dictionary<long, EquipRef>(unit.Equipment), false, instanceId));
         return AddCharacterTag(instanceId, tag) || CharacterTags(instanceId).Contains(tag);
+    }
+
+    /// <summary>
+    /// 이 던전에 갇힌 구금된 아군을 모두 구출한다: 구금된 아군 태그가 떨어지고 던전의 갇힌 목록에서 빠져 보유 캐릭터로 돌아온다(파티에는 돌아오지 않는다).
+    /// 그들이 낀 장비는 더 이상 갇히지 않아 보유 장비로 돌아온다. 구출한 캐릭터 수를 돌려준다.
+    /// </summary>
+    public int RescueCaptives(long dungeonCode)
+    {
+        if (Pack.CapturedAllyTagCode is not { } tag || !DungeonCaptives.Remove(dungeonCode, out var units)) return 0;
+        foreach (var unit in units)
+            if (IdOf(unit) is { } id) RemoveCharacterTag(id, tag);
+        return units.Count;
     }
 
     /// <summary>진 던전 전투에서 서킷이 구금하라고 한 캐릭터들을 지금 던전에 가둔다(전투 화면을 떠날 때).</summary>

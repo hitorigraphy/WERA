@@ -121,4 +121,34 @@ public class CapturedAllyTests
         Assert.Contains("점프 대상", Assert.Throws<PackFormatException>(() =>
             SamplePackWith(("master/after_battle_lose_effect_master_v1.tsv", Header + "1\tJumpNotInDungeon\t9\t0\t0\n"))).Message);
     }
+
+    [Fact]
+    public void Rescuing_a_dungeon_frees_its_captives_back_to_the_owned_characters_but_not_into_a_party()
+    {
+        var s = LostDungeonWith(Capture);
+        var id = s.InstanceIdOf(7001)!;
+        Assert.Equal(0, s.RescueCaptives(1998));                                     // 다른 던전에는 갇힌 이가 없다
+        Assert.True(s.IsCapturedAlly(id));
+        Assert.Equal(1, s.RescueCaptives(1999));
+        Assert.False(s.IsCapturedAlly(id));
+        Assert.DoesNotContain(11L, s.CharacterTags(id));
+        Assert.Empty(s.DungeonCaptives);
+        Assert.Contains(s.OwnedCharacters, c => c.InstanceId == id);                 // 다시 캐릭터 확인에 나온다
+        Assert.DoesNotContain(s.Parties.SelectMany(p => p.Units).OfType<PartyUnit>(), u => s.InstanceIdOf(u.CharacterCode) == id);   // 파티에는 돌아오지 않는다
+        Assert.Equal(0, s.RescueCaptives(1999));                                     // 두 번째는 할 일이 없다
+    }
+
+    [Fact]
+    public void The_ClearDungeon_tile_effect_is_readable_by_the_pack()
+    {
+        var pack = SamplePackWith(("master/tile_master_v1.tsv", File.ReadAllText(SampleTileMaster()).TrimEnd() + "\n99\tClearDungeon\t0\t0\t0\n"));
+        Assert.Contains(pack.TileEffectsOf(99), e => e.EffectType == TileEffectType.ClearDungeon);
+    }
+
+    static string SampleTileMaster()
+    {
+        var root = AppContext.BaseDirectory;
+        while (!File.Exists(Path.Combine(root, "WERA.slnx"))) root = Path.GetDirectoryName(root)!;
+        return Path.Combine(root, "samples", "sample-pack", "master", "tile_master_v1.tsv");
+    }
 }

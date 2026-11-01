@@ -43,6 +43,8 @@ public enum TileEffectType
     /// 끝나면 이동 화면으로 돌아와 나머지 효과를 이어 실행한다. Enter로 발동시키려면 <see cref="Interact"/>를 같이 겹친다.
     /// </summary>
     DungeonEvent = 9,
+    /// <summary>닿으면 이 던전을 클리어한다: 이 던전에 갇힌 구금된 아군이 모두 구출된다(구금된 아군 태그가 떨어지고 보유 캐릭터로 돌아오며 파티에는 돌아오지 않는다). 인자는 쓰이지 않는다.</summary>
+    ClearDungeon = 10,
 }
 
 /// <summary>타일 마스터의 한 행: 타일(TileCode)이 가진 효과(EffectType)와 그 인자. 키는 (TileCode, EffectType)이라 한 타일에 효과 종류별로 한 행씩 겹칠 수 있다.</summary>
