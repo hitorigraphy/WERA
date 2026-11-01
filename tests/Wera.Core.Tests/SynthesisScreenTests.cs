@@ -117,4 +117,33 @@ public class SynthesisScreenTests
         Assert.Equal(4, pack.UniqueItemEnhanceStatuses!.Count);
         Assert.Equal(new UniqueItemEnhanceStatus(8001, 40, 2, 12), pack.UniqueItemEnhanceStatuses[2]);
     }
+
+    static GamePack LevelPack(string enhanceRows, long max = 2) => GamePack.Load(CoreTests.PackZip(
+        ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
+        (GamePack.StatusMasterPath, "status_code\tstatus_name\n1\tlevel\n2\thp\n8\tenhance_count\n40\tATK\n"),
+        (GamePack.UniqueItemInventoryMasterPath, "inventory_code\titem_name\n8001\t철검\n"),
+        (GamePack.UniqueItemStatusMasterPath, "item_code\tstatus_code\tinitial_value\tmin_value\tmax_value\n8001\t8\t0\t0\t99\n8001\t40\t10\t0\t999\n"),
+        (GamePack.GameSettingMasterPath, $"setting_type\tvalue_type\tlong_value\tdecimal_value\ttext_value\nEnhanceLevelMax\tLong\t{max}\t\t\n"),
+        (GamePack.UniqueItemEnhanceStatusMasterPath, "item_code\tstatus_code\t강화_level\tvalue\n" + enhanceRows)));
+
+    [Fact]
+    public void The_enhance_level_max_clamps_the_enhance_count_and_the_looked_up_level()
+    {
+        var pack = LevelPack("8001\t40\t1\t5\n8001\t40\t2\t12\n");
+        Assert.Equal(2, pack.EnhanceLevelMax);
+        UniqueItemInstance At(long level) => pack.WithEnhanceStatuses(new UniqueItemInstance("x", 8001, 0, null, new Dictionary<long, long> { [8] = level, [40] = 10 }));
+        Assert.Equal((2L, 22L), (At(7).Statuses![8], At(7).Statuses![40]));                // 7은 상한 2로 잘려 강화 횟수도 2, 레벨 2의 값 12가 더해진다
+        Assert.Equal((1L, 15L), (At(1).Statuses![8], At(1).Statuses![40]));
+        Assert.Null(EnhancePack("8001\t40\t1\t5\n").EnhanceLevelMax);                       // 설정이 없으면 상한 없음
+    }
+
+    [Fact]
+    public void An_item_must_set_every_level_up_to_the_max_in_the_enhance_status_master()
+    {
+        LevelPack("8001\t40\t1\t5\n8001\t40\t2\t12\n");                                    // 1~2 모두 있음: 로드된다
+        LevelPack("8001\t40\t0\t0\n8001\t40\t1\t5\n8001\t40\t2\t12\n8001\t40\t3\t99\n");     // 상한 위의 행이나 0레벨 행은 있어도 된다
+        Assert.Contains("강화 레벨 2의 행이 없습니다", Assert.Throws<PackFormatException>(() => LevelPack("8001\t40\t1\t5\n")).Message);
+        Assert.Contains("강화 레벨 1의 행이 없습니다", Assert.Throws<PackFormatException>(() => LevelPack("8001\t40\t2\t12\n")).Message);
+        LevelPack("", max: 0);                                                              // 상한 0이면 요구하는 행이 없다
+    }
 }

@@ -19,7 +19,7 @@ public sealed partial class GamePack
     /// 유니크 아이템 스테이터스 마스터 행(초깃값에 더해 저장하므로)도 있어야 한다. 키 (아이템, 스테이터스, 강화 레벨)는 두 번 쓸 수 없고 강화 레벨은 0 이상이다. 값은 long이다.
     /// </summary>
     static List<UniqueItemEnhanceStatus>? LoadUniqueItemEnhanceStatuses(
-        ZipArchive zip, IEnumerable<long>? uniqueItemCodes, List<StatusEntry>? statuses, List<OwnerStatus>? uniqueItemStatuses)
+        ZipArchive zip, IEnumerable<long>? uniqueItemCodes, List<StatusEntry>? statuses, List<OwnerStatus>? uniqueItemStatuses, long? levelMax)
     {
         const string file = UniqueItemEnhanceStatusMasterPath;
         var text = TryReadEntry(zip, file);
@@ -52,20 +52,34 @@ public sealed partial class GamePack
                 throw new PackFormatException($"{file}: 같은 키(유니크 아이템 {item}, 스테이터스 {status}, 강화 레벨 {level})가 두 번 있습니다.");
             rows.Add(new UniqueItemEnhanceStatus(item, status, level, value));
         }
+        // 강화 레벨 상한이 있으면 행이 있는 (아이템, 스테이터스)는 강화 레벨 1~상한이 모두 적혀 있어야 한다(빠진 레벨은 데이터 버그).
+        if (levelMax is { } max)
+            foreach (var group in rows.GroupBy(r => (r.ItemCode, r.StatusCode)))
+            {
+                var levels = group.Select(r => r.EnhanceLevel).ToHashSet();
+                for (var level = 1L; level <= max; level++)
+                    if (!levels.Contains(level))
+                        throw new PackFormatException($"{file}: 유니크 아이템 '{group.Key.ItemCode}' 스테이터스 '{group.Key.StatusCode}'에 강화 레벨 {level}의 행이 없습니다(강화 레벨 상한 {max}까지 모두 적어야 합니다).");
+            }
         return rows;
     }
 
     /// <summary>
     /// 강화가 끝난 뒤 강화 레벨이 바뀌었다고 보고 스테이터스를 다시 정한다: 강화 스테이터스 마스터에 이 아이템의 행이 있는 스테이터스마다
     /// (유니크 아이템 스테이터스 마스터의 초깃값) + (아이템의 강화 레벨 = 강화 횟수 스테이터스의 값에 해당하는 행의 값, 그 레벨의 행이 없으면 0)을
-    /// 그 스테이터스의 최솟값~최댓값에 맞춰 인스턴스에 저장한다. 마스터에 이 아이템의 행이 없으면 인스턴스를 그대로 돌려준다.
+    /// 그 스테이터스의 최솟값~최댓값에 맞춰 인스턴스에 저장한다. 강화 레벨이 상한(<see cref="EnhanceLevelMax"/>)을 넘으면 상한으로 자른다(강화 횟수도 상한으로 저장). 자를 것도 마스터에 이 아이템의 행도 없으면 인스턴스를 그대로 돌려준다.
     /// </summary>
     public UniqueItemInstance WithEnhanceStatuses(UniqueItemInstance item)
     {
         var rows = UniqueItemEnhanceStatuses?.Where(r => r.ItemCode == item.ItemCode).ToList() ?? [];
-        if (rows.Count == 0) return item;
         var statuses = new Dictionary<long, long>(item.Statuses ?? MasterStatusesOfUniqueItem(item.ItemCode));
         var level = statuses.GetValueOrDefault(EnhanceCountStatusCode);
+        if (EnhanceLevelMax is { } max && level > max)
+        {
+            level = max;                                                      // 상한을 넘기면 상한으로 자른다
+            statuses[EnhanceCountStatusCode] = max;
+        }
+        else if (rows.Count == 0) return item;
         var master = UniqueItemStatusesOf(item.ItemCode).ToDictionary(r => r.StatusCode);
         foreach (var status in rows.Select(r => r.StatusCode).Distinct())
         {

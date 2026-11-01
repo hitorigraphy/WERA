@@ -21,6 +21,9 @@ public enum GameSettingType
     ListPageSize = 3,
     /// <summary>유니크 아이템 1개를 강화하려면 제물로 바쳐야 하는 같은 유니크 아이템의 수(Long, 1 이상, 기본 1).</summary>
     SynthesisSacrificeCount = 4,
+    /// <summary>유니크 아이템 강화 레벨의 상한(Long, 0 이상, 행이 없으면 상한 없음). 합성이 끝나면 강화 레벨(강화 횟수)이 이 값을 넘지 못하게 자르고,
+    /// 유니크 아이템 강화 스테이터스 마스터에 행이 있는 (아이템, 스테이터스)는 강화 레벨 1~이 값이 모두 적혀 있어야 로드된다.</summary>
+    EnhanceLevelMax = 5,
 }
 
 /// <summary>게임 설정 한 행이 쓰는 값의 종류. 종류에 맞는 열(long_value, decimal_value, text_value)이 그 설정의 값이다.</summary>
@@ -63,6 +66,13 @@ public sealed partial class GamePack
     /// <summary>합성 제물 수(설정 SynthesisSacrificeCount, 기본 1).</summary>
     public long SynthesisSacrificeCount => GameSettingLong(GameSettingType.SynthesisSacrificeCount, DefaultSynthesisSacrificeCount);
 
+    /// <summary>강화 레벨 상한(설정 EnhanceLevelMax). 설정이 없으면 null(상한 없음).</summary>
+    public long? EnhanceLevelMax => FindGameSetting(GameSettingType.EnhanceLevelMax) is { ValueType: GameSettingValueType.Long } s ? s.LongValue : null;
+
+    // 로드 중(속성이 아직 없을 때)에 설정 목록에서 강화 레벨 상한을 읽는다.
+    static long? GameSettingLevelMax(List<GameSettingEntry>? settings) =>
+        settings?.FirstOrDefault(s => s.SettingType == GameSettingType.EnhanceLevelMax) is { ValueType: GameSettingValueType.Long } s ? s.LongValue : null;
+
     /// <summary>설정 종류마다 정해진 값 종류와 최솟값. None은 아무 종류나 허용한다.</summary>
     static readonly Dictionary<GameSettingType, (GameSettingValueType ValueType, decimal Min)> SettingRules = new()
     {
@@ -70,6 +80,7 @@ public sealed partial class GamePack
         [GameSettingType.AttributeDisadvantageMultiplier] = (GameSettingValueType.Decimal, 0),
         [GameSettingType.ListPageSize] = (GameSettingValueType.Long, 1),
         [GameSettingType.SynthesisSacrificeCount] = (GameSettingValueType.Long, 1),
+        [GameSettingType.EnhanceLevelMax] = (GameSettingValueType.Long, 0),
     };
 
     public GameSettingEntry? FindGameSetting(GameSettingType type) => GameSettings?.FirstOrDefault(s => s.SettingType == type);
