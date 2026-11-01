@@ -7,13 +7,16 @@ public sealed partial class GameSession
     /// <summary>상세 화면이 열릴 때 쌓는 "열기 전" 화면: 돌아가기는 맨 위 것으로 돌아간다(상세에서 다른 상세로 들어가도 차례로 돌아온다).</summary>
     readonly Stack<DetailFrame> detailBack = new();
 
-    sealed record DetailFrame(Screen Screen, long? Character, string? Equipment, long? Item, long? Skill);
+    sealed record DetailFrame(Screen Screen, string? Character, string? Equipment, long? Item, long? Skill);
 
     /// <summary>스킬 상세 화면이 보여 주는 스킬의 코드. 그 화면이 아니면 null.</summary>
     public long? DetailSkillCode { get; private set; }
 
+    /// <summary>캐릭터 상세 화면이 보여 주는 캐릭터 인스턴스의 ID. 그 화면이 아니면 null.</summary>
+    public string? DetailCharacterId { get; private set; }
+
     /// <summary>캐릭터 상세 화면이 보여 주는 캐릭터의 코드. 그 화면이 아니면 null.</summary>
-    public long? DetailCharacterCode { get; private set; }
+    public long? DetailCharacterCode => CodeOfInstance(DetailCharacterId);
 
     /// <summary>장비 상세 화면이 보여 주는 장비(유니크 아이템 인스턴스)의 ID. 그 화면이 아니면 null.</summary>
     public string? DetailEquipmentId { get; private set; }
@@ -104,10 +107,10 @@ public sealed partial class GameSession
             var wearer = PartyUnits.FirstOrDefault(u => u.Equipment.Values.Any(e => e.Kind == EquipKind.UniqueItem && e.Instance == id));
             GaugeView hp, xp;
             XpTag tag;
-            if (wearer is not null && Characters.TryGetValue(wearer.CharacterCode, out var state))
+            if (wearer is not null && IdOf(wearer) is { } wearerId && Characters.TryGetValue(wearerId, out var state))
             {
                 hp = Gauge.Render(state.Hp, state.MaxHp, gray: state.IsDead, CharacterDetailExpWidth);
-                (tag, xp) = XpLine(state with { CharacterCode = wearer.CharacterCode }, CharacterDetailExpWidth);
+                (tag, xp) = XpLine(state, CharacterDetailExpWidth);
             }
             else
             {
@@ -204,10 +207,11 @@ public sealed partial class GameSession
     {
         get
         {
-            if (Screen != Screen.CharacterDetail || DetailCharacterCode is not { } code || !Characters.TryGetValue(code, out var state)) return null;
-            var character = state with { CharacterCode = code };
+            if (Screen != Screen.CharacterDetail || DetailCharacterId is not { } id || !Characters.TryGetValue(id, out var state)) return null;
+            var code = state.CharacterCode;
+            var character = state;
             var equipment = Pack.EquipmentSlotsOf(code)
-                .Select(slot => new UnitStatusLine(slot.Name, EquippedItemOf(code, slot.Code) is { } target ? NameOf(target) : "비어 있음")).ToList();
+                .Select(slot => new UnitStatusLine(slot.Name, EquippedItemOf(id, slot.Code) is { } target ? NameOf(target) : "비어 있음")).ToList();
             var skills = Pack.SkillSlotsOf(code)
                 .Select(slot => new UnitStatusLine(slot.Name, EquippedSkillName(character, slot.Code) ?? "비어 있음")).ToList();
             var specs = (Pack.Statuses ?? []).Where(s => s.CharacterDisplayOrder > 0 && state.Statuses.ContainsKey(s.Code))
@@ -238,7 +242,7 @@ public sealed partial class GameSession
     IReadOnlyList<ScreenEntry> CompanionCheckEntries() =>
     [
         .. OwnedCharacters.Select(c => new ScreenEntry(c.OrderNumber.ToString(CultureInfo.InvariantCulture), Pack.FindCharacter(c.CharacterCode)?.Name ?? Text(c.CharacterCode),
-            Screen.CharacterDetail, EntryAction.OpenDetail, $"C:{c.CharacterCode.ToString(CultureInfo.InvariantCulture)}")),
+            Screen.CharacterDetail, EntryAction.OpenDetail, $"C:{c.InstanceId}")),
         new ScreenEntry(BackEntryCode, "돌아가기", CheckBackScreen),
     ];
 
@@ -395,18 +399,19 @@ public sealed partial class GameSession
             return [new ScreenEntry("101", "스킬", Screen.SkillDetail, EntryAction.OpenDetail,
                 skill is { } k ? $"K:{k.ToString(CultureInfo.InvariantCulture)}" : null, Enabled: skill is not null), back];
         }
-        if (Screen != Screen.CharacterDetail || DetailCharacterCode is not { } code || !Characters.TryGetValue(code, out var state)) return [back];
+        if (Screen != Screen.CharacterDetail || DetailCharacterId is not { } detailId || !Characters.TryGetValue(detailId, out var state)) return [back];
 
+        var code = state.CharacterCode;
         var rows = new List<ScreenEntry>();
         var number = 1;
         foreach (var slot in Pack.EquipmentSlotsOf(code))
         {
-            var target = EquippedItemOf(code, slot.Code);
+            var target = EquippedItemOf(detailId, slot.Code);
             var (screen, arg) = target switch
             {
                 { Kind: EquipKind.UniqueItem } t when UniqueItemInstances.ContainsKey(t.Instance ?? "") => (Screen.EquipmentDetail, $"E:{t.Instance}"),
                 { Kind: EquipKind.CommonItem } t => (Screen.ItemDetail, $"I:{t.Code.ToString(CultureInfo.InvariantCulture)}"),
-                { Kind: EquipKind.Character } t when Characters.ContainsKey(t.Code) => (Screen.CharacterDetail, $"C:{t.Code.ToString(CultureInfo.InvariantCulture)}"),
+                { Kind: EquipKind.Character } t when t.Instance is { } charId && Characters.ContainsKey(charId) => (Screen.CharacterDetail, $"C:{charId}"),
                 _ => (Screen.CharacterDetail, (string?)null),
             };
             rows.Add(new ScreenEntry((number++).ToString(CultureInfo.InvariantCulture), slot.Name, screen, EntryAction.OpenDetail, arg, Enabled: arg is not null));
@@ -421,17 +426,17 @@ public sealed partial class GameSession
         return [.. rows, back];
     }
 
-    /// <summary>상세 화면을 연다: Arg는 "C:캐릭터 코드", "S:파티 슬롯 번호", "E:장비 인스턴스 ID", "I:아이템 코드", "K:스킬 코드". 지금 화면(과 그 화면이 보던 것)이 돌아갈 곳이 된다.</summary>
+    /// <summary>상세 화면을 연다: Arg는 "C:캐릭터 인스턴스 ID", "S:파티 슬롯 번호", "E:장비 인스턴스 ID", "I:아이템 코드", "K:스킬 코드". 지금 화면(과 그 화면이 보던 것)이 돌아갈 곳이 된다.</summary>
     void OpenDetail(string arg, Screen target)
     {
         var value = arg[2..];
-        var from = new DetailFrame(Screen, DetailCharacterCode, DetailEquipmentId, DetailItemCode, DetailSkillCode);
-        long? character = null, item = null, skill = null;
-        string? equipment = null;
+        var from = new DetailFrame(Screen, DetailCharacterId, DetailEquipmentId, DetailItemCode, DetailSkillCode);
+        long? item = null, skill = null;
+        string? character = null, equipment = null;
         switch (arg[0])
         {
-            case 'C': character = long.Parse(value, CultureInfo.InvariantCulture); break;
-            case 'S': character = Party[int.Parse(value, CultureInfo.InvariantCulture)]; break;
+            case 'C': character = Characters.ContainsKey(value) ? value : long.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var characterCode) ? InstanceIdOf(characterCode) : null; break;
+            case 'S': character = PartyInstance.Units[int.Parse(value, CultureInfo.InvariantCulture)] is { } slotUnit ? IdOf(slotUnit) : null; break;
             case 'E': equipment = value; break;
             case 'I': item = long.Parse(value, CultureInfo.InvariantCulture); break;
             case 'K': skill = long.Parse(value, CultureInfo.InvariantCulture); break;
@@ -439,7 +444,7 @@ public sealed partial class GameSession
         if (character is null && equipment is null && item is null && skill is null) return;      // 빈 슬롯 등: 열 수 없다
         if (!IsDetailScreen(Screen)) detailBack.Clear();                                             // 목록 화면에서 처음 여는 것이면 새로 쌓는다
         detailBack.Push(from);
-        (DetailCharacterCode, DetailEquipmentId, DetailItemCode, DetailSkillCode) = (character, equipment, item, skill);
+        (DetailCharacterId, DetailEquipmentId, DetailItemCode, DetailSkillCode) = (character, equipment, item, skill);
         Screen = target;
     }
 
@@ -451,7 +456,7 @@ public sealed partial class GameSession
     {
         if (detailBack.Count == 0) { Screen = Screen.Home; return; }
         var f = detailBack.Pop();
-        (DetailCharacterCode, DetailEquipmentId, DetailItemCode, DetailSkillCode) = (f.Character, f.Equipment, f.Item, f.Skill);
+        (DetailCharacterId, DetailEquipmentId, DetailItemCode, DetailSkillCode) = (f.Character, f.Equipment, f.Item, f.Skill);
         Screen = f.Screen;
     }
 }

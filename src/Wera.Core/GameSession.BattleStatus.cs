@@ -50,7 +50,7 @@ public sealed partial class GameSession
     {
         EquipKind.UniqueItem => store.FindItem(equip.Instance ?? "") is { } item ? Pack.FindUniqueItem(item.ItemCode)?.ItemName : null,
         EquipKind.CommonItem => Pack.FindItem(equip.Code)?.Name,
-        EquipKind.Character => Pack.FindCharacter(equip.Code)?.Name,
+        EquipKind.Character => Pack.FindCharacter(equip.Instance is { } id && Characters.TryGetValue(id, out var owned) ? owned.CharacterCode : equip.Code)?.Name,
         _ => null,
     }) ?? equip.Key;
 

@@ -6,15 +6,17 @@ namespace Wera.Core;
 /// <summary>
 /// 유닛: 캐릭터와 그 캐릭터가 낀 장비, 그리고 리더인지(<see cref="IsLeader"/>). 장비는 슬롯 코드 → 낀 것이고 유닛에 속한다(유닛이 파티에서 빠지면 장비는 보유로 돌아간다).
 /// 적 파티의 프리셋 유닛(<see cref="PresetUnit"/>)도 같은 모양이다.
+/// 아군 유닛은 보유 캐릭터 인스턴스의 ID(<see cref="InstanceId"/>)로 어느 캐릭터인지 가리킨다. 적과 프리셋 유닛은 ID가 비어 있고 코드만 쓴다
+/// (ID가 비어 있는 아군 유닛은 그 코드의 첫 보유 인스턴스로 푼다).
 /// </summary>
 [method: JsonConstructor]
-public sealed record PartyUnit(long CharacterCode, Dictionary<long, EquipRef> Equipment, bool IsLeader = false)
+public sealed record PartyUnit(long CharacterCode, Dictionary<long, EquipRef> Equipment, bool IsLeader = false, string InstanceId = "")
 {
     /// <summary>장비 없는 새 유닛.</summary>
     public PartyUnit(long characterCode) : this(characterCode, []) { }
 
     /// <summary>저장용 복사본(장비 사전도 새로 만든다).</summary>
-    public PartyUnit Copy() => new(CharacterCode, new Dictionary<long, EquipRef>(Equipment), IsLeader);
+    public PartyUnit Copy() => new(CharacterCode, new Dictionary<long, EquipRef>(Equipment), IsLeader, InstanceId);
 }
 
 /// <summary>
@@ -28,7 +30,7 @@ public sealed record PartyInstance(string Name, PartyUnit?[] Units)
 
     public static PartyInstance Empty(string name) => new(name, new PartyUnit?[SlotCount]);
 
-    /// <summary>이 캐릭터의 유닛이 있는 칸(없으면 -1).</summary>
+    /// <summary>이 캐릭터 코드의 유닛이 있는 칸(없으면 -1). 같은 캐릭터가 여럿이면 앞 칸이다.</summary>
     public int IndexOf(long characterCode)
     {
         for (var i = 0; i < Units.Length; i++)
@@ -36,8 +38,19 @@ public sealed record PartyInstance(string Name, PartyUnit?[] Units)
         return -1;
     }
 
-    /// <summary>이 캐릭터의 유닛. 파티에 없으면 null.</summary>
+    /// <summary>이 인스턴스의 유닛이 있는 칸(없으면 -1).</summary>
+    public int IndexOf(string instanceId)
+    {
+        for (var i = 0; i < Units.Length; i++)
+            if (instanceId.Length > 0 && Units[i]?.InstanceId == instanceId) return i;
+        return -1;
+    }
+
+    /// <summary>이 캐릭터 코드의 유닛. 파티에 없으면 null.</summary>
     public PartyUnit? UnitOf(long characterCode) => IndexOf(characterCode) is var at and >= 0 ? Units[at] : null;
+
+    /// <summary>이 인스턴스의 유닛. 파티에 없으면 null.</summary>
+    public PartyUnit? UnitOf(string instanceId) => IndexOf(instanceId) is var at and >= 0 ? Units[at] : null;
 
     /// <summary>저장용 복사본(유닛과 장비도 새로 만든다).</summary>
     public PartyInstance Copy() => new(Name, Units.Select(u => u?.Copy()).ToArray());
@@ -47,8 +60,9 @@ public sealed record PartyInstance(string Name, PartyUnit?[] Units)
 /// 파티 칸의 캐릭터 코드를 칸 번호로 읽고 쓰는 얇은 창: <c>Party[0] = 7001</c>은 그 칸에 그 캐릭터의 새 유닛(장비 없음)을 두고,
 /// 다른 캐릭터가 있었다면 그 유닛은 장비와 함께 빠진다(장비는 보유로 돌아간다). 이미 그 캐릭터가 그 칸에 있으면 아무것도 바꾸지 않는다.
 /// null을 쓰면 칸이 빈다. 읽으면 칸의 캐릭터 코드(빈 칸은 null)다. 세션의 <see cref="PartyInstance"/>를 그대로 들여다본다.
+/// 코드를 쓰면 <c>resolve</c>가 그 코드의 인스턴스 ID를 정한다(세션은 아직 어디에도 배치하지 않은 첫 보유 인스턴스를 준다). 인스턴스 ID로도 읽고 쓴다.
 /// </summary>
-public sealed class PartySlots(PartyInstance party) : IEnumerable<long?>
+public sealed class PartySlots(PartyInstance party, Func<long, string?>? resolve = null) : IEnumerable<long?>
 {
     public int Length => party.Units.Length;
 
@@ -58,8 +72,18 @@ public sealed class PartySlots(PartyInstance party) : IEnumerable<long?>
         set
         {
             if (party.Units[slot]?.CharacterCode == value) return;
-            party.Units[slot] = value is { } code ? new PartyUnit(code) : null;
+            party.Units[slot] = value is { } code ? new PartyUnit(code, [], false, resolve?.Invoke(code) ?? "") : null;
         }
+    }
+
+    /// <summary>칸의 캐릭터 인스턴스 ID(빈 칸이거나 ID를 모르면 null).</summary>
+    public string? InstanceAt(int slot) => party.Units[slot] is { InstanceId: { Length: > 0 } id } ? id : null;
+
+    /// <summary>그 칸에 이 인스턴스의 새 유닛(장비 없음)을 둔다. 이미 그 인스턴스가 그 칸에 있으면 아무것도 바꾸지 않는다.</summary>
+    public void SetInstance(int slot, string instanceId, long characterCode)
+    {
+        if (party.Units[slot]?.InstanceId == instanceId) return;
+        party.Units[slot] = new PartyUnit(characterCode, [], false, instanceId);
     }
 
     /// <summary>이 캐릭터가 있는 칸(없으면 -1).</summary>

@@ -55,8 +55,8 @@ public sealed partial class GameSession
     /// <summary>페이지로 자를 목록의 항목 코드들(화면에 나오는 순서).</summary>
     IReadOnlyList<string> PageKeys(IReadOnlyList<ScreenEntry> raw) => Screen switch
     {
-        Screen.CharacterSelect => CharacterList.Select(c => Text(c.Code)).ToList(),
-        Screen.SupportSelect or Screen.HideoutOperatorSelect => SupportList.Select(c => Text(c.Code)).ToList(),
+        Screen.CharacterSelect => CharacterList.Select(c => c.InstanceId).ToList(),                       // 같은 캐릭터가 여럿이어도 줄마다 키(인스턴스 ID)가 다르다
+        Screen.SupportSelect or Screen.HideoutOperatorSelect => SupportList.Select(c => c.InstanceId).ToList(),
         Screen.SkillPoolList => SkillPoolRows.Select(r => Text(r.Index)).ToList(),
         _ => raw.Where(e => !IsFixedEntry(e)).Select(e => e.Code).ToList(),
     };
@@ -80,7 +80,7 @@ public sealed partial class GameSession
         }
         if (Screen is Screen.CharacterSelect or Screen.SupportSelect or Screen.HideoutOperatorSelect or Screen.SkillPoolList)
         {
-            // 목록 전체(선택할 수 없는 줄 포함)에서의 위치가 번호다: 항목 코드(캐릭터 코드 등)가 키.
+            // 목록 전체(선택할 수 없는 줄 포함)에서의 위치가 번호다: 항목 코드(캐릭터 인스턴스 ID 등)가 키.
             var position = PageOf(keys).Select((key, i) => (key, number: i + 1)).ToDictionary(x => x.key, x => x.number);
             foreach (var e in raw)
             {
@@ -155,13 +155,22 @@ public sealed partial class GameSession
     /// 목록 화면이 아니거나 그 코드의 항목이 목록에 없으면 코드를 그대로 돌려준다.
     /// </summary>
     /// <summary>(테스트용) 지금 페이지의 항목을 줄 번호가 아니라 항목 코드 그대로 담은 <see cref="GameSession.Entries"/>.</summary>
-    internal IReadOnlyList<ScreenEntry> DataEntries => Paginate(RawEntries, renumber: false);
+    internal IReadOnlyList<ScreenEntry> DataEntries => Paginate(RawEntries, renumber: false).Select(CodeOfEntry).ToList();
+
+    /// <summary>(테스트용) 캐릭터 목록 줄의 코드(인스턴스 ID)를 캐릭터 코드로 바꾼다: 같은 캐릭터가 여럿이면 같은 코드가 여러 줄 나온다.</summary>
+    ScreenEntry CodeOfEntry(ScreenEntry e) =>
+        Screen is Screen.CharacterSelect or Screen.SupportSelect or Screen.HideoutOperatorSelect && Characters.TryGetValue(e.Code, out var c)
+            ? e with { Code = Text(c.CharacterCode) } : e;
 
     internal string DisplayCodeOf(string code)
     {
         if (!IsPagedScreen(Screen)) return code;
         code = Normalize(code);
-        var index = PageKeys(RawEntries).ToList().IndexOf(code);
+        var keys = PageKeys(RawEntries).ToList();
+        var index = keys.IndexOf(code);
+        // 캐릭터 목록의 키는 인스턴스 ID라서, 캐릭터 코드로 가리키면 그 코드의 첫 줄을 뜻한다.
+        if (index < 0 && Screen is Screen.CharacterSelect or Screen.SupportSelect or Screen.HideoutOperatorSelect && long.TryParse(code, NumberStyles.None, CultureInfo.InvariantCulture, out var characterCode))
+            index = keys.FindIndex(key => Characters.TryGetValue(key, out var character) && character.CharacterCode == characterCode);
         if (index < 0) return code;
         ListPage = index / ListPageSize;
         return Text(index % ListPageSize + 1);

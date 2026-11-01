@@ -112,11 +112,11 @@ public class CharacterInstanceTests
             "\"7002\":{\"Level\":3,\"Hp\":10,\"MaxHp\":20,\"Xpp\":0,\"XppMax\":30}," +
             "\"7001\":{\"Level\":2,\"Hp\":10,\"MaxHp\":20,\"Xpp\":0,\"XppMax\":30}}}";
         var s = GameSession.FromSaveJson(Pack(), json);
-        Assert.Equal([1L, 7001L, 7002L], s.Characters.Keys.Order());
+        Assert.Equal([1L, 7001L, 7002L], s.Characters.Values.Select(c => c.CharacterCode).Order());
         Assert.All(s.Characters, kv =>
         {
             Assert.True(Ulid.TryParse(kv.Value.InstanceId, out _));
-            Assert.Equal(kv.Key, kv.Value.CharacterCode);
+            Assert.Equal(kv.Key, kv.Value.InstanceId);          // 키는 인스턴스 ID
         });
         Assert.Equal(3, s.Characters.Values.Select(c => c.InstanceId).Distinct().Count());
         Assert.Equal(3L, s.Characters[7002].Level);

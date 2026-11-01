@@ -70,7 +70,7 @@ public sealed partial class GameSession
     {
         if (selectedDungeonCode is not { } code || Pack.Dungeons?.FirstOrDefault(d => d.Code == code) is not { Entry: { } entry }) return;
         if (!PartyCanExplore(partyIndex)) return;       // 파티의 누군가가 참가할 수 없으면 들어갈 수 없다(항목은 회색이다)
-        RecordExploreOf(Parties[partyIndex].Units.OfType<PartyUnit>().Select(u => u.CharacterCode));      // 파티 전원이 이 턴에 탐사에 참가했다
+        RecordExploreOf(Parties[partyIndex].Units.OfType<PartyUnit>().Select(IdOf).OfType<string>());      // 파티 전원이 이 턴에 탐사에 참가했다
         CurrentPartyIndex = partyIndex;
         CurrentDungeonCode = code;
         (DungeonLayer, DungeonX, DungeonY) = (entry.LayerNumber, entry.PosX, entry.PosY);

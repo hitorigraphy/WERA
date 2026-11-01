@@ -18,7 +18,7 @@ public sealed class CircuitField
         Store = new UnitStore(Characters, Items);
     }
 
-    public Dictionary<long, CharacterInstance> Characters { get; } = [];
+    public CharacterCollection Characters { get; } = [];
 
     public Dictionary<string, UniqueItemInstance> Items { get; } = [];
 

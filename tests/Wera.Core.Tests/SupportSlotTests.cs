@@ -196,7 +196,7 @@ public class SupportSlotTests
         s.SetSupport(SupportRole.Assist, 7001);
 
         var json = s.ToSaveJson();
-        Assert.Contains("\"Partner\": 7003", json);
+        Assert.Contains("\"PartnerId\": \"" + s.InstanceIdOf(7003) + "\"", json);
         var loaded = GameSession.FromSaveJson(Pack(), json);
         Assert.Equal((7003L, 7001L), (loaded.PartnerCode, loaded.AssistCode));
         Assert.Equal(Screen.Home, loaded.Screen);

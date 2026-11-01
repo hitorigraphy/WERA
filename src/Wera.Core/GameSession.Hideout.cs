@@ -15,7 +15,7 @@ public sealed record HideoutRowView(int Row, int? Floor, string FloorName, Party
 
 // 아지트: 층마다 계층(왼쪽), 시설(가운데), 보스(오른쪽) 슬롯이 있다. 처음에는 1층뿐이고, 확장하면 새 층이 1층이 되고 기존 층은 한 층씩 밀려난다(가장 오래된 층이 가장 아래).
 // 보스 슬롯은 그 층의 방어 파티(층마다 하나, 층을 확장할 때마다 늘어나는 고정 파티)이고 슬롯에는 파티의 리더가 보인다. 누르면 파티 설정 화면으로 간다(파티 선택 버튼 없이).
-// 캐릭터는 파티(방어 파티 포함)와 오퍼레이터 슬롯 중 한 곳에만 있다.
+// 캐릭터(인스턴스)는 파티(방어 파티 포함)와 오퍼레이터 슬롯 중 한 곳에만 있다.
 public sealed partial class GameSession
 {
     /// <summary>아지트 화면의 표시 범위 버튼(한 층씩 옮긴다): [1000] ▲, [1001] ▼.</summary>
@@ -37,20 +37,20 @@ public sealed partial class GameSession
     /// <summary>모든 파티: 보통 파티들과 층별 방어 파티들.</summary>
     IEnumerable<PartyInstance> AllParties => Parties.Concat(hideoutParties);
 
-    /// <summary>이 캐릭터가 지금 보는 파티가 아닌 다른 파티(방어 파티 포함)에 있는가.</summary>
-    bool InOtherParty(long characterCode) => AllParties.Any(p => !ReferenceEquals(p, PartyInstance) && p.IndexOf(characterCode) >= 0);
+    /// <summary>이 캐릭터 인스턴스가 지금 보는 파티가 아닌 다른 파티(방어 파티 포함)에 있는가.</summary>
+    bool InOtherParty(string instanceId) => AllParties.Any(p => !ReferenceEquals(p, PartyInstance) && IndexOfId(p, instanceId) >= 0);
 
     /// <summary>이 층의 방어 파티. 없는 층이면 null.</summary>
     public PartyInstance? HideoutPartyOf(int floor) => floor >= 0 && floor < hideoutParties.Count ? hideoutParties[floor] : null;
 
-    /// <summary>이 층의 방어 파티의 리더 캐릭터(보스 슬롯에 보인다). 리더가 없으면 null.</summary>
-    long? HideoutLeaderOf(int floor) => hideoutParties[floor].Units.OfType<PartyUnit>().FirstOrDefault(u => u.IsLeader)?.CharacterCode;
+    /// <summary>이 층의 방어 파티의 리더 캐릭터 인스턴스의 ID(보스 슬롯에 보인다). 리더가 없으면 null.</summary>
+    string? HideoutLeaderOf(int floor) => hideoutParties[floor].Units.OfType<PartyUnit>().FirstOrDefault(u => u.IsLeader) is { } leader ? IdOf(leader) : null;
 
     /// <summary>층별로 유저가 지은(가운데 슬롯) 시설 코드(없으면 null). <see cref="hideoutBosses"/>와 같은 순서이고 층이 생기면 같이 늘어난다.</summary>
     readonly List<long?> hideoutFacilities = [null];
 
-    /// <summary>시설의 오퍼레이터 슬롯에 선 캐릭터: (층이 생긴 순서, 지은 시설인가(아니면 기본 시설), 오퍼레이터 슬롯 코드) → 캐릭터 코드.</summary>
-    readonly Dictionary<(long FloorOrder, bool Built, long Slot), long> hideoutOperators = [];
+    /// <summary>시설의 오퍼레이터 슬롯에 선 캐릭터: (층이 생긴 순서, 지은 시설인가(아니면 기본 시설), 오퍼레이터 슬롯 코드) → 캐릭터 인스턴스 ID.</summary>
+    readonly Dictionary<(long FloorOrder, bool Built, long Slot), string> hideoutOperators = [];
 
     /// <summary>오퍼레이터 슬롯을 고르는 중인 슬롯(오퍼레이터 선택 화면에서만 있다): 층은 CurrentSlot, 지은 시설인가, 슬롯 코드.</summary>
     bool hideoutOperatorBuilt;
@@ -82,8 +82,11 @@ public sealed partial class GameSession
     public FacilityEntry? BuiltFacilityOfFloor(int floor) =>
         floor >= 0 && floor < HideoutFloorCount && hideoutFacilities[floor] is { } code ? Pack.FindFacility(code) : null;
 
-    /// <summary>이 캐릭터가 방어 파티에 있는 층의 번호(0이 1층, 어느 방어 파티에도 없으면 -1).</summary>
+    /// <summary>이 캐릭터 코드의 유닛이 방어 파티에 있는 층의 번호(0이 1층, 어느 방어 파티에도 없으면 -1).</summary>
     public int HideoutFloorOf(long characterCode) => hideoutParties.FindIndex(p => p.IndexOf(characterCode) >= 0);
+
+    /// <summary>이 캐릭터 인스턴스가 방어 파티에 있는 층의 번호(0이 1층, 어느 방어 파티에도 없으면 -1).</summary>
+    public int HideoutFloorOf(string instanceId) => hideoutParties.FindIndex(p => IndexOfId(p, instanceId) >= 0);
 
     /// <summary>보이는 첫 줄의 위치: -1("확장 가능" 줄)부터 마지막 층이 맨 아래 줄에 올 때까지.</summary>
     public int HideoutViewTop => hideoutViewTop;
@@ -108,16 +111,16 @@ public sealed partial class GameSession
         return true;
     }
 
-    void RemoveFromParties(long characterCode)
+    void RemoveFromParties(string instanceId)
     {
         foreach (var party in AllParties)
             for (var i = 0; i < party.Units.Length; i++)
-                if (party.Units[i]?.CharacterCode == characterCode) party.Units[i] = null;     // 유닛과 함께 장비가 빠져 보유로 돌아간다
+                if (party.Units[i] is { } unit && IdOf(unit) == instanceId) party.Units[i] = null;     // 유닛과 함께 장비가 빠져 보유로 돌아간다
     }
 
-    void RemoveFromHideout(long characterCode)
+    void RemoveFromHideout(string instanceId)
     {
-        foreach (var key in hideoutOperators.Where(o => o.Value == characterCode).Select(o => o.Key).ToList()) hideoutOperators.Remove(key);
+        foreach (var key in hideoutOperators.Where(o => o.Value == instanceId).Select(o => o.Key).ToList()) hideoutOperators.Remove(key);
     }
 
     /// <summary>아지트 화면의 보이는 세 줄(위에서부터).</summary>
@@ -251,30 +254,49 @@ public sealed partial class GameSession
 
     // ---- 오퍼레이터 ----
 
-    /// <summary>층(0이 1층)의 기본 시설(built가 false) 또는 지은 시설(true)의 오퍼레이터 슬롯에 선 캐릭터. 비었으면 null.</summary>
-    public long? HideoutOperatorOf(int floor, bool built, long slotCode) =>
-        hideoutOperators.TryGetValue((HideoutFloorOrderOf(floor), built, slotCode), out var code) ? code : null;
+    /// <summary>층(0이 1층)의 기본 시설(built가 false) 또는 지은 시설(true)의 오퍼레이터 슬롯에 선 캐릭터의 코드. 비었으면 null.</summary>
+    public long? HideoutOperatorOf(int floor, bool built, long slotCode) => CodeOfInstance(HideoutOperatorInstanceOf(floor, built, slotCode));
+
+    /// <summary>오퍼레이터 슬롯에 선 캐릭터 인스턴스의 ID. 비었으면 null.</summary>
+    public string? HideoutOperatorInstanceOf(int floor, bool built, long slotCode) =>
+        hideoutOperators.TryGetValue((HideoutFloorOrderOf(floor), built, slotCode), out var id) ? id : null;
 
     FacilityEntry? FacilityOfFloor(int floor, bool built) => built ? BuiltFacilityOfFloor(floor) : BaseFacilityOfFloor(floor);
 
-    /// <summary>이 캐릭터가 이 오퍼레이터 슬롯에 설 수 있는가: 보유한 캐릭터이고 슬롯이 요구하는 태그를 모두 가져야 한다.</summary>
+    /// <summary>이 캐릭터 코드의 인스턴스 중 하나라도 이 오퍼레이터 슬롯에 설 수 있는가: 보유한 캐릭터이고 슬롯이 요구하는 태그를 모두 가져야 한다.</summary>
     public bool CanOperate(long characterCode, long operatorSlotCode) =>
-        Characters.ContainsKey(characterCode) && CharacterTags(characterCode) is var have && Pack.OperatorSlotTagsOf(operatorSlotCode).All(have.Contains);
+        Characters.InstancesOf(characterCode).Any(c => CanOperate(c.InstanceId, operatorSlotCode));
+
+    /// <summary>이 캐릭터 인스턴스가 이 오퍼레이터 슬롯에 설 수 있는가: 보유한 캐릭터이고 슬롯이 요구하는 태그를 모두 가져야 한다.</summary>
+    public bool CanOperate(string instanceId, long operatorSlotCode) =>
+        Characters.ContainsKey(instanceId) && CharacterTags(instanceId) is var have && Pack.OperatorSlotTagsOf(operatorSlotCode).All(have.Contains);
 
     /// <summary>
-    /// 오퍼레이터 슬롯에 캐릭터를 세운다(null이면 비운다): 그 시설이 가진 슬롯이고 캐릭터가 태그 조건을 만족해야 한다. 캐릭터는 파티(방어 파티 포함)와 오퍼레이터 슬롯 중 한 곳에만 있으므로
-    /// 다른 곳에 있던 캐릭터는 거기서 빠진다(파티에서는 장비가 보유로 돌아간다). 할 수 없으면 false.
+    /// 오퍼레이터 슬롯에 캐릭터를 세운다(null이면 비운다): 그 시설이 가진 슬롯이고 캐릭터가 태그 조건을 만족해야 한다. 캐릭터 코드는 그 코드의
+    /// 아직 어디에도 서지 않은 첫 인스턴스(모두 어딘가에 서 있으면 슬롯 조건을 만족하는 첫 인스턴스)를 뜻한다. 할 수 없으면 false.
     /// </summary>
     public bool SetHideoutOperator(int floor, bool built, long slotCode, long? characterCode)
+    {
+        if (characterCode is not { } code) return SetHideoutOperatorInstance(floor, built, slotCode, null);
+        var able = Characters.InstancesOf(code).Where(c => CanOperate(c.InstanceId, slotCode)).ToList();
+        var pick = able.FirstOrDefault(c => !IsPlaced(c.InstanceId)) ?? able.FirstOrDefault();
+        return pick is not null && SetHideoutOperatorInstance(floor, built, slotCode, pick.InstanceId);
+    }
+
+    /// <summary>
+    /// 오퍼레이터 슬롯에 캐릭터 인스턴스를 세운다(null이면 비운다): 그 시설이 가진 슬롯이고 캐릭터가 태그 조건을 만족해야 한다. 캐릭터 인스턴스는 파티(방어 파티 포함)와
+    /// 오퍼레이터 슬롯 중 한 곳에만 있으므로 다른 곳에 있던 인스턴스는 거기서 빠진다(파티에서는 장비가 보유로 돌아간다). 할 수 없으면 false.
+    /// </summary>
+    public bool SetHideoutOperatorInstance(int floor, bool built, long slotCode, string? instanceId)
     {
         if (floor < 0 || floor >= HideoutFloorCount || FacilityOfFloor(floor, built) is not { } facility) return false;
         if (Pack.OperatorSlotsOf(facility.Code).All(s => s.Code != slotCode)) return false;
         var key = (HideoutFloorOrderOf(floor), built, slotCode);
-        if (characterCode is not { } code) { hideoutOperators.Remove(key); return true; }
-        if (!CanOperate(code, slotCode)) return false;
-        RemoveFromParties(code);
-        RemoveFromHideout(code);
-        hideoutOperators[key] = code;
+        if (instanceId is null) { hideoutOperators.Remove(key); return true; }
+        if (!CanOperate(instanceId, slotCode)) return false;
+        RemoveFromParties(instanceId);
+        RemoveFromHideout(instanceId);
+        hideoutOperators[key] = instanceId;
         return true;
     }
 
@@ -290,13 +312,14 @@ public sealed partial class GameSession
         Screen == Screen.HideoutOperatorSelect && CurrentSlot is { } floor && FacilityOfFloor(floor, hideoutOperatorBuilt) is { } facility
             ? $"{floor + 1}층 {facility.Name} - {Pack.FindOperatorSlot(hideoutOperatorSlot)?.Name}" : null;
 
-    /// <summary>오퍼레이터 선택 화면의 목록(캐릭터 인벤토리 마스터 순서): 슬롯의 태그 조건을 만족하는 보유 캐릭터. 이 슬롯의 캐릭터는 빠지고, 이미 아지트에 있는 캐릭터는 파란색(고르면 그 자리에서 옮겨 온다), 파티원과 나머지는 흰색(파티에서 빠진다).</summary>
+    /// <summary>오퍼레이터 선택 화면의 목록(캐릭터 인벤토리 마스터 순서, 같은 캐릭터를 여럿 가졌으면 인스턴스마다 한 줄): 슬롯의 태그 조건을 만족하는 보유 캐릭터. 이 슬롯의 캐릭터는 빠지고, 이미 아지트에 있는 캐릭터는 파란색(고르면 그 자리에서 옮겨 온다), 파티원과 나머지는 흰색(파티에서 빠진다).</summary>
     IReadOnlyList<CharacterListItem> HideoutOperatorCandidates()
     {
         if (CurrentSlot is not { } floor || floor >= HideoutFloorCount) return [];
-        var mine = HideoutOperatorOf(floor, hideoutOperatorBuilt, hideoutOperatorSlot);
-        return (Pack.CharacterInventory ?? []).Where(c => mine != c.Code && CanOperate(c.Code, hideoutOperatorSlot))
-            .Select(c => new CharacterListItem(c.Code, c.Name, HideoutFloorOf(c.Code) >= 0 || hideoutOperators.ContainsValue(c.Code) ? CharacterListColor.Green : CharacterListColor.White)).ToList();
+        var mine = HideoutOperatorInstanceOf(floor, hideoutOperatorBuilt, hideoutOperatorSlot);
+        return OwnedByMasterOrder().Where(x => mine != x.Instance.InstanceId && CanOperate(x.Instance.InstanceId, hideoutOperatorSlot))
+            .Select(x => new CharacterListItem(x.Entry.Code, x.Entry.Name,
+                HideoutFloorOf(x.Instance.InstanceId) >= 0 || hideoutOperators.ContainsValue(x.Instance.InstanceId) ? CharacterListColor.Green : CharacterListColor.White, x.Instance.InstanceId)).ToList();
     }
 
     Screen HideoutOperatorReturnScreen => hideoutOperatorBuilt ? Screen.HideoutFacilityDetail : Screen.HideoutFloorDetail;
@@ -305,9 +328,9 @@ public sealed partial class GameSession
     {
         var entries = new List<ScreenEntry>();
         var back = CurrentSlot is { } floor ? new ScreenEntry(BackEntryCode, "돌아가기", HideoutOperatorReturnScreen, Arg: Text(floor)) : new ScreenEntry(BackEntryCode, "돌아가기", Screen.Hideout);
-        if (CurrentSlot is { } at && HideoutOperatorOf(at, hideoutOperatorBuilt, hideoutOperatorSlot) is not null)
+        if (CurrentSlot is { } at && HideoutOperatorInstanceOf(at, hideoutOperatorBuilt, hideoutOperatorSlot) is not null)
             entries.Add(new ScreenEntry(ClearEntryCode, "비우기", HideoutOperatorReturnScreen, EntryAction.ClearHideoutOperator));
-        entries.AddRange(HideoutOperatorCandidates().Select(c => new ScreenEntry(Text(c.Code), c.Name, HideoutOperatorReturnScreen, EntryAction.SetHideoutOperator)));
+        entries.AddRange(HideoutOperatorCandidates().Select(c => new ScreenEntry(c.InstanceId, c.Name, HideoutOperatorReturnScreen, EntryAction.SetHideoutOperator)));
         entries.Add(back);
         return entries;
     }
@@ -345,8 +368,12 @@ public sealed partial class GameSession
 
     /// <summary>오퍼레이터 슬롯에 선 캐릭터의 최대 방어력: 그 슬롯의 방어력 흐름(서킷)을 실행한 결과. 흐름이 없거나 보유하지 않은 캐릭터면 0.</summary>
     public long OperatorDefenseOf(long characterCode, long operatorSlotCode) =>
-        Characters.TryGetValue(characterCode, out var character) && Pack.DefenseFlowsOf(operatorSlotCode) is { Count: > 0 } flows
-            ? new DefenseFlowCircuit(flows, characterCode, (_, status) => character.Statuses.GetValueOrDefault(status), CharacterHasTag, PlayerFlags, NextRandom).Execute()
+        InstanceIdOf(characterCode) is { } id ? OperatorDefenseOf(id, operatorSlotCode) : 0;
+
+    /// <summary>오퍼레이터 슬롯에 선 캐릭터 인스턴스의 최대 방어력(<see cref="OperatorDefenseOf(long, long)"/>와 같다).</summary>
+    public long OperatorDefenseOf(string instanceId, long operatorSlotCode) =>
+        Characters.TryGetValue(instanceId, out var character) && Pack.DefenseFlowsOf(operatorSlotCode) is { Count: > 0 } flows
+            ? new DefenseFlowCircuit(flows, character.CharacterCode, (_, status) => character.Statuses.GetValueOrDefault(status), CharacterHasTag, PlayerFlags, NextRandom).Execute()
             : 0;
 
     /// <summary>현재 위협도(게임 설정 ThreatFlagCode의 플레이어 플래그 값). 설정이 없으면 0.</summary>

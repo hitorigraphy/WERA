@@ -2,8 +2,8 @@ using System.Globalization;
 
 namespace Wera.Core;
 
-/// <summary>디버그 목록 한 줄: 마스터의 코드와 이름.</summary>
-public sealed record DebugListItem(long Code, string Name);
+/// <summary>디버그 목록 한 줄: 마스터의 코드와 이름. Key는 같은 코드가 여럿일 수 있는 목록(보유 캐릭터)의 항목 키(캐릭터 인스턴스 ID)다.</summary>
+public sealed record DebugListItem(long Code, string Name, string? Key = null);
 
 // 디버그(400): 시스템 메뉴 아래의 개발용 화면. 마스터에 있는 캐릭터, 유니크 아이템(장비), 커먼 아이템을 페이지당 20개씩 늘어놓고 누르면 하나 추가한다.
 public sealed partial class GameSession
@@ -22,8 +22,8 @@ public sealed partial class GameSession
     /// <summary>[404] 스킬 추가: 먼저 스킬을 받을 가진 캐릭터를 고르고, 그 캐릭터의 스킬 풀에 마스터의 스킬을 하나씩 더한다.</summary>
     public const string DebugAddSkillEntryCode = "404";
 
-    /// <summary>디버그 스킬 추가에서 고른 캐릭터의 코드.</summary>
-    public long? DebugSkillTarget { get; private set; }
+    /// <summary>디버그 스킬 추가에서 고른 캐릭터 인스턴스의 ID.</summary>
+    public string? DebugSkillTarget { get; private set; }
 
     static bool IsDebugAddScreen(Screen screen) =>
         screen is Screen.DebugAddCharacter or Screen.DebugAddEquipment or Screen.DebugAddItem or Screen.DebugSkillCharacter or Screen.DebugAddSkill;
@@ -34,7 +34,8 @@ public sealed partial class GameSession
         Screen.DebugAddCharacter => (Pack.CharacterInventory ?? []).Select(c => new DebugListItem(c.Code, c.Name)).ToList(),
         Screen.DebugAddEquipment => (Pack.UniqueItems ?? []).Select(i => new DebugListItem(i.ItemCode, i.ItemName)).ToList(),
         Screen.DebugAddItem => (Pack.ItemInventory ?? []).Select(i => new DebugListItem(i.Code, i.Name)).ToList(),
-        Screen.DebugSkillCharacter => Characters.Keys.Order().Select(c => new DebugListItem(c, Pack.FindCharacter(c)?.Name ?? Text(c))).ToList(),
+        Screen.DebugSkillCharacter => OwnedCharacters.OrderBy(c => c.CharacterCode).ThenBy(c => c.OrderNumber).ThenBy(c => c.InstanceId, StringComparer.Ordinal)
+            .Select(c => new DebugListItem(c.CharacterCode, Pack.FindCharacter(c.CharacterCode)?.Name ?? Text(c.CharacterCode), c.InstanceId)).ToList(),
         Screen.DebugAddSkill => (Pack.Skills ?? []).Select(s => new DebugListItem(s.Code, s.Name)).ToList(),
         _ => [],
     };
@@ -61,21 +62,21 @@ public sealed partial class GameSession
         var picking = Screen == Screen.DebugSkillCharacter;      // 캐릭터를 고르면 스킬 목록으로 간다
         return items
             .Select((item, i) => picking
-                ? new ScreenEntry(Text(i + 1), $"{item.Name} ({item.Code})", Screen.DebugAddSkill, EntryAction.DebugSelectSkillCharacter, Text(item.Code))
+                ? new ScreenEntry(Text(i + 1), $"{item.Name} ({item.Code})", Screen.DebugAddSkill, EntryAction.DebugSelectSkillCharacter, item.Key ?? Text(item.Code))
                 : new ScreenEntry(Text(i + 1), $"{item.Name} ({item.Code})", Screen, EntryAction.DebugAdd, Text(item.Code)))
             .Concat(PagerEntries(DebugList.Count))
             .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen == Screen.DebugAddSkill ? Screen.DebugSkillCharacter : Screen.Debug))
             .ToList();
     }
 
-    /// <summary>항목의 마스터 코드로 하나 추가하고 결과 안내를 돌려준다: 캐릭터는 이미 가졌으면 못 얻고, 아이템은 소지 한도에서 멈춘다.</summary>
+    /// <summary>항목의 마스터 코드로 하나 추가하고 결과 안내를 돌려준다: 캐릭터는 소지 한도(carry_limit)까지만 얻고, 아이템은 소지 한도에서 멈춘다.</summary>
     string DebugAddOne(long code)
     {
         var name = DebugList.FirstOrDefault(d => d.Code == code)?.Name ?? Text(code);
         switch (Screen)
         {
             case Screen.DebugAddCharacter:
-                return AddCharacter(code) ? $"캐릭터 추가: {name}" : $"이미 가지고 있는 캐릭터입니다: {name}";
+                return AddCharacter(code) ? $"캐릭터 추가: {name}" : $"소지 한도라 더 얻을 수 없는 캐릭터입니다: {name} (한도 {CharacterLimitOf(code)})";
             case Screen.DebugAddEquipment:
                 return AddUniqueItem(code) is not null ? $"장비 추가: {name}" : $"장비를 추가하지 못했습니다: {name}";
             case Screen.DebugAddItem:
@@ -85,7 +86,7 @@ public sealed partial class GameSession
             case Screen.DebugAddSkill:
                 if (DebugSkillTarget is not { } target || !Characters.TryGetValue(target, out var character)) return "";
                 Characters[target] = character with { SkillPool = [.. character.SkillPool, Pack.NewSkillInstance(code)] };
-                return $"스킬 추가: {name} → {Pack.FindCharacter(target)?.Name ?? Text(target)} (스킬 풀 {character.SkillPool.Count + 1}개)";
+                return $"스킬 추가: {name} → {Pack.FindCharacter(character.CharacterCode)?.Name ?? Text(character.CharacterCode)} (스킬 풀 {character.SkillPool.Count + 1}개)";
             default:
                 return "";
         }

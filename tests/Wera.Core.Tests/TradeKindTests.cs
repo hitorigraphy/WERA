@@ -198,10 +198,11 @@ public class TradeKindTests
         s.AddCharacter(7002);
         s.AddUniqueItem(8001);
         s.AddCharacterTag(7002, 9);
+        var paidId = s.InstanceIdOf(7002)!;
 
         Assert.Equal("교환 완료: 마법사 ×1 → 금화 ×300", Trade(s, "5004"));
         Assert.False(s.Characters.ContainsKey(7002));
-        Assert.False(s.CharacterTagInstances.ContainsKey(7002));
+        Assert.False(s.CharacterTagInstances.ContainsKey(paidId));
         Assert.Equal(300, s.InventoryItems[11].Amount);
     }
 

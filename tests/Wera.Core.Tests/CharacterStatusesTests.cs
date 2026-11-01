@@ -102,7 +102,7 @@ public class CharacterStatusesTests
         s.AddCharacter(7001);
         // 7001의 항목을 예전 형식(Level, Hp, MaxHp, Xpp, XppMax만 있고 Statuses가 없음)으로 바꿔 끼운다.
         var root = System.Text.Json.Nodes.JsonNode.Parse(s.ToSaveJson())!;
-        root["Characters"]!["7001"] = new System.Text.Json.Nodes.JsonObject
+        root["Characters"]![s.Characters[7001].InstanceId] = new System.Text.Json.Nodes.JsonObject
         {
             ["InstanceId"] = s.Characters[7001].InstanceId, ["CharacterCode"] = 7001, ["OrderNumber"] = 1,
             ["Level"] = 5, ["Hp"] = 30, ["MaxHp"] = 44, ["Xpp"] = 3, ["XppMax"] = 77,

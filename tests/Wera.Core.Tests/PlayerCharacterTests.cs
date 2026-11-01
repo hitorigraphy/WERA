@@ -202,7 +202,7 @@ public class PlayerCharacterTests
     public void A_new_game_starts_with_the_player_owned_and_tagged()
     {
         var s = GameSession.NewGame(Load());
-        Assert.Equal([1L], s.Characters.Keys);
+        Assert.Equal([1L], s.Characters.Values.Select(c => c.CharacterCode));
         Assert.Equal([1L], s.CharacterTags(1));
         Assert.All(s.Party, p => Assert.Null(p));                         // 파티에는 자동으로 들어가지 않는다
     }
@@ -240,7 +240,7 @@ public class PlayerCharacterTests
     public void An_older_save_without_the_player_gets_the_player_added_on_load()
     {
         var s = GameSession.FromSaveJson(Load(), "{\"Version\":1,\"PackId\":\"demo\"}");
-        Assert.Equal([1L], s.Characters.Keys);
+        Assert.Equal([1L], s.Characters.Values.Select(c => c.CharacterCode));
         Assert.Equal([1L], s.CharacterTags(1));
     }
 

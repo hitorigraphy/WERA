@@ -18,36 +18,60 @@ public sealed partial class GameSession
     /// <summary>홈 화면의 어시스트 슬롯 코드(타이핑 가능).</summary>
     public const string AssistEntryCode = "2";
 
-    /// <summary>지정한 파트너 캐릭터. 없으면 null.</summary>
-    public long? PartnerCode { get; private set; }
+    /// <summary>지정한 파트너 캐릭터 인스턴스의 ID. 없으면 null.</summary>
+    public string? PartnerId { get; private set; }
 
-    /// <summary>지정한 어시스트 캐릭터. 없으면 null.</summary>
-    public long? AssistCode { get; private set; }
+    /// <summary>지정한 어시스트 캐릭터 인스턴스의 ID. 없으면 null.</summary>
+    public string? AssistId { get; private set; }
+
+    /// <summary>지정한 파트너 캐릭터의 코드. 없으면 null.</summary>
+    public long? PartnerCode => CodeOfInstance(PartnerId);
+
+    /// <summary>지정한 어시스트 캐릭터의 코드. 없으면 null.</summary>
+    public long? AssistCode => CodeOfInstance(AssistId);
 
     /// <summary>캐릭터 선택 화면(파트너/어시스트)에서 지정 중인 슬롯. 그 화면이 아니면 null.</summary>
     public SupportRole? CurrentSupportRole { get; private set; }
 
-    public long? SupportOf(SupportRole role) => role == SupportRole.Partner ? PartnerCode : AssistCode;
+    /// <summary>파트너/어시스트로 지정한 캐릭터의 코드. 없으면 null.</summary>
+    public long? SupportOf(SupportRole role) => CodeOfInstance(SupportInstanceOf(role));
+
+    /// <summary>파트너/어시스트로 지정한 캐릭터 인스턴스의 ID. 없으면 null.</summary>
+    public string? SupportInstanceOf(SupportRole role) => role == SupportRole.Partner ? PartnerId : AssistId;
 
     /// <summary>
-    /// 파트너/어시스트를 지정한다(null이면 비운다). 보유한 캐릭터여야 하고, 다른 쪽 슬롯에 이미 있는 캐릭터를 고르면
-    /// 두 슬롯의 캐릭터가 서로 바뀐다. 보유하지 않은 캐릭터면 false.
+    /// 파트너/어시스트를 지정한다(null이면 비운다). 보유한 캐릭터여야 하고(코드면 그 코드의 첫 인스턴스, 이미 다른 쪽 슬롯에 있는 인스턴스가 있으면 그것을 고르면 서로 바뀐다),
+    /// 보유하지 않은 캐릭터면 false.
     /// </summary>
     public bool SetSupport(SupportRole role, long? code)
     {
-        if (code is { } owned && (!Characters.ContainsKey(owned) || owned == GamePack.PlayerCharacterCode)) return false;   // 플레이어는 파트너/어시스트가 될 수 없다
+        if (code is not { } owned) return SetSupportInstance(role, null);
+        var other = SupportInstanceOf(role == SupportRole.Partner ? SupportRole.Assist : SupportRole.Partner);
+        var all = Characters.InstancesOf(owned);
+        // 다른 쪽 슬롯에 있는 인스턴스는 서로 바뀌므로, 그렇지 않은 인스턴스를 먼저 고른다.
+        var pick = all.FirstOrDefault(c => c.InstanceId != other) ?? all.FirstOrDefault();
+        return pick is not null && SetSupportInstance(role, pick.InstanceId);
+    }
+
+    /// <summary>
+    /// 파트너/어시스트에 캐릭터 인스턴스를 지정한다(null이면 비운다). 보유한 캐릭터여야 하고, 다른 쪽 슬롯에 이미 있는 인스턴스를 고르면
+    /// 두 슬롯의 캐릭터가 서로 바뀐다. 보유하지 않은 캐릭터거나 플레이어면 false.
+    /// </summary>
+    public bool SetSupportInstance(SupportRole role, string? instanceId)
+    {
+        if (instanceId is not null && (!Characters.TryGetValue(instanceId, out var owned) || owned.CharacterCode == GamePack.PlayerCharacterCode)) return false;   // 플레이어는 파트너/어시스트가 될 수 없다
 
         var other = role == SupportRole.Partner ? SupportRole.Assist : SupportRole.Partner;
-        var previous = SupportOf(role);
-        if (code is not null && SupportOf(other) == code) Put(other, previous);   // 서로 바꾼다
-        Put(role, code);
+        var previous = SupportInstanceOf(role);
+        if (instanceId is not null && SupportInstanceOf(other) == instanceId) Put(other, previous);   // 서로 바꾼다
+        Put(role, instanceId);
         return true;
     }
 
-    void Put(SupportRole role, long? code)
+    void Put(SupportRole role, string? instanceId)
     {
-        if (role == SupportRole.Partner) PartnerCode = code;
-        else AssistCode = code;
+        if (role == SupportRole.Partner) PartnerId = instanceId;
+        else AssistId = instanceId;
     }
 
     /// <summary>홈 화면 위쪽 왼쪽의 "당신" 슬롯: 플레이어(캐릭터 1)를 보여 준다. 눌러도 바뀌지 않는다.</summary>
@@ -55,7 +79,8 @@ public sealed partial class GameSession
     {
         get
         {
-            var view = Unavailable(CharacterView(-1, GamePack.PlayerCharacterCode), GamePack.PlayerCharacterCode);
+            var playerId = InstanceIdOf(GamePack.PlayerCharacterCode);
+            var view = Unavailable(CharacterView(-1, playerId), playerId);
             return view.IsEmpty ? view with { Name = PlayerSlotName } : view;
         }
     }
@@ -63,13 +88,13 @@ public sealed partial class GameSession
     public const string PlayerSlotName = "당신";
 
     /// <summary>홈 화면의 파트너 슬롯.</summary>
-    public PartySlotView PartnerSlot => Unavailable(CharacterView(-1, PartnerCode), PartnerCode);
+    public PartySlotView PartnerSlot => Unavailable(CharacterView(-1, PartnerId), PartnerId);
 
     /// <summary>홈 화면의 어시스트 슬롯.</summary>
-    public PartySlotView AssistSlot => Unavailable(CharacterView(-1, AssistCode), AssistCode);
+    public PartySlotView AssistSlot => Unavailable(CharacterView(-1, AssistId), AssistId);
 
-    PartySlotView Unavailable(PartySlotView view, long? code) =>
-        view with { IsUnavailable = code is { } c && Characters.ContainsKey(c) && !CanExplore(c) };
+    PartySlotView Unavailable(PartySlotView view, string? instanceId) =>
+        view with { IsUnavailable = instanceId is { } c && Characters.ContainsKey(c) && !CanExplore(c) };
 
     /// <summary>홈 화면에서만 쓸 수 있는 슬롯 항목(홈 항목 목록에는 나오지 않는다): [1] 파트너, [2] 어시스트.</summary>
     IReadOnlyList<ScreenEntry> HomeSlotEntries => Screen != Screen.Home
@@ -93,19 +118,19 @@ public sealed partial class GameSession
     public string? CurrentSupportRoleName => CurrentSupportRole is { } role ? RoleName(role) : null;
 
     /// <summary>
-    /// 파트너/어시스트 캐릭터 선택 화면의 목록(캐릭터 인벤토리 마스터 순서).
+    /// 파트너/어시스트 캐릭터 선택 화면의 목록(캐릭터 인벤토리 마스터 순서, 같은 캐릭터를 여럿 가졌으면 인스턴스마다 한 줄).
     /// 보유하지 않은 캐릭터는 목록에 나오지 않는다. 플레이어와 이 슬롯의 캐릭터는 나오지 않는다,
     /// 다른 쪽 슬롯의 캐릭터는 파란색(고르면 서로 바뀐다), 나머지는 흰색.
     /// </summary>
     IReadOnlyList<CharacterListItem> SupportCharacterList()
     {
         if (CurrentSupportRole is not { } role) return [];
-        var mine = SupportOf(role);
-        var theirs = SupportOf(role == SupportRole.Partner ? SupportRole.Assist : SupportRole.Partner);
-        return (Pack.CharacterInventory ?? []).Where(c => Characters.ContainsKey(c.Code) && mine != c.Code && c.Code != GamePack.PlayerCharacterCode).Select(c =>
+        var mine = SupportInstanceOf(role);
+        var theirs = SupportInstanceOf(role == SupportRole.Partner ? SupportRole.Assist : SupportRole.Partner);
+        return OwnedByMasterOrder().Where(x => mine != x.Instance.InstanceId && x.Entry.Code != GamePack.PlayerCharacterCode).Select(x =>
         {
-            var color = theirs == c.Code ? CharacterListColor.Green : CharacterListColor.White;
-            return new CharacterListItem(c.Code, c.Name, color);
+            var color = theirs == x.Instance.InstanceId ? CharacterListColor.Green : CharacterListColor.White;
+            return new CharacterListItem(x.Entry.Code, x.Entry.Name, color, x.Instance.InstanceId);
         }).ToList();
     }
 
@@ -113,11 +138,11 @@ public sealed partial class GameSession
     IReadOnlyList<ScreenEntry> SupportSelectEntries()
     {
         var entries = new List<ScreenEntry>();
-        if (CurrentSupportRole is { } role && SupportOf(role) is not null)
+        if (CurrentSupportRole is { } role && SupportInstanceOf(role) is not null)
             entries.Add(new ScreenEntry(ClearEntryCode, "비우기", Screen.Home, EntryAction.ClearSupport));
         entries.AddRange(SupportCharacterList()
             .Where(c => c.Selectable)
-            .Select(c => new ScreenEntry(Text(c.Code), c.Name, Screen.Home, EntryAction.SetSupport)));
+            .Select(c => new ScreenEntry(c.InstanceId, c.Name, Screen.Home, EntryAction.SetSupport)));
         entries.Add(new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home));
         return entries;
     }

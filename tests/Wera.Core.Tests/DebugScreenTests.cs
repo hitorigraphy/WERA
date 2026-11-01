@@ -97,7 +97,7 @@ public class DebugScreenTests
         Assert.Contains("캐릭터 추가", s.Message);
         Assert.Equal(Screen.DebugAddCharacter, s.Screen);
         s.Pick("2");
-        Assert.Contains("이미 가지고 있는", s.Message);
+        Assert.Contains("소지 한도라 더 얻을 수 없는 캐릭터입니다", s.Message);
         Assert.Equal(2, s.Characters.Count);
     }
 

@@ -111,7 +111,7 @@ public class MultiKindEquipmentTests
     {
         var s = Session();
         Assert.True(s.Equip(7001, 3, EquipRef.Char(7002)));
-        Assert.Equal(EquipRef.Char(7002), s.EquippedItemOf(7001, 3));
+        Assert.Equal(EquipRef.Char(s.InstanceIdOf(7002)!), s.EquippedItemOf(7001, 3));
         Assert.Equal(0, s.FreeCopies(EquipRef.Char(7002)));
         Assert.False(s.Equip(7003, 3, EquipRef.Char(7002)));              // 7003에게는 소환 슬롯이 없고, 이미 낀 캐릭터다
     }
@@ -143,7 +143,7 @@ public class MultiKindEquipmentTests
         var s = Session();
         s.Equip(7001, 3, EquipRef.Common(3));
         Assert.True(s.Equip(7001, 3, EquipRef.Char(7002)));
-        Assert.Equal(EquipRef.Char(7002), s.EquippedItemOf(7001, 3));
+        Assert.Equal(EquipRef.Char(s.InstanceIdOf(7002)!), s.EquippedItemOf(7001, 3));
         Assert.Equal(2, s.FreeCopies(EquipRef.Common(3)));
     }
 
@@ -193,7 +193,7 @@ public class MultiKindEquipmentTests
 
         s.Pick("1");                                                          // 강시
         Assert.Equal("장착: 강령술사의 소환 ← 강시", s.Message);
-        Assert.Equal(EquipRef.Char(7002), s.EquippedItemOf(7001, 3));
+        Assert.Equal(EquipRef.Char(s.InstanceIdOf(7002)!), s.EquippedItemOf(7001, 3));
         Assert.Equal(Screen.EquipmentList, s.Screen);
         Assert.Contains(s.DataEntries, e => e.Label == "소환 : 강시");
     }
@@ -211,7 +211,7 @@ public class MultiKindEquipmentTests
         Assert.Contains("\"Kind\": \"Character\"", json);
         var loaded = GameSession.FromSaveJson(Pack(), json);
         Assert.Equal(8001, loaded.EquippedUniqueCode(7001, 1));
-        Assert.Equal(EquipRef.Char(7002), loaded.EquippedItemOf(7001, 3));
+        Assert.Equal(EquipRef.Char(loaded.InstanceIdOf(7002)!), loaded.EquippedItemOf(7001, 3));
     }
 
     const string Head = "{\"Version\":1,\"PackId\":\"demo\",";

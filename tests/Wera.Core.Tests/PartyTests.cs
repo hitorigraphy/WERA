@@ -369,7 +369,7 @@ public class PartyTests
         Assert.Equal(7001, s.Party[0]);                        // 다른 슬롯은 그대로
         Assert.True(s.PartySlotViews[4].IsEmpty);
         Assert.Equal("빈 슬롯", s.PartySlotViews[4].Name);
-        Assert.Contains(s.Characters.Keys, k => k == 7002);    // 캐릭터를 잃은 것이 아니다(여전히 보유)
+        Assert.Contains(s.Characters.Values, c => c.CharacterCode == 7002);    // 캐릭터를 잃은 것이 아니다(여전히 보유)
     }
 
     [Fact]
@@ -471,7 +471,7 @@ public class PartyTests
     public void Save_without_characters_or_party_loads_as_empty()
     {
         var s = GameSession.FromSaveJson(Pack(), "{\"Version\":1,\"PackId\":\"demo\"}");
-        Assert.Equal([GamePack.PlayerCharacterCode], s.Characters.Keys);     // 세이브에 없어도 플레이어(캐릭터 1)는 늘 보유한다
+        Assert.Equal([GamePack.PlayerCharacterCode], s.Characters.Values.Select(c => c.CharacterCode));     // 세이브에 없어도 플레이어(캐릭터 1)는 늘 보유한다
         Assert.Equal(GameSession.PartySlotCount, s.Party.Length);
         Assert.All(s.Party, p => Assert.Null(p));
     }

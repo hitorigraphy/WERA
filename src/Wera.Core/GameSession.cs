@@ -238,18 +238,23 @@ public sealed record ScreenEntry(
     bool Enabled = true, string? DataCode = null);
 
 /// <param name="Version">릴리스 전이라 1로 유지한다. 지시가 있을 때까지 올리지 않는다.</param>
+/// <param name="Characters">보유 캐릭터: 인스턴스 ID(ULID) → 인스턴스. 키가 ULID가 아닌 정수면 캐릭터 코드를 뜻하는 줄임 표기로 보고(그 코드의 인스턴스 하나) 새 ID를 채운다.</param>
+/// <param name="StatusEffects">상태이상: 캐릭터 인스턴스 ID(또는 코드 줄임 표기) → 목록.</param>
+/// <param name="CharacterTags">캐릭터 태그: 캐릭터 인스턴스 ID(또는 코드 줄임 표기) → 태그 목록.</param>
+/// <param name="EquippedItems">예전 형식의 장비(캐릭터 인스턴스 ID 또는 코드 줄임 표기 → 슬롯별 장비). 새 세이브는 파티의 유닛이 장비를 가진다.</param>
+/// <param name="PartnerId">파트너 캐릭터 인스턴스 ID. 예전 형식의 <paramref name="Partner"/>(캐릭터 코드)는 그 코드의 첫 인스턴스로 읽는다.</param>
 public sealed record SaveData(
     int Version,
     string PackId,
     Screen Screen = Screen.Home,
     Dictionary<long, long>? PlayerFlags = null,
     Dictionary<long, InventoryItem>? InventoryItems = null,
-    Dictionary<long, CharacterInstance>? Characters = null,
+    Dictionary<string, CharacterInstance>? Characters = null,
     long?[]? Party = null,
-    Dictionary<long, List<ActiveStatusEffect>>? StatusEffects = null,
+    Dictionary<string, List<ActiveStatusEffect>>? StatusEffects = null,
     Dictionary<string, UniqueItemInstance>? UniqueItems = null,
-    Dictionary<long, List<long>>? CharacterTags = null,
-    Dictionary<long, Dictionary<long, EquipRef>>? EquippedItems = null,
+    Dictionary<string, List<long>>? CharacterTags = null,
+    Dictionary<string, Dictionary<long, EquipRef>>? EquippedItems = null,
     long? Partner = null,
     long? Assist = null,
     long? Turn = null,
@@ -258,10 +263,12 @@ public sealed record SaveData(
     int? CurrentParty = null,
     PartyInstance?[]? HideoutParties = null,
     long?[]? HideoutFacilities = null,
-    HideoutOperatorSave[]? HideoutOperators = null);
+    HideoutOperatorSave[]? HideoutOperators = null,
+    string? PartnerId = null,
+    string? AssistId = null);
 
-/// <summary>세이브의 오퍼레이터 한 명: 층이 생긴 순서(1은 처음부터 있는 층), 지은 시설인가(아니면 기본 시설), 오퍼레이터 슬롯 코드, 캐릭터 코드.</summary>
-public sealed record HideoutOperatorSave(long FloorOrder, bool Built, long SlotCode, long CharacterCode);
+/// <summary>세이브의 오퍼레이터 한 명: 층이 생긴 순서(1은 처음부터 있는 층), 지은 시설인가(아니면 기본 시설), 오퍼레이터 슬롯 코드, 캐릭터 코드, 캐릭터 인스턴스 ID(비어 있으면 코드의 첫 인스턴스).</summary>
+public sealed record HideoutOperatorSave(long FloorOrder, bool Built, long SlotCode, long CharacterCode, string InstanceId = "");
 
 [JsonSerializable(typeof(SaveData))]
 [JsonSourceGenerationOptions(WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
@@ -336,8 +343,11 @@ public sealed partial class GameSession
     /// <summary>인벤토리_아이템: 아이템 코드 → 구조체.</summary>
     public Dictionary<long, InventoryItem> InventoryItems { get; }
 
-    /// <summary>보유 캐릭터: 캐릭터 코드 → 현재 상태. 코드는 캐릭터 인벤토리 마스터에 있어야 한다.</summary>
-    public Dictionary<long, CharacterInstance> Characters { get; }
+    /// <summary>
+    /// 보유 캐릭터 인스턴스: 인스턴스 ID(ULID 문자열) → 현재 상태. 인스턴스의 캐릭터 코드는 캐릭터 인벤토리 마스터에 있어야 하고,
+    /// 같은 코드는 마스터의 carry_limit개까지 가질 수 있다. 코드(long)로도 읽고 쓸 수 있지만 그것은 "그 코드의 첫 인스턴스"를 뜻한다.
+    /// </summary>
+    public CharacterCollection Characters { get; }
 
     /// <summary>
     /// 파티: 이름과 유닛 아홉 칸(유닛 = 캐릭터 + 장비). 칸 번호 0~2 전위, 3~5 중위, 6~8 후위, 빈 칸은 null.
@@ -364,7 +374,7 @@ public sealed partial class GameSession
     /// <summary>파티의 처음 이름: "파티-A" ~ "파티-P".</summary>
     public static string DefaultPartyNameOf(int index) => "파티-" + (char)('A' + index);
 
-    /// <summary>이 캐릭터의 유닛이 있는 파티의 번호(어느 파티에도 없으면 -1).</summary>
+    /// <summary>이 캐릭터 코드의 유닛이 있는 파티의 번호(어느 파티에도 없으면 -1).</summary>
     public int PartyIndexOf(long characterCode)
     {
         for (var i = 0; i < Parties.Length; i++)
@@ -372,18 +382,30 @@ public sealed partial class GameSession
         return -1;
     }
 
-    /// <summary>이 캐릭터의 유닛(어느 파티든). 파티에 없으면 null.</summary>
+    /// <summary>이 인스턴스의 유닛이 있는 파티의 번호(어느 파티에도 없으면 -1).</summary>
+    public int PartyIndexOf(string instanceId)
+    {
+        for (var i = 0; i < Parties.Length; i++)
+            if (IndexOfId(Parties[i], instanceId) >= 0) return i;
+        return -1;
+    }
+
+    /// <summary>이 캐릭터 코드의 유닛(어느 파티든, 같은 코드가 여럿이면 앞의 것). 파티에 없으면 null.</summary>
     public PartyUnit? UnitOf(long characterCode) =>
         AllParties.Select(p => p.UnitOf(characterCode)).FirstOrDefault(u => u is not null);
 
-    /// <summary>칸 번호로 캐릭터 코드를 읽고 쓰는 창(<see cref="PartySlots"/>): 길이 9, 빈 칸은 null.</summary>
-    public PartySlots Party => new(PartyInstance);
+    /// <summary>이 인스턴스의 유닛(어느 파티든). 파티에 없으면 null.</summary>
+    public PartyUnit? UnitOf(string instanceId) =>
+        AllParties.Select(p => IndexOfId(p, instanceId) is var at and >= 0 ? p.Units[at] : null).FirstOrDefault(u => u is not null);
+
+    /// <summary>칸 번호로 캐릭터 코드를 읽고 쓰는 창(<see cref="PartySlots"/>): 길이 9, 빈 칸은 null. 코드를 쓰면 아직 배치하지 않은 그 코드의 첫 인스턴스가 들어간다.</summary>
+    public PartySlots Party => new(PartyInstance, code => PlaceableInstanceOf(code));
 
     /// <summary>
-    /// 캐릭터에 걸려 있는 상태이상: 캐릭터 코드 → 상태이상 목록. 각 이펙트의 시점, 우선도, 이펙트 코드, 밸류 1~3, 카운터, 유효 플래그를
+    /// 캐릭터에 걸려 있는 상태이상: 캐릭터 인스턴스 ID → 상태이상 목록. 각 이펙트의 시점, 우선도, 이펙트 코드, 밸류 1~3, 카운터, 유효 플래그를
     /// 그대로 들고 있어 세이브에서 복구할 수 있다. 비어 있는 캐릭터는 키가 없다.
     /// </summary>
-    public Dictionary<long, List<ActiveStatusEffect>> CharacterStatusEffects { get; }
+    public Dictionary<string, List<ActiveStatusEffect>> CharacterStatusEffects { get; }
 
     /// <summary>교환 목록 화면에서 보고 있는 상점 코드. 그 화면이 아니면 null.</summary>
     public long? CurrentShopCode { get; private set; }
@@ -407,6 +429,9 @@ public sealed partial class GameSession
     /// <summary>선택한 슬롯(<see cref="CurrentSlot"/>)에 있는 캐릭터의 코드. 슬롯이 없거나 비어 있으면 null.</summary>
     public long? CurrentCharacterCode => CurrentSlot is { } slot ? PartyInstance.Units[slot]?.CharacterCode : null;
 
+    /// <summary>선택한 슬롯(<see cref="CurrentSlot"/>)에 있는 캐릭터의 인스턴스 ID. 슬롯이 없거나 비어 있으면 null.</summary>
+    public string? CurrentCharacterId => CurrentSlot is { } slot && PartyInstance.Units[slot] is { } unit ? IdOf(unit) : null;
+
     /// <summary>장비 가능 목록 화면에서 보고 있는 장비 슬롯 코드. 그 화면이 아니면 null.</summary>
     public long? CurrentEquipmentSlotCode { get; private set; }
 
@@ -419,9 +444,9 @@ public sealed partial class GameSession
 
     GameSession(
         GamePack pack, Screen screen, Dictionary<long, long> playerFlags,
-        Dictionary<long, InventoryItem> inventoryItems, Dictionary<long, CharacterInstance> characters, PartyInstance[] parties,
-        Dictionary<long, List<ActiveStatusEffect>> statusEffects,
-        Dictionary<string, UniqueItemInstance> uniqueItems, Dictionary<long, List<long>> characterTags)
+        Dictionary<long, InventoryItem> inventoryItems, CharacterCollection characters, PartyInstance[] parties,
+        Dictionary<string, List<ActiveStatusEffect>> statusEffects,
+        Dictionary<string, UniqueItemInstance> uniqueItems, Dictionary<string, List<long>> characterTags)
     {
         Pack = pack;
         Screen = screen;
@@ -434,20 +459,15 @@ public sealed partial class GameSession
         CharacterTagInstances = characterTags;
     }
 
-    /// <summary>
-    /// 캐릭터를 새로 얻는다: 캐릭터 인벤토리 마스터에 있고 아직 보유하지 않았을 때, 캐릭터 스테이터스 마스터의 레벨 0 값으로
-    /// 상태를 채워 보유 캐릭터에 넣는다. 태그는 캐릭터 태그 마스터에서 복사한다. 마스터에 없거나 이미 보유하면 false.
-    /// </summary>
     /// <summary>다음에 얻는 캐릭터의 OrderNumber: 소지 캐릭터 수(0부터 시작). 순서를 바꿀 때는 OrderNumber를 직접 바꾼다.</summary>
     static long NextOrderNumber(IEnumerable<CharacterInstance> owned) => owned.Count();
 
     /// <summary>
     /// 지금 가진 캐릭터 인스턴스 전부(플레이어 포함), OrderNumber순이고 같으면 InstanceId순(동료 확인 화면의 목록).
-    /// 마스터 코드는 보유 목록의 키로 맞춘다.
+    /// 같은 캐릭터를 여럿 가졌으면 인스턴스마다 한 줄이다.
     /// </summary>
     public IReadOnlyList<CharacterInstance> OwnedCharacters =>
-        Characters.Select(kv => kv.Value with { CharacterCode = kv.Key })
-            .OrderBy(c => c.OrderNumber).ThenBy(c => c.InstanceId, StringComparer.Ordinal).ToList();
+        Characters.Values.OrderBy(c => c.OrderNumber).ThenBy(c => c.InstanceId, StringComparer.Ordinal).ToList();
 
     /// <summary>동료 확인 코드 칸("[OrderNumber]")의 너비(반각 칸 수). 코드 뒤는 이름 앞까지 공백으로 채운다.</summary>
     public const int CompanionCodeColumns = 8;
@@ -513,13 +533,22 @@ public sealed partial class GameSession
     /// <summary>글이 차지하는 칸 수(한글 등 전각 문자는 2칸).</summary>
     static int DisplayColumns(string text) => text.EnumerateRunes().Sum(RichText.ColumnsOf);
 
-    public bool AddCharacter(long characterCode)
+    /// <summary>
+    /// 캐릭터를 새로 얻는다: 캐릭터 인벤토리 마스터에 있고 그 코드의 보유 수가 마스터의 carry_limit보다 적을 때, 새 인스턴스를 만들어
+    /// 캐릭터 스테이터스 마스터의 레벨 0 값으로 상태를 채워 보유 캐릭터에 넣는다. 태그는 캐릭터 태그 마스터에서 복사한다.
+    /// 마스터에 없거나 소지 한도(플레이어는 늘 1)에 닿았으면 false.
+    /// </summary>
+    public bool AddCharacter(long characterCode) => AddCharacterInstance(characterCode) is not null;
+
+    /// <summary><see cref="AddCharacter"/>와 같되 새 인스턴스의 ID를 돌려준다(얻지 못하면 null).</summary>
+    public string? AddCharacterInstance(long characterCode)
     {
-        if (Pack.FindCharacter(characterCode) is null || Characters.ContainsKey(characterCode)) return false;
-        Characters[characterCode] = new CharacterAfterCreateCircuit(Pack,
-            Pack.NewCharacterInstance(characterCode, NewInstanceId(), NextOrderNumber(Characters.Values))).Execute();
-        CharacterTagInstances[characterCode] = Pack.MasterTagsOfCharacter(characterCode).ToList();
-        return true;
+        if (Pack.FindCharacter(characterCode) is null || !CanAddCharacter(characterCode)) return null;
+        var id = NewInstanceId();
+        Characters[id] = new CharacterAfterCreateCircuit(Pack,
+            Pack.NewCharacterInstance(characterCode, id, NextOrderNumber(Characters.Values))).Execute() with { InstanceId = id };
+        CharacterTagInstances[id] = Pack.MasterTagsOfCharacter(characterCode).ToList();
+        return id;
     }
 
     static PartyInstance[] NewParties() =>
@@ -564,32 +593,37 @@ public sealed partial class GameSession
     public IReadOnlyList<PartySlotView> PartySlotViews =>
         Enumerable.Range(0, PartySlotCount).Select(SlotView).ToList();
 
-    PartySlotView SlotView(int slot) =>
-        CharacterView(slot, Party[slot]) with
-        {
-            IsLeader = PartyInstance.Units[slot]?.IsLeader == true,
-            IsUnavailable = Party[slot] is { } code && Characters.ContainsKey(code) && !CanExplore(code),
-        };
-
-    /// <summary>캐릭터 한 명의 슬롯 표시. 코드가 없거나 보유하지 않으면 빈 슬롯. 슬롯 번호가 없는 슬롯은 -1.</summary>
-    PartySlotView CharacterView(int slot, long? characterCode)
+    PartySlotView SlotView(int slot)
     {
-        if (characterCode is not { } code || !Characters.TryGetValue(code, out var state))
+        var unit = PartyInstance.Units[slot];
+        var id = unit is null ? null : IdOf(unit);
+        return CharacterView(slot, id) with
+        {
+            IsLeader = unit?.IsLeader == true,
+            IsUnavailable = id is not null && Characters.ContainsKey(id) && !CanExplore(id),
+        };
+    }
+
+    /// <summary>캐릭터 한 명(인스턴스)의 슬롯 표시. ID가 없거나 보유하지 않으면 빈 슬롯. 슬롯 번호가 없는 슬롯은 -1.</summary>
+    PartySlotView CharacterView(int slot, string? instanceId)
+    {
+        if (instanceId is null || !Characters.TryGetValue(instanceId, out var state))
         {
             return PartySlotView.Empty(slot);
         }
-        var xp = XpLine(state with { CharacterCode = code });
+        var code = state.CharacterCode;
+        var xp = XpLine(state);
         return new PartySlotView(
             slot, code, $"Lv.{state.Level}", CharacterName(code),
             Gauge.Render(state.Hp, state.MaxHp, gray: state.IsDead),
             xp.Gauge, xp.Tag,
             AttributeBadges(code),
-            StatusBadges(code));
+            StatusBadges(instanceId), InstanceId: instanceId);
     }
 
     /// <summary>캐릭터에 걸려 있는 상태이상의 배지(걸린 순서). 이름은 상태이상 마스터에서 찾는다.</summary>
-    IReadOnlyList<StatusBadge> StatusBadges(long characterCode) =>
-        StatusEffectsOf(characterCode)
+    IReadOnlyList<StatusBadge> StatusBadges(string instanceId) =>
+        StatusEffectsOf(instanceId)
             .Select(s => new StatusBadge(
                 s.StatusEffectCode,
                 Pack.FindStatusEffect(s.StatusEffectCode)?.Name
@@ -611,8 +645,8 @@ public sealed partial class GameSession
     }
 
     /// <summary>
-    /// 캐릭터 선택 화면의 목록(캐릭터 인벤토리 마스터 순서). 보유하지 않은 캐릭터는 목록에 나오지 않는다.
-    /// 이 슬롯에 이미 있는 캐릭터는 목록에 나오지 않는다. 다른 슬롯에 있는 파티원은 파란색, 나머지는 흰색.
+    /// 캐릭터 선택 화면의 목록(캐릭터 인벤토리 마스터 순서, 같은 캐릭터를 여럿 가졌으면 인스턴스마다 한 줄). 보유하지 않은 캐릭터는 목록에 나오지 않는다.
+    /// 이 슬롯에 이미 있는 인스턴스는 목록에 나오지 않는다. 다른 슬롯에 있는 파티원은 파란색, 나머지는 흰색.
     /// </summary>
     public IReadOnlyList<CharacterListItem> CharacterList
     {
@@ -622,18 +656,21 @@ public sealed partial class GameSession
             if (Screen != Screen.CharacterSelect || CurrentSlot is not { } slot) return [];
             // 파티에 아무도 없을 때와 리더의 슬롯을 바꿀 때는 리더 태그를 가진 캐릭터만 나온다(파티에는 리더가 한 명 이상 있어야 하므로).
             var leaderOnly = IsLeaderOnlySlot(slot);
-            return (Pack.CharacterInventory ?? []).Where(c => Characters.ContainsKey(c.Code) && PartyInstance.Units[slot]?.CharacterCode != c.Code
-                && (!leaderOnly || HasLeaderTag(c.Code))).Select(c =>
+            var here = PartyInstance.Units[slot] is { } current ? IdOf(current) : null;
+            return OwnedByMasterOrder().Where(x => x.Instance.InstanceId != here && (!leaderOnly || HasLeaderTag(x.Instance.InstanceId))).Select(x =>
             {
-                var placedAt = PartyInstance.IndexOf(c.Code);
-                var color = !Characters.ContainsKey(c.Code) ? CharacterListColor.Gray
-                    : placedAt >= 0 ? CharacterListColor.Green
-                    : InOtherParty(c.Code) ? CharacterListColor.Gray          // 다른 파티(방어 파티 포함)의 유닛: 파티끼리는 캐릭터를 공유할 수 없다
+                var id = x.Instance.InstanceId;
+                var color = IndexOfId(PartyInstance, id) >= 0 ? CharacterListColor.Green
+                    : InOtherParty(id) ? CharacterListColor.Gray          // 다른 파티(방어 파티 포함)의 유닛: 파티끼리는 캐릭터를 공유할 수 없다
                     : CharacterListColor.White;
-                return new CharacterListItem(c.Code, c.Name, color);
+                return new CharacterListItem(x.Entry.Code, x.Entry.Name, color, id);
             }).ToList();
         }
     }
+
+    /// <summary>보유 캐릭터 인스턴스를 캐릭터 인벤토리 마스터 순서로(같은 코드는 OrderNumber순, 같으면 InstanceId순) 늘어놓은 것.</summary>
+    IEnumerable<(CharacterEntry Entry, CharacterInstance Instance)> OwnedByMasterOrder() =>
+        (Pack.CharacterInventory ?? []).SelectMany(c => Characters.InstancesOf(c.Code).Select(i => (c, i)));
 
     /// <summary>
     /// 홈 화면의 메뉴: 구분선으로 나뉜 세 분류. [RPG] 던전(101, 입장 가능한 것이 없으면 회색), 아지트(102), 이벤트(103),
@@ -727,7 +764,7 @@ public sealed partial class GameSession
                         .Where(v => !v.IsEmpty)
                         .Select(v => new ScreenEntry(
                             (v.Slot + 1).ToString(), v.Name, Screen.LeaderSetup, EntryAction.ToggleLeader, v.Slot.ToString(),
-                            Enabled: HasLeaderTag(v.CharacterCode!.Value))))
+                            Enabled: HasLeaderTag(v.InstanceId!))))
                         .Concat(PartySelectEntries(Screen.LeaderSetup))
                         .Concat(ModeEntries(Screen.LeaderSetup))
                         .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen.Home))
@@ -754,11 +791,11 @@ public sealed partial class GameSession
                 case Screen.EquipmentSelect:
                     return EquipmentSelectEntries();
                 case Screen.CharacterSelect:
-                    // 맨 위에 "[0] 비우기"(이 슬롯에 캐릭터가 있을 때만), 그다음 고를 수 있는 캐릭터(회색 제외)를 코드로 입력하거나 클릭하면 배치한다.
+                    // 맨 위에 "[0] 비우기"(이 슬롯에 캐릭터가 있을 때만), 그다음 고를 수 있는 캐릭터(회색 제외)를 줄 번호로 입력하거나 클릭하면 배치한다(항목의 키는 인스턴스 ID).
                     return ClearEntries()
                         .Concat(CharacterList
                             .Where(c => c.Selectable)
-                            .Select(c => new ScreenEntry(Text(c.Code), c.Name, Screen.PartySetup, EntryAction.PlaceCharacter)))
+                            .Select(c => new ScreenEntry(c.InstanceId, c.Name, Screen.PartySetup, EntryAction.PlaceCharacter)))
                         .Append(new ScreenEntry(BackEntryCode, "돌아가기", Screen.PartySetup))
                         .ToList();
                 case Screen.SupportSelect:
@@ -849,22 +886,25 @@ public sealed partial class GameSession
     }
 
     /// <summary>
-    /// 임베디드 이펙트를 보유 캐릭터에게 실행한다. 이펙트가 바꾼 상태는 세이브가 받아들이는 범위로 보정해 저장한다.
+    /// 임베디드 이펙트를 보유 캐릭터(그 코드의 첫 인스턴스)에게 실행한다. 이펙트가 바꾼 상태는 세이브가 받아들이는 범위로 보정해 저장한다.
     /// 이펙트 코드나 캐릭터를 찾을 수 없으면(보유하지 않았거나 마스터에 없음) 아무것도 하지 않고 false.
     /// </summary>
-    public bool ApplyEffect(long effectCode, long targetCharacterCode, long value1 = 0, long value2 = 0, long value3 = 0)
+    public bool ApplyEffect(long effectCode, long targetCharacterCode, long value1 = 0, long value2 = 0, long value3 = 0) =>
+        InstanceIdOf(targetCharacterCode) is { } id && ApplyEffect(effectCode, id, value1, value2, value3);
+
+    /// <summary>임베디드 이펙트를 이 캐릭터 인스턴스에게 실행한다.</summary>
+    public bool ApplyEffect(long effectCode, string instanceId, long value1 = 0, long value2 = 0, long value3 = 0)
     {
-        var entry = Pack.FindCharacter(targetCharacterCode);
-        if (!Pack.EmbeddedEffects.Contains(effectCode)
-            || entry is null
-            || !Characters.TryGetValue(targetCharacterCode, out var state))
+        if (!Characters.TryGetValue(instanceId, out var state)
+            || Pack.FindCharacter(state.CharacterCode) is not { } entry
+            || !Pack.EmbeddedEffects.Contains(effectCode))
             return false;
 
         // 타겟과 밸류를 넘겨 이펙트를 만들고(저장), 파라미터 없이 실행한다.
         var target = new Character(entry, state);
         var effect = Pack.EmbeddedEffects.Create(effectCode, target, value1, value2, value3)!;
         effect.Execute();
-        Characters[targetCharacterCode] = target.State.Clamped();
+        Characters[instanceId] = target.State.Clamped() with { InstanceId = instanceId };
         return true;
     }
 
@@ -972,16 +1012,16 @@ public sealed partial class GameSession
                 BeginCommunication(CodeOf(entry));
                 break;
             case EntryAction.SetSupport:
-                SetSupport(CurrentSupportRole!.Value, CodeOf(entry));
+                SetSupportInstance(CurrentSupportRole!.Value, InstanceKeyOf(entry));
                 CurrentSupportRole = null;
                 Screen = entry.Target;
                 break;
             case EntryAction.SetHideoutOperator:
-                SetHideoutOperator(CurrentSlot!.Value, hideoutOperatorBuilt, hideoutOperatorSlot, CodeOf(entry));
+                SetHideoutOperatorInstance(CurrentSlot!.Value, hideoutOperatorBuilt, hideoutOperatorSlot, InstanceKeyOf(entry));
                 Screen = entry.Target;
                 break;
             case EntryAction.ClearHideoutOperator:
-                SetHideoutOperator(CurrentSlot!.Value, hideoutOperatorBuilt, hideoutOperatorSlot, null);
+                SetHideoutOperatorInstance(CurrentSlot!.Value, hideoutOperatorBuilt, hideoutOperatorSlot, null);
                 Screen = entry.Target;
                 break;
             case EntryAction.SelectFacility:
@@ -1020,7 +1060,7 @@ public sealed partial class GameSession
                 Screen = entry.Target;
                 break;
             case EntryAction.ClearSupport:
-                SetSupport(CurrentSupportRole!.Value, null);
+                SetSupportInstance(CurrentSupportRole!.Value, null);
                 CurrentSupportRole = null;
                 Screen = entry.Target;
                 break;
@@ -1028,7 +1068,7 @@ public sealed partial class GameSession
                 Message = ExecuteTrade(CodeOf(entry));
                 break;
             case EntryAction.PlaceCharacter:
-                PlaceCharacter(CodeOf(entry));
+                if (InstanceKeyOf(entry) is { } placed) PlaceCharacter(placed);
                 CurrentSlot = null;
                 Screen = entry.Target;
                 break;
@@ -1066,7 +1106,7 @@ public sealed partial class GameSession
                 Message = DebugAddOne(long.Parse(entry.Arg!, CultureInfo.InvariantCulture));
                 break;
             case EntryAction.DebugSelectSkillCharacter:
-                DebugSkillTarget = long.Parse(entry.Arg!, CultureInfo.InvariantCulture);
+                DebugSkillTarget = InstanceKeyOf(entry.Arg!);
                 ListPage = 0;
                 Screen = entry.Target;
                 break;
@@ -1207,6 +1247,13 @@ public sealed partial class GameSession
 
     static long CodeOf(ScreenEntry entry) => long.Parse(entry.DataCode ?? entry.Code, CultureInfo.InvariantCulture);
 
+    /// <summary>캐릭터 목록 항목이 가리키는 인스턴스 ID(항목의 키). 키가 캐릭터 코드(정수)면 그 코드의 첫 보유 인스턴스(있다면 아직 배치하지 않은 것)로 푼다. 보유하지 않으면 null.</summary>
+    string? InstanceKeyOf(ScreenEntry entry) => InstanceKeyOf(entry.DataCode ?? entry.Code);
+
+    string? InstanceKeyOf(string key) =>
+        Characters.ContainsKey(key) ? key
+        : long.TryParse(key, NumberStyles.None, CultureInfo.InvariantCulture, out var code) ? PlaceableInstanceOf(code) : null;
+
     /// <summary>입력을 다듬는다. 앞뒤 공백을 없애고, 숫자면 앞자리 0을 없앤다("007001" → "7001").</summary>
     static string Normalize(string typed)
     {
@@ -1215,21 +1262,22 @@ public sealed partial class GameSession
     }
 
     /// <summary>
-    /// 선택한 슬롯에 캐릭터를 둔다. 이미 다른 슬롯에 있으면 그 슬롯과 이 슬롯의 유닛을 맞바꾸고(빈 슬롯이면 이동; 장비는 유닛과 함께 간다),
+    /// 선택한 슬롯에 캐릭터 인스턴스를 둔다. 이미 같은 파티의 다른 슬롯에 있으면 그 슬롯과 이 슬롯의 유닛을 맞바꾸고(빈 슬롯이면 이동; 장비는 유닛과 함께 간다),
     /// 어디에도 없으면 이 슬롯에 장비 없는 새 유닛으로 두며 원래 있던 유닛은 장비와 함께 파티에서 빠진다(장비는 보유로 돌아간다).
     /// 이 슬롯의 캐릭터를 다시 고르면 그대로다.
     /// </summary>
-    void PlaceCharacter(long code)
+    void PlaceCharacter(string instanceId)
     {
+        if (!Characters.TryGetValue(instanceId, out var character)) return;
         var slot = CurrentSlot!.Value;
         var units = PartyInstance.Units;
-        var at = PartyInstance.IndexOf(code);
+        var at = IndexOfId(PartyInstance, instanceId);
         if (at == slot) return;
         if (at >= 0) (units[at], units[slot]) = (units[slot], units[at]);
         else
         {
-            RemoveFromHideout(code);                           // 파티에 넣으면 아지트에서 빠진다
-            units[slot] = new PartyUnit(code, [], IsLeader: IsLeaderOnlySlot(slot));     // 아무도 없던 파티의 첫 유닛이나 리더 자리를 이은 유닛은 리더다
+            RemoveFromHideout(instanceId);                           // 파티에 넣으면 아지트에서 빠진다
+            units[slot] = new PartyUnit(character.CharacterCode, [], IsLeader: IsLeaderOnlySlot(slot), InstanceId: instanceId);     // 아무도 없던 파티의 첫 유닛이나 리더 자리를 이은 유닛은 리더다
         }
     }
 
@@ -1240,8 +1288,11 @@ public sealed partial class GameSession
     bool IsLeaderOnlySlot(int slot) =>
         PartyInstance.Units.All(u => u is null) || PartyInstance.Units[slot]?.IsLeader == true;
 
-    /// <summary>이 캐릭터가 리더 태그(<see cref="GamePack.LeaderTagCode"/>)를 가졌는가(캐릭터 인스턴스의 지금 태그 기준).</summary>
+    /// <summary>이 캐릭터가 리더 태그(<see cref="GamePack.LeaderTagCode"/>)를 가졌는가(캐릭터 코드의 첫 인스턴스의 지금 태그 기준).</summary>
     public bool HasLeaderTag(long characterCode) => CharacterTags(characterCode).Contains(GamePack.LeaderTagCode);
+
+    /// <summary>이 캐릭터 인스턴스가 리더 태그를 가졌는가.</summary>
+    public bool HasLeaderTag(string instanceId) => CharacterTags(instanceId).Contains(GamePack.LeaderTagCode);
 
     /// <summary>이 파티의 리더 수.</summary>
     static int LeaderCount(PartyInstance party) => party.Units.Count(u => u is { IsLeader: true });
@@ -1257,7 +1308,7 @@ public sealed partial class GameSession
     {
         foreach (var party in AllParties)
             for (var i = 0; i < party.Units.Length; i++)
-                if (party.Units[i] is { IsLeader: true } leader && !HasLeaderTag(leader.CharacterCode))
+                if (party.Units[i] is { IsLeader: true } leader && !(IdOf(leader) is { } leaderId && HasLeaderTag(leaderId)))
                     party.Units[i] = leader with { IsLeader = false };
     }
 
@@ -1267,7 +1318,7 @@ public sealed partial class GameSession
     /// </summary>
     void ToggleLeader(int slot)
     {
-        if (PartyInstance.Units[slot] is not { } unit || !HasLeaderTag(unit.CharacterCode)) return;
+        if (PartyInstance.Units[slot] is not { } unit || IdOf(unit) is not { } unitId || !HasLeaderTag(unitId)) return;
         if (unit.IsLeader && LeaderCount(PartyInstance) <= 1)
         {
             Message = "파티에는 리더가 한 명 이상 있어야 합니다.";
@@ -1306,7 +1357,7 @@ public sealed partial class GameSession
         // 커먼 아이템은 번치를 부품으로 풀어 한꺼번에 계산한다. 유니크 아이템과 캐릭터는 확인한 뒤 따로 처리한다.
         var net = new Dictionary<long, long>();
         string[] paidInstances = [];
-        long? paidCharacter = null;
+        string? paidCharacter = null;
 
         // 코스트는 받기 전의 보유량으로 판단한다.
         switch (trade.CostKind)
@@ -1331,13 +1382,17 @@ public sealed partial class GameSession
             case TradeKind.Character:
                 if (trade.CostItemCode == GamePack.PlayerCharacterCode)
                     return $"교환 실패 - 플레이어는 낼 수 없습니다: {Pack.TradeTargetName(trade.CostKind, trade.CostItemCode)} [{text}]";
-                if (!Characters.ContainsKey(trade.CostItemCode))
+                var owned = Characters.InstancesOf(trade.CostItemCode);
+                if (owned.Count == 0)
                     return $"교환 실패 - 부족: {Pack.TradeTargetName(trade.CostKind, trade.CostItemCode)} (보유 0 / 필요 1) [{text}]";
-                if (PartyIndexOf(trade.CostItemCode) >= 0)
-                    return $"교환 실패 - 파티에 편성된 캐릭터: {Pack.TradeTargetName(trade.CostKind, trade.CostItemCode)} [{text}]";
-                if (EquippedCount(EquipRef.Char(trade.CostItemCode)) > 0)
-                    return $"교환 실패 - 장비 슬롯에 끼워 둔 캐릭터: {Pack.TradeTargetName(trade.CostKind, trade.CostItemCode)} [{text}]";
-                paidCharacter = trade.CostItemCode;
+                // 같은 캐릭터가 여럿이면 그중 파티에 편성되지 않고 장비로 끼워지지 않은 인스턴스를 낸다(아지트에 선 것보다 놀고 있는 것이 먼저).
+                var spareCharacter = owned.Where(c => PartyIndexOf(c.InstanceId) < 0 && HideoutFloorOf(c.InstanceId) < 0 && EquippedCount(EquipRef.Char(c.InstanceId)) == 0).Select(c => c.InstanceId)
+                    .Concat(owned.Where(c => PartyIndexOf(c.InstanceId) < 0 && EquippedCount(EquipRef.Char(c.InstanceId)) == 0).Select(c => c.InstanceId)).FirstOrDefault();
+                if (spareCharacter is null)
+                    return owned.Any(c => PartyIndexOf(c.InstanceId) >= 0)
+                        ? $"교환 실패 - 파티에 편성된 캐릭터: {Pack.TradeTargetName(trade.CostKind, trade.CostItemCode)} [{text}]"
+                        : $"교환 실패 - 장비 슬롯에 끼워 둔 캐릭터: {Pack.TradeTargetName(trade.CostKind, trade.CostItemCode)} [{text}]";
+                paidCharacter = spareCharacter;
                 break;
         }
 
@@ -1348,9 +1403,13 @@ public sealed partial class GameSession
                     net[item] = checked(net.GetValueOrDefault(item) + n);
                 break;
             case TradeKind.Character:
-                // 같은 캐릭터를 내고 받는 교환이면 낸 뒤에는 보유하지 않으므로 받을 수 있다.
-                if (Characters.ContainsKey(trade.ReceiveItemCode) && paidCharacter != trade.ReceiveItemCode)
-                    return $"교환 실패 - 이미 보유한 캐릭터: {Pack.TradeTargetName(trade.ReceiveKind, trade.ReceiveItemCode)} [{text}]";
+                // 같은 캐릭터를 내고 받는 교환이면 낸 뒤의 보유 수로 소지 한도를 견준다.
+                var heldAfter = Characters.CountOf(trade.ReceiveItemCode) - (paidCharacter is not null && Characters[paidCharacter].CharacterCode == trade.ReceiveItemCode ? 1 : 0);
+                var limit = CharacterLimitOf(trade.ReceiveItemCode);
+                if (heldAfter >= limit)
+                    return limit == 1
+                        ? $"교환 실패 - 이미 보유한 캐릭터: {Pack.TradeTargetName(trade.ReceiveKind, trade.ReceiveItemCode)} [{text}]"
+                        : $"교환 실패 - 소지 한도 초과: {Pack.TradeTargetName(trade.ReceiveKind, trade.ReceiveItemCode)} (한도 {limit}) [{text}]";
                 break;
         }
 
@@ -1368,7 +1427,7 @@ public sealed partial class GameSession
     }
 
     /// <summary>교환을 해 보지 않고 미리 계산한 결과: 커먼 아이템 증감, 낼 유니크 아이템 인스턴스, 낼 캐릭터.</summary>
-    readonly record struct TradePlan(Dictionary<long, long> Net, string[] PaidInstances, long? PaidCharacter);
+    readonly record struct TradePlan(Dictionary<long, long> Net, string[] PaidInstances, string? PaidCharacter);
 
     /// <summary>
     /// 상점 교환 화면의 이 교환을 지금 할 수 있는가(코스트가 모자라거나 소지 한도를 넘거나 이미 가진 캐릭터를 받는 등이면 거짓).
@@ -1416,68 +1475,95 @@ public sealed partial class GameSession
     }
 
     /// <summary>
-    /// 캐릭터를 내보낸다: 보유 캐릭터에서 빠지고, 파티 슬롯과 상태이상, 태그가 지워지며, 끼고 있던 장비는 빠져 보유로 돌아간다.
-    /// 다른 캐릭터에게 장비로 끼워져 있으면 하지 않고 false(보유하지 않아도 false).
+    /// 캐릭터를 내보낸다(그 코드의 인스턴스 하나): 파티나 아지트에 서지 않은 인스턴스가 먼저이고 없으면 아무거나(OrderNumber순)다. 다른 캐릭터에게 장비로 끼워진 인스턴스는 고르지 않는다.
+    /// 나머지는 <see cref="RemoveCharacter(string)"/>와 같다. 보유하지 않았거나 낼 수 있는 인스턴스가 없으면 false.
     /// </summary>
     public bool RemoveCharacter(long characterCode)
     {
         if (characterCode == GamePack.PlayerCharacterCode) return false;       // 플레이어는 내보낼 수 없다
-        if (!Characters.ContainsKey(characterCode) || EquippedCount(EquipRef.Char(characterCode)) > 0) return false;
-        Characters.Remove(characterCode);
-        RemoveFromParties(characterCode);
-        RemoveFromHideout(characterCode);
-        CharacterStatusEffects.Remove(characterCode);
-        CharacterTagInstances.Remove(characterCode);
+        var removable = Characters.InstancesOf(characterCode).Where(c => EquippedCount(EquipRef.Char(c.InstanceId)) == 0).ToList();
+        var pick = removable.FirstOrDefault(c => !IsPlaced(c.InstanceId)) ?? removable.FirstOrDefault();
+        return pick is not null && RemoveCharacter(pick.InstanceId);
+    }
+
+    /// <summary>
+    /// 캐릭터 인스턴스를 내보낸다: 보유 캐릭터에서 빠지고, 파티 슬롯과 상태이상, 태그가 지워지며, 끼고 있던 장비는 빠져 보유로 돌아간다.
+    /// 같은 코드의 다른 인스턴스는 그대로다. 다른 캐릭터에게 장비로 끼워져 있으면 하지 않고 false(보유하지 않아도 false).
+    /// </summary>
+    public bool RemoveCharacter(string instanceId)
+    {
+        if (!Characters.TryGetValue(instanceId, out var character) || character.CharacterCode == GamePack.PlayerCharacterCode) return false;       // 플레이어는 내보낼 수 없다
+        if (EquippedCount(EquipRef.Char(instanceId)) > 0) return false;
+        RemoveFromParties(instanceId);
+        RemoveFromHideout(instanceId);
+        if (PartnerId == instanceId) PartnerId = null;
+        if (AssistId == instanceId) AssistId = null;
+        Characters.Remove(instanceId);
+        CharacterStatusEffects.Remove(instanceId);
+        CharacterTagInstances.Remove(instanceId);
         return true;
     }
 
     // ---- 상태이상 ----
 
-    /// <summary>캐릭터에 걸려 있는 상태이상들. 없으면 빈 목록.</summary>
+    /// <summary>캐릭터(그 코드의 첫 인스턴스)에 걸려 있는 상태이상들. 없으면 빈 목록.</summary>
     public IReadOnlyList<ActiveStatusEffect> StatusEffectsOf(long characterCode) =>
-        CharacterStatusEffects.GetValueOrDefault(characterCode) ?? [];
+        InstanceIdOf(characterCode) is { } id ? StatusEffectsOf(id) : [];
+
+    /// <summary>캐릭터 인스턴스에 걸려 있는 상태이상들. 없으면 빈 목록.</summary>
+    public IReadOnlyList<ActiveStatusEffect> StatusEffectsOf(string instanceId) =>
+        CharacterStatusEffects.GetValueOrDefault(instanceId) ?? [];
 
     /// <summary>
     /// 보유 캐릭터에게 상태이상을 건다. 상태이상 이펙트 마스터의 값(시점, 우선도, 이펙트 코드, 밸류 1~3)을 복사해 두므로
     /// 카운터 0, 유효 상태로 시작하고, 이후 게임팩 마스터가 바뀌어도 걸린 값은 그대로다.
     /// 이미 같은 상태이상이 걸려 있으면 새로 걸어 갱신한다. 캐릭터를 보유하지 않았거나 상태이상 코드가 없으면 false.
     /// </summary>
-    public bool ApplyStatusEffect(long characterCode, long statusEffectCode)
+    public bool ApplyStatusEffect(long characterCode, long statusEffectCode) =>
+        InstanceIdOf(characterCode) is { } id && ApplyStatusEffect(id, statusEffectCode);
+
+    /// <summary>캐릭터 인스턴스에게 상태이상을 건다(<see cref="ApplyStatusEffect(long, long)"/>와 같다).</summary>
+    public bool ApplyStatusEffect(string instanceId, long statusEffectCode)
     {
-        if (!Characters.ContainsKey(characterCode)) return false;
+        if (!Characters.ContainsKey(instanceId)) return false;
         if (Pack.FindStatusEffect(statusEffectCode) is null) return false;
 
         var effects = Pack.StatusEffectEffectsOf(statusEffectCode).Select(ActiveEffect.From).ToList();
-        if (!CharacterStatusEffects.TryGetValue(characterCode, out var list))
-            CharacterStatusEffects[characterCode] = list = [];
+        if (!CharacterStatusEffects.TryGetValue(instanceId, out var list))
+            CharacterStatusEffects[instanceId] = list = [];
         list.RemoveAll(s => s.StatusEffectCode == statusEffectCode);
         list.Add(new ActiveStatusEffect(statusEffectCode, effects));
         return true;
     }
 
     /// <summary>걸려 있는 상태이상을 푼다. 걸려 있지 않았으면 false.</summary>
-    public bool RemoveStatusEffect(long characterCode, long statusEffectCode)
+    public bool RemoveStatusEffect(long characterCode, long statusEffectCode) =>
+        InstanceIdOf(characterCode) is { } id && RemoveStatusEffect(id, statusEffectCode);
+
+    /// <summary>캐릭터 인스턴스에서 걸려 있는 상태이상을 푼다.</summary>
+    public bool RemoveStatusEffect(string instanceId, long statusEffectCode)
     {
-        if (!CharacterStatusEffects.TryGetValue(characterCode, out var list)) return false;
+        if (!CharacterStatusEffects.TryGetValue(instanceId, out var list)) return false;
         var removed = list.RemoveAll(s => s.StatusEffectCode == statusEffectCode) > 0;
-        if (list.Count == 0) CharacterStatusEffects.Remove(characterCode);
+        if (list.Count == 0) CharacterStatusEffects.Remove(instanceId);
         return removed;
     }
 
     /// <summary>저장용 복사본(이펙트 목록도 새로 만든다). 비어 있는 캐릭터는 뺀다.</summary>
-    static Dictionary<long, List<ActiveStatusEffect>> CopyStatusEffects(Dictionary<long, List<ActiveStatusEffect>> source) =>
+    static Dictionary<string, List<ActiveStatusEffect>> CopyStatusEffects(Dictionary<string, List<ActiveStatusEffect>> source) =>
         source.Where(kv => kv.Value.Count > 0).ToDictionary(
             kv => kv.Key,
             kv => kv.Value.Select(s => new ActiveStatusEffect(s.StatusEffectCode, s.EffectList.ToList())).ToList());
 
     /// <summary>세이브의 상태이상을 검증하고 복사한다. 보유 캐릭터, 상태이상 마스터, 임베디드 이펙트에 없는 것은 오류.</summary>
-    static Dictionary<long, List<ActiveStatusEffect>> ValidateStatusEffects(
-        GamePack pack, Dictionary<long, CharacterInstance> characters, Dictionary<long, List<ActiveStatusEffect>>? saved)
+    static Dictionary<string, List<ActiveStatusEffect>> ValidateStatusEffects(
+        GamePack pack, Dictionary<string, CharacterInstance> characters, Dictionary<string, List<ActiveStatusEffect>>? saved, Func<string, string?> resolve)
     {
-        var result = new Dictionary<long, List<ActiveStatusEffect>>();
-        foreach (var (characterCode, list) in saved ?? [])
+        var result = new Dictionary<string, List<ActiveStatusEffect>>();
+        foreach (var (savedKey, list) in saved ?? [])
         {
-            if (!characters.ContainsKey(characterCode))
+            var characterCode = savedKey;
+            if (resolve(savedKey) is not { } characterId || !characters.ContainsKey(characterId))
                 throw new SaveFormatException($"세이브의 상태이상이 보유하지 않은 캐릭터 '{characterCode}'에 걸려 있습니다.");
 
             var seen = new HashSet<long>();
@@ -1505,7 +1591,7 @@ public sealed partial class GameSession
                 }
                 copy.Add(new ActiveStatusEffect(status.StatusEffectCode, status.EffectList.ToList()));
             }
-            if (copy.Count > 0) result[characterCode] = copy;
+            if (copy.Count > 0) result[characterId] = copy;
         }
         return result;
     }
@@ -1516,19 +1602,20 @@ public sealed partial class GameSession
                 SaveVersion, Pack.Id, Screen,
                 new Dictionary<long, long>(PlayerFlags),
                 new Dictionary<long, InventoryItem>(InventoryItems),
-                new Dictionary<long, CharacterInstance>(Characters),
+                new Dictionary<string, CharacterInstance>(Characters),
                 null,
                 CopyStatusEffects(CharacterStatusEffects),
                 CopyUniqueItems(),
                 CopyCharacterTags(),
                 null,
-                PartnerCode, AssistCode, TurnCount,
+                null, null, TurnCount,
                 null,
                 Parties.Select(p => p.Copy()).ToArray(),
                 CurrentPartyIndex,
                 hideoutParties.Select(p => p.Copy()).ToArray(),
                 hideoutFacilities.ToArray(),
-                hideoutOperators.Select(o => new HideoutOperatorSave(o.Key.FloorOrder, o.Key.Built, o.Key.Slot, o.Value)).ToArray()),
+                hideoutOperators.Select(o => new HideoutOperatorSave(o.Key.FloorOrder, o.Key.Built, o.Key.Slot, CodeOfInstance(o.Value) ?? 0, o.Value)).ToArray(),
+                PartnerId, AssistId),
             SaveJsonContext.Default.SaveData);
 
     public static GameSession FromSaveJson(GamePack pack, string json)
@@ -1545,18 +1632,41 @@ public sealed partial class GameSession
         foreach (var (code, item) in inventory)
             if (item.Amount < 0) throw new SaveFormatException($"세이브의 인벤토리 아이템 {code}의 수량이 음수입니다: {item.Amount}");
 
-        var characters = save.Characters is null ? [] : new Dictionary<long, CharacterInstance>(save.Characters);
-        // 인스턴스 ID가 없던 예전 세이브는 캐릭터 코드 순서대로 새 ID를 채운다(ID는 만든 순서와 같게 늘어난다).
+        // 보유 캐릭터: 키는 인스턴스 ID(ULID)다. 키가 정수면 캐릭터 코드를 뜻하는 줄임 표기로 보고, 인스턴스 ID가 없으면 새로 채운다
+        // (ID는 만든 순서와 같게 늘어난다). 같은 코드의 인스턴스는 마스터의 carry_limit개까지 있을 수 있다.
+        var savedCharacters = (save.Characters ?? []).Where(kv => kv.Key is not null).ToList();
+        var characters = new CharacterCollection();
         var usedIds = (save.UniqueItems?.Keys ?? Enumerable.Empty<string>())
-            .Concat(characters.Values.Select(v => v.InstanceId).Where(id => !string.IsNullOrEmpty(id))).ToList();
-        foreach (var (code, s) in characters.OrderBy(kv => kv.Key).ToList())
+            .Concat(savedCharacters.Select(kv => kv.Value?.InstanceId ?? "").Where(id => !string.IsNullOrEmpty(id)))
+            .Concat(savedCharacters.Select(kv => kv.Key).Where(IsUlidKey)).ToList();
+        foreach (var (key, s) in savedCharacters.OrderBy(kv => IsUlidKey(kv.Key) ? 1 : 0)
+                     .ThenBy(kv => long.TryParse(kv.Key, NumberStyles.None, CultureInfo.InvariantCulture, out var n) ? n : 0)
+                     .ThenBy(kv => kv.Key, StringComparer.Ordinal))
         {
+            if (s is null) throw new SaveFormatException($"세이브의 캐릭터 '{key}'가 비어 있습니다.");
+            var byId = IsUlidKey(key);
+            long code;
+            if (byId)
+            {
+                code = s.CharacterCode;
+                if (code == 0) throw new SaveFormatException($"세이브의 캐릭터 '{key}'에 마스터 코드가 없습니다.");
+            }
+            else if (long.TryParse(key, NumberStyles.None, CultureInfo.InvariantCulture, out code))
+            {
+                if (s.CharacterCode != 0 && s.CharacterCode != code)
+                    throw new SaveFormatException($"세이브의 캐릭터 '{code}'에 적힌 마스터 코드 '{s.CharacterCode}'가 키와 다릅니다.");
+            }
+            else throw new SaveFormatException($"세이브의 캐릭터 키 '{key}'가 인스턴스 ID(ULID)도 캐릭터 코드도 아닙니다.");
             if (pack.FindCharacter(code) is null)
                 throw new SaveFormatException($"세이브의 캐릭터 '{code}'가 캐릭터 인벤토리 마스터에 없습니다.");
-            if (s.CharacterCode != 0 && s.CharacterCode != code)
-                throw new SaveFormatException($"세이브의 캐릭터 '{code}'에 적힌 마스터 코드 '{s.CharacterCode}'가 키와 다릅니다.");
             string instanceId;
-            if (string.IsNullOrEmpty(s.InstanceId))
+            if (byId)
+            {
+                instanceId = Ulid.Parse(key).ToString();
+                if (!string.IsNullOrEmpty(s.InstanceId) && !(Ulid.TryParse(s.InstanceId, out var inner) && inner.ToString() == instanceId))
+                    throw new SaveFormatException($"세이브의 캐릭터 '{instanceId}'에 적힌 인스턴스 ID '{s.InstanceId}'가 키와 다릅니다.");
+            }
+            else if (string.IsNullOrEmpty(s.InstanceId))
             {
                 instanceId = NextInstanceId(usedIds);
                 usedIds.Add(instanceId);
@@ -1564,6 +1674,8 @@ public sealed partial class GameSession
             else if (!Ulid.TryParse(s.InstanceId, out var ulid))
                 throw new SaveFormatException($"세이브의 캐릭터 '{code}'의 인스턴스 ID '{s.InstanceId}'가 ULID가 아닙니다.");
             else instanceId = ulid.ToString();
+            if (characters.ContainsKey(instanceId))
+                throw new SaveFormatException($"세이브의 캐릭터 인스턴스 ID '{instanceId}'가 두 번 이상 있습니다.");
             // 고정 필드(Level, Hp, MaxHp, Xpp, XppMax)로 저장한 예전 세이브는 Statuses로 옮긴다.
             // (JSON에 없는 항목은 null로 올 수 있다)
             var statuses = new Dictionary<long, long>((Dictionary<long, long>?)s.Statuses ?? []);
@@ -1601,27 +1713,63 @@ public sealed partial class GameSession
                 if (index < 0 || index >= loaded.SkillPool.Count)
                     throw new SaveFormatException($"세이브의 캐릭터 '{code}'의 스킬 슬롯 '{slot}'이 가리키는 번호 {index}가 스킬 풀(스킬 {loaded.SkillPool.Count}개)에 없습니다.");
             }
-            characters[code] = loaded;
+            characters[instanceId] = loaded;
         }
 
         // 플레이어(캐릭터 1)는 늘 보유한다. 세이브에 없으면(예전 세이브) 새 캐릭터 상태로 채운다.
         if (!characters.ContainsKey(GamePack.PlayerCharacterCode) && pack.FindCharacter(GamePack.PlayerCharacterCode) is not null)
-            characters[GamePack.PlayerCharacterCode] = pack.NewCharacterInstance(
-                GamePack.PlayerCharacterCode, NextInstanceId(usedIds), NextOrderNumber(characters.Values));
-        if (characters.Values.GroupBy(v => v.InstanceId).Any(g => g.Count() > 1))
-            throw new SaveFormatException("세이브의 캐릭터 인스턴스 ID가 두 번 이상 있습니다.");
+        {
+            var playerId = NextInstanceId(usedIds);
+            usedIds.Add(playerId);
+            characters[playerId] = pack.NewCharacterInstance(GamePack.PlayerCharacterCode, playerId, NextOrderNumber(characters.Values));
+        }
+        // 한 코드는 캐릭터 인벤토리 마스터의 carry_limit개까지만 가질 수 있다(플레이어는 한 명).
+        foreach (var group in characters.Values.GroupBy(c => c.CharacterCode))
+            if (group.Count() > CharacterLimitOf(pack, group.Key))
+                throw new SaveFormatException(
+                    $"세이브의 캐릭터 '{group.Key}'가 소지 한도({CharacterLimitOf(pack, group.Key)})보다 많습니다: {group.Count()}");
 
         // 불러온 뒤 보유 캐릭터마다 로드 후 캐릭터 서킷을 돌려 게임팩의 정의대로 캐릭터를 조작한다.
-        foreach (var code in characters.Keys.ToList())
-            characters[code] = new AfterLoadCharacterCircuit(pack, characters[code]).Execute();
+        foreach (var id in characters.Keys.ToList())
+            characters[id] = new AfterLoadCharacterCircuit(pack, characters[id]).Execute() with { InstanceId = id };
+
+        // 세이브의 캐릭터 키(인스턴스 ID, 또는 캐릭터 코드 줄임 표기)를 보유 인스턴스 ID로 푼다. 코드는 그 코드의 첫 인스턴스다. 없으면 null.
+        string? Resolve(string key) =>
+            IsUlidKey(key) ? (characters.ContainsKey(Ulid.Parse(key).ToString()) ? Ulid.Parse(key).ToString() : null)
+            : long.TryParse(key, NumberStyles.None, CultureInfo.InvariantCulture, out var code) ? characters.FirstOf(code)?.InstanceId : null;
+
+        // 이미 어느 유닛이나 오퍼레이터가 쓴 인스턴스: 코드만 적힌 유닛은 그 코드의 아직 쓰지 않은 첫 인스턴스로 푼다(다 썼으면 첫 인스턴스, 아래에서 중복으로 걸린다).
+        var placed = new HashSet<string>();
+        string? ResolveUnused(long code)
+        {
+            var all = characters.InstancesOf(code);
+            var id = (all.FirstOrDefault(c => !placed.Contains(c.InstanceId)) ?? all.FirstOrDefault())?.InstanceId;
+            if (id is not null) placed.Add(id);
+            return id;
+        }
 
         // 파티: 새 형식은 Parties(파티-A ~ 파티-P, 각각 이름 + 유닛[])와 CurrentParty, 그 전 형식은 PartyInstance 하나(파티-A),
         // 가장 예전 세이브는 Party(캐릭터 코드 배열)와 EquippedItems(캐릭터별 장비)다. 예전 세이브에서 파티에 없는 캐릭터가
         // 끼고 있던 장비는 보유로 돌아간다. 파티끼리는 캐릭터를 공유할 수 없다.
-        var partyCodes = Enumerable.Range(0, PartyCount).Select(_ => new long?[PartySlotCount]).ToArray();
+        var partyIds = Enumerable.Range(0, PartyCount).Select(_ => new string?[PartySlotCount]).ToArray();
         var partyNames = Enumerable.Range(0, PartyCount).Select(DefaultPartyNameOf).ToArray();
-        var partyEquipment = new Dictionary<long, Dictionary<long, EquipRef>>();
+        var partyEquipment = new Dictionary<string, Dictionary<long, EquipRef>>();
         var partyLeaders = Enumerable.Range(0, PartyCount).Select(_ => new bool[PartySlotCount]).ToArray();
+
+        // 저장된 유닛이 가리키는 보유 인스턴스 ID(인스턴스 ID가 있으면 그것, 없으면 코드로 푼다).
+        string ResolveUnit(PartyUnit unit)
+        {
+            string? id;
+            if (!string.IsNullOrEmpty(unit.InstanceId))
+            {
+                id = Resolve(unit.InstanceId) ?? throw new SaveFormatException($"세이브의 파티 캐릭터 '{unit.InstanceId}'가 보유 캐릭터에 없습니다.");
+                placed.Add(id);
+                if (unit.CharacterCode != 0 && unit.CharacterCode != characters[id].CharacterCode)
+                    throw new SaveFormatException($"세이브의 파티 유닛에 적힌 캐릭터 코드 '{unit.CharacterCode}'가 인스턴스 '{id}'의 코드와 다릅니다.");
+                return id;
+            }
+            return ResolveUnused(unit.CharacterCode) ?? throw new SaveFormatException($"세이브의 파티 캐릭터 '{unit.CharacterCode}'가 보유 캐릭터에 없습니다.");
+        }
 
         void ReadParty(int index, PartyInstance? saved)
         {
@@ -1633,9 +1781,10 @@ public sealed partial class GameSession
             for (var i = 0; i < savedUnits.Length; i++)
             {
                 if (savedUnits[i] is not { } unit) continue;
-                partyCodes[index][i] = unit.CharacterCode;
+                var id = ResolveUnit(unit);
+                partyIds[index][i] = id;
                 partyLeaders[index][i] = unit.IsLeader;
-                if (unit.Equipment is { Count: > 0 }) partyEquipment[unit.CharacterCode] = unit.Equipment;
+                if (unit.Equipment is { Count: > 0 }) partyEquipment[id] = unit.Equipment;
             }
         }
 
@@ -1652,9 +1801,12 @@ public sealed partial class GameSession
             {
                 if (saved.Length > PartySlotCount)
                     throw new SaveFormatException($"세이브의 파티 슬롯이 {PartySlotCount}칸보다 많습니다: {saved.Length}");
-                for (var i = 0; i < saved.Length; i++) partyCodes[0][i] = saved[i];
+                for (var i = 0; i < saved.Length; i++)
+                    if (saved[i] is { } legacyCode)
+                        partyIds[0][i] = ResolveUnused(legacyCode) ?? throw new SaveFormatException($"세이브의 파티 캐릭터 '{legacyCode}'가 보유 캐릭터에 없습니다.");
             }
-            partyEquipment = save.EquippedItems ?? [];       // 전부 검증하고, 파티에 없는 캐릭터의 장비는 아래에서 뺀다
+            foreach (var (key, slots) in save.EquippedItems ?? [])       // 전부 검증하고, 파티에 없는 캐릭터의 장비는 아래에서 뺀다
+                partyEquipment[Resolve(key) ?? key] = slots;
         }
         var currentParty = save.CurrentParty ?? 0;
         if (currentParty is < 0 or >= PartyCount)
@@ -1662,7 +1814,7 @@ public sealed partial class GameSession
 
         // 아지트의 층별 방어 파티(1층부터): 보통 파티와 같은 형식이고 파티끼리 캐릭터를 공유할 수 없다. 층이 없으면 1층뿐이다.
         var floorSaved = save.HideoutParties is { Length: > 0 } savedFloors ? savedFloors : [null];
-        var floorCodes = floorSaved.Select(_ => new long?[PartySlotCount]).ToArray();
+        var floorIds = floorSaved.Select(_ => new string?[PartySlotCount]).ToArray();
         var floorLeaders = floorSaved.Select(_ => new bool[PartySlotCount]).ToArray();
         for (var f = 0; f < floorSaved.Length; f++)
         {
@@ -1672,38 +1824,43 @@ public sealed partial class GameSession
             for (var i = 0; i < savedUnits.Length; i++)
             {
                 if (savedUnits[i] is not { } unit) continue;
-                floorCodes[f][i] = unit.CharacterCode;
+                var id = ResolveUnit(unit);
+                floorIds[f][i] = id;
                 floorLeaders[f][i] = unit.IsLeader;
-                if (unit.Equipment is { Count: > 0 }) partyEquipment[unit.CharacterCode] = unit.Equipment;
+                if (unit.Equipment is { Count: > 0 }) partyEquipment[id] = unit.Equipment;
             }
         }
 
-        var allCodes = partyCodes.Concat(floorCodes).SelectMany(p => p).OfType<long>().ToList();
-        foreach (var code in allCodes)
-            if (!characters.ContainsKey(code))
-                throw new SaveFormatException($"세이브의 파티 캐릭터 '{code}'가 보유 캐릭터에 없습니다.");
-        if (allCodes.GroupBy(c => c).Any(g => g.Count() > 1))
+        var allIds = partyIds.Concat(floorIds).SelectMany(p => p).OfType<string>().ToList();
+        if (allIds.GroupBy(c => c).Any(g => g.Count() > 1))
             throw new SaveFormatException("세이브의 파티에 같은 캐릭터가 두 번 이상 있습니다(파티끼리도 공유할 수 없습니다).");
 
-        var statusEffects = ValidateStatusEffects(pack, characters, save.StatusEffects);
+        var statusEffects = ValidateStatusEffects(pack, characters, save.StatusEffects, Resolve);
         var (uniqueItems, characterTags, equippedItems) =
-            ValidateEquipment(pack, characters, inventory, save.UniqueItems, save.CharacterTags, partyEquipment);
-        var parties = partyCodes.Select((codes, p) => new PartyInstance(partyNames[p],
-            codes.Select((c, i) => c is { } code
-                ? new PartyUnit(code, equippedItems.TryGetValue(code, out var slots) ? slots : [], partyLeaders[p][i]) : null).ToArray())).ToArray();
+            ValidateEquipment(pack, characters, inventory, save.UniqueItems, save.CharacterTags, partyEquipment, Resolve);
+        PartyUnit UnitOfId(string id, bool leader) =>
+            new(characters[id].CharacterCode, equippedItems.TryGetValue(id, out var slots) ? slots : [], leader, id);
+        var parties = partyIds.Select((ids, p) => new PartyInstance(partyNames[p],
+            ids.Select((id, i) => id is not null ? UnitOfId(id, partyLeaders[p][i]) : null).ToArray())).ToArray();
 
-        foreach (var (what, code) in new[] { ("파트너", save.Partner), ("어시스트", save.Assist) })
-            if (code is { } support && !characters.ContainsKey(support))
-                throw new SaveFormatException($"세이브의 {what} 캐릭터 '{support}'가 보유 캐릭터에 없습니다.");
+        string? savedSupport(string what, string? savedId, long? savedCode)
+        {
+            if (savedId is not null)
+                return Resolve(savedId) ?? throw new SaveFormatException($"세이브의 {what} 캐릭터 '{savedId}'가 보유 캐릭터에 없습니다.");
+            if (savedCode is { } code)
+                return characters.FirstOf(code)?.InstanceId ?? throw new SaveFormatException($"세이브의 {what} 캐릭터 '{code}'가 보유 캐릭터에 없습니다.");
+            return null;
+        }
+        var partnerId = savedSupport("파트너", save.PartnerId, save.Partner);
+        var assistId = savedSupport("어시스트", save.AssistId, save.Assist);
         if (save.Turn is { } turn && pack.FindTurn(turn) is null)
             throw new SaveFormatException($"세이브의 턴 '{turn}'이(가) 턴 마스터에 없습니다.");
-        if (save.Partner is not null && save.Partner == save.Assist)
+        if (partnerId is not null && partnerId == assistId)
             throw new SaveFormatException("세이브의 파트너와 어시스트가 같은 캐릭터입니다.");
 
         var floors = floorSaved.Length;
-        var floorParties = floorCodes.Select((codes, f) => new PartyInstance("",
-            codes.Select((c, i) => c is { } code
-                ? new PartyUnit(code, equippedItems.TryGetValue(code, out var slots) ? slots : [], floorLeaders[f][i]) : null).ToArray())).ToList();
+        var floorParties = floorIds.Select((ids, f) => new PartyInstance("",
+            ids.Select((id, i) => id is not null ? UnitOfId(id, floorLeaders[f][i]) : null).ToArray())).ToList();
 
         var facilities = new List<long?>(new long?[floors]);
         for (var i = 0; i < floors && save.HideoutFacilities is { } savedFacilities && i < savedFacilities.Length; i++)
@@ -1713,35 +1870,45 @@ public sealed partial class GameSession
             facilities[i] = savedFacilities[i];
         }
 
-        var operators = new Dictionary<(long, bool, long), long>();
+        var operators = new Dictionary<(long, bool, long), string>();
         foreach (var op in save.HideoutOperators ?? [])
         {
             if (op.FloorOrder < 1 || op.FloorOrder > floors)
                 throw new SaveFormatException($"세이브의 오퍼레이터 층 순서 '{op.FloorOrder}'가 1~{floors} 범위를 벗어납니다.");
-            if (!characters.ContainsKey(op.CharacterCode))
-                throw new SaveFormatException($"세이브의 오퍼레이터 캐릭터 '{op.CharacterCode}'가 보유 캐릭터에 없습니다.");
-            if (!operators.TryAdd((op.FloorOrder, op.Built, op.SlotCode), op.CharacterCode))
+            string? operatorId;
+            if (!string.IsNullOrEmpty(op.InstanceId))
+            {
+                operatorId = Resolve(op.InstanceId);
+                if (operatorId is not null) placed.Add(operatorId);
+            }
+            else operatorId = ResolveUnused(op.CharacterCode);
+            if (operatorId is null)
+                throw new SaveFormatException($"세이브의 오퍼레이터 캐릭터 '{(string.IsNullOrEmpty(op.InstanceId) ? op.CharacterCode : op.InstanceId)}'가 보유 캐릭터에 없습니다.");
+            if (!operators.TryAdd((op.FloorOrder, op.Built, op.SlotCode), operatorId))
                 throw new SaveFormatException($"세이브의 오퍼레이터 슬롯 (층 {op.FloorOrder}, 슬롯 {op.SlotCode})이 두 번 있습니다.");
         }
-        var operatorCodes = operators.Values.ToList();
-        if (operatorCodes.GroupBy(c => c).Any(g => g.Count() > 1))
+        var operatorIds = operators.Values.ToList();
+        if (operatorIds.GroupBy(c => c).Any(g => g.Count() > 1))
             throw new SaveFormatException("세이브에서 같은 캐릭터가 오퍼레이터 슬롯 두 곳 이상에 있습니다(한 곳에만 있을 수 있습니다).");
-        if (operatorCodes.Any(c => allCodes.Contains(c)))
+        if (operatorIds.Any(c => allIds.Contains(c)))
             throw new SaveFormatException("세이브에서 같은 캐릭터가 파티와 아지트에 모두 있습니다(한 곳에만 있을 수 있습니다).");
 
         // 불러오기는 저장된 화면과 상관없이 항상 홈으로 들어간다.
         var session = new GameSession(pack, Screen.Home, playerFlags, inventory, characters, parties, statusEffects, uniqueItems, characterTags)
         {
             CurrentPartyIndex = currentParty,
-            PartnerCode = save.Partner,
-            AssistCode = save.Assist,
+            PartnerId = partnerId,
+            AssistId = assistId,
             TurnCount = save.Turn ?? pack.FirstTurn.TurnCount,
         };
         session.hideoutParties.Clear();
         session.hideoutParties.AddRange(floorParties);
-        foreach (var (key, code) in operators) session.hideoutOperators[key] = code;
+        foreach (var (key, id) in operators) session.hideoutOperators[key] = id;
         session.hideoutFacilities.Clear();
         session.hideoutFacilities.AddRange(facilities);
         return session;
     }
+
+    /// <summary>세이브의 키가 ULID(인스턴스 ID)인가. 캐릭터 코드 줄임 표기(정수)는 아니다.</summary>
+    static bool IsUlidKey(string key) => key.Length == 26 && Ulid.TryParse(key, out _);
 }

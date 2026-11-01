@@ -26,13 +26,14 @@ public enum EquipKind
     UniqueItem,
     /// <summary>커먼 아이템(아이템 인벤토리. 보유 개수는 인벤토리 수량).</summary>
     CommonItem,
-    /// <summary>캐릭터(펫, 소환수 같은 것. 보유 캐릭터여야 한다).</summary>
+    /// <summary>캐릭터(펫, 소환수 같은 것. 보유 캐릭터 인스턴스여야 한다; EquipRef.Instance가 인스턴스 ID).</summary>
     Character,
 }
 
 /// <summary>
-/// 장비 슬롯에 끼는 것 하나. 커먼 아이템과 캐릭터는 종류 안의 코드(Code)로, 유니크 아이템은 아이템 코드가 아니라
-/// 인스턴스 ID(<see cref="UniqueItemInstance"/>의 ULID 문자열, Instance)로 가리킨다(이때 Code는 쓰지 않는다).
+/// 장비 슬롯에 끼는 것 하나. 커먼 아이템은 종류 안의 코드(Code)로, 유니크 아이템과 캐릭터는 코드가 아니라
+/// 인스턴스 ID(<see cref="UniqueItemInstance"/>/<see cref="CharacterInstance"/>의 ULID 문자열, Instance)로 가리킨다(이때 Code는 쓰지 않는다).
+/// 캐릭터를 코드만으로 가리킨 것(Instance가 null)은 "그 코드의 첫 보유 인스턴스"를 뜻하고 세션이 인스턴스로 푼다(적 프리셋 장비도 이 모양이다).
 /// </summary>
 public readonly record struct EquipRef(
     EquipKind Kind,
@@ -43,9 +44,10 @@ public readonly record struct EquipRef(
     public static EquipRef Unique(string instanceId) => new(EquipKind.UniqueItem, 0, instanceId);
     public static EquipRef Common(long code) => new(EquipKind.CommonItem, code);
     public static EquipRef Char(long code) => new(EquipKind.Character, code);
+    public static EquipRef Char(string instanceId) => new(EquipKind.Character, 0, instanceId);
 
     /// <summary>화면/메시지용 짧은 표기.</summary>
-    public string Key => Kind == EquipKind.UniqueItem ? Instance ?? "" : Code.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    public string Key => Kind == EquipKind.UniqueItem || Instance is not null ? Instance ?? "" : Code.ToString(System.Globalization.CultureInfo.InvariantCulture);
 }
 
 /// <summary>

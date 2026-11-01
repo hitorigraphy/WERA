@@ -96,7 +96,7 @@ public class AddInventoryTests
         Assert.False(s.Characters.ContainsKey(7001));
         Assert.True(s.Characters.ContainsKey(7002));
         Assert.True(s.Characters.ContainsKey(GamePack.PlayerCharacterCode));
-        Assert.Empty(Play(viaAdv, (7002, -1)).Characters.Keys.Where(c => c == 7002));          // 없는 캐릭터를 내보내도 아무 일이 없다
+        Assert.Empty(Play(viaAdv, (7002, -1)).Characters.Values.Where(c => c.CharacterCode == 7002));          // 없는 캐릭터를 내보내도 아무 일이 없다
     }
 
     [Fact]

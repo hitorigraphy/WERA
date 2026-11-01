@@ -263,7 +263,7 @@ public class DungeonFlowTests
         var s = GameSession.NewGame(SamplePackWith(("master/battle_master_v1.tsv", RunnableBattle)));
         s.Pick("105"); s.Pick("1"); s.Pick("1"); s.Pick("999");
         s.AddCharacter(7001);
-        s.Parties[1].Units[0] = s.Parties[0].Units[0]! with { CharacterCode = 7001 };       // 파티-B: 리더 용사 혼자
+        s.Parties[1].Units[0] = s.Parties[0].Units[0]! with { CharacterCode = 7001, InstanceId = "" };       // 파티-B: 리더 용사 혼자
         s.Pick("101"); s.Pick("1999");
         Assert.Equal(["11", "12", "999"], s.DataEntries.Select(e => e.Code));                     // 파견할 수 있는 두 파티
         s.Pick("12");

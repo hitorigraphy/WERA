@@ -170,8 +170,10 @@ public sealed record StatusBadge(long StatusEffectCode, string Name);
 /// </summary>
 public sealed record PartySlotView(
     int Slot, long? CharacterCode, string LevelText, string Name, GaugeView Hp, GaugeView Xp, XpTag XpTag,
-    IReadOnlyList<AttributeBadge> Badges, IReadOnlyList<StatusBadge> StatusBadges, bool IsLeader = false, bool IsSelected = false, bool IsGray = false, bool IsUnavailable = false)
+    IReadOnlyList<AttributeBadge> Badges, IReadOnlyList<StatusBadge> StatusBadges, bool IsLeader = false, bool IsSelected = false, bool IsGray = false, bool IsUnavailable = false,
+    string? InstanceId = null)
 {
+    // InstanceId: 슬롯의 캐릭터 인스턴스 ID(같은 캐릭터가 여럿일 때 어느 것인지). 빈 슬롯이면 null.
     // IsUnavailable: 지금 이벤트와 던전 탐사에 참가할 수 없는 캐릭터(파티 설정 화면에서 진한 녹색으로 보인다).
     public const string EmptyName = "빈 슬롯";
 
@@ -199,7 +201,8 @@ public enum CharacterListColor
     Green,
 }
 
-public sealed record CharacterListItem(long Code, string Name, CharacterListColor Color)
+/// <summary>캐릭터 목록의 한 줄: 같은 캐릭터가 여럿이면 인스턴스마다 한 줄이고, 고르는 키는 인스턴스 ID(<see cref="InstanceId"/>)다.</summary>
+public sealed record CharacterListItem(long Code, string Name, CharacterListColor Color, string InstanceId = "")
 {
     public bool Selectable => Color != CharacterListColor.Gray;
 }

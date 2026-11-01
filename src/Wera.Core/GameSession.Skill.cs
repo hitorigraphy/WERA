@@ -16,7 +16,7 @@ public sealed partial class GameSession
     public long? CurrentSkillSlotCode { get; private set; }
 
     CharacterInstance? CurrentCharacterInstance =>
-        CurrentCharacterCode is { } code && Characters.TryGetValue(code, out var instance) ? instance : null;
+        CurrentCharacterId is { } id && Characters.TryGetValue(id, out var instance) ? instance : null;
 
     /// <summary>지금 보는 캐릭터의 스킬 슬롯들(스킬 슬롯 코드순). 스킬 슬롯 마스터의 모든 슬롯이다(태그 규칙이 없는 슬롯에는 아무것도 넣을 수 없다).</summary>
     public IReadOnlyList<SkillSlotEntry> CurrentSkillSlots =>
@@ -88,7 +88,7 @@ public sealed partial class GameSession
             return "이 슬롯에는 장착할 수 없습니다.";
         var slots = character.SkillSlots.Where(kv => kv.Value != index).ToDictionary(kv => kv.Key, kv => kv.Value);
         slots[slot] = index;
-        Characters[character.CharacterCode] = character with { SkillSlots = slots };
+        Characters[character.InstanceId] = character with { SkillSlots = slots };
         return $"장착: {SkillName(character.SkillPool[index].SkillCode)} → {Pack.FindSkillSlot(slot)?.Name}";
     }
 
@@ -98,7 +98,7 @@ public sealed partial class GameSession
         var name = EquippedSkillName(character, slot);
         var slots = new Dictionary<long, long>(character.SkillSlots);
         slots.Remove(slot);
-        Characters[character.CharacterCode] = character with { SkillSlots = slots };
+        Characters[character.InstanceId] = character with { SkillSlots = slots };
         return name is null ? "" : $"해제: {name}";
     }
 }

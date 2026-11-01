@@ -9,7 +9,7 @@ public sealed partial class GameSession
     /// <item>커먼 아이템: 개수만큼 더하되 소지 한도를 넘지 않게 멈춘다. 음수면 뺀다(장비 슬롯에 끼워 둔 것은 빼지 않고, 보유한 만큼에서 멈춘다).</item>
     /// <item>번치 아이템: 부품으로 풀어 위와 같이 처리한다.</item>
     /// <item>유니크 아이템(1 또는 -1만): +1은 새 인스턴스를 얻고, -1은 장비에 끼지 않은 인스턴스 하나를 낸다(작은 ID부터, 없으면 아무 일도 없다).</item>
-    /// <item>캐릭터(1 또는 -1만): +1은 아직 없으면 얻고, -1은 보유한 캐릭터를 내보낸다(플레이어와 다른 캐릭터에게 장비로 끼워진 캐릭터는 못 내보낸다).</item>
+    /// <item>캐릭터(1 또는 -1만): +1은 소지 한도(carry_limit)에 닿지 않았으면 새 인스턴스를 얻고, -1은 그 코드의 인스턴스 하나를 내보낸다(파티나 아지트에 서지 않은 것이 먼저; 플레이어와 다른 캐릭터에게 장비로 끼워진 캐릭터는 못 내보낸다).</item>
     /// </list>
     /// 마스터에 없는 코드는 아무 일도 없다(게임팩 로드 때 이미 걸러진다).
     /// </summary>
@@ -40,7 +40,7 @@ public sealed partial class GameSession
 
     /// <summary>
     /// 인벤토리 코드로 가진 개수(JumpInventory* 칸이 견주는 값): 커먼 아이템은 보유 개수, 번치 아이템은 부품이 모두 갖춰진 세트 수
-    /// (부품별 보유 개수 ÷ 부품 어마운트의 최솟값), 유니크 아이템은 인스턴스 수, 캐릭터는 보유하면 1 아니면 0. 마스터에 없는 코드는 0.
+    /// (부품별 보유 개수 ÷ 부품 어마운트의 최솟값), 유니크 아이템은 인스턴스 수, 캐릭터는 보유한 인스턴스 수. 마스터에 없는 코드는 0.
     /// </summary>
     public long CountInventory(long inventoryCode)
     {
@@ -52,7 +52,7 @@ public sealed partial class GameSession
                 ? bunch.Parts.Min(p => p.Amount <= 0 ? 0 : InventoryItems.GetValueOrDefault(p.ItemCode).Amount / p.Amount)
                 : 0,
             InventoryKind.UniqueItem => InstancesOf(inventoryCode).Count,
-            InventoryKind.Character => Characters.ContainsKey(inventoryCode) ? 1 : 0,
+            InventoryKind.Character => Characters.CountOf(inventoryCode),
             _ => 0,
         };
     }
@@ -63,9 +63,9 @@ public sealed partial class GameSession
     /// </summary>
     public Func<long, long> NextRandom { get; set; } = bound => Random.Shared.NextInt64(bound);
 
-    /// <summary>보유한 캐릭터가 지금 그 태그를 가지고 있는가(JumpCharacterHaveTag 칸). 보유하지 않은 캐릭터는 거짓.</summary>
+    /// <summary>보유한 캐릭터의 인스턴스 중 하나라도 지금 그 태그를 가지고 있는가(JumpCharacterHaveTag 칸). 보유하지 않은 캐릭터는 거짓.</summary>
     public bool CharacterHasTag(long characterCode, long tagCode) =>
-        Characters.ContainsKey(characterCode) && CharacterTags(characterCode).Contains(tagCode);
+        Characters.InstancesOf(characterCode).Any(c => CharacterTags(c.InstanceId).Contains(tagCode));
 
     /// <summary>보유한 유니크 아이템 인스턴스 중 하나라도 지금 그 태그를 가지고 있는가(JumpUniqueItemHaveTag 칸). 보유하지 않으면 거짓.</summary>
     public bool UniqueItemHasTag(long itemCode, long tagCode) =>

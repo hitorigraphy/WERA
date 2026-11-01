@@ -81,7 +81,7 @@ public class StatusEffectStateTests
         Assert.Equal([1L, 3L], s.StatusEffectsOf(7001).Select(x => x.StatusEffectCode));
 
         // 진행된 카운터가 있는 독을 다시 걸면 새로 시작한다.
-        s.CharacterStatusEffects[7001][0] = new ActiveStatusEffect(1, [Poison1 with { Counter = 2 }]);
+        s.CharacterStatusEffects[s.InstanceIdOf(7001)!][0] = new ActiveStatusEffect(1, [Poison1 with { Counter = 2 }]);
         s.ApplyStatusEffect(7001, 1);
         Assert.Equal([3L, 1L], s.StatusEffectsOf(7001).Select(x => x.StatusEffectCode));
         Assert.All(s.StatusEffectsOf(7001).Single(x => x.StatusEffectCode == 1).EffectList, e => Assert.Equal(0, e.Counter));
@@ -98,7 +98,7 @@ public class StatusEffectStateTests
         Assert.Equal([2L], s.StatusEffectsOf(7001).Select(x => x.StatusEffectCode));
         Assert.False(s.RemoveStatusEffect(7001, 1));           // 이미 풀림
         Assert.True(s.RemoveStatusEffect(7001, 2));
-        Assert.False(s.CharacterStatusEffects.ContainsKey(7001));   // 비면 키도 사라진다
+        Assert.False(s.CharacterStatusEffects.ContainsKey(s.InstanceIdOf(7001)!));   // 비면 키도 사라진다
         Assert.False(s.RemoveStatusEffect(7002, 1));
         Assert.Empty(s.StatusEffectsOf(7001));
     }
@@ -110,7 +110,7 @@ public class StatusEffectStateTests
     {
         var pack = Pack();
         var s = Session(pack);
-        s.CharacterStatusEffects[7001] =
+        s.CharacterStatusEffects[s.InstanceIdOf(7001)!] =
         [
             new ActiveStatusEffect(1,
             [
@@ -135,11 +135,11 @@ public class StatusEffectStateTests
     {
         var s = Session();
         s.ApplyStatusEffect(7001, 2);
-        s.CharacterStatusEffects[7001][0].Effects![0] = s.CharacterStatusEffects[7001][0].EffectList[0] with { Counter = 1 };
+        s.CharacterStatusEffects[s.InstanceIdOf(7001)!][0].Effects![0] = s.CharacterStatusEffects[s.InstanceIdOf(7001)!][0].EffectList[0] with { Counter = 1 };
         var json = s.ToSaveJson();
 
         Assert.Contains("\"StatusEffects\"", json);
-        Assert.Contains("\"7001\"", json);
+        Assert.Contains($"\"{s.InstanceIdOf(7001)}\"", json);
         Assert.Contains("\"StatusEffectCode\": 2", json);
         Assert.Contains("\"Trigger\": \"AfterTurnEnd\"", json);
         Assert.Contains("\"EffectCode\": 1", json);
@@ -172,7 +172,7 @@ public class StatusEffectStateTests
         Assert.Empty(GameSession.FromSaveJson(pack, "{\"Version\":1,\"PackId\":\"demo\"}").CharacterStatusEffects);
 
         var s = Session(pack);
-        s.CharacterStatusEffects[7001] = [];                    // 빈 목록은 저장하지 않는다
+        s.CharacterStatusEffects[s.InstanceIdOf(7001)!] = [];                    // 빈 목록은 저장하지 않는다
         Assert.Empty(GameSession.FromSaveJson(pack, s.ToSaveJson()).CharacterStatusEffects);
     }
 
