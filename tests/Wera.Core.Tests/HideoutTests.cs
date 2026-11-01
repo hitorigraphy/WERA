@@ -76,14 +76,13 @@ public class HideoutTests
     }
 
     [Fact]
-    public void Expanding_costs_one_group_and_the_new_floor_is_the_first_floor_while_old_floors_move_down_with_their_boss()
+    public void Expanding_costs_one_group_and_the_new_floor_is_the_first_floor_while_old_floors_move_down_with_their_party()
     {
         var s = Session();
         s.InventoryItems[2] = new InventoryItem(150);
         s.Activate(GameSession.HideoutEntryCode);
-        s.Pick("6"); s.Pick("7001");                         // 1층 보스에 용사
-        Assert.Equal(Screen.Hideout, s.Screen);
-        Assert.Equal(7001, s.HideoutBosses[0]);
+        s.HideoutParties[0].Units[0] = new PartyUnit(7001, [], IsLeader: true);          // 1층 방어 파티의 리더는 용사
+        Assert.Equal("용사", s.HideoutRows[1].Boss!.Name);
 
         s.Activate("1");
         Assert.Equal(Screen.HideoutExpand, s.Screen);
@@ -98,7 +97,7 @@ public class HideoutTests
         Assert.Equal(Screen.Hideout, s.Screen);
         Assert.Equal(50, s.InventoryItems[2].Amount);
         Assert.Equal(2, s.HideoutFloorCount);
-        Assert.Equal([null, 7001L], s.HideoutBosses);               // 용사는 2층으로 밀려났다
+        Assert.Equal([false, true], s.HideoutParties.Select(p => p.IndexOf(7001) >= 0));    // 용사의 파티는 2층으로 밀려났다
         Assert.Equal(["확장 가능", "1층", "2층"], s.HideoutRows.Select(r => r.FloorName));
         Assert.Equal(7001, s.HideoutRows[2].Boss!.CharacterCode);
     }
@@ -151,68 +150,70 @@ public class HideoutTests
     }
 
     [Fact]
-    public void A_character_is_in_either_a_party_or_the_hideout_never_both()
-    {
-        var s = Session();
-        s.Party[0] = 7001;
-        Assert.True(s.SetHideoutBoss(0, 7001));                     // 파티의 용사를 아지트로: 파티에서 빠진다
-        Assert.Equal(-1, s.PartyIndexOf(7001));
-        Assert.Equal(7001, s.HideoutBosses[0]);
-
-        s.Pick("105"); s.Pick("1"); s.Pick("7001");          // 파티에 넣으면 아지트에서 빠진다
-        Assert.Equal(0, s.PartyIndexOf(7001));
-        Assert.Null(s.HideoutBosses[0]);
-    }
-
-    [Fact]
-    public void A_boss_on_another_floor_swaps_and_a_boss_slot_can_be_cleared()
-    {
-        var s = Session();
-        s.InventoryItems[2] = new InventoryItem(1000);
-        s.ExpandHideout(1);
-        Assert.True(s.SetHideoutBoss(0, 7001));
-        Assert.True(s.SetHideoutBoss(1, 7002));
-        Assert.True(s.SetHideoutBoss(1, 7001));                     // 다른 층의 용사: 자리를 바꾼다
-        Assert.Equal([7002L, 7001L], s.HideoutBosses);
-        Assert.True(s.SetHideoutBoss(1, null));
-        Assert.Equal([7002L, null], s.HideoutBosses);
-        Assert.False(s.SetHideoutBoss(5, 7001));                    // 없는 층
-        Assert.False(s.SetHideoutBoss(0, 9999));                    // 보유하지 않은 캐릭터
-        Assert.True(s.RemoveCharacter(7002));                       // 내보내면 아지트에서도 빠진다
-        Assert.Equal([null, (long?)null], s.HideoutBosses);
-    }
-
-    [Fact]
-    public void The_boss_select_screen_lists_owned_characters_and_the_clear_row_only_when_a_boss_stands_there()
+    public void The_boss_slot_opens_the_defense_party_in_the_party_setup_without_party_buttons_and_shows_its_leader()
     {
         var s = Session();
         s.Activate(GameSession.HideoutEntryCode);
-        s.Activate("6");
-        Assert.Equal(Screen.HideoutBossSelect, s.Screen);
-        Assert.Equal("1층", s.CurrentHideoutFloorName);
-        Assert.DoesNotContain(s.Entries, e => e.Code == GameSession.ClearEntryCode);
-        Assert.Equal(4, s.Entries.Count(e => e.Action == EntryAction.SetHideoutBoss));      // 당신, 용사, 마법사, 전사
-        s.Pick("7002");
-        s.Activate("6");
-        Assert.Contains(s.Entries, e => e.Code == GameSession.ClearEntryCode);
-        s.Activate(GameSession.ClearEntryCode);
+        s.Activate("6");                                                    // 1층 보스 슬롯
+        Assert.Equal(Screen.PartySetup, s.Screen);
+        Assert.True(s.IsHideoutPartyEdit);
+        Assert.Equal("1층", s.PartyName);
+        Assert.DoesNotContain(s.Entries, e => e.Action == EntryAction.SelectParty);          // 파티 선택 버튼이 없다
+        Assert.DoesNotContain(s.Entries, e => e.Action == EntryAction.RenameParty);          // 이름(층 이름)은 바꿀 수 없다
+        s.Activate("1");                                                    // 1번 슬롯에 배치: 리더 태그가 있는 용사만
+        Assert.Equal(Screen.CharacterSelect, s.Screen);
+        s.Pick("7001");
+        Assert.Equal(7001, s.PartyInstance.Units[0]!.CharacterCode);
+        Assert.True(s.PartyInstance.Units[0]!.IsLeader);                    // 아무도 없던 파티의 첫 유닛은 리더
+        s.Activate("999");                                                  // 돌아가기는 아지트
         Assert.Equal(Screen.Hideout, s.Screen);
-        Assert.Null(s.HideoutBosses[0]);
+        Assert.False(s.IsHideoutPartyEdit);
+        Assert.Equal("용사", s.HideoutRows[1].Boss!.Name);                  // 보스 슬롯에는 방어 파티의 리더
+        Assert.Equal(0, s.HideoutFloorOf(7001));
+        Assert.Equal(-1, s.PartyIndexOf(7001));                             // 보통 파티에는 없다
     }
 
     [Fact]
-    public void The_hideout_survives_the_save_and_a_character_in_both_places_is_rejected()
+    public void A_character_in_a_defense_party_cannot_be_in_another_party_and_the_normal_party_screen_is_unchanged()
+    {
+        var s = Session();
+        s.HideoutParties[0].Units[0] = new PartyUnit(7001, [], IsLeader: true);
+        s.Activate("105");                                                  // 보통 파티 설정
+        Assert.False(s.IsHideoutPartyEdit);
+        Assert.Equal(16, s.Entries.Count(e => e.Action == EntryAction.SelectParty));
+        s.Activate("1");
+        Assert.Equal(CharacterListColor.Gray, s.CharacterList.Single(c => c.Code == 7001).Color);   // 다른 파티(방어 파티)의 유닛
+        Assert.Equal(CharacterListColor.White, s.CharacterList.Single(c => c.Code == 7003).Color);
+    }
+
+    [Fact]
+    public void A_defense_party_holds_equipment_like_any_party_and_a_character_removed_leaves_it()
+    {
+        var s = Session();
+        s.Party[0] = 7002;
+        s.HideoutParties[0].Units[0] = new PartyUnit(7001, [], IsLeader: true);
+        Assert.NotNull(s.UnitOf(7001));                                      // 어느 파티든 유닛을 찾는다
+        Assert.True(s.RemoveCharacter(7001));
+        Assert.Null(s.HideoutParties[0].Units[0]);
+        Assert.Null(s.HideoutRows[1].Boss!.CharacterCode);
+    }
+
+    [Fact]
+    public void The_defense_parties_survive_the_save_and_a_character_in_two_parties_is_rejected()
     {
         var s = Session();
         s.InventoryItems[2] = new InventoryItem(1000);
         s.ExpandHideout(1);
-        s.SetHideoutBoss(1, 7003);
+        s.HideoutParties[1].Units[4] = new PartyUnit(7003, [], IsLeader: true);
         var loaded = GameSession.FromSaveJson(s.Pack, s.ToSaveJson());
-        Assert.Equal([null, 7003L], loaded.HideoutBosses);
+        Assert.Equal(2, loaded.HideoutFloorCount);
+        Assert.Equal(7003, loaded.HideoutParties[1].Units[4]!.CharacterCode);
+        Assert.True(loaded.HideoutParties[1].Units[4]!.IsLeader);
+        Assert.Null(loaded.HideoutParties[0].Units[4]);
 
-        s.Party[0] = 7001;
-        var bad = s.ToSaveJson().Replace("\"Hideout\": [", "\"Hideout\": [7001, ");
-        Assert.Contains("파티와 아지트", Assert.Throws<SaveFormatException>(() => GameSession.FromSaveJson(s.Pack, bad)).Message);
+        s.Party[0] = 7003;
+        var bad = s.ToSaveJson();
+        Assert.Contains("두 번 이상", Assert.Throws<SaveFormatException>(() => GameSession.FromSaveJson(s.Pack, bad)).Message);
     }
 
     [Fact]
@@ -327,7 +328,7 @@ public class HideoutTests
     {
         var s = OperatorSession();
         Assert.True(s.BuildFacility(0, 2));
-        s.Party[0] = 7001;
+        s.HideoutParties[0].Units[0] = new PartyUnit(7001, [], IsLeader: true);
         Assert.True(s.CanOperate(7001, 1));
         Assert.False(s.CanOperate(7002, 1));                                   // 정비 태그가 없다
         Assert.False(s.SetHideoutOperator(0, true, 1, 7002));
@@ -335,7 +336,7 @@ public class HideoutTests
         Assert.False(s.SetHideoutOperator(0, false, 1, 7001));                 // 기본 시설이 없다
         Assert.True(s.SetHideoutOperator(0, true, 1, 7001));
         Assert.Equal(7001, s.HideoutOperatorOf(0, true, 1));
-        Assert.Equal(-1, s.PartyIndexOf(7001));                                // 파티에서 빠졌다
+        Assert.Equal(-1, s.HideoutFloorOf(7001));                              // 방어 파티에서 빠졌다
         Assert.True(s.SetHideoutOperator(0, true, 1, null));
         Assert.Null(s.HideoutOperatorOf(0, true, 1));
     }

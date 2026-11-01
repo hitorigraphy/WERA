@@ -14,7 +14,8 @@ public sealed record HideoutRowView(int Row, int? Floor, string FloorName, Party
 }
 
 // 아지트: 층마다 계층(왼쪽), 시설(가운데), 보스(오른쪽) 슬롯이 있다. 처음에는 1층뿐이고, 확장하면 새 층이 1층이 되고 기존 층은 한 층씩 밀려난다(가장 오래된 층이 가장 아래).
-// 보스 슬롯에는 캐릭터를 한 명 둘 수 있고, 캐릭터는 파티와 아지트(어느 층이든) 중 한 곳에만 있다. 시설은 아직 정의되지 않았다(공터).
+// 보스 슬롯은 그 층의 방어 파티(층마다 하나, 층을 확장할 때마다 늘어나는 고정 파티)이고 슬롯에는 파티의 리더가 보인다. 누르면 파티 설정 화면으로 간다(파티 선택 버튼 없이).
+// 캐릭터는 파티(방어 파티 포함)와 오퍼레이터 슬롯 중 한 곳에만 있다.
 public sealed partial class GameSession
 {
     /// <summary>아지트 화면의 표시 범위 버튼(한 층씩 옮긴다): [1000] ▲, [1001] ▼.</summary>
@@ -24,8 +25,26 @@ public sealed partial class GameSession
     /// <summary>한 번에 보이는 줄 수.</summary>
     public const int HideoutVisibleRows = 3;
 
-    /// <summary>층별 보스 슬롯의 캐릭터 코드(없으면 null). 맨 앞이 가장 새 층(1층)이다.</summary>
-    readonly List<long?> hideoutBosses = [null];
+    /// <summary>층별 방어 파티(보스 슬롯). 맨 앞이 가장 새 층(1층)이다. 이름은 층 이름("n층")이라 바꿀 수 없다.</summary>
+    readonly List<PartyInstance> hideoutParties = [PartyInstance.Empty("")];
+
+    /// <summary>파티 설정 화면에서 편집 중인 방어 파티의 층(0이 1층). null이면 보통 파티를 편집한다.</summary>
+    int? hideoutEditFloor;
+
+    /// <summary>파티 설정 화면이 방어 파티를 편집하는 중인가(파티 선택 버튼과 이름 바꾸기가 없고 돌아가기는 아지트).</summary>
+    public bool IsHideoutPartyEdit => hideoutEditFloor is not null;
+
+    /// <summary>모든 파티: 보통 파티들과 층별 방어 파티들.</summary>
+    IEnumerable<PartyInstance> AllParties => Parties.Concat(hideoutParties);
+
+    /// <summary>이 캐릭터가 지금 보는 파티가 아닌 다른 파티(방어 파티 포함)에 있는가.</summary>
+    bool InOtherParty(long characterCode) => AllParties.Any(p => !ReferenceEquals(p, PartyInstance) && p.IndexOf(characterCode) >= 0);
+
+    /// <summary>이 층의 방어 파티. 없는 층이면 null.</summary>
+    public PartyInstance? HideoutPartyOf(int floor) => floor >= 0 && floor < hideoutParties.Count ? hideoutParties[floor] : null;
+
+    /// <summary>이 층의 방어 파티의 리더 캐릭터(보스 슬롯에 보인다). 리더가 없으면 null.</summary>
+    long? HideoutLeaderOf(int floor) => hideoutParties[floor].Units.OfType<PartyUnit>().FirstOrDefault(u => u.IsLeader)?.CharacterCode;
 
     /// <summary>층별로 유저가 지은(가운데 슬롯) 시설 코드(없으면 null). <see cref="hideoutBosses"/>와 같은 순서이고 층이 생기면 같이 늘어난다.</summary>
     readonly List<long?> hideoutFacilities = [null];
@@ -44,10 +63,10 @@ public sealed partial class GameSession
     int hideoutViewTop = -1;
 
     /// <summary>지금 층 수(처음에는 1).</summary>
-    public int HideoutFloorCount => hideoutBosses.Count;
+    public int HideoutFloorCount => hideoutParties.Count;
 
-    /// <summary>층별 보스 슬롯의 캐릭터(1층부터).</summary>
-    public IReadOnlyList<long?> HideoutBosses => hideoutBosses;
+    /// <summary>층별 방어 파티(1층부터).</summary>
+    public IReadOnlyList<PartyInstance> HideoutParties => hideoutParties;
 
     /// <summary>층별로 지은 시설(1층부터). 가운데 슬롯이고 비어 있으면 null.</summary>
     public IReadOnlyList<long?> HideoutFacilities => hideoutFacilities;
@@ -63,8 +82,8 @@ public sealed partial class GameSession
     public FacilityEntry? BuiltFacilityOfFloor(int floor) =>
         floor >= 0 && floor < HideoutFloorCount && hideoutFacilities[floor] is { } code ? Pack.FindFacility(code) : null;
 
-    /// <summary>이 캐릭터가 있는 아지트 층의 번호(0이 1층, 어느 층에도 없으면 -1).</summary>
-    public int HideoutFloorOf(long characterCode) => hideoutBosses.IndexOf(characterCode);
+    /// <summary>이 캐릭터가 방어 파티에 있는 층의 번호(0이 1층, 어느 방어 파티에도 없으면 -1).</summary>
+    public int HideoutFloorOf(long characterCode) => hideoutParties.FindIndex(p => p.IndexOf(characterCode) >= 0);
 
     /// <summary>보이는 첫 줄의 위치: -1("확장 가능" 줄)부터 마지막 층이 맨 아래 줄에 올 때까지.</summary>
     public int HideoutViewTop => hideoutViewTop;
@@ -83,36 +102,15 @@ public sealed partial class GameSession
     {
         if (HideoutExpandGroups.FirstOrDefault(g => g.GroupCode == groupCode) is not { } group || !CanAffordHideoutExpand(group)) return false;
         foreach (var cost in group.Costs) ChangeCommonItem(cost.ItemCode, -cost.Amount);
-        hideoutBosses.Insert(0, null);
+        hideoutParties.Insert(0, PartyInstance.Empty(""));
         hideoutFacilities.Insert(0, null);
         hideoutViewTop = -1;
         return true;
     }
 
-    /// <summary>
-    /// 층(0이 1층)의 보스 슬롯에 캐릭터를 둔다(null이면 비운다). 보유한 캐릭터만 둘 수 있다. 다른 층에 있던 캐릭터는 이 슬롯의 캐릭터와 자리를 바꾸고,
-    /// 파티에 있던 캐릭터는 파티에서 빠진다(장비는 보유로 돌아간다). 할 수 없으면 false.
-    /// </summary>
-    public bool SetHideoutBoss(int floor, long? characterCode)
-    {
-        if (floor < 0 || floor >= HideoutFloorCount) return false;
-        if (characterCode is not { } code) { hideoutBosses[floor] = null; return true; }
-        if (!Characters.ContainsKey(code)) return false;
-        var at = HideoutFloorOf(code);
-        if (at == floor) return true;
-        if (at >= 0) (hideoutBosses[at], hideoutBosses[floor]) = (hideoutBosses[floor], hideoutBosses[at]);
-        else
-        {
-            RemoveFromParties(code);
-            RemoveFromHideout(code);                                  // 오퍼레이터였다면 그만두고 보스가 된다
-            hideoutBosses[floor] = code;
-        }
-        return true;
-    }
-
     void RemoveFromParties(long characterCode)
     {
-        foreach (var party in Parties)
+        foreach (var party in AllParties)
             for (var i = 0; i < party.Units.Length; i++)
                 if (party.Units[i]?.CharacterCode == characterCode) party.Units[i] = null;     // 유닛과 함께 장비가 빠져 보유로 돌아간다
     }
@@ -120,8 +118,6 @@ public sealed partial class GameSession
     void RemoveFromHideout(long characterCode)
     {
         foreach (var key in hideoutOperators.Where(o => o.Value == characterCode).Select(o => o.Key).ToList()) hideoutOperators.Remove(key);
-        for (var i = 0; i < hideoutBosses.Count; i++)
-            if (hideoutBosses[i] == characterCode) hideoutBosses[i] = null;
     }
 
     /// <summary>아지트 화면의 보이는 세 줄(위에서부터).</summary>
@@ -136,7 +132,7 @@ public sealed partial class GameSession
                 if (at == -1) return new HideoutRowView(row, HideoutExpandGroups.Count > 0 ? -1 : null, HideoutExpandGroups.Count > 0 ? "확장 가능" : "----", null);
                 if (at < 0 || at >= HideoutFloorCount) return new HideoutRowView(row, null, "----", null);
                 var built = BuiltFacilityOfFloor(at);
-                return new HideoutRowView(row, at, $"{at + 1}층", CharacterView(-1, hideoutBosses[at]), built?.Name ?? "공터", built is not null);
+                return new HideoutRowView(row, at, $"{at + 1}층", CharacterView(-1, HideoutLeaderOf(at)), built?.Name ?? "공터", built is not null);
             }).ToList();
         }
     }
@@ -152,7 +148,7 @@ public sealed partial class GameSession
                 entries.Add(new ScreenEntry(Text(row.FloorCode), row.FloorName, Screen.HideoutFloorDetail, Arg: Text(floor)));
                 if (row.HasFacility) entries.Add(new ScreenEntry(Text(row.FacilityCode), row.FacilityName, Screen.HideoutFacilityDetail, Arg: Text(floor)));
                 else if (Pack.Facilities is { Count: > 0 }) entries.Add(new ScreenEntry(Text(row.FacilityCode), row.FacilityName, Screen.HideoutFacilitySelect, Arg: Text(floor)));
-                entries.Add(new ScreenEntry(Text(row.BossCode), row.Boss!.Name, Screen.HideoutBossSelect, Arg: Text(floor)));
+                entries.Add(new ScreenEntry(Text(row.BossCode), row.Boss!.Name, Screen.PartySetup, EntryAction.EditHideoutParty, Arg: Text(floor)));
             }
         }
         entries.Add(new ScreenEntry(HideoutScrollUpEntryCode, "▲", Screen.Hideout, EntryAction.HideoutScroll, "-1", Enabled: hideoutViewTop > -1));
@@ -170,28 +166,6 @@ public sealed partial class GameSession
         .. HideoutExpandGroups.Select(g => new ScreenEntry(Text(g.GroupCode), HideoutExpandGroupText(g), Screen.Hideout, EntryAction.ExpandHideout, Enabled: CanAffordHideoutExpand(g))),
         new ScreenEntry(BackEntryCode, "돌아가기", Screen.Hideout),
     ];
-
-    /// <summary>지금 고르는 층의 이름("2층"): 보스 선택 화면의 제목에 쓴다.</summary>
-    public string? CurrentHideoutFloorName => Screen == Screen.HideoutBossSelect && CurrentSlot is { } floor ? $"{floor + 1}층" : null;
-
-    /// <summary>아지트 보스 선택 화면의 목록(캐릭터 인벤토리 마스터 순서): 보유한 캐릭터 중 이 슬롯의 캐릭터를 뺀 전부. 다른 층의 보스는 파란색(고르면 서로 바뀐다), 파티원과 나머지는 흰색(파티에서 빠진다).</summary>
-    IReadOnlyList<CharacterListItem> HideoutBossCandidates()
-    {
-        if (CurrentSlot is not { } floor || floor >= HideoutFloorCount) return [];
-        var mine = hideoutBosses[floor];
-        return (Pack.CharacterInventory ?? []).Where(c => Characters.ContainsKey(c.Code) && mine != c.Code)
-            .Select(c => new CharacterListItem(c.Code, c.Name, HideoutFloorOf(c.Code) >= 0 ? CharacterListColor.Green : CharacterListColor.White)).ToList();
-    }
-
-    IReadOnlyList<ScreenEntry> HideoutBossSelectEntries()
-    {
-        var entries = new List<ScreenEntry>();
-        if (CurrentSlot is { } floor && floor < HideoutFloorCount && hideoutBosses[floor] is not null)
-            entries.Add(new ScreenEntry(ClearEntryCode, "비우기", Screen.Hideout, EntryAction.ClearHideoutBoss));
-        entries.AddRange(HideoutBossCandidates().Select(c => new ScreenEntry(Text(c.Code), c.Name, Screen.Hideout, EntryAction.SetHideoutBoss)));
-        entries.Add(new ScreenEntry(BackEntryCode, "돌아가기", Screen.Hideout));
-        return entries;
-    }
 
     // ---- 시설 ----
 
@@ -288,7 +262,7 @@ public sealed partial class GameSession
         Characters.ContainsKey(characterCode) && CharacterTags(characterCode) is var have && Pack.OperatorSlotTagsOf(operatorSlotCode).All(have.Contains);
 
     /// <summary>
-    /// 오퍼레이터 슬롯에 캐릭터를 세운다(null이면 비운다): 그 시설이 가진 슬롯이고 캐릭터가 태그 조건을 만족해야 한다. 캐릭터는 파티, 보스 슬롯, 오퍼레이터 슬롯 중 한 곳에만 있으므로
+    /// 오퍼레이터 슬롯에 캐릭터를 세운다(null이면 비운다): 그 시설이 가진 슬롯이고 캐릭터가 태그 조건을 만족해야 한다. 캐릭터는 파티(방어 파티 포함)와 오퍼레이터 슬롯 중 한 곳에만 있으므로
     /// 다른 곳에 있던 캐릭터는 거기서 빠진다(파티에서는 장비가 보유로 돌아간다). 할 수 없으면 false.
     /// </summary>
     public bool SetHideoutOperator(int floor, bool built, long slotCode, long? characterCode)
@@ -300,8 +274,6 @@ public sealed partial class GameSession
         if (!CanOperate(code, slotCode)) return false;
         RemoveFromParties(code);
         RemoveFromHideout(code);
-        for (var i = 0; i < hideoutBosses.Count; i++)
-            if (hideoutBosses[i] == code) hideoutBosses[i] = null;
         hideoutOperators[key] = code;
         return true;
     }

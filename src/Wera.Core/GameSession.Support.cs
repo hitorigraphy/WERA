@@ -123,5 +123,5 @@ public sealed partial class GameSession
     }
 
     /// <summary>파트너/어시스트 선택 화면의 캐릭터 목록(화면 표시용).</summary>
-    public IReadOnlyList<CharacterListItem> SupportList => Screen == Screen.SupportSelect ? SupportCharacterList() : Screen == Screen.HideoutBossSelect ? HideoutBossCandidates() : Screen == Screen.HideoutOperatorSelect ? HideoutOperatorCandidates() : [];
+    public IReadOnlyList<CharacterListItem> SupportList => Screen == Screen.SupportSelect ? SupportCharacterList() : Screen == Screen.HideoutOperatorSelect ? HideoutOperatorCandidates() : [];
 }

@@ -16,8 +16,8 @@ public sealed partial class GameSession
     /// </summary>
     public Dictionary<long, List<long>> CharacterTagInstances { get; }
 
-    /// <summary>모든 파티의 유닛들(빈 칸 제외). 장비는 유닛이 가진다.</summary>
-    IEnumerable<PartyUnit> PartyUnits => Parties.SelectMany(p => p.Units).OfType<PartyUnit>();
+    /// <summary>모든 파티(방어 파티 포함)의 유닛들(빈 칸 제외). 장비는 유닛이 가진다.</summary>
+    IEnumerable<PartyUnit> PartyUnits => AllParties.SelectMany(p => p.Units).OfType<PartyUnit>();
 
     // ---- 유니크 아이템 인스턴스 ----
 

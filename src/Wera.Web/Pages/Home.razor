@@ -97,12 +97,16 @@
     // 파티 설정 화면 아래: 구분선, 파티 선택 버튼([11] 파티-A ~ [26] 파티-P, 한 줄에 4개씩), 모드 버튼([101] 캐릭터 배치, [102] 장비 착용)을 4분할 위치에 가로로.
     // 지금 보는 파티와 지금 모드의 버튼은 파란색으로 눌리지 않고, 고를 수 있는 다른 것은 흰색이다.
     RenderFragment partyCommands = @<div class="party-commands">
-        <div class="party-select">@entryList(session!.Entries.Where(e => e.Action == EntryAction.SelectParty))</div>
+        @if (!session!.IsHideoutPartyEdit)
+        {
+            <div class="party-select">@entryList(session.Entries.Where(e => e.Action == EntryAction.SelectParty))</div>
+        }
         <div class="party-modes">@entryList(session!.Entries.Where(e => e.Action == EntryAction.Navigate && e.Arg is null && e.Target != Screen.Home))</div>
     </div>;
 
     // 파티 설정 화면 제목의 "[0] 파티명": 누르면(또는 0을 입력하면) 파티 이름을 바꾼다.
-    RenderFragment partyNameButton = @<button class="textlink" @onclick="() => Activate(GameSession.RenamePartyEntryCode)">[@GameSession.RenamePartyEntryCode] @session!.PartyName</button>;
+    // 아지트의 방어 파티를 편집하는 중에는 이름(층 이름)을 바꿀 수 없어 글자만 나온다.
+    RenderFragment partyNameButton = @<text>@if (session!.IsHideoutPartyEdit) { <span>@session.PartyName</span> } else { <button class="textlink" @onclick="() => Activate(GameSession.RenamePartyEntryCode)">[@GameSession.RenamePartyEntryCode] @session.PartyName</button> }</text>;
 
     RenderFragment commands = @<div class="commands">
         @entryList(session!.Entries)
@@ -587,11 +591,6 @@
                 @characterTable((session.Entries.Where(e => e.Code == GameSession.ClearEntryCode), session.PageOf(session.SupportList)))
                 break;
 
-            case Screen.HideoutBossSelect:
-                <h2>@(session.CurrentHideoutFloorName) 보스로 지정할 캐릭터</h2>
-                @* 파란색: 다른 층의 보스(고르면 서로 바뀐다), 흰색: 파티원(고르면 파티에서 빠진다)과 나머지 *@
-                @characterTable((session.Entries.Where(e => e.Code == GameSession.ClearEntryCode), session.PageOf(session.SupportList)))
-                break;
 
             case Screen.EquipmentEnhance:
                 <h2>장비 강화</h2>

@@ -46,8 +46,6 @@ public enum Screen
     Hideout,
     /// <summary>아지트 확장 화면: 쓸 재료 그룹을 고른다(갖춘 그룹만 활성). 돌아가기는 아지트.</summary>
     HideoutExpand,
-    /// <summary>아지트의 한 층의 보스 슬롯에 둘 캐릭터 목록. 돌아가기는 아지트.</summary>
-    HideoutBossSelect,
     /// <summary>아지트 층 상세(계층 슬롯): 기본 시설의 이름이 나온다. 돌아가기는 아지트.</summary>
     HideoutFloorDetail,
     /// <summary>아지트 시설 상세(가운데 슬롯, 지은 시설): 시설 이름과 철거. 돌아가기는 아지트.</summary>
@@ -171,10 +169,8 @@ public enum EntryAction
     BuildFacility,
     /// <summary>고른 층의 가운데 슬롯의 시설을 철거한다.</summary>
     DemolishFacility,
-    /// <summary>항목의 코드에 해당하는 캐릭터를 고른 아지트 층의 보스 슬롯에 둔다.</summary>
-    SetHideoutBoss,
-    /// <summary>고른 아지트 층의 보스 슬롯을 비운다.</summary>
-    ClearHideoutBoss,
+    /// <summary>Arg의 층(0이 1층)의 방어 파티를 파티 설정 화면에서 편집한다(보스 슬롯).</summary>
+    EditHideoutParty,
     /// <summary>항목의 코드에 해당하는 캐릭터를 홈의 파트너/어시스트 슬롯에 지정한다(다른 쪽에 있던 캐릭터면 서로 바뀐다).</summary>
     SetSupport,
     /// <summary>선택한 파트너/어시스트 슬롯을 비운다.</summary>
@@ -260,7 +256,7 @@ public sealed record SaveData(
     PartyInstance? PartyInstance = null,
     PartyInstance?[]? Parties = null,
     int? CurrentParty = null,
-    long?[]? Hideout = null,
+    PartyInstance?[]? HideoutParties = null,
     long?[]? HideoutFacilities = null,
     HideoutOperatorSave[]? HideoutOperators = null);
 
@@ -347,7 +343,7 @@ public sealed partial class GameSession
     /// 파티: 이름과 유닛 아홉 칸(유닛 = 캐릭터 + 장비). 칸 번호 0~2 전위, 3~5 중위, 6~8 후위, 빈 칸은 null.
     /// 장비는 유닛에 속하므로 유닛이 파티에서 빠지면 장비는 보유로 돌아간다.
     /// </summary>
-    public PartyInstance PartyInstance => Parties[CurrentPartyIndex];
+    public PartyInstance PartyInstance => hideoutEditFloor is { } floor ? hideoutParties[floor] : Parties[CurrentPartyIndex];
 
     /// <summary>
     /// 파티 열여섯 개(파티-A ~ 파티-P). 파티끼리는 캐릭터와 장비를 공유할 수 없다. 파티 설정과 캐릭터 배치, 장비 착용은
@@ -359,7 +355,11 @@ public sealed partial class GameSession
     public int CurrentPartyIndex { get; private set; }
 
     /// <summary>지금 보는 파티의 이름.</summary>
-    public string PartyName { get => PartyInstance.Name; set => Parties[CurrentPartyIndex] = PartyInstance with { Name = value }; }
+    public string PartyName
+    {
+        get => hideoutEditFloor is { } floor ? $"{floor + 1}층" : PartyInstance.Name;
+        set { if (hideoutEditFloor is null) Parties[CurrentPartyIndex] = PartyInstance with { Name = value }; }
+    }
 
     /// <summary>파티의 처음 이름: "파티-A" ~ "파티-P".</summary>
     public static string DefaultPartyNameOf(int index) => "파티-" + (char)('A' + index);
@@ -374,7 +374,7 @@ public sealed partial class GameSession
 
     /// <summary>이 캐릭터의 유닛(어느 파티든). 파티에 없으면 null.</summary>
     public PartyUnit? UnitOf(long characterCode) =>
-        PartyIndexOf(characterCode) is var at and >= 0 ? Parties[at].UnitOf(characterCode) : null;
+        AllParties.Select(p => p.UnitOf(characterCode)).FirstOrDefault(u => u is not null);
 
     /// <summary>칸 번호로 캐릭터 코드를 읽고 쓰는 창(<see cref="PartySlots"/>): 길이 9, 빈 칸은 null.</summary>
     public PartySlots Party => new(PartyInstance);
@@ -618,7 +618,7 @@ public sealed partial class GameSession
     {
         get
         {
-            if (Screen is Screen.SupportSelect or Screen.HideoutBossSelect or Screen.HideoutOperatorSelect) return SupportList;
+            if (Screen is Screen.SupportSelect or Screen.HideoutOperatorSelect) return SupportList;
             if (Screen != Screen.CharacterSelect || CurrentSlot is not { } slot) return [];
             // 파티에 아무도 없을 때와 리더의 슬롯을 바꿀 때는 리더 태그를 가진 캐릭터만 나온다(파티에는 리더가 한 명 이상 있어야 하므로).
             var leaderOnly = IsLeaderOnlySlot(slot);
@@ -628,7 +628,7 @@ public sealed partial class GameSession
                 var placedAt = PartyInstance.IndexOf(c.Code);
                 var color = !Characters.ContainsKey(c.Code) ? CharacterListColor.Gray
                     : placedAt >= 0 ? CharacterListColor.Green
-                    : PartyIndexOf(c.Code) >= 0 ? CharacterListColor.Gray          // 다른 파티의 유닛: 파티끼리는 캐릭터를 공유할 수 없다
+                    : InOtherParty(c.Code) ? CharacterListColor.Gray          // 다른 파티(방어 파티 포함)의 유닛: 파티끼리는 캐릭터를 공유할 수 없다
                     : CharacterListColor.White;
                 return new CharacterListItem(c.Code, c.Name, color);
             }).ToList();
@@ -775,8 +775,6 @@ public sealed partial class GameSession
                     return HideoutEntries();
                 case Screen.HideoutExpand:
                     return HideoutExpandEntries();
-                case Screen.HideoutBossSelect:
-                    return HideoutBossSelectEntries();
                 case Screen.HideoutFloorDetail:
                     return [.. CurrentSlot is { } floorAt ? HideoutOperatorEntries(floorAt, false, 1) : [], new ScreenEntry(BackEntryCode, "돌아가기", Screen.Hideout)];
                 case Screen.HideoutOperatorSelect:
@@ -884,6 +882,8 @@ public sealed partial class GameSession
         code = Normalize(code);
         var entry = (typed ? PagerEntryFor(code) : null) ?? (IsPagedScreen(Screen) ? Entries : RawEntries).Concat(HomeSlotEntries).FirstOrDefault(e => e.Code == code) ?? PagerEntryFor(code);
         if (entry is { Enabled: false }) return entry;       // 회색 항목은 눌러도 아무 반응이 없다
+        if (entry is { Code: BackEntryCode, Target: Screen.Home } && hideoutEditFloor is not null) entry = entry with { Target = Screen.Hideout };       // 방어 파티에서 돌아가면 아지트
+        if (entry?.Target is Screen.Hideout or Screen.Home) hideoutEditFloor = null;
         RecordCommunicationCommand(entry);
         switch (entry?.Action)
         {
@@ -899,7 +899,7 @@ public sealed partial class GameSession
                 }
                 CurrentSlot = entry.Target switch
                 {
-                    Screen.CharacterSelect or Screen.EquipmentList or Screen.HideoutBossSelect or Screen.HideoutFloorDetail or Screen.HideoutFacilityDetail => int.Parse(entry.Arg!, CultureInfo.InvariantCulture),
+                    Screen.CharacterSelect or Screen.EquipmentList or Screen.HideoutFloorDetail or Screen.HideoutFacilityDetail => int.Parse(entry.Arg!, CultureInfo.InvariantCulture),
                     Screen.HideoutFacilitySelect when entry.Arg is not null => int.Parse(entry.Arg, CultureInfo.InvariantCulture),
                     Screen.HideoutFacilitySelect or Screen.HideoutBuild => CurrentSlot,                  // 같은 층을 계속 본다
                     Screen.HideoutOperatorSelect => operatorFloor,
@@ -1014,13 +1014,8 @@ public sealed partial class GameSession
                 if (ExpandHideout(CodeOf(entry))) Message = $"아지트를 확장했습니다: {HideoutFloorCount}층";
                 Screen = entry.Target;
                 break;
-            case EntryAction.SetHideoutBoss:
-                SetHideoutBoss(CurrentSlot!.Value, CodeOf(entry));
-                CurrentSlot = null;
-                Screen = entry.Target;
-                break;
-            case EntryAction.ClearHideoutBoss:
-                SetHideoutBoss(CurrentSlot!.Value, null);
+            case EntryAction.EditHideoutParty:
+                hideoutEditFloor = int.Parse(entry.Arg!, CultureInfo.InvariantCulture);
                 CurrentSlot = null;
                 Screen = entry.Target;
                 break;
@@ -1174,7 +1169,7 @@ public sealed partial class GameSession
     /// </summary>
     /// <summary>파티 설정 화면 제목의 "[0] 파티명" 항목 하나: 누르면 파티 이름 변경 화면으로 간다.</summary>
     IEnumerable<ScreenEntry> RenamePartyEntries() =>
-        [new ScreenEntry(RenamePartyEntryCode, PartyName, Screen.PartyRename, EntryAction.RenameParty)];
+        hideoutEditFloor is not null ? [] : [new ScreenEntry(RenamePartyEntryCode, PartyName, Screen.PartyRename, EntryAction.RenameParty)];       // 방어 파티의 이름(층 이름)은 바꿀 수 없다
 
     /// <summary>
     /// 파티 이름 변경 화면에서 입력칸에 쓴 글을 새 이름으로 받는다: 앞뒤 공백을 없앤 글이 비어 있으면 그대로 두고,
@@ -1195,7 +1190,7 @@ public sealed partial class GameSession
     }
 
     IEnumerable<ScreenEntry> PartySelectEntries(Screen screen) =>
-        Parties.Select((p, i) => new ScreenEntry(
+        hideoutEditFloor is not null ? [] : Parties.Select((p, i) => new ScreenEntry(
             (PartySelectCodeBase + i).ToString(CultureInfo.InvariantCulture), p.Name, screen, EntryAction.SelectParty,
             i.ToString(CultureInfo.InvariantCulture), Enabled: i != CurrentPartyIndex));
 
@@ -1260,7 +1255,7 @@ public sealed partial class GameSession
     /// <summary>리더가 리더 태그를 잃으면 리더에서 빠진다(리더 태그가 없는 리더는 없다). 다른 유닛이 대신 리더가 되지는 않는다.</summary>
     void DropLeadersWithoutTag()
     {
-        foreach (var party in Parties)
+        foreach (var party in AllParties)
             for (var i = 0; i < party.Units.Length; i++)
                 if (party.Units[i] is { IsLeader: true } leader && !HasLeaderTag(leader.CharacterCode))
                     party.Units[i] = leader with { IsLeader = false };
@@ -1531,7 +1526,7 @@ public sealed partial class GameSession
                 null,
                 Parties.Select(p => p.Copy()).ToArray(),
                 CurrentPartyIndex,
-                hideoutBosses.ToArray(),
+                hideoutParties.Select(p => p.Copy()).ToArray(),
                 hideoutFacilities.ToArray(),
                 hideoutOperators.Select(o => new HideoutOperatorSave(o.Key.FloorOrder, o.Key.Built, o.Key.Slot, o.Value)).ToArray()),
             SaveJsonContext.Default.SaveData);
@@ -1665,7 +1660,25 @@ public sealed partial class GameSession
         if (currentParty is < 0 or >= PartyCount)
             throw new SaveFormatException($"세이브의 현재 파티 '{currentParty}'가 0~{PartyCount - 1} 범위를 벗어납니다.");
 
-        var allCodes = partyCodes.SelectMany(p => p).OfType<long>().ToList();
+        // 아지트의 층별 방어 파티(1층부터): 보통 파티와 같은 형식이고 파티끼리 캐릭터를 공유할 수 없다. 층이 없으면 1층뿐이다.
+        var floorSaved = save.HideoutParties is { Length: > 0 } savedFloors ? savedFloors : [null];
+        var floorCodes = floorSaved.Select(_ => new long?[PartySlotCount]).ToArray();
+        var floorLeaders = floorSaved.Select(_ => new bool[PartySlotCount]).ToArray();
+        for (var f = 0; f < floorSaved.Length; f++)
+        {
+            var savedUnits = floorSaved[f]?.Units ?? [];
+            if (savedUnits.Length > PartySlotCount)
+                throw new SaveFormatException($"세이브의 {f + 1}층 방어 파티의 슬롯이 {PartySlotCount}칸보다 많습니다: {savedUnits.Length}");
+            for (var i = 0; i < savedUnits.Length; i++)
+            {
+                if (savedUnits[i] is not { } unit) continue;
+                floorCodes[f][i] = unit.CharacterCode;
+                floorLeaders[f][i] = unit.IsLeader;
+                if (unit.Equipment is { Count: > 0 }) partyEquipment[unit.CharacterCode] = unit.Equipment;
+            }
+        }
+
+        var allCodes = partyCodes.Concat(floorCodes).SelectMany(p => p).OfType<long>().ToList();
         foreach (var code in allCodes)
             if (!characters.ContainsKey(code))
                 throw new SaveFormatException($"세이브의 파티 캐릭터 '{code}'가 보유 캐릭터에 없습니다.");
@@ -1687,19 +1700,13 @@ public sealed partial class GameSession
         if (save.Partner is not null && save.Partner == save.Assist)
             throw new SaveFormatException("세이브의 파트너와 어시스트가 같은 캐릭터입니다.");
 
-        // 아지트: 층별 보스 슬롯(1층부터). 보유한 캐릭터만, 한 번씩만, 파티에 없는 캐릭터만 둘 수 있다. 층이 없으면 1층뿐이다.
-        var hideout = save.Hideout is { Length: > 0 } savedHideout ? [.. savedHideout] : new List<long?> { null };
-        var hideoutCodes = hideout.OfType<long>().ToList();
-        foreach (var code in hideoutCodes)
-            if (!characters.ContainsKey(code))
-                throw new SaveFormatException($"세이브의 아지트 캐릭터 '{code}'가 보유 캐릭터에 없습니다.");
-        if (hideoutCodes.GroupBy(c => c).Any(g => g.Count() > 1))
-            throw new SaveFormatException("세이브의 아지트에 같은 캐릭터가 두 번 이상 있습니다.");
-        if (hideoutCodes.Any(code => allCodes.Contains(code)))
-            throw new SaveFormatException("세이브에서 같은 캐릭터가 파티와 아지트에 모두 있습니다(한 곳에만 있을 수 있습니다).");
+        var floors = floorSaved.Length;
+        var floorParties = floorCodes.Select((codes, f) => new PartyInstance("",
+            codes.Select((c, i) => c is { } code
+                ? new PartyUnit(code, equippedItems.TryGetValue(code, out var slots) ? slots : [], floorLeaders[f][i]) : null).ToArray())).ToList();
 
-        var facilities = new List<long?>(new long?[hideout.Count]);
-        for (var i = 0; i < hideout.Count && save.HideoutFacilities is { } savedFacilities && i < savedFacilities.Length; i++)
+        var facilities = new List<long?>(new long?[floors]);
+        for (var i = 0; i < floors && save.HideoutFacilities is { } savedFacilities && i < savedFacilities.Length; i++)
         {
             if (savedFacilities[i] is { } facility && pack.FindFacility(facility) is null)
                 throw new SaveFormatException($"세이브의 아지트 시설 '{facility}'가 시설 마스터에 없습니다.");
@@ -1709,16 +1716,16 @@ public sealed partial class GameSession
         var operators = new Dictionary<(long, bool, long), long>();
         foreach (var op in save.HideoutOperators ?? [])
         {
-            if (op.FloorOrder < 1 || op.FloorOrder > hideout.Count)
-                throw new SaveFormatException($"세이브의 오퍼레이터 층 순서 '{op.FloorOrder}'가 1~{hideout.Count} 범위를 벗어납니다.");
+            if (op.FloorOrder < 1 || op.FloorOrder > floors)
+                throw new SaveFormatException($"세이브의 오퍼레이터 층 순서 '{op.FloorOrder}'가 1~{floors} 범위를 벗어납니다.");
             if (!characters.ContainsKey(op.CharacterCode))
                 throw new SaveFormatException($"세이브의 오퍼레이터 캐릭터 '{op.CharacterCode}'가 보유 캐릭터에 없습니다.");
             if (!operators.TryAdd((op.FloorOrder, op.Built, op.SlotCode), op.CharacterCode))
                 throw new SaveFormatException($"세이브의 오퍼레이터 슬롯 (층 {op.FloorOrder}, 슬롯 {op.SlotCode})이 두 번 있습니다.");
         }
         var operatorCodes = operators.Values.ToList();
-        if (operatorCodes.GroupBy(c => c).Any(g => g.Count() > 1) || operatorCodes.Any(c => hideoutCodes.Contains(c)))
-            throw new SaveFormatException("세이브에서 같은 캐릭터가 아지트의 두 곳 이상에 있습니다(한 곳에만 있을 수 있습니다).");
+        if (operatorCodes.GroupBy(c => c).Any(g => g.Count() > 1))
+            throw new SaveFormatException("세이브에서 같은 캐릭터가 오퍼레이터 슬롯 두 곳 이상에 있습니다(한 곳에만 있을 수 있습니다).");
         if (operatorCodes.Any(c => allCodes.Contains(c)))
             throw new SaveFormatException("세이브에서 같은 캐릭터가 파티와 아지트에 모두 있습니다(한 곳에만 있을 수 있습니다).");
 
@@ -1730,8 +1737,8 @@ public sealed partial class GameSession
             AssistCode = save.Assist,
             TurnCount = save.Turn ?? pack.FirstTurn.TurnCount,
         };
-        session.hideoutBosses.Clear();
-        session.hideoutBosses.AddRange(hideout);
+        session.hideoutParties.Clear();
+        session.hideoutParties.AddRange(floorParties);
         foreach (var (key, code) in operators) session.hideoutOperators[key] = code;
         session.hideoutFacilities.Clear();
         session.hideoutFacilities.AddRange(facilities);
