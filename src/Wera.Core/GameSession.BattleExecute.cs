@@ -125,7 +125,7 @@ public sealed partial class GameSession
         if (BattleOutcome == BattleOutcomeKind.None) { BeginTurn(); return; }
         foreach (var slot in BattleUnitSlots())
             if (BattleOutcome == BattleOutcomeKind.Win) new AfterBattleWinCircuit(Pack, store, PartyInstance.Units[slot]!).Execute();
-            else new AfterBattleLoseCircuit(Pack, store, PartyInstance.Units[slot]!).Execute();
+            else new AfterBattleLoseCircuit(Pack, store, PartyInstance.Units[slot]!, CurrentDungeonCode is not null && CurrentEvent is null, c => pendingCaptures.Add(c.InstanceId)).Execute();
         if (BattleOutcome == BattleOutcomeKind.Win) DropBattleItems();
         BattleCommands = BattleCommandMode.Basic;
     }

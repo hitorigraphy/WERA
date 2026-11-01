@@ -75,6 +75,11 @@ public enum AfterBattleLoseEffectType
     JumpCacheLessThan = 30,
     /// <summary>cache[value_1] &lt;= cache[value_2]. 인자와 규칙은 <see cref="JumpCacheEqual"/>과 같다.</summary>
     JumpCacheLessOrEqual = 31,
+    /// <summary>전투 패배 후 서킷에만 있는 종류. 포커스한 캐릭터를 구금된 아군으로 만든다: 던전 안 전투에서 졌을 때만 일어나고(아니면 아무 일도 하지 않는다),
+    /// 전투가 끝나 화면을 떠날 때 그 캐릭터가 파티에서 빠져 구금된 아군 태그가 붙고 지금 던전에 갇힌다(장비는 그대로 들고 간다). 플레이어(캐릭터 1)는 구금되지 않는다. 값은 보지 않는다.</summary>
+    CaptureFocusedCharacter = 32,
+    /// <summary>전투 패배 후 서킷에만 있는 종류. 던전 안 전투가 아니면 value_1의 execute_number로 점프하고, 던전 안이면 다음 이펙트로 간다. 점프 규칙은 Jump와 같다(자신보다 큰, 마스터에 있는 번호).</summary>
+    JumpNotInDungeon = 33,
 }
 
 /// <summary>전투 패배 후 이펙트 마스터의 한 행: 전투에서 지면 서킷이 execute_number 순서대로 실행하는 이펙트 하나(종류와 값 셋).</summary>
@@ -115,13 +120,13 @@ public sealed partial class GamePack
             var value3 = r[4].Trim().Length == 0 ? 0 : ParseLong(file, $"{where} value_3", r[4]);
             if (!seen.Add(number))
                 throw new PackFormatException($"{file}: 실행 번호 '{number}'가 두 번 적혀 있습니다.");
-            EffectArgs.Check(file, where, (EffectType)(int)type, value1, value2, value3, check);
+            if ((int)type < 32) EffectArgs.Check(file, where, (EffectType)(int)type, value1, value2, value3, check);
             rows.Add(new AfterBattleLoseEffect(number, type, value1, value2, value3));
         }
 
         // 점프는 마스터에 있는, 자신보다 큰 execute_number로만 갈 수 있다.
         foreach (var e in rows)
-            if (EffectArgs.JumpTargetOf((EffectType)(int)e.EffectType, e.Value1, e.Value3) is { } target)
+            if ((e.EffectType == AfterBattleLoseEffectType.JumpNotInDungeon ? e.Value1 : EffectArgs.JumpTargetOf((EffectType)(int)e.EffectType, e.Value1, e.Value3)) is { } target)
             {
                 var where = $"실행 {e.ExecuteNumber}의";
                 if (target <= e.ExecuteNumber)

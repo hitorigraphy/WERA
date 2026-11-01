@@ -269,7 +269,7 @@ public sealed partial class GameSession
 
     /// <summary>이 캐릭터 인스턴스가 이 오퍼레이터 슬롯에 설 수 있는가: 보유한 캐릭터이고 슬롯이 요구하는 태그를 모두 가져야 한다.</summary>
     public bool CanOperate(string instanceId, long operatorSlotCode) =>
-        Characters.ContainsKey(instanceId) && !IsCapturedEnemy(instanceId) && CharacterTags(instanceId) is var have && Pack.OperatorSlotTagsOf(operatorSlotCode).All(have.Contains);
+        Characters.ContainsKey(instanceId) && !IsCapturedEnemy(instanceId) && !IsCapturedAlly(instanceId) && CharacterTags(instanceId) is var have && Pack.OperatorSlotTagsOf(operatorSlotCode).All(have.Contains);
 
     /// <summary>
     /// 오퍼레이터 슬롯에 캐릭터를 세운다(null이면 비운다): 그 시설이 가진 슬롯이고 캐릭터가 태그 조건을 만족해야 한다. 캐릭터 코드는 그 코드의

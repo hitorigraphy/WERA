@@ -52,7 +52,7 @@ public sealed partial class GameSession
     /// </summary>
     string? PlaceableInstanceOf(long characterCode)
     {
-        var all = Characters.InstancesOf(characterCode).Where(c => !IsCapturedEnemy(c.InstanceId)).ToList();
+        var all = Characters.InstancesOf(characterCode).Where(c => !IsCapturedEnemy(c.InstanceId) && !IsCapturedAlly(c.InstanceId)).ToList();
         return (all.FirstOrDefault(c => !IsPlaced(c.InstanceId)) ?? all.FirstOrDefault())?.InstanceId;
     }
 

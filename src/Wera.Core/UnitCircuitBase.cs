@@ -203,6 +203,11 @@ public abstract class UnitCircuitBase
                 if (to > at) at = to - 1;
             }
             else if (known) Apply(type, effect);
+            else if (JumpOther(effect) is { } otherTarget)
+            {
+                var to = effects.ToList().FindIndex(e => e.ExecuteNumber == otherTarget);
+                if (to > at) at = to - 1;
+            }
             else ApplyOther(effect);
         }
         Commit();
@@ -212,6 +217,9 @@ public abstract class UnitCircuitBase
     protected virtual void ApplyOther(CircuitEffect effect)
     {
     }
+
+    /// <summary><see cref="EffectType"/>에 없는 번호의 이펙트가 점프하는 종류이고 이번에 점프하면 점프할 execute_number를, 아니면 null을 돌려준다(기본은 점프하지 않는다).</summary>
+    protected virtual long? JumpOther(CircuitEffect effect) => null;
 
     long? JumpTarget(EffectType type, CircuitEffect effect)
     {

@@ -265,7 +265,8 @@ public sealed record SaveData(
     long?[]? HideoutFacilities = null,
     HideoutOperatorSave[]? HideoutOperators = null,
     string? PartnerId = null,
-    string? AssistId = null);
+    string? AssistId = null,
+    Dictionary<long, PartyUnit[]>? DungeonCaptives = null);
 
 /// <summary>세이브의 오퍼레이터 한 명: 층이 생긴 순서(1은 처음부터 있는 층), 지은 시설인가(아니면 기본 시설), 오퍼레이터 슬롯 코드, 캐릭터 코드, 캐릭터 인스턴스 ID(비어 있으면 코드의 첫 인스턴스).</summary>
 public sealed record HideoutOperatorSave(long FloorOrder, bool Built, long SlotCode, long CharacterCode, string InstanceId = "");
@@ -464,10 +465,10 @@ public sealed partial class GameSession
 
     /// <summary>
     /// 지금 가진 캐릭터 인스턴스 전부(플레이어 포함), OrderNumber순이고 같으면 InstanceId순(동료 확인 화면의 목록).
-    /// 같은 캐릭터를 여럿 가졌으면 인스턴스마다 한 줄이다.
+    /// 같은 캐릭터를 여럿 가졌으면 인스턴스마다 한 줄이다. 던전에 갇힌 구금된 아군은 나오지 않는다.
     /// </summary>
     public IReadOnlyList<CharacterInstance> OwnedCharacters =>
-        Characters.Values.OrderBy(c => c.OrderNumber).ThenBy(c => c.InstanceId, StringComparer.Ordinal).ToList();
+        Characters.Values.Where(c => !IsCapturedAlly(c.InstanceId)).OrderBy(c => c.OrderNumber).ThenBy(c => c.InstanceId, StringComparer.Ordinal).ToList();
 
     /// <summary>동료 확인 코드 칸("[OrderNumber]")의 너비(반각 칸 수). 코드 뒤는 이름 앞까지 공백으로 채운다.</summary>
     public const int CompanionCodeColumns = 8;
@@ -670,7 +671,7 @@ public sealed partial class GameSession
 
     /// <summary>보유 캐릭터 인스턴스를 캐릭터 인벤토리 마스터 순서로(같은 코드는 OrderNumber순, 같으면 InstanceId순) 늘어놓은 것.</summary>
     IEnumerable<(CharacterEntry Entry, CharacterInstance Instance)> OwnedByMasterOrder() =>
-        (Pack.CharacterInventory ?? []).SelectMany(c => Characters.InstancesOf(c.Code).Select(i => (c, i)));
+        (Pack.CharacterInventory ?? []).SelectMany(c => Characters.InstancesOf(c.Code).Where(i => !IsCapturedAlly(i.InstanceId)).Select(i => (c, i)));
 
     /// <summary>
     /// 홈 화면의 메뉴: 구분선으로 나뉜 세 분류. [RPG] 던전(101, 입장 가능한 것이 없으면 회색), 아지트(102), 이벤트(103),
@@ -1134,6 +1135,7 @@ public sealed partial class GameSession
                     PlayerFlagOps.Set(PlayerFlags, battleResultFlag, BattleOutcome switch { BattleOutcomeKind.Win => 1, BattleOutcomeKind.Run => 2, _ => 3 });
                 battleResultFlag = 0;
                 Screen = entry.Target;
+                ApplyPendingCaptures();                                                  // 던전 전투에서 진 파티원 가운데 서킷이 구금하라고 한 캐릭터를 던전에 가둔다
                 if (CurrentDungeonCode is not null && CurrentEvent is null && BattleOutcome == BattleOutcomeKind.Lose) EndDungeonByDefeat();      // 던전 전투 패배: 주인공이 있으면 게임 오버, 없으면 홈
                 else if (CurrentEvent is not null && Screen == Screen.EventPlay) ShowNextEventStep();      // 이벤트의 Battle 칸 다음부터 이어 간다
                 else if (CurrentDungeonCode is not null && Screen == Screen.DungeonMove) ContinueTileEffects();      // 던전: 남은 타일 효과를 이어 간다
@@ -1268,7 +1270,7 @@ public sealed partial class GameSession
     /// </summary>
     void PlaceCharacter(string instanceId)
     {
-        if (!Characters.TryGetValue(instanceId, out var character) || IsCapturedEnemy(instanceId)) return;
+        if (!Characters.TryGetValue(instanceId, out var character) || IsCapturedEnemy(instanceId) || IsCapturedAlly(instanceId)) return;
         var slot = CurrentSlot!.Value;
         var units = PartyInstance.Units;
         var at = IndexOfId(PartyInstance, instanceId);
@@ -1615,7 +1617,8 @@ public sealed partial class GameSession
                 hideoutParties.Select(p => p.Copy()).ToArray(),
                 hideoutFacilities.ToArray(),
                 hideoutOperators.Select(o => new HideoutOperatorSave(o.Key.FloorOrder, o.Key.Built, o.Key.Slot, CodeOfInstance(o.Value) ?? 0, o.Value)).ToArray(),
-                PartnerId, AssistId),
+                PartnerId, AssistId,
+                DungeonCaptives.Count == 0 ? null : DungeonCaptives.ToDictionary(d => d.Key, d => d.Value.Select(u => u.Copy()).ToArray())),
             SaveJsonContext.Default.SaveData);
 
     public static GameSession FromSaveJson(GamePack pack, string json)
@@ -1831,7 +1834,21 @@ public sealed partial class GameSession
             }
         }
 
-        var allIds = partyIds.Concat(floorIds).SelectMany(p => p).OfType<string>().ToList();
+        var captiveIds = new Dictionary<long, List<string>>();
+        foreach (var (dungeon, units) in save.DungeonCaptives ?? [])
+        {
+            if (pack.Dungeons?.Any(d => d.Code == dungeon) != true)
+                throw new SaveFormatException($"세이브의 구금된 아군이 갇힌 던전 '{dungeon}'가 던전 마스터에 없습니다.");
+            captiveIds[dungeon] = [];
+            foreach (var unit in units ?? [])
+            {
+                var id = ResolveUnit(unit);
+                captiveIds[dungeon].Add(id);
+                if (unit.Equipment is { Count: > 0 }) partyEquipment[id] = unit.Equipment;
+            }
+        }
+
+        var allIds = partyIds.Concat(floorIds).SelectMany(p => p).OfType<string>().Concat(captiveIds.Values.SelectMany(ids => ids)).ToList();
         if (allIds.GroupBy(c => c).Any(g => g.Count() > 1))
             throw new SaveFormatException("세이브의 파티에 같은 캐릭터가 두 번 이상 있습니다(파티끼리도 공유할 수 없습니다).");
 
@@ -1893,6 +1910,9 @@ public sealed partial class GameSession
         if (operatorIds.Any(c => allIds.Contains(c)))
             throw new SaveFormatException("세이브에서 같은 캐릭터가 파티와 아지트에 모두 있습니다(한 곳에만 있을 수 있습니다).");
 
+        foreach (var id in captiveIds.Values.SelectMany(ids => ids))
+            if (pack.CapturedAllyTagCode is not { } allyTag || !characterTags.TryGetValue(id, out var allyTags) || !allyTags.Contains(allyTag))
+                throw new SaveFormatException($"세이브에서 던전에 갇힌 캐릭터 '{id}'에 구금된 아군 태그가 없습니다.");
         if (pack.CapturedEnemyTagCode is { } capturedTag
             && allIds.Concat(operatorIds).FirstOrDefault(id => characterTags.TryGetValue(id, out var tags) && tags.Contains(capturedTag)) is { } captured)
             throw new SaveFormatException($"세이브에서 구금된 적 '{captured}'가 파티나 아지트에 있습니다(구금된 적은 교류만 할 수 있습니다).");
@@ -1908,6 +1928,7 @@ public sealed partial class GameSession
         session.hideoutParties.Clear();
         session.hideoutParties.AddRange(floorParties);
         foreach (var (key, id) in operators) session.hideoutOperators[key] = id;
+        foreach (var (dungeon, ids) in captiveIds) session.DungeonCaptives[dungeon] = ids.Select(id => UnitOfId(id, false)).ToList();
         session.hideoutFacilities.Clear();
         session.hideoutFacilities.AddRange(facilities);
         return session;

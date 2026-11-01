@@ -8,8 +8,17 @@ namespace Wera.Core;
 /// </summary>
 public sealed class AfterBattleLoseCircuit : UnitCircuitBase
 {
-    public AfterBattleLoseCircuit(GamePack pack, UnitStore store, PartyUnit unit) : base(pack, store, unit, unit) =>
+    readonly bool inDungeon;
+    readonly Action<CharacterInstance>? capture;
+
+    /// <param name="inDungeon">던전 안 전투에서 졌는가(<see cref="AfterBattleLoseEffectType.JumpNotInDungeon"/>이 본다).</param>
+    /// <param name="capture"><see cref="AfterBattleLoseEffectType.CaptureFocusedCharacter"/>가 포커스한 캐릭터를 넘겨 부르는 동작(던전 안일 때만 부른다).</param>
+    public AfterBattleLoseCircuit(GamePack pack, UnitStore store, PartyUnit unit, bool inDungeon = false, Action<CharacterInstance>? capture = null) : base(pack, store, unit, unit)
+    {
+        this.inDungeon = inDungeon;
+        this.capture = capture;
         PresetFocus(character: store.CharacterOf(unit));
+    }
 
     /// <summary>캐릭터 인스턴스 하나만으로(장비 없이) 실행한다.</summary>
     public AfterBattleLoseCircuit(GamePack pack, CharacterInstance character)
@@ -23,4 +32,14 @@ public sealed class AfterBattleLoseCircuit : UnitCircuitBase
         Run(Pack.AfterBattleLoseEffectsInOrder().Select(e => new CircuitEffect(e.ExecuteNumber, (int)e.EffectType, e.Value1, e.Value2, e.Value3)).ToList());
         return Store.CharacterOf(Caster!)!;
     }
+
+    protected override void ApplyOther(CircuitEffect effect)
+    {
+        if ((AfterBattleLoseEffectType)effect.TypeNumber == AfterBattleLoseEffectType.CaptureFocusedCharacter
+            && inDungeon && FocusedCharacterInstance is { } focused)
+            capture?.Invoke(focused);
+    }
+
+    protected override long? JumpOther(CircuitEffect effect) =>
+        (AfterBattleLoseEffectType)effect.TypeNumber == AfterBattleLoseEffectType.JumpNotInDungeon && !inDungeon ? effect.Value1 : null;
 }

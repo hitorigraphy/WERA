@@ -17,7 +17,7 @@ public sealed partial class GameSession
     public Dictionary<string, List<long>> CharacterTagInstances { get; }
 
     /// <summary>모든 파티(방어 파티 포함)의 유닛들(빈 칸 제외). 장비는 유닛이 가진다.</summary>
-    IEnumerable<PartyUnit> PartyUnits => AllParties.SelectMany(p => p.Units).OfType<PartyUnit>();
+    IEnumerable<PartyUnit> PartyUnits => AllParties.SelectMany(p => p.Units).OfType<PartyUnit>().Concat(CaptiveUnits);       // 구금된 아군이 낀 장비도 낀 것으로 센다
 
     // ---- 유니크 아이템 인스턴스 ----
 
@@ -35,7 +35,11 @@ public sealed partial class GameSession
     /// 줄은 "[OrderNumber] 이름"이다.
     /// </summary>
     public IReadOnlyList<UniqueItemInstance> OwnedUniqueItems =>
-        UniqueItemInstances.Values.OrderBy(i => i.OrderNumber).ThenBy(i => i.InstanceId, StringComparer.Ordinal).ToList();
+        UniqueItemInstances.Values.Where(i => !HeldByCaptive(i.InstanceId)).OrderBy(i => i.OrderNumber).ThenBy(i => i.InstanceId, StringComparer.Ordinal).ToList();
+
+    /// <summary>구금된 아군이 낀 유니크 아이템인가(구금된 아군과 함께 갇혀 어디에도 나오지 않는다).</summary>
+    bool HeldByCaptive(string uniqueItemInstanceId) =>
+        CaptiveUnits.Any(u => u.Equipment.Values.Any(e => e.Kind == EquipKind.UniqueItem && e.Instance == uniqueItemInstanceId));
 
     /// <summary>장비 확인 화면의 한 줄: 코드 칸("[순서 번호]")과 장비 이름.</summary>
     public sealed record EquipmentRow(string Order, string Name);
