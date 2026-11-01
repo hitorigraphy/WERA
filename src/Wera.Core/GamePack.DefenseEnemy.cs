@@ -1,0 +1,58 @@
+using System.IO.Compression;
+
+namespace Wera.Core;
+
+/// <summary>
+/// 방어전 적 파티 마스터의 한 행: 방어전에 쳐들어올 적 파티(프리셋 파티)와 등장 규칙.
+/// 위협도가 MinThreat 이상이어야 후보가 되고, 등장하면 위협도를 ConsumeThreat만큼 잃는다.
+/// Priority가 작은 행부터 검사하고, 후보여도 Chance(%)의 확률을 통과해야 등장한다.
+/// </summary>
+public sealed record DefenseEnemy(long Code, long PresetPartyCode, long MinThreat, long ConsumeThreat, long Priority, long Chance);
+
+// hideout_defense_enemy_master(code(키), preset_party_code, min_threat, consume_threat, priority, chance). 선택이다.
+// 위협도는 게임 설정 ThreatFlagCode가 가리키는 플레이어 플래그의 값이다(이벤트·ADV의 SetFlag/ModFlag로 올린다). priority는 겹칠 수 없다.
+public sealed partial class GamePack
+{
+    public const string DefenseEnemyMasterPath = "master/hideout_defense_enemy_master_v1.tsv";
+
+    /// <summary>방어전 적 파티 마스터(게임팩 파일 순서). 마스터가 없으면 null.</summary>
+    public IReadOnlyList<DefenseEnemy>? DefenseEnemies { get; init; }
+
+    /// <summary>방어전 적 파티 마스터: 프리셋 파티는 프리셋 파티 마스터에 있어야 하고, 게임 설정 ThreatFlagCode가 있어야 한다.
+    /// min_threat·consume_threat는 0 이상, chance는 0~100(%), priority는 겹칠 수 없다.</summary>
+    static List<DefenseEnemy>? LoadDefenseEnemies(ZipArchive zip, List<PresetParty>? parties, List<GameSettingEntry>? settings)
+    {
+        const string file = DefenseEnemyMasterPath;
+        var text = TryReadEntry(zip, file);
+        if (text is null) return null;
+        if (parties is null) throw new PackFormatException($"{file}가 있으려면 {PresetPartyMasterPath}도 필요합니다.");
+        if (settings?.Any(s => s.SettingType == GameSettingType.ThreatFlagCode) != true)
+            throw new PackFormatException($"{file}가 있으려면 {GameSettingMasterPath}에 ThreatFlagCode(위협도 플래그)가 필요합니다.");
+
+        var partyCodes = parties.Select(p => p.Code).ToHashSet();
+        var rows = new List<DefenseEnemy>();
+        var codes = new HashSet<long>();
+        var priorities = new HashSet<long>();
+        foreach (var r in Body(file, text, "code", "preset_party_code", "min_threat", "consume_threat", "priority", "chance"))
+        {
+            var code = ParseLong(file, "코드", r[0]);
+            var who = $"방어전 적 '{code}'의";
+            var party = ParseLong(file, $"{who} 프리셋 파티 코드", r[1]);
+            var min = ParseLong(file, $"{who} min_threat", r[2]);
+            var consume = ParseLong(file, $"{who} consume_threat", r[3]);
+            var priority = ParseLong(file, $"{who} priority", r[4]);
+            var chance = ParseLong(file, $"{who} chance", r[5]);
+            if (!codes.Add(code))
+                throw new PackFormatException($"{file}: 코드 '{code}'가 두 번 있습니다.");
+            if (!partyCodes.Contains(party))
+                throw new PackFormatException($"{file}: {who} 프리셋 파티 '{party}'가 {PresetPartyMasterPath}에 없습니다.");
+            if (min < 0) throw new PackFormatException($"{file}: {who} min_threat '{min}'은(는) 0 이상이어야 합니다.");
+            if (consume < 0) throw new PackFormatException($"{file}: {who} consume_threat '{consume}'은(는) 0 이상이어야 합니다.");
+            if (chance is < 0 or > 100) throw new PackFormatException($"{file}: {who} chance '{chance}'은(는) 0~100(%)이어야 합니다.");
+            if (!priorities.Add(priority))
+                throw new PackFormatException($"{file}: {who} priority '{priority}'가 두 번 있습니다(priority는 겹칠 수 없습니다).");
+            rows.Add(new DefenseEnemy(code, party, min, consume, priority, chance));
+        }
+        return rows;
+    }
+}

@@ -342,4 +342,23 @@ public sealed partial class GameSession
             .Select(x => $"{Pack.FindItem(x.code)?.Name ?? Text(x.code)} {(x.delta > 0 ? "+" : "")}{Text(x.delta)}").ToList();
         return changes.Count == 0 ? null : "시설 생산: " + string.Join(", ", changes);
     }
+
+    /// <summary>현재 위협도(게임 설정 ThreatFlagCode의 플레이어 플래그 값). 설정이 없으면 0.</summary>
+    public long Threat => Pack.ThreatFlagCode is { } flag ? PlayerFlags.GetValueOrDefault(flag) : 0;
+
+    /// <summary>
+    /// 방어전에 등장할 적 파티를 정한다: priority가 작은 행부터 위협도가 min_threat 이상인 것만 chance(%) 확률로 검사해, 처음 통과한 행이 등장하고
+    /// 그 consume_threat만큼 위협도가 줄어든다(0 아래로는 내려가지 않는다). 통과한 행이 없으면(평화로운 날) null.
+    /// </summary>
+    public DefenseEnemy? RollDefenseEnemy()
+    {
+        if (Pack.ThreatFlagCode is not { } flag) return null;
+        foreach (var enemy in (Pack.DefenseEnemies ?? []).OrderBy(e => e.Priority))
+        {
+            if (Threat < enemy.MinThreat || !RandomJump.Hit(enemy.Chance, RandomJump.Roll(100, NextRandom))) continue;
+            PlayerFlagOps.Set(PlayerFlags, flag, Math.Max(0, Threat - enemy.ConsumeThreat));
+            return enemy;
+        }
+        return null;
+    }
 }

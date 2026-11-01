@@ -26,6 +26,9 @@ public enum GameSettingType
     EnhanceLevelMax = 5,
     /// <summary>제련석으로 쓰는 커먼 아이템의 인벤토리 코드(Long, 1 이상, 커먼 아이템 인벤토리 마스터에 있어야 한다). 행이 없으면 제련석이 없어 제련을 할 수 없다.</summary>
     SmeltStoneItemCode = 6,
+    /// <summary>아지트 방어전의 위협도를 담는 플레이어 플래그 코드(Long, 1 이상). 플래그 값이 위협도이고, 방어전 적 파티가 등장하면 그 소모량만큼 줄어든다.
+    /// 방어전 적 파티 마스터가 있으려면 이 설정이 필요하다. 행이 없으면 위협도가 없다.</summary>
+    ThreatFlagCode = 7,
 }
 
 /// <summary>게임 설정 한 행이 쓰는 값의 종류. 종류에 맞는 열(long_value, decimal_value, text_value)이 그 설정의 값이다.</summary>
@@ -77,6 +80,9 @@ public sealed partial class GamePack
     /// <summary>제련석 아이템 코드(설정 SmeltStoneItemCode). 설정이 없으면 null.</summary>
     public long? SmeltStoneItemCode => FindGameSetting(GameSettingType.SmeltStoneItemCode) is { ValueType: GameSettingValueType.Long } s ? s.LongValue : null;
 
+    /// <summary>위협도 플래그 코드(설정 ThreatFlagCode). 설정이 없으면 null.</summary>
+    public long? ThreatFlagCode => FindGameSetting(GameSettingType.ThreatFlagCode) is { ValueType: GameSettingValueType.Long } s ? s.LongValue : null;
+
     // 로드 중(속성이 아직 없을 때)에 설정 목록에서 강화 레벨 상한을 읽는다.
     static long? GameSettingLevelMax(List<GameSettingEntry>? settings) =>
         settings?.FirstOrDefault(s => s.SettingType == GameSettingType.EnhanceLevelMax) is { ValueType: GameSettingValueType.Long } s ? s.LongValue : null;
@@ -90,6 +96,7 @@ public sealed partial class GamePack
         [GameSettingType.SynthesisSacrificeCount] = (GameSettingValueType.Long, 1),
         [GameSettingType.EnhanceLevelMax] = (GameSettingValueType.Long, 0),
         [GameSettingType.SmeltStoneItemCode] = (GameSettingValueType.Long, 1),
+        [GameSettingType.ThreatFlagCode] = (GameSettingValueType.Long, 1),
     };
 
     public GameSettingEntry? FindGameSetting(GameSettingType type) => GameSettings?.FirstOrDefault(s => s.SettingType == type);
