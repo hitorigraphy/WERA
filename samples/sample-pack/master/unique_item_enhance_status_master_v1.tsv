@@ -1,4 +1,4 @@
-item_code	status_code	강화_level	value	memo
+item_code	status_code	enhance_level	value	memo
 8001	40	0	0	강화 전
 8001	40	1	5	+1
 8001	40	2	12	+2

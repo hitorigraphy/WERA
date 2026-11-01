@@ -5,11 +5,10 @@ namespace Wera.Core;
 /// <summary>유니크 아이템 강화 스테이터스 마스터의 한 행: 이 유니크 아이템의 강화 레벨이 EnhanceLevel일 때 이 스테이터스(StatusCode)에 더하는 값(Value).</summary>
 public sealed record UniqueItemEnhanceStatus(long ItemCode, long StatusCode, long EnhanceLevel, long Value);
 
-// unique_item_강화_status_master(item_code, status_code, 강화_level, value; 앞의 세 열이 키). 선택이다.
-// 강화를 영어로 어떻게 쓸지 정하기 전까지 파일 이름과 열 이름에 한글 "강화"를 그대로 쓴다.
+// unique_item_enhance_status_master(item_code, status_code, enhance_level, value; 앞의 세 열이 키). 선택이다.
 public sealed partial class GamePack
 {
-    public const string UniqueItemEnhanceStatusMasterPath = "master/unique_item_강화_status_master_v1.tsv";
+    public const string UniqueItemEnhanceStatusMasterPath = "master/unique_item_enhance_status_master_v1.tsv";
 
     /// <summary>유니크 아이템 강화 스테이터스 마스터(게임팩 파일 순서). 마스터가 없으면 null.</summary>
     public IReadOnlyList<UniqueItemEnhanceStatus>? UniqueItemEnhanceStatuses { get; init; }
@@ -33,7 +32,7 @@ public sealed partial class GamePack
         var owned = uniqueItemStatuses.Select(s => (s.OwnerCode, s.StatusCode)).ToHashSet();
         var rows = new List<UniqueItemEnhanceStatus>();
         var seen = new HashSet<(long, long, long)>();
-        foreach (var r in Body(file, text, "item_code", "status_code", "강화_level", "value"))
+        foreach (var r in Body(file, text, "item_code", "status_code", "enhance_level", "value"))
         {
             var item = ParseLong(file, "유니크 아이템 코드", r[0]);
             var status = ParseLong(file, $"유니크 아이템 '{item}'의 스테이터스 코드", r[1]);
