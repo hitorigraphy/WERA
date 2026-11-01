@@ -180,7 +180,7 @@ public sealed partial class GameSession
         AddInventory(itemCode, -1);
         if (old is { } returned) AddInventory(returned, 1);
         var mods = new Dictionary<long, long>(target.Mods ?? []) { [slot] = itemCode };
-        UniqueItemInstances[target.InstanceId] = Pack.WithEnhanceStatuses(target with { Mods = mods });
+        UniqueItemInstances[target.InstanceId] = Pack.WithAssignedSkill(Pack.WithEnhanceStatuses(target with { Mods = mods }));
         RevalidateEquipment();
         return $"개조했습니다: {Pack.FindUniqueItem(target.ItemCode)?.ItemName ?? Text(target.ItemCode)} {Pack.FindModSlot(slot)?.Name} {Pack.FindItem(itemCode)?.Name ?? Text(itemCode)}";
     }
@@ -194,7 +194,7 @@ public sealed partial class GameSession
         AddInventory(old, 1);
         var mods = new Dictionary<long, long>(current);
         mods.Remove(slot);
-        UniqueItemInstances[target.InstanceId] = Pack.WithEnhanceStatuses(target with { Mods = mods });
+        UniqueItemInstances[target.InstanceId] = Pack.WithAssignedSkill(Pack.WithEnhanceStatuses(target with { Mods = mods }));
         RevalidateEquipment();
         return $"뺐습니다: {Pack.FindUniqueItem(target.ItemCode)?.ItemName ?? Text(target.ItemCode)} {Pack.FindModSlot(slot)?.Name} {info.Name}";
     }

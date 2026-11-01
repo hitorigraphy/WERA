@@ -85,5 +85,6 @@ public sealed partial class GamePack
     /// </summary>
     public UniqueItemInstance NewUniqueItemInstance(string instanceId, long itemCode, long orderNumber) =>
         new(instanceId, itemCode, orderNumber, MasterTagsOfUniqueItem(itemCode).ToList(), MasterStatusesOfUniqueItem(itemCode),
-            FindUniqueItem(itemCode)?.SkillCode is { } skill ? NewSkillInstance(skill) : null);
+            FindUniqueItem(itemCode)?.SkillCode is { } skill ? NewSkillInstance(skill) : null,
+            SkillPool: FindUniqueItem(itemCode)?.SkillCode is { } baseSkill ? [NewSkillInstance(baseSkill)] : null);
 }

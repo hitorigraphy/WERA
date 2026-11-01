@@ -174,4 +174,64 @@ public class ModTests
         Assert.Equal(99, s.CountInventory(4));                                               // 넘친 1개는 사라진다
         Assert.Equal(10, Atk(s));
     }
+
+    static long SkillOf(GameSession s) => s.UniqueItemInstances[Sword(s)].Skill!.SkillCode;
+
+    [Fact]
+    public void The_mod_skill_master_is_validated_and_priority_is_unique_per_unique_item()
+    {
+        var pack = SamplePack();
+        Assert.Equal(1002, pack.FindModSkillByPriority(8001, 2)!.SkillCode);                 // 세컨더리 키 (유니크 아이템, priority)
+        Assert.Equal(1004, pack.FindModSkillByPriority(8001, 1)!.SkillCode);
+        GamePack Load(string rows) => GamePack.Load(CoreTests.PackZip(
+            ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
+            (GamePack.StatusMasterPath, "status_code\tstatus_name\n1\tlevel\n2\thp\n"),
+            (GamePack.UniqueItemInventoryMasterPath, "inventory_code\titem_name\n8001\t철검\n"),
+            (GamePack.SkillMasterPath, "code\tname\n1001\t베기\n1002\t불꽃\n"),
+            (GamePack.ModSlotMasterPath, "code\tname\n1\t슬롯 1\n2\t슬롯 2\n"),
+            (GamePack.UniqueItemModSkillMasterPath, "unique_item_code\tmod_slot_code\tpriority\tskill_code\n" + rows)));
+        Assert.Equal(2, Load("8001\t1\t1\t1001\n8001\t2\t2\t1002\n").UniqueItemModSkills!.Count);
+        Assert.Contains("priority '1'", Assert.Throws<PackFormatException>(() => Load("8001\t1\t1\t1001\n8001\t2\t1\t1002\n")).Message);
+        Assert.Contains("두 번", Assert.Throws<PackFormatException>(() => Load("8001\t1\t1\t1001\n8001\t1\t2\t1002\n")).Message);
+        Assert.Contains("스킬 '9'", Assert.Throws<PackFormatException>(() => Load("8001\t1\t1\t9\n")).Message);
+        Assert.Contains("개조 슬롯 '3'", Assert.Throws<PackFormatException>(() => Load("8001\t3\t1\t1001\n")).Message);
+    }
+
+    [Fact]
+    public void The_smaller_priority_gets_the_skill_slot_and_the_base_skill_returns_when_no_mod_skill_is_left()
+    {
+        var s = ModScreen(ore: 3);
+        PickSword(s);
+        Assert.Equal(1001, SkillOf(s));                                                      // 기본 스킬
+        s.Activate("1"); s.Activate("4");                                                    // 슬롯 1(우선순위 2): 불꽃
+        Assert.Equal(1002, SkillOf(s));
+        s.Activate("2"); s.Activate("4");                                                    // 슬롯 2(우선순위 1): 집중이 우선
+        Assert.Equal(1004, SkillOf(s));
+        Assert.Equal("집중", s.EquipmentDetail!.Skills[0].Value);
+        s.Activate("2"); s.Activate(GameSession.RemoveModEntryCode);                         // 슬롯 2를 비우면 다시 불꽃
+        Assert.Equal(1002, SkillOf(s));
+        s.Activate("1"); s.Activate(GameSession.RemoveModEntryCode);                         // 다 비우면 기본 스킬
+        Assert.Equal(1001, SkillOf(s));
+    }
+
+    [Fact]
+    public void Skills_never_leave_the_pool_so_a_skill_keeps_its_statuses_when_the_mod_item_is_removed_and_put_back()
+    {
+        var s = ModScreen(ore: 3);
+        PickSword(s);
+        s.Activate("1"); s.Activate("4");
+        var id = Sword(s);
+        var item = s.UniqueItemInstances[id];
+        s.UniqueItemInstances[id] = item with { Skill = new SkillInstance(1002, new Dictionary<long, long> { [777] = 42 }) };   // 불꽃이 경험치를 쌓았다
+        s.Activate("1"); s.Activate(GameSession.RemoveModEntryCode);
+        Assert.Equal(1001, SkillOf(s));
+        Assert.Equal([1001L, 1002L], s.UniqueItemInstances[id].SkillPool!.Select(p => p.SkillCode));   // 불꽃은 풀에 남는다
+        s.Activate("1"); s.Activate("4");
+        Assert.Equal(1002, SkillOf(s));
+        Assert.Equal(42, s.UniqueItemInstances[id].Skill!.Statuses![777]);                   // 다시 붙이면 쌓은 값 그대로
+
+        var loaded = GameSession.FromSaveJson(s.Pack, s.ToSaveJson());                       // 풀은 세이브에 남는다
+        Assert.Equal([1001L, 1002L], loaded.UniqueItemInstances[id].SkillPool!.Select(p => p.SkillCode));
+        Assert.Equal(42, loaded.UniqueItemInstances[id].SkillPool![1].Statuses![777]);
+    }
 }

@@ -1,0 +1,3 @@
+unique_item_code	mod_slot_code	priority	skill_code	memo
+8001	1	2	1002	철검 슬롯 1이 차면 불꽃(우선순위 2)
+8001	2	1	1004	철검 슬롯 2가 차면 집중(우선순위 1, 더 우선)

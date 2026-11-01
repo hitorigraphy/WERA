@@ -55,8 +55,9 @@ public readonly record struct EquipRef(
 /// </summary>
 public sealed record UniqueItemInstance(string InstanceId, long ItemCode, long OrderNumber = 0, List<long>? Tags = null,
     Dictionary<long, long>? Statuses = null, SkillInstance? Skill = null, Dictionary<long, long>? Parts = null,
-    Dictionary<long, long>? Mods = null)
+    Dictionary<long, long>? Mods = null, List<SkillInstance>? SkillPool = null)
 {
+    /// <summary>SkillPool: 이 장비가 한 번이라도 얻은 스킬들(기본 스킬과 개조 스킬). 풀에서 빠지는 일이 없어 개조 아이템을 뗐다 붙여도 스킬의 경험치가 유지된다. 스킬 슬롯의 스킬(<see cref="Skill"/>)은 이 중 하나다. null이면 풀이 없다.</summary>
     /// <summary>Mods(개조 슬롯 코드 → 끼운 커먼 아이템의 코드): 개조로 끼운 아이템. 비었거나 null이면 끼운 것이 없다. 끼운 아이템의 개조 스테이터스 행의 값이 스테이터스에 더해진다.</summary>
     /// <summary>Parts(부품 슬롯 코드 → 끼운 커먼 아이템의 코드): 장비 상세 화면의 부품 슬롯 줄. 비었거나 null이면 끼운 부품이 없다.</summary>
     /// <summary>Statuses(스테이터스 코드 → 값)는 유니크 아이템 스테이터스 마스터의 초깃값에서 복사해 가지고 게임 중에 바뀔 수 있다. 세이브에 없으면(null) 마스터에서 복사한다.</summary>
@@ -64,7 +65,8 @@ public sealed record UniqueItemInstance(string InstanceId, long ItemCode, long O
         other is not null && InstanceId == other.InstanceId && ItemCode == other.ItemCode && OrderNumber == other.OrderNumber
         && (Tags is null) == (other.Tags is null) && (Tags ?? []).SequenceEqual(other.Tags ?? [])
         && StatusesEqual(Statuses, other.Statuses) && Equals(Skill, other.Skill)
-        && StatusesEqual(Parts ?? [], other.Parts ?? []) && StatusesEqual(Mods ?? [], other.Mods ?? []);
+        && StatusesEqual(Parts ?? [], other.Parts ?? []) && StatusesEqual(Mods ?? [], other.Mods ?? [])
+        && (SkillPool ?? []).SequenceEqual(other.SkillPool ?? []);
 
     public override int GetHashCode() => HashCode.Combine(InstanceId, ItemCode, OrderNumber);
 

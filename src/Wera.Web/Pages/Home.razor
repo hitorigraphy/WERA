@@ -534,6 +534,13 @@
                                 }
                             </div>
                             <hr />
+                            <div class="char-columns">
+                                @foreach (var line in mod.Skills)
+                                {
+                                    <div>@line.Label : @line.Value</div>
+                                }
+                            </div>
+                            <hr />
                             <p class="char-description">@mod.Description</p>
                         </div>
                     </div>

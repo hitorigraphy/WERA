@@ -288,6 +288,7 @@ public sealed partial class GamePack
             SynthesisFlows = synthesisFlows,
             SmeltFlows = smeltFlows,
             ModSlots = modSlots,
+            UniqueItemModSkills = LoadUniqueItemModSkills(zip, uniqueItems?.Select(u => u.ItemCode), modSlots, skills),
             UniqueItemModStatuses = LoadUniqueItemModStatuses(zip, uniqueItems?.Select(u => u.ItemCode), modSlots, itemInventory, statuses, uniqueItemStatuses),
             UniqueItemEnhanceStatuses = LoadUniqueItemEnhanceStatuses(zip, uniqueItems?.Select(u => u.ItemCode), statuses, uniqueItemStatuses, GameSettingLevelMax(gameSettings)),
             AfterHitEffects = afterHitEffects,

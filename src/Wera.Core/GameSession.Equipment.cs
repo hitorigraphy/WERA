@@ -366,7 +366,8 @@ public sealed partial class GameSession
             kv => new UniqueItemInstance(kv.Key, kv.Value.ItemCode, kv.Value.OrderNumber, (kv.Value.Tags ?? Pack.MasterTagsOfUniqueItem(kv.Value.ItemCode)).ToList(),
                 new Dictionary<long, long>(kv.Value.Statuses ?? Pack.MasterStatusesOfUniqueItem(kv.Value.ItemCode)),
                 kv.Value.Skill, kv.Value.Parts is { Count: > 0 } parts ? new Dictionary<long, long>(parts) : null,
-                kv.Value.Mods is { Count: > 0 } mods ? new Dictionary<long, long>(mods) : null));
+                kv.Value.Mods is { Count: > 0 } mods ? new Dictionary<long, long>(mods) : null,
+                kv.Value.SkillPool is { Count: > 0 } pool ? pool.Select(s => new SkillInstance(s.SkillCode, s.Statuses is null ? null : new Dictionary<long, long>(s.Statuses))).ToList() : null));
 
     /// <summary>보유 캐릭터 전원의 현재 태그(아직 마스터 그대로인 캐릭터는 마스터에서 복사해 적는다).</summary>
     Dictionary<long, List<long>> CopyCharacterTags() =>
@@ -447,9 +448,13 @@ public sealed partial class GameSession
                 if (pack.FindItem(modItem) is null)
                     throw new SaveFormatException($"세이브의 유니크 아이템 인스턴스 '{id}'의 개조 아이템 '{modItem}'이(가) 커먼 아이템 마스터에 없습니다.");
             }
+            foreach (var pooled in item.SkillPool ?? [])
+                if (pack.FindSkill(pooled.SkillCode) is null)
+                    throw new SaveFormatException($"세이브의 유니크 아이템 인스턴스 '{id}'의 스킬 풀의 스킬 '{pooled.SkillCode}'이(가) 스킬 마스터에 없습니다.");
             // 불러온 뒤 유니크 아이템 인스턴스마다 로드 후 유니크 아이템 서킷을 돌려 게임팩의 정의대로 조작한다.
             instances[id] = new AfterLoadUniqueItemCircuit(pack, new UniqueItemInstance(id, item.ItemCode, item.OrderNumber, tags, statuses, item.Skill, item.Parts is { Count: > 0 } ? new Dictionary<long, long>(item.Parts) : null,
-                item.Mods is { Count: > 0 } ? new Dictionary<long, long>(item.Mods) : null)).Execute();
+                item.Mods is { Count: > 0 } ? new Dictionary<long, long>(item.Mods) : null,
+                item.SkillPool is { Count: > 0 } ? [.. item.SkillPool] : null)).Execute();
         }
 
         var characterTags = new Dictionary<long, List<long>>();
