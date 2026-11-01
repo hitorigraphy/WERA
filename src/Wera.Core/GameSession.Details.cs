@@ -22,7 +22,7 @@ public sealed partial class GameSession
     public long? DetailItemCode { get; private set; }
 
     /// <summary>
-    /// 상세 화면의 제목과 이름. 상세 화면의 내용은 아직 정의되지 않았다(앞으로 정의한다). 지금은 무엇을 보고 있는지 이름만 보여 준다.
+    /// 상세 화면의 제목과 이름(스킬 상세는 아직 내용이 없어 이름만 보여 준다).
     /// 상세 화면이 아니면 null.
     /// </summary>
     public (string Title, string Name)? DetailHeading => Screen switch
@@ -50,6 +50,20 @@ public sealed partial class GameSession
     public sealed record EquipmentDetailView(
         string Name, string EnhanceText, GaugeView Hp, GaugeView Xp, XpTag XpTag,
         IReadOnlyList<UnitStatusLine> Specs, IReadOnlyList<UnitStatusLine> Parts, IReadOnlyList<UnitStatusLine> Skills, string Description);
+
+    /// <summary>아이템 상세 화면의 내용: 아이템 이름, 가진 수량("수량 N"), 소지 한도, 아이템을 쓸 때 실행하는 스킬, 설명문.</summary>
+    public sealed record ItemDetailView(string Name, string AmountText, string CarryLimit, IReadOnlyList<UnitStatusLine> Skills, string Description);
+
+    /// <summary>지금 보는 아이템 상세 화면의 내용. 아이템 상세 화면이 아니거나 그 아이템이 없으면 null.</summary>
+    public ItemDetailView? ItemDetail
+    {
+        get
+        {
+            if (Screen != Screen.ItemDetail || DetailItemCode is not { } code || Pack.FindItem(code) is not { } item) return null;
+            return new ItemDetailView(item.Name, $"수량 {Text(InventoryItems.GetValueOrDefault(code).Amount)}", Text(item.CarryLimit),
+                [new UnitStatusLine("스킬", item.SkillCode is { } skill ? SkillName(skill) : "없음")], item.Description);
+        }
+    }
 
     /// <summary>지금 보는 장비 상세 화면의 내용. 장비 상세 화면이 아니거나 그 장비가 없으면 null.</summary>
     public EquipmentDetailView? EquipmentDetail

@@ -1,7 +1,7 @@
 namespace Wera.Core;
 
 /// <summary>아이템 인벤토리 마스터의 한 행. CarryLimit은 한 번에 소지할 수 있는 최대 수량.</summary>
-public sealed record ItemEntry(long Code, string Name, long CarryLimit, long? SkillCode = null);
+public sealed record ItemEntry(long Code, string Name, long CarryLimit, long? SkillCode = null, string Description = "");
 
 /// <summary>
 /// 캐릭터 인벤토리 마스터의 한 행. CarryLimit은 한 번에 소지할 수 있는 최대 수량.

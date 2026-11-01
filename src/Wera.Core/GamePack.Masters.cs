@@ -81,7 +81,7 @@ public sealed partial class GamePack
         }).ToList());
 
         builder.Append((items ?? []).Select(x => new ItemInventoryRow
-            { Code = x.Code, Name = x.Name, CarryLimit = x.CarryLimit, SkillCode = x.SkillCode }).ToList());
+            { Code = x.Code, Name = x.Name, CarryLimit = x.CarryLimit, SkillCode = x.SkillCode, Description = x.Description }).ToList());
 
         builder.Append((bunches ?? []).SelectMany(b => b.Parts.Select(p => new BunchInventoryRow
             { ItemCode = b.Code, PartItemCode = p.ItemCode, ItemName = b.Name, PartAmount = p.Amount })).ToList());
@@ -254,7 +254,7 @@ public sealed partial class GamePack
     public ItemEntry MainCurrency => FindItem(MainCurrencyItemCode)!;
 
     public ItemEntry? FindItem(long code) =>
-        Masters.ItemInventoryRowTable.TryFindByCode(code, out var r) ? new ItemEntry(r.Code, r.Name, r.CarryLimit, r.SkillCode) : null;
+        Masters.ItemInventoryRowTable.TryFindByCode(code, out var r) ? new ItemEntry(r.Code, r.Name, r.CarryLimit, r.SkillCode, r.Description) : null;
 
     /// <summary>번치(부품은 부품 아이템 코드 순). 없으면 null.</summary>
     public BunchEntry? FindBunch(long code)

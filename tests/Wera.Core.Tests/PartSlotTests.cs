@@ -79,6 +79,17 @@ public class PartSlotTests
         Assert.Equal(("설명", (long?)null), (both.FindUniqueItem(8001)!.Description, both.FindUniqueItem(8001)!.SkillCode));
     }
 
+    [Fact]
+    public void The_common_item_description_column_is_optional_and_may_follow_skill_code_in_either_order()
+    {
+        static GamePack Items(string rows) => GamePack.Load(CoreTests.PackZip(
+            ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
+            ("master/tag_master_v1.tsv", "tag_code\ttag_name\n1\t플레이어\n2\t리더\n3\t메인 통화\n"),
+            (GamePack.CommonItemInventoryMasterPath, rows)));
+        Assert.Equal("", Items("inventory_code\titem_name\tcarry_limit\n3\t약초\t9\n").FindItem(3)!.Description);
+        Assert.Equal("쓴맛", Items("inventory_code\titem_name\tcarry_limit\tdescription\n3\t약초\t9\t쓴맛\n").FindItem(3)!.Description);
+    }
+
     static (GameSession Session, string Id) SessionWithWornSword()
     {
         var s = GameSession.NewGame(SamplePack());

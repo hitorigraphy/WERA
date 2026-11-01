@@ -2,7 +2,7 @@ using Wera.Core;
 
 namespace Wera.Core.Tests;
 
-// 상세 화면(캐릭터, 장비, 아이템)은 스테이터스 확인 슬롯과 동료/장비/아이템 확인의 줄에서 들어간다. 내용은 아직 정의되지 않았다.
+// 상세 화면(캐릭터, 장비, 아이템)은 스테이터스 확인 슬롯과 동료/장비/아이템 확인의 줄에서 들어간다. 스킬 상세는 아직 이름만 보여 준다.
 public class DetailScreenTests
 {
     static GameSession SampleSession()
@@ -50,6 +50,25 @@ public class DetailScreenTests
         Assert.Equal("아이템 상세", s.DetailHeading!.Value.Title);
         Assert.Equal(Screen.ItemCheck, s.Activate("999")!.Target);
         Assert.Equal(Screen.Home, s.Activate("999")!.Target);
+    }
+
+    [Fact]
+    public void The_item_detail_shows_name_amount_carry_limit_skill_and_description()
+    {
+        var s = SampleSession();
+        s.AddInventory(3, 5);
+        s.AddInventory(4, 1);
+        s.Activate("203");
+        s.Activate("3");
+        var d = s.ItemDetail!;
+        Assert.Equal(("약초", "수량 5", "99"), (d.Name, d.AmountText, d.CarryLimit));
+        Assert.Equal(s.Pack.FindItem(3)!.Description, d.Description);
+        Assert.NotEqual("", d.Description);
+        Assert.Equal($"스킬 : {s.Pack.FindSkill(1003)!.Name}", $"{d.Skills.Single().Label} : {d.Skills.Single().Value}");
+        s.Activate("999");
+        s.Activate("4");
+        Assert.Equal("없음", s.ItemDetail!.Skills.Single().Value);                          // 스킬이 없는 아이템
+        Assert.Null(s.EquipmentDetail);
     }
 
     [Fact]

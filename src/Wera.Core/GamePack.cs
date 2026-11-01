@@ -529,13 +529,21 @@ public sealed partial class GamePack
     static long OptionalLong(string file, string what, string value) =>
         value.Length == 0 ? 0 : ParseLong(file, what, value);
 
-    /// <summary>커먼 아이템 인벤토리 마스터: inventory_code, item_name, carry_limit과 선택 열 skill_code(아이템을 쓸 때 실행하는 스킬; 비우거나 열이 없으면 없음).</summary>
+    /// <summary>
+    /// 커먼 아이템 인벤토리 마스터: inventory_code, item_name, carry_limit과 선택 열 skill_code(아이템을 쓸 때 실행하는 스킬; 비우거나 열이 없으면 없음),
+    /// description(아이템 상세 화면의 설명문)을 이 이름으로, 어떤 순서로든 둘 수 있다.
+    /// </summary>
     static List<ItemEntry>? LoadItemInventory(ZipArchive zip)
     {
-        var withSkill = TryReadEntry(zip, CommonItemInventoryMasterPath) is { } text && HasSkillColumn(text, 3);
-        string[] header = withSkill ? ["inventory_code", "item_name", "carry_limit", "skill_code"] : ["inventory_code", "item_name", "carry_limit"];
-        return LoadLimitedInventory(zip, CommonItemInventoryMasterPath, "아이템", header,
-            (code, r, limit) => new ItemEntry(code, r[1], limit, withSkill ? OptionalSkillCode(CommonItemInventoryMasterPath, $"아이템 '{code}'", r[3]) : null));
+        const string file = CommonItemInventoryMasterPath;
+        string[] optional = TryReadEntry(zip, file) is { } text && Tsv.WithoutMemo(Tsv.Parse(text)) is { Count: > 0 } rows
+            ? [.. rows[0].Skip(3).TakeWhile(h => h is "skill_code" or "description")]
+            : [];
+        var skillAt = Array.IndexOf(optional, "skill_code") is var k and >= 0 ? k + 3 : -1;
+        var descriptionAt = Array.IndexOf(optional, "description") is var d and >= 0 ? d + 3 : -1;
+        return LoadLimitedInventory(zip, file, "아이템", ["inventory_code", "item_name", "carry_limit", .. optional],
+            (code, r, limit) => new ItemEntry(code, r[1], limit,
+                skillAt >= 0 ? OptionalSkillCode(file, $"아이템 '{code}'", r[skillAt]) : null, descriptionAt >= 0 ? r[descriptionAt] : ""));
     }
 
     /// <summary>

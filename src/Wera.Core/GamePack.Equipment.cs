@@ -163,13 +163,6 @@ public sealed partial class GamePack
         return items;
     }
 
-    /// <summary>헤더(memo 열을 뺀)의 index번째 열이 skill_code인가.</summary>
-    static bool HasSkillColumn(string tsv, int index)
-    {
-        var rows = Tsv.WithoutMemo(Tsv.Parse(tsv));
-        return rows.Count > 0 && rows[0].Length > index && rows[0][index] == "skill_code";
-    }
-
     /// <summary>skill_code 셀: 비어 있으면 없음(null), 아니면 정수.</summary>
     static long? OptionalSkillCode(string file, string who, string cell) =>
         cell.Trim().Length == 0 ? null : ParseLong(file, $"{who}의 skill_code", cell);
