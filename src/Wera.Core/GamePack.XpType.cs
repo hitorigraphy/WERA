@@ -85,6 +85,12 @@ public enum XpCalculateEffectType
     JumpCacheLessThan = 30,
     /// <summary>cache[value_1] &lt;= cache[value_2]. 인자와 규칙은 <see cref="JumpCacheEqual"/>과 같다.</summary>
     JumpCacheLessOrEqual = 31,
+    /// <summary>
+    /// 서브모듈을 부른다: value_1이 submodule_code(이 서킷 종류의 서브모듈 마스터에 있어야 함)이고 value_2, value_3은 보지 않는다.
+    /// 서브모듈의 이펙트들이 이 서킷의 캐시, 포커스, 시전자와 타겟을 그대로 써서 실행 번호 순서로 실행되고(그래서 값은 캐시로 주고받는다: 부르기 전에 캐시에 넣은 값이 인자, 서브모듈이 캐시에 쓴 값이 결과),
+    /// 끝나면(Finish 또는 마지막 이펙트) 이 이펙트 다음으로 돌아온다. 서브모듈 안에서는 JumpToSubmodule을 쓸 수 없다(서브모듈이 서브모듈을 부를 수 없다).
+    /// </summary>
+    JumpToSubmodule = 32,
 }
 
 /// <summary>XPP 변경 이펙트 마스터의 한 행: XPP가 바뀌면 서킷이 그 캐릭터의 XP 종류(xp_type_code)가 같은 행을 execute_number 순서대로 실행하는 이펙트 하나(종류와 값 셋).</summary>

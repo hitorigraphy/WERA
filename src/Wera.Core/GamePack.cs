@@ -228,6 +228,9 @@ public sealed partial class GamePack
         var xppChangedEffects = LoadXpCalculateEffects(zip, xpTypes, effectCheck);
         var characterAfterCreateEffects = LoadCharacterAfterCreateEffects(zip, characterInventory?.Select(c => c.Code), effectCheck);
         var uniqueItemAfterCreateEffects = LoadUniqueItemAfterCreateEffects(zip, uniqueItems?.Select(u => u.ItemCode), effectCheck);
+        var submodules = LoadAllSubmodules(zip, effectCheck, afterAttackEffects, afterBattleLoseEffects, afterBattleRunEffects, afterBattleWinEffects, afterHitEffects,
+            afterLoadCharacterFlows, afterLoadUniqueItemFlows, characterAfterCreateEffects, skillExecuteEffects, skillAutoTargetEffects, skillOrderEffects,
+            smeltFlows, synthesisFlows, uniqueItemAfterCreateEffects, xppChangedEffects);
         var skillStatuses = LoadOwnerStatuses(zip, SkillStatusMasterPath, "skill_code", "스킬", SkillMasterPath, skills?.Select(s => s.Code), statuses);
         var uniqueItemStatuses = LoadOwnerStatuses(zip, UniqueItemStatusMasterPath, "item_code", "유니크 아이템", UniqueItemInventoryMasterPath, uniqueItems?.Select(u => u.ItemCode), statuses);
 
@@ -308,6 +311,7 @@ public sealed partial class GamePack
             UniqueItemModSkills = LoadUniqueItemModSkills(zip, uniqueItems?.Select(u => u.ItemCode), modSlots, skills),
             UniqueItemModStatuses = LoadUniqueItemModStatuses(zip, uniqueItems?.Select(u => u.ItemCode), modSlots, itemInventory, statuses, uniqueItemStatuses),
             UniqueItemEnhanceStatuses = LoadUniqueItemEnhanceStatuses(zip, uniqueItems?.Select(u => u.ItemCode), statuses, uniqueItemStatuses, GameSettingLevelMax(gameSettings)),
+            Submodules = submodules,
             AfterHitEffects = afterHitEffects,
             AfterAttackEffects = afterAttackEffects,
             AfterBattleWinEffects = afterBattleWinEffects,

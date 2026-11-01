@@ -187,9 +187,18 @@ public abstract class UnitCircuitBase
 
     /// <summary>
     /// 이펙트를 실행 번호 순서로 실행하고 끝나면 바뀐 인스턴스를 저장소에 되돌린다. 종류가 <see cref="EffectType"/>에 없는 번호는
-    /// <see cref="ApplyOther"/>에 맡긴다(서킷마다 가진 고유한 이펙트).
+    /// <see cref="ApplyOther"/>에 맡긴다(서킷마다 가진 고유한 이펙트). <paramref name="submodules"/>는 이 서킷 종류의 서브모듈(서브모듈 코드 → 이펙트들, 실행 번호 순)이고,
+    /// <see cref="EffectType.JumpToSubmodule"/>이 부르면 그 서브모듈을 이 서킷의 같은 상태(캐시, 포커스, 시전자와 타겟, 스테이터스 작업 사본, 서킷 고유 이펙트의 동작)로 실행한 뒤 다음 이펙트로 이어 간다.
+    /// 서브모듈 안의 Finish는 서브모듈만 끝내고, 서브모듈 안에서는 JumpToSubmodule을 부르지 않는다(무시한다. 게임팩 로드가 막는다).
     /// </summary>
-    protected void Run(IReadOnlyList<CircuitEffect> effects)
+    protected void Run(IReadOnlyList<CircuitEffect> effects, IReadOnlyDictionary<long, IReadOnlyList<CircuitEffect>>? submodules = null)
+    {
+        RunList(effects, submodules);
+        Commit();
+    }
+
+    // 이펙트 목록을 실행한다. submodules가 null이면 서브모듈 안이라는 뜻이다(서브모듈의 서브모듈 호출은 없다).
+    void RunList(IReadOnlyList<CircuitEffect> effects, IReadOnlyDictionary<long, IReadOnlyList<CircuitEffect>>? submodules)
     {
         for (var at = 0; at < effects.Count; at++)
         {
@@ -197,7 +206,11 @@ public abstract class UnitCircuitBase
             var known = Enum.IsDefined(typeof(EffectType), effect.TypeNumber);
             var type = (EffectType)effect.TypeNumber;
             if (known && type == EffectType.Finish) break;
-            if (known && JumpTarget(type, effect) is { } target)
+            if (known && type == EffectType.JumpToSubmodule)
+            {
+                if (submodules is not null && submodules.TryGetValue(effect.Value1, out var body)) RunList(body, null);
+            }
+            else if (known && JumpTarget(type, effect) is { } target)
             {
                 var to = effects.ToList().FindIndex(e => e.ExecuteNumber == target);
                 if (to > at) at = to - 1;
@@ -210,7 +223,6 @@ public abstract class UnitCircuitBase
             }
             else ApplyOther(effect);
         }
-        Commit();
     }
 
     /// <summary><see cref="EffectType"/>에 없는 번호의 이펙트를 실행한다(기본은 아무 일도 하지 않는다).</summary>

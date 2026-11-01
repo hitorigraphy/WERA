@@ -5,8 +5,8 @@ namespace Wera.Core;
 
 /// <summary>
 /// 유니크 아이템을 제련할 때 실행하는 흐름의 종류. TSV에는 이름(대소문자 무시)으로 적는다. <see cref="SmeltFlowCircuit"/>이 실행한다(제련의 타겟 아이템이 처음부터 포커스되어 있고 제물 목록을 가진다; 시전자와 파티 타겟은 없다).
-/// 구성은 스킬 실행 이펙트(<see cref="EffectType"/>)와 같은 번호와 이름, 인자에 제련에만 있는 종류(32 이상: 타겟 포커스, 타겟 없애기, 제련석 소모, 난수)가 더해진다.
-/// 숫자 값은 정해진 번호다: None 0, FocusCasterCharacter 1, FocusMainTargetCharacter 2, FocusSubTargetCharacter 3, FocusCasterEquipment 4, FocusMainTargetEquipment 5, FocusSubTargetEquipment 6, FocusCasterSkill 7, FocusMainTargetSkill 8, FocusSubTargetSkill 9, CacheToFocusedCharacterModValue 10, CacheToFocusedCharacterSetValue 11, FocusedCharacterValueToCache 12, CacheToFocusedItemModValue 13, CacheToFocusedItemSetValue 14, FocusedItemValueToCache 15, CacheToFocusedSkillModValue 16, CacheToFocusedSkillSetValue 17, FocusedSkillValueToCache 18, CacheAdd 19, CacheSubtract 20, CacheMultiply 21, CacheDivide 22, SetCacheValue 23, Jump 24, Finish 25, JumpCacheEqual 26, JumpCacheNotEqual 27, JumpCacheGreaterThan 28, JumpCacheGreaterOrEqual 29, JumpCacheLessThan 30, JumpCacheLessOrEqual 31.
+/// 구성은 스킬 실행 이펙트(<see cref="EffectType"/>)와 같은 번호와 이름, 인자에 제련에만 있는 종류(33 이상: 타겟 포커스, 타겟 없애기, 제련석 소모, 난수)가 더해진다.
+/// 숫자 값은 정해진 번호다: None 0, FocusCasterCharacter 1, FocusMainTargetCharacter 2, FocusSubTargetCharacter 3, FocusCasterEquipment 4, FocusMainTargetEquipment 5, FocusSubTargetEquipment 6, FocusCasterSkill 7, FocusMainTargetSkill 8, FocusSubTargetSkill 9, CacheToFocusedCharacterModValue 10, CacheToFocusedCharacterSetValue 11, FocusedCharacterValueToCache 12, CacheToFocusedItemModValue 13, CacheToFocusedItemSetValue 14, FocusedItemValueToCache 15, CacheToFocusedSkillModValue 16, CacheToFocusedSkillSetValue 17, FocusedSkillValueToCache 18, CacheAdd 19, CacheSubtract 20, CacheMultiply 21, CacheDivide 22, SetCacheValue 23, Jump 24, Finish 25, JumpCacheEqual 26, JumpCacheNotEqual 27, JumpCacheGreaterThan 28, JumpCacheGreaterOrEqual 29, JumpCacheLessThan 30, JumpCacheLessOrEqual 31, JumpToSubmodule 32.
 /// </summary>
 [JsonConverter(typeof(JsonStringEnumConverter<SmeltFlowType>))]
 public enum SmeltFlowType
@@ -75,14 +75,20 @@ public enum SmeltFlowType
     JumpCacheLessThan = 30,
     /// <summary>cache[value_1] &lt;= cache[value_2]. 인자와 규칙은 <see cref="JumpCacheEqual"/>과 같다.</summary>
     JumpCacheLessOrEqual = 31,
+    /// <summary>
+    /// 서브모듈을 부른다: value_1이 submodule_code(이 서킷 종류의 서브모듈 마스터에 있어야 함)이고 value_2, value_3은 보지 않는다.
+    /// 서브모듈의 이펙트들이 이 서킷의 캐시, 포커스, 시전자와 타겟을 그대로 써서 실행 번호 순서로 실행되고(그래서 값은 캐시로 주고받는다: 부르기 전에 캐시에 넣은 값이 인자, 서브모듈이 캐시에 쓴 값이 결과),
+    /// 끝나면(Finish 또는 마지막 이펙트) 이 이펙트 다음으로 돌아온다. 서브모듈 안에서는 JumpToSubmodule을 쓸 수 없다(서브모듈이 서브모듈을 부를 수 없다).
+    /// </summary>
+    JumpToSubmodule = 32,
     /// <summary>제련 흐름에만 있는 종류. 제련의 타겟(제련하는 유니크 아이템)을 포커스한다(FocusedUniqueItemInstance, 그 아이템이 가진 스킬도 함께). 값은 보지 않는다.</summary>
-    FocusSmeltTarget = 32,
+    FocusSmeltTarget = 33,
     /// <summary>제련 흐름에만 있는 종류. 제련의 타겟을 없앤다(서킷이 끝나면 저장소에서 지워진다). 포커스하고 있었다면 포커스는 비워진다. 값은 보지 않는다.</summary>
-    DeleteSmeltTarget = 33,
+    DeleteSmeltTarget = 34,
     /// <summary>제련 흐름에만 있는 종류. 제련석(게임 설정 SmeltStoneItemCode의 커먼 아이템) 한 개를 소모한다(서킷이 끝나면 호출한 쪽이 인벤토리에서 뺀다). 값은 보지 않는다. 여러 번 실행하면 그만큼 소모한다.</summary>
-    ConsumeSmeltStone = 34,
+    ConsumeSmeltStone = 35,
     /// <summary>제련 흐름에만 있는 종류. 0 이상 value_2 미만의 무작위 정수를 서킷 캐시의 value_1번에 쓴다(확률을 정할 때 JumpCache* 이펙트와 함께 쓴다). value_1이 cache_index(0~<see cref="GamePack.MaxCacheIndex"/>), value_2가 모수(1 이상)이고 value_3은 보지 않는다. 캐시가 짧으면 모자란 칸을 0으로 채워 늘린다.</summary>
-    RandomToCache = 35,
+    RandomToCache = 36,
 }
 
 /// <summary>제련 흐름 마스터의 한 행: 서킷이 execute_number 순서대로 실행하는 흐름 하나(종류와 값 셋).</summary>

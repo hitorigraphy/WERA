@@ -20,7 +20,7 @@ public sealed class AfterLoadUniqueItemCircuit : UnitCircuitBase
     /// <summary>흐름을 실행 번호 순서로 실행하고 조작이 끝난 유니크 아이템을 돌려준다. 흐름이 없으면 원래 인스턴스를 그대로 돌려준다.</summary>
     public UniqueItemInstance Execute()
     {
-        Run(Pack.AfterLoadUniqueItemFlowsInOrder().Select(e => new CircuitEffect(e.ExecuteNumber, (int)e.FlowType, e.Value1, e.Value2, e.Value3)).ToList());
+        Run(Pack.AfterLoadUniqueItemFlowsInOrder().Select(e => new CircuitEffect(e.ExecuteNumber, (int)e.FlowType, e.Value1, e.Value2, e.Value3)).ToList(), Pack.SubmodulesOf(GamePack.AfterLoadUniqueItemSubmoduleMasterPath));
         return Store.FindItem(item.InstanceId)!;
     }
 }

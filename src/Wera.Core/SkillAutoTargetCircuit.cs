@@ -18,7 +18,7 @@ public sealed class SkillAutoTargetCircuit(GamePack pack, UnitStore store, long 
 
     /// <summary>스킬의 자동 타겟 이펙트를 실행 번호 순서로 한 바퀴 실행한다.</summary>
     public void Execute() =>
-        Run(Pack.SkillAutoTargetEffectsOf(SkillCode).Select(e => new CircuitEffect(e.ExecuteNumber, (int)e.EffectType, e.Value1, e.Value2, e.Value3)).ToList());
+        Run(Pack.SkillAutoTargetEffectsOf(SkillCode).Select(e => new CircuitEffect(e.ExecuteNumber, (int)e.EffectType, e.Value1, e.Value2, e.Value3)).ToList(), Pack.SubmodulesOf(GamePack.SkillAutoTargetSubmoduleMasterPath));
 
     /// <summary>Result가 적절한 값(후보 번호)이면 그 후보의 번호를, 아니면 null(바깥에서 랜덤으로 1체를 고른다).</summary>
     public int? ChosenOf(int candidateCount) =>

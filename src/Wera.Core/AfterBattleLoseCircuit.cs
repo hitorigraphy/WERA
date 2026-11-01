@@ -29,7 +29,7 @@ public sealed class AfterBattleLoseCircuit : UnitCircuitBase
     /// <summary>이펙트를 실행 번호 순서로 실행하고 조작이 끝난 캐릭터를 돌려준다. 이펙트가 없으면 원래 인스턴스를 그대로 돌려준다.</summary>
     public CharacterInstance Execute()
     {
-        Run(Pack.AfterBattleLoseEffectsInOrder().Select(e => new CircuitEffect(e.ExecuteNumber, (int)e.EffectType, e.Value1, e.Value2, e.Value3)).ToList());
+        Run(Pack.AfterBattleLoseEffectsInOrder().Select(e => new CircuitEffect(e.ExecuteNumber, (int)e.EffectType, e.Value1, e.Value2, e.Value3)).ToList(), Pack.SubmodulesOf(GamePack.AfterBattleLoseSubmoduleMasterPath));
         return Store.CharacterOf(Caster!)!;
     }
 

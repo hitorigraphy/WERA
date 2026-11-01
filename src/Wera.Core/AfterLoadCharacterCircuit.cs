@@ -20,7 +20,7 @@ public sealed class AfterLoadCharacterCircuit : UnitCircuitBase
     /// <summary>흐름을 실행 번호 순서로 실행하고 조작이 끝난 캐릭터를 돌려준다. 흐름이 없으면 원래 인스턴스를 그대로 돌려준다.</summary>
     public CharacterInstance Execute()
     {
-        Run(Pack.AfterLoadCharacterFlowsInOrder().Select(e => new CircuitEffect(e.ExecuteNumber, (int)e.FlowType, e.Value1, e.Value2, e.Value3)).ToList());
+        Run(Pack.AfterLoadCharacterFlowsInOrder().Select(e => new CircuitEffect(e.ExecuteNumber, (int)e.FlowType, e.Value1, e.Value2, e.Value3)).ToList(), Pack.SubmodulesOf(GamePack.AfterLoadCharacterSubmoduleMasterPath));
         return Store.CharacterOf(Caster!)!;
     }
 }

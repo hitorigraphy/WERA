@@ -56,7 +56,7 @@ public sealed record SkillTag(long SkillCode, long TagCode);
 /// 마스터만으로는 동작을 정할 수 없으므로 종류마다 동작을 코드로 구현하고, 마스터는 어느 종류를 어떤 값(value_1~3)으로 쓸지만 적는다.
 /// 서킷은 시전자(Caster), 메인 타겟(MainTarget), 서브 타겟들(SubTarget)이라는 파티 유닛을 가지고, Focus* 종류가 그 유닛의 캐릭터, 장비(유니크 아이템), 스킬을
 /// 포커스(FocusedCharacterInstance, FocusedUniqueItemInstance, FocusedSkill)하며, 스테이터스는 포커스한 것과 캐시 사이에서만 주고받는다.
-/// 숫자 값은 정해진 번호다: None 0, FocusCasterCharacter 1, FocusMainTargetCharacter 2, FocusSubTargetCharacter 3, FocusCasterEquipment 4, FocusMainTargetEquipment 5, FocusSubTargetEquipment 6, FocusCasterSkill 7, FocusMainTargetSkill 8, FocusSubTargetSkill 9, CacheToFocusedCharacterModValue 10, CacheToFocusedCharacterSetValue 11, FocusedCharacterValueToCache 12, CacheToFocusedItemModValue 13, CacheToFocusedItemSetValue 14, FocusedItemValueToCache 15, CacheToFocusedSkillModValue 16, CacheToFocusedSkillSetValue 17, FocusedSkillValueToCache 18, CacheAdd 19, CacheSubtract 20, CacheMultiply 21, CacheDivide 22, SetCacheValue 23, Jump 24, Finish 25, JumpCacheEqual 26, JumpCacheNotEqual 27, JumpCacheGreaterThan 28, JumpCacheGreaterOrEqual 29, JumpCacheLessThan 30, JumpCacheLessOrEqual 31.
+/// 숫자 값은 정해진 번호다: None 0, FocusCasterCharacter 1, FocusMainTargetCharacter 2, FocusSubTargetCharacter 3, FocusCasterEquipment 4, FocusMainTargetEquipment 5, FocusSubTargetEquipment 6, FocusCasterSkill 7, FocusMainTargetSkill 8, FocusSubTargetSkill 9, CacheToFocusedCharacterModValue 10, CacheToFocusedCharacterSetValue 11, FocusedCharacterValueToCache 12, CacheToFocusedItemModValue 13, CacheToFocusedItemSetValue 14, FocusedItemValueToCache 15, CacheToFocusedSkillModValue 16, CacheToFocusedSkillSetValue 17, FocusedSkillValueToCache 18, CacheAdd 19, CacheSubtract 20, CacheMultiply 21, CacheDivide 22, SetCacheValue 23, Jump 24, Finish 25, JumpCacheEqual 26, JumpCacheNotEqual 27, JumpCacheGreaterThan 28, JumpCacheGreaterOrEqual 29, JumpCacheLessThan 30, JumpCacheLessOrEqual 31, JumpToSubmodule 32.
 /// </summary>
 [JsonConverter(typeof(JsonStringEnumConverter<EffectType>))]
 public enum EffectType
@@ -125,6 +125,12 @@ public enum EffectType
     JumpCacheLessThan = 30,
     /// <summary>cache[value_1] &lt;= cache[value_2]. 인자와 규칙은 <see cref="JumpCacheEqual"/>과 같다.</summary>
     JumpCacheLessOrEqual = 31,
+    /// <summary>
+    /// 서브모듈을 부른다: value_1이 submodule_code(이 서킷 종류의 서브모듈 마스터에 있어야 함)이고 value_2, value_3은 보지 않는다.
+    /// 서브모듈의 이펙트들이 이 서킷의 캐시, 포커스, 시전자와 타겟을 그대로 써서 실행 번호 순서로 실행되고(그래서 값은 캐시로 주고받는다: 부르기 전에 캐시에 넣은 값이 인자, 서브모듈이 캐시에 쓴 값이 결과),
+    /// 끝나면(Finish 또는 마지막 이펙트) 이 이펙트 다음으로 돌아온다. 서브모듈 안에서는 JumpToSubmodule을 쓸 수 없다(서브모듈이 서브모듈을 부를 수 없다).
+    /// </summary>
+    JumpToSubmodule = 32,
 }
 
 /// <summary>JumpCache* 종류가 쓰는 비교.</summary>

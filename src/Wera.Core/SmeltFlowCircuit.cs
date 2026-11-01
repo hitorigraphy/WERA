@@ -39,7 +39,7 @@ public sealed class SmeltFlowCircuit : UnitCircuitBase
     /// <summary>흐름을 실행 번호 순서로 실행하고 조작이 끝난 타겟을 돌려준다(타겟을 없앴으면 null). 흐름이 없으면 원래 인스턴스를 그대로 돌려준다.</summary>
     public UniqueItemInstance? Execute()
     {
-        Run(Pack.SmeltFlowsInOrder().Select(e => new CircuitEffect(e.ExecuteNumber, (int)e.FlowType, e.Value1, e.Value2, e.Value3)).ToList());
+        Run(Pack.SmeltFlowsInOrder().Select(e => new CircuitEffect(e.ExecuteNumber, (int)e.FlowType, e.Value1, e.Value2, e.Value3)).ToList(), Pack.SubmodulesOf(GamePack.SmeltSubmoduleMasterPath));
         if (TargetDeleted) return null;
         var result = Store.FindItem(target.InstanceId)!;
         var enhanced = Pack.WithEnhanceStatuses(result);       // 강화 레벨이 바뀌었다고 보고 강화 스테이터스를 반영한다

@@ -116,6 +116,7 @@ public static class EffectArgs
             case EffectType.None:
             case EffectType.Finish:
             case EffectType.Jump:
+            case EffectType.JumpToSubmodule:
             case EffectType.FocusCasterCharacter:
             case EffectType.FocusMainTargetCharacter:
                 break;

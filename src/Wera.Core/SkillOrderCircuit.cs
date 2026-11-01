@@ -15,7 +15,7 @@ public sealed class SkillOrderCircuit(GamePack pack, UnitStore store, long skill
 
     /// <summary>스킬의 순서 이펙트를 실행 번호 순서로 실행한다(Jump와 JumpCache*는 뒤로 건너뛰고 Finish는 거기서 끝낸다).</summary>
     public void Execute() =>
-        Run(Pack.SkillOrderEffectsOf(SkillCode).Select(e => new CircuitEffect(e.ExecuteNumber, (int)e.EffectType, e.Value1, e.Value2, e.Value3)).ToList());
+        Run(Pack.SkillOrderEffectsOf(SkillCode).Select(e => new CircuitEffect(e.ExecuteNumber, (int)e.EffectType, e.Value1, e.Value2, e.Value3)).ToList(), Pack.SubmodulesOf(GamePack.SkillOrderSubmoduleMasterPath));
 
     protected override void ApplyOther(CircuitEffect effect)
     {

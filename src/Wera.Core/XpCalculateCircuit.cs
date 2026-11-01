@@ -26,7 +26,7 @@ public sealed class XpCalculateCircuit : UnitCircuitBase
     {
         var xpType = Pack.FindCharacter(Caster!.CharacterCode)?.XpTypeCode ?? 0;
         if (xpType == 0) return null;
-        Run(Pack.XpCalculateEffectsOf(xpType).Select(e => new CircuitEffect(e.ExecuteNumber, (int)e.EffectType, e.Value1, e.Value2, e.Value3)).ToList());
+        Run(Pack.XpCalculateEffectsOf(xpType).Select(e => new CircuitEffect(e.ExecuteNumber, (int)e.EffectType, e.Value1, e.Value2, e.Value3)).ToList(), Pack.SubmodulesOf(GamePack.XpCalculateSubmoduleMasterPath));
         return new XpResult(Cached(ValueCacheIndex), Cached(MaxCacheIndex));
     }
 

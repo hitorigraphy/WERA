@@ -7,7 +7,7 @@ namespace Wera.Core;
 /// 스킬 자동 타겟 이펙트가 하는 일의 종류. TSV에는 이름(대소문자 무시)으로 적는다. 자동 타겟 서킷(<see cref="SkillAutoTargetCircuit"/>)이 실행하고, 스테이터스는 읽기만 하며 목적은 Result(메인 타겟이 될 유닛)를 정하는 것이다.
 /// 메인 타겟이 될 수 있는 유닛들(후보)이 서브 타겟 자리에 번호 0부터 차례로 등록되어 있어 FocusSubTarget*로 후보를 포커스해 읽고, SubTargetToResult로 후보 하나를 Result로 놓는다.
 /// 구성은 스킬 실행 이펙트(<see cref="EffectType"/>)와 같다: 번호와 이름, 인자가 같다. 다만 스테이터스를 바꾸는 종류(CacheToFocused*)는 없고 SubTargetToResult가 더해져 있다.
-/// 숫자 값은 정해진 번호다: None 0, FocusCasterCharacter 1, FocusMainTargetCharacter 2, FocusSubTargetCharacter 3, FocusCasterEquipment 4, FocusMainTargetEquipment 5, FocusSubTargetEquipment 6, FocusCasterSkill 7, FocusMainTargetSkill 8, FocusSubTargetSkill 9, FocusedCharacterValueToCache 12, FocusedItemValueToCache 15, FocusedSkillValueToCache 18, CacheAdd 19, CacheSubtract 20, CacheMultiply 21, CacheDivide 22, SetCacheValue 23, Jump 24, Finish 25, JumpCacheEqual 26, JumpCacheNotEqual 27, JumpCacheGreaterThan 28, JumpCacheGreaterOrEqual 29, JumpCacheLessThan 30, JumpCacheLessOrEqual 31, SubTargetToResult 32.
+/// 숫자 값은 정해진 번호다: None 0, FocusCasterCharacter 1, FocusMainTargetCharacter 2, FocusSubTargetCharacter 3, FocusCasterEquipment 4, FocusMainTargetEquipment 5, FocusSubTargetEquipment 6, FocusCasterSkill 7, FocusMainTargetSkill 8, FocusSubTargetSkill 9, FocusedCharacterValueToCache 12, FocusedItemValueToCache 15, FocusedSkillValueToCache 18, CacheAdd 19, CacheSubtract 20, CacheMultiply 21, CacheDivide 22, SetCacheValue 23, Jump 24, Finish 25, JumpCacheEqual 26, JumpCacheNotEqual 27, JumpCacheGreaterThan 28, JumpCacheGreaterOrEqual 29, JumpCacheLessThan 30, JumpCacheLessOrEqual 31, JumpToSubmodule 32, SubTargetToResult 33.
 /// </summary>
 [JsonConverter(typeof(JsonStringEnumConverter<AutoTargetEffectType>))]
 public enum AutoTargetEffectType
@@ -64,8 +64,14 @@ public enum AutoTargetEffectType
     JumpCacheLessThan = 30,
     /// <summary>cache[value_1] &lt;= cache[value_2]. 인자와 규칙은 <see cref="JumpCacheEqual"/>과 같다.</summary>
     JumpCacheLessOrEqual = 31,
+    /// <summary>
+    /// 서브모듈을 부른다: value_1이 submodule_code(이 서킷 종류의 서브모듈 마스터에 있어야 함)이고 value_2, value_3은 보지 않는다.
+    /// 서브모듈의 이펙트들이 이 서킷의 캐시, 포커스, 시전자와 타겟을 그대로 써서 실행 번호 순서로 실행되고(그래서 값은 캐시로 주고받는다: 부르기 전에 캐시에 넣은 값이 인자, 서브모듈이 캐시에 쓴 값이 결과),
+    /// 끝나면(Finish 또는 마지막 이펙트) 이 이펙트 다음으로 돌아온다. 서브모듈 안에서는 JumpToSubmodule을 쓸 수 없다(서브모듈이 서브모듈을 부를 수 없다).
+    /// </summary>
+    JumpToSubmodule = 32,
     /// <summary>Result를 서브 타겟 자리의 후보 하나로 놓는다: value_1이 후보 번호(0부터, 후보 목록의 번호)이고 0 이상이어야 한다. 나중에 실행한 것이 앞의 것을 덮어쓴다. 후보 번호가 후보 목록을 벗어나면 Result는 적절하지 못한 값이 되어 서킷이 끝난 뒤 랜덤으로 1체를 고른다.</summary>
-    SubTargetToResult = 32,
+    SubTargetToResult = 33,
 }
 
 /// <summary>스킬 자동 타겟 이펙트 마스터의 한 행: 스킬의 자동 타겟 서킷이 execute_number 순서대로 실행하는 이펙트 하나(종류와 값 셋).</summary>

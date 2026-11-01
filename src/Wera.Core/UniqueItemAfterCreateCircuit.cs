@@ -20,7 +20,7 @@ public sealed class UniqueItemAfterCreateCircuit : UnitCircuitBase
     /// <summary>이펙트을 실행 번호 순서로 실행하고 조작이 끝난 유니크 아이템을 돌려준다. 이펙트이 없으면 원래 인스턴스를 그대로 돌려준다.</summary>
     public UniqueItemInstance Execute()
     {
-        Run(Pack.UniqueItemAfterCreateEffectsOf(item.ItemCode).Select(e => new CircuitEffect(e.ExecuteNumber, (int)e.EffectType, e.Value1, e.Value2, e.Value3)).ToList());
+        Run(Pack.UniqueItemAfterCreateEffectsOf(item.ItemCode).Select(e => new CircuitEffect(e.ExecuteNumber, (int)e.EffectType, e.Value1, e.Value2, e.Value3)).ToList(), Pack.SubmodulesOf(GamePack.UniqueItemAfterCreateSubmoduleMasterPath));
         return Store.FindItem(item.InstanceId)!;
     }
 }
