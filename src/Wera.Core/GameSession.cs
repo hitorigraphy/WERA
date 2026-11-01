@@ -657,7 +657,7 @@ public sealed partial class GameSession
             // 파티에 아무도 없을 때와 리더의 슬롯을 바꿀 때는 리더 태그를 가진 캐릭터만 나온다(파티에는 리더가 한 명 이상 있어야 하므로).
             var leaderOnly = IsLeaderOnlySlot(slot);
             var here = PartyInstance.Units[slot] is { } current ? IdOf(current) : null;
-            return OwnedByMasterOrder().Where(x => x.Instance.InstanceId != here && (!leaderOnly || HasLeaderTag(x.Instance.InstanceId))).Select(x =>
+            return OwnedByMasterOrder().Where(x => x.Instance.InstanceId != here && !IsCapturedEnemy(x.Instance.InstanceId) && (!leaderOnly || HasLeaderTag(x.Instance.InstanceId))).Select(x =>
             {
                 var id = x.Instance.InstanceId;
                 var color = IndexOfId(PartyInstance, id) >= 0 ? CharacterListColor.Green
@@ -1268,7 +1268,7 @@ public sealed partial class GameSession
     /// </summary>
     void PlaceCharacter(string instanceId)
     {
-        if (!Characters.TryGetValue(instanceId, out var character)) return;
+        if (!Characters.TryGetValue(instanceId, out var character) || IsCapturedEnemy(instanceId)) return;
         var slot = CurrentSlot!.Value;
         var units = PartyInstance.Units;
         var at = IndexOfId(PartyInstance, instanceId);
@@ -1892,6 +1892,10 @@ public sealed partial class GameSession
             throw new SaveFormatException("세이브에서 같은 캐릭터가 오퍼레이터 슬롯 두 곳 이상에 있습니다(한 곳에만 있을 수 있습니다).");
         if (operatorIds.Any(c => allIds.Contains(c)))
             throw new SaveFormatException("세이브에서 같은 캐릭터가 파티와 아지트에 모두 있습니다(한 곳에만 있을 수 있습니다).");
+
+        if (pack.CapturedEnemyTagCode is { } capturedTag
+            && allIds.Concat(operatorIds).FirstOrDefault(id => characterTags.TryGetValue(id, out var tags) && tags.Contains(capturedTag)) is { } captured)
+            throw new SaveFormatException($"세이브에서 구금된 적 '{captured}'가 파티나 아지트에 있습니다(구금된 적은 교류만 할 수 있습니다).");
 
         // 불러오기는 저장된 화면과 상관없이 항상 홈으로 들어간다.
         var session = new GameSession(pack, Screen.Home, playerFlags, inventory, characters, parties, statusEffects, uniqueItems, characterTags)

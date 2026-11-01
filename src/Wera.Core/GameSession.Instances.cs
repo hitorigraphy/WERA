@@ -52,7 +52,24 @@ public sealed partial class GameSession
     /// </summary>
     string? PlaceableInstanceOf(long characterCode)
     {
-        var all = Characters.InstancesOf(characterCode);
+        var all = Characters.InstancesOf(characterCode).Where(c => !IsCapturedEnemy(c.InstanceId)).ToList();
         return (all.FirstOrDefault(c => !IsPlaced(c.InstanceId)) ?? all.FirstOrDefault())?.InstanceId;
+    }
+
+    /// <summary>구금된 적인가(게임 설정 CapturedEnemyTagCode의 태그를 가졌다). 구금된 적은 교류만 할 수 있어 파티, 아지트(방어 파티, 오퍼레이터), 던전, 이벤트, 전투에는 쓸 수 없다.</summary>
+    public bool IsCapturedEnemy(string instanceId) =>
+        Pack.CapturedEnemyTagCode is { } tag && Characters.ContainsKey(instanceId) && CharacterTags(instanceId).Contains(tag);
+
+    /// <summary>
+    /// 방어전에서 진 적을 구금된 적으로 보유 캐릭터에 들인다: 소지 한도(carry_limit)를 넘지 않으면 새 인스턴스를 만들고 구금된 적 태그를 붙여 그 ID를 돌려준다.
+    /// 한도가 가득 찼거나 구금된 적 태그가 설정되지 않았으면 null.
+    /// </summary>
+    public string? AddCapturedEnemy(long characterCode)
+    {
+        if (Pack.CapturedEnemyTagCode is not { } tag) return null;
+        var id = AddCharacterInstance(characterCode);
+        if (id is null) return null;
+        AddCharacterTag(id, tag);
+        return id;
     }
 }
