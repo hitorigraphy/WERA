@@ -5,7 +5,7 @@ namespace Wera.Core;
 
 /// <summary>
 /// 이벤트 흐름 한 칸이 하는 일의 종류. TSV에는 이름(대소문자 무시)으로 적는다.
-/// 숫자 값은 정해진 번호다: None 0, Finish 1, Jump 2, Adv 3, Battle 4, SetFlag 5, ModFlag 6, AddInventory 7, JumpFlagEqual 8, JumpFlagNotEqual 9, JumpFlagGreaterThan 10, JumpFlagGreaterOrEqual 11, JumpFlagLessThan 12, JumpFlagLessOrEqual 13, JumpInventoryEqual 14, JumpInventoryNotEqual 15, JumpInventoryGreaterThan 16, JumpInventoryGreaterOrEqual 17, JumpInventoryLessThan 18, JumpInventoryLessOrEqual 19, JumpCharacterHaveTag 20, JumpUniqueItemHaveTag 21, JumpRandom 22, GameOver 23.
+/// 숫자 값은 정해진 번호다: None 0, Finish 1, Jump 2, Adv 3, Battle 4, SetFlag 5, ModFlag 6, AddInventory 7, JumpFlagEqual 8, JumpFlagNotEqual 9, JumpFlagGreaterThan 10, JumpFlagGreaterOrEqual 11, JumpFlagLessThan 12, JumpFlagLessOrEqual 13, JumpInventoryEqual 14, JumpInventoryNotEqual 15, JumpInventoryGreaterThan 16, JumpInventoryGreaterOrEqual 17, JumpInventoryLessThan 18, JumpInventoryLessOrEqual 19, JumpCharacterHaveTag 20, JumpUniqueItemHaveTag 21, JumpRandom 22, GameOver 23, ReleaseCaptives 24.
 /// </summary>
 public enum EventFlowType
 {
@@ -77,6 +77,11 @@ public enum EventFlowType
     JumpRandom = 22,
     /// <summary>게임 오버: 이벤트를 끝내고 게임 오버 화면으로 간다(그 뒤는 로드 화면). 인자는 없다.</summary>
     GameOver = 23,
+    /// <summary>
+    /// 구금 해방: 던전 이벤트에서 이 던전에 갇힌 구금된 아군을 모두 구출한다(구금된 아군 태그가 떨어지고 장비와 함께 보유 캐릭터로 돌아오되 파티에는 돌아오지 않는다).
+    /// 인자는 없다. 던전 이벤트가 아닌 이벤트에서는 아무 일도 하지 않는다. 던전 클리어 자체는 플래그(SetFlag)로 다룬다.
+    /// </summary>
+    ReleaseCaptives = 24,
 }
 
 /// <summary>이벤트 마스터의 한 행. 이벤트 조건 마스터의 그룹 규칙(그룹 안은 AND, 그룹끼리는 OR)으로 열리고, 조건이 없으면 늘 열린다.</summary>

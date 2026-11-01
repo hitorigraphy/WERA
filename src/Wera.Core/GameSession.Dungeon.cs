@@ -168,7 +168,7 @@ public sealed partial class GameSession
     static IEnumerable<TileEffect> InteractEffects(IReadOnlyList<TileEffect> effects) =>
         effects.Where(e => e.EffectType == TileEffectType.Exit
                 || effects.Any(i => i.EffectType == TileEffectType.Interact)
-                && e.EffectType is TileEffectType.FixedBattle or TileEffectType.Adv or TileEffectType.Warp or TileEffectType.DungeonEvent or TileEffectType.ClearDungeon)
+                && e.EffectType is TileEffectType.FixedBattle or TileEffectType.Adv or TileEffectType.Warp or TileEffectType.DungeonEvent)
             .OrderBy(e => (int)e.EffectType);
 
     /// <summary>
@@ -215,9 +215,6 @@ public sealed partial class GameSession
                     return;
                 case TileEffectType.Warp:
                     (DungeonLayer, DungeonX, DungeonY) = (effect.Value1, effect.Value2, effect.Value3);
-                    break;
-                case TileEffectType.ClearDungeon:
-                    if (CurrentDungeonCode is { } cleared) RescueCaptives(cleared);
                     break;
             }
         }
@@ -276,7 +273,10 @@ public sealed partial class GameSession
     {
         encounterPending = false;                      // 이벤트를 연 걸음에는 인카운트 판정을 하지 않는다
         CurrentEvent = new EventFlowCircuit(Pack, dungeonEventCode, PlayerFlags, AddInventory, CountInventory, CharacterHasTag, UniqueItemHasTag, NextRandom,
-            Pack.DungeonEventFlowsOf(dungeonEventCode));
+            Pack.DungeonEventFlowsOf(dungeonEventCode))
+        {
+            OnReleaseCaptives = () => { if (CurrentDungeonCode is { } dungeon) RescueCaptives(dungeon); },
+        };
         ShowNextEventStep();
     }
 

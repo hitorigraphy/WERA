@@ -139,16 +139,16 @@ public class CapturedAllyTests
     }
 
     [Fact]
-    public void The_ClearDungeon_tile_effect_is_readable_by_the_pack()
+    public void The_ReleaseCaptives_flow_calls_the_session_hook_and_does_nothing_without_one()
     {
-        var pack = SamplePackWith(("master/tile_master_v1.tsv", File.ReadAllText(SampleTileMaster()).TrimEnd() + "\n99\tClearDungeon\t0\t0\t0\n"));
-        Assert.Contains(pack.TileEffectsOf(99), e => e.EffectType == TileEffectType.ClearDungeon);
-    }
-
-    static string SampleTileMaster()
-    {
-        var root = AppContext.BaseDirectory;
-        while (!File.Exists(Path.Combine(root, "WERA.slnx"))) root = Path.GetDirectoryName(root)!;
-        return Path.Combine(root, "samples", "sample-pack", "master", "tile_master_v1.tsv");
+        var pack = SamplePackWith();
+        EventFlow[] flows = [new(1, 1, EventFlowType.ReleaseCaptives, 0, 0, 0), new(1, 2, EventFlowType.SetFlag, 7, 1, 0)];
+        var flags = new Dictionary<long, long>();
+        var released = 0;
+        new EventFlowCircuit(pack, 1, flags, flows: flows) { OnReleaseCaptives = () => released++ }.Advance();
+        Assert.Equal(1, released);
+        Assert.Equal(1, flags[7]);                                                   // 이어서 다음 칸(클리어 플래그)도 실행한다
+        new EventFlowCircuit(pack, 1, new Dictionary<long, long>(), flows: flows).Advance();
+        Assert.Equal(1, released);
     }
 }

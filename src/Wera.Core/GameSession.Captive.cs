@@ -4,7 +4,7 @@ namespace Wera.Core;
 // 그 던전(의 인스턴스)에 갇힌다. 장비는 그대로 들고 가고, 구금된 아군은 파티 편성, 캐릭터 확인 등 어디에도 나오지 않으며 그가 낀 유니크 아이템도 나오지 않는다.
 public sealed partial class GameSession
 {
-    /// <summary>던전에 갇힌 구금된 아군: 던전 코드 → 갇힌 유닛들(캐릭터 인스턴스와 그가 낀 장비). 던전을 다른 파티로 클리어(ClearDungeon 타일 효과)해 구출한다.</summary>
+    /// <summary>던전에 갇힌 구금된 아군: 던전 코드 → 갇힌 유닛들(캐릭터 인스턴스와 그가 낀 장비). 던전을 다른 파티로 클리어해(던전 이벤트의 ReleaseCaptives 흐름) 구출한다. 클리어 자체는 플래그로 다룬다.</summary>
     public Dictionary<long, List<PartyUnit>> DungeonCaptives { get; } = [];
 
     // 던전 전투에서 졌을 때 서킷이 구금하라고 한 캐릭터들(전투 화면을 떠날 때 한꺼번에 적용한다).

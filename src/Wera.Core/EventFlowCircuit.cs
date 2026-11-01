@@ -40,6 +40,9 @@ public sealed class EventFlowCircuit
     /// <summary>실행하는 이벤트의 코드.</summary>
     public long EventCode { get; }
 
+    /// <summary>ReleaseCaptives 칸이 부르는 동작. 세션이 던전 이벤트에서만 넘기며, null이면 ReleaseCaptives 칸은 아무 일도 하지 않는다.</summary>
+    public Action? OnReleaseCaptives { get; init; }
+
     /// <summary>끝났는가(끝난 뒤의 <see cref="Advance"/>는 계속 Finished를 돌려준다).</summary>
     public bool IsFinished { get; private set; }
 
@@ -106,6 +109,9 @@ public sealed class EventFlowCircuit
                     break;
                 case EventFlowType.AddInventory:
                     addInventory?.Invoke(flow.Param1, flow.Param2);
+                    break;
+                case EventFlowType.ReleaseCaptives:
+                    OnReleaseCaptives?.Invoke();
                     break;
                 case EventFlowType.Jump:
                     // 점프할 번호의 칸으로 간다(그 칸의 조건이 거짓이면 그다음 큰 번호부터 이어 간다). 번호는 늘 뒤쪽이다.
