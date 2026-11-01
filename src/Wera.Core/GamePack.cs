@@ -233,6 +233,8 @@ public sealed partial class GamePack
             smeltFlows, synthesisFlows, uniqueItemAfterCreateEffects, xppChangedEffects);
         var facilityFlows = LoadFacilityFlows(zip, facilities, tags, inventory, facilityOperatorSlots);
         var defenseFlows = LoadDefenseFlows(zip, operatorSlots, statuses, tags);
+        var images = LoadImages(zip, characterInventory?.Select(c => c.Code), uniqueItems?.Select(u => u.ItemCode), itemInventory?.Select(i => i.Code),
+            skills?.Select(s => s.Code), statusEffects?.Select(s => s.Code), attributes?.Select(a => a.Code), facilities?.Select(f => f.Code));
         var flowSubmodules = LoadFlowSubmodules(zip, advs, battles, tags, inventory, statuses, facilityOperatorSlots,
             eventFlows, dungeonEventFlows, advFlows, communicationSoloFlows, communicationDuoFlows, communicationDefaultFlows, facilityFlows, defenseFlows);
         var skillStatuses = LoadOwnerStatuses(zip, SkillStatusMasterPath, "skill_code", "스킬", SkillMasterPath, skills?.Select(s => s.Code), statuses);
@@ -289,6 +291,8 @@ public sealed partial class GamePack
             DungeonMaps = dungeonMaps,
             DungeonEncounters = dungeonEncounters,
             DungeonLayers = dungeonLayers,
+            Images = images.Rows,
+            ImageFiles = images.Files,
             SkillSlots = skillSlots,
             CharacterSkillSlotTags = characterSkillSlotTags,
             Skills = skills,

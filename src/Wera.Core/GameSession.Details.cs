@@ -44,7 +44,7 @@ public sealed partial class GameSession
     /// <summary>캐릭터 상세 화면의 내용: 이름, 레벨, Exp 바, HP, XP, 상태값(character_display_order가 1 이상인 스테이터스, 작은 수부터), 장비 슬롯, 스킬 슬롯, 설명문.</summary>
     public sealed record CharacterDetailView(
         string Name, string LevelText, GaugeView Exp, GaugeView Hp, GaugeView Xp, XpTag XpTag,
-        IReadOnlyList<UnitStatusLine> Specs, IReadOnlyList<UnitStatusLine> Equipment, IReadOnlyList<UnitStatusLine> Skills, string Description);
+        IReadOnlyList<UnitStatusLine> Specs, IReadOnlyList<UnitStatusLine> Equipment, IReadOnlyList<UnitStatusLine> Skills, string Description, long CharacterCode = 0);
 
     /// <summary>
     /// 장비 상세 화면의 내용: 장비 이름, +강화 횟수, HP, XP(그 장비를 낀 캐릭터의 것을 공유한다; 낀 캐릭터가 없으면 빈 회색 게이지), 상태값(장비의 스테이터스 중
@@ -52,10 +52,10 @@ public sealed partial class GameSession
     /// </summary>
     public sealed record EquipmentDetailView(
         string Name, string EnhanceText, GaugeView Hp, GaugeView Xp, XpTag XpTag,
-        IReadOnlyList<UnitStatusLine> Specs, IReadOnlyList<UnitStatusLine> Parts, IReadOnlyList<UnitStatusLine> Skills, string Description);
+        IReadOnlyList<UnitStatusLine> Specs, IReadOnlyList<UnitStatusLine> Parts, IReadOnlyList<UnitStatusLine> Skills, string Description, long ItemCode = 0);
 
     /// <summary>아이템 상세 화면의 내용: 아이템 이름, 가진 수량("수량 N"), 소지 한도, 아이템을 쓸 때 실행하는 스킬, 설명문.</summary>
-    public sealed record ItemDetailView(string Name, string AmountText, string CarryLimit, IReadOnlyList<UnitStatusLine> Skills, string Description);
+    public sealed record ItemDetailView(string Name, string AmountText, string CarryLimit, IReadOnlyList<UnitStatusLine> Skills, string Description, long ItemCode = 0);
 
     /// <summary>지금 보는 아이템 상세 화면의 내용. 아이템 상세 화면이 아니거나 그 아이템이 없으면 null.</summary>
     public ItemDetailView? ItemDetail
@@ -64,17 +64,17 @@ public sealed partial class GameSession
         {
             if (Screen != Screen.ItemDetail || DetailItemCode is not { } code || Pack.FindItem(code) is not { } item) return null;
             return new ItemDetailView(item.Name, $"수량 {Text(InventoryItems.GetValueOrDefault(code).Amount)}", Text(item.CarryLimit),
-                [new UnitStatusLine("스킬", item.SkillCode is { } skill ? SkillName(skill) : "없음")], item.Description);
+                [new UnitStatusLine("스킬", item.SkillCode is { } skill ? SkillName(skill) : "없음")], item.Description, code);
         }
     }
 
     /// <summary>스킬 상세 화면의 내용: 스킬 이름, 쓸 수 있는 대상(메인 타겟 종류), 설명문.</summary>
-    public sealed record SkillDetailView(string Name, string Target, string Description);
+    public sealed record SkillDetailView(string Name, string Target, string Description, long SkillCode = 0);
 
     /// <summary>지금 보는 스킬 상세 화면의 내용. 스킬 상세 화면이 아니거나 그 스킬이 없으면 null.</summary>
     public SkillDetailView? SkillDetail =>
         Screen == Screen.SkillDetail && DetailSkillCode is { } code && Pack.FindSkill(code) is { } skill
-            ? new SkillDetailView(skill.Name, TargetText(skill.MainTargetType), skill.Description)
+            ? new SkillDetailView(skill.Name, TargetText(skill.MainTargetType), skill.Description, code)
             : null;
 
     static string TargetText(SkillMainTargetType type) => type switch
@@ -123,7 +123,7 @@ public sealed partial class GameSession
                 .Select(s => new UnitStatusLine(s.Name, Text(statuses[s.Code]))).ToList();
             return new EquipmentDetailView(
                 master?.ItemName ?? Text(item.ItemCode), $"+{Text(enhance)}", hp, xp, tag, specs, Screen == Screen.EquipmentEnhanceTarget ? ModLines(item) : PartLines(item),
-                [new UnitStatusLine("스킬", item.Skill is { } skill ? SkillName(skill.SkillCode) : "비어 있음")], master?.Description ?? "");
+                [new UnitStatusLine("스킬", item.Skill is { } skill ? SkillName(skill.SkillCode) : "비어 있음")], master?.Description ?? "", item.ItemCode);
         }
     }
 
@@ -223,7 +223,7 @@ public sealed partial class GameSession
                 Gauge.Render(state.Exp, state.ExpMax, gray: false, CharacterDetailExpWidth) with { Color = GaugeColor.White },   // Exp 바는 색 규칙을 따르지 않고 늘 흰색
                 Gauge.Render(state.Hp, state.MaxHp, gray: state.IsDead, CharacterDetailExpWidth),
                 xp.Gauge, xp.Tag, specs,
-                equipment, skills, Pack.FindCharacter(code)?.Description ?? "");
+                equipment, skills, Pack.FindCharacter(code)?.Description ?? "", code);
         }
     }
 

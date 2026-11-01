@@ -3,7 +3,7 @@ using System.Globalization;
 namespace Wera.Core;
 
 /// <summary>아지트 화면의 한 줄(층): 보이는 줄 번호(0~2)와 그 줄이 무엇인지. Floor가 -1이면 "확장 가능" 줄, null이면 빈 줄이다.</summary>
-public sealed record HideoutRowView(int Row, int? Floor, string FloorName, PartySlotView? Boss, string FacilityName = "공터", bool HasFacility = false)
+public sealed record HideoutRowView(int Row, int? Floor, string FloorName, PartySlotView? Boss, string FacilityName = "공터", bool HasFacility = false, long? BuiltFacilityCode = null)
 {
     /// <summary>줄의 슬롯 번호: 계층(왼쪽) 줄×3+1, 시설(가운데) +2, 보스(오른쪽) +3.</summary>
     public int FloorCode => Row * 3 + 1;
@@ -135,7 +135,7 @@ public sealed partial class GameSession
                 if (at == -1) return new HideoutRowView(row, HideoutExpandGroups.Count > 0 ? -1 : null, HideoutExpandGroups.Count > 0 ? "확장 가능" : "----", null);
                 if (at < 0 || at >= HideoutFloorCount) return new HideoutRowView(row, null, "----", null);
                 var built = BuiltFacilityOfFloor(at);
-                return new HideoutRowView(row, at, $"{at + 1}층", CharacterView(-1, HideoutLeaderOf(at)), built?.Name ?? "공터", built is not null);
+                return new HideoutRowView(row, at, $"{at + 1}층", CharacterView(-1, HideoutLeaderOf(at)), built?.Name ?? "공터", built is not null, built?.Code);
             }).ToList();
         }
     }

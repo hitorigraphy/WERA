@@ -155,6 +155,9 @@ a.button, button.button { border-color: #666; }
 /* 아이콘은 오른쪽 4줄(이름, HP, XPP, 아이콘 줄)의 세로 높이와 같은 정사각형 */
 .slot-icon { flex: none; width: calc(4 * var(--lh)); height: calc(4 * var(--lh)); padding: 0; border: 0; background: none; }
 .slot-icon svg, .no-image { display: block; width: 100%; height: 100%; }
+/* 이미지 마스터의 그림: 칸 안에 비율을 지켜 맞춘다(No Image 자리표시와 같은 크기) */
+img.no-image, img.badge-icon { object-fit: contain; }
+img.char-image { display: block; object-fit: contain; background: #000; }
 /* 한 줄 폭 19칸 = "HP  : "와 "XPP : "(6칸) + 게이지(13칸) */
 .slot-info { width: 19ch; line-height: var(--lh); }
 .slot-info > * { height: var(--lh); }
@@ -240,7 +243,7 @@ input.command { width: min(100%, 26rem); }
 .advance-area[tabindex="0"] { min-height: 100%; cursor: pointer; }   /* 키/클릭으로 넘기는 장면은 화면 영역 전체가 클릭 대상 */
 .adv-line { display: flex; gap: .5rem; align-items: flex-start; margin: 1.2rem 0 .6rem; }
 .adv-line > .adv-icon { flex: none; width: calc(4 * var(--lh)); height: calc(4 * var(--lh)); }
-.adv-line > .adv-icon svg { display: block; width: 100%; height: 100%; }
+.adv-line > .adv-icon svg, .adv-line > .adv-icon img { display: block; width: 100%; height: 100%; }
 .adv-box { position: relative; flex: 1; min-width: 0; height: calc(4 * var(--lh)); box-sizing: border-box; padding: calc(.5 * var(--lh)) 1ch 0; border: 1px solid #888; line-height: var(--lh); }
 .adv-name { position: absolute; top: calc(-.5 * var(--lh)); left: 1ch; padding: 0 .5ch; background: #000; line-height: var(--lh); white-space: nowrap; }
 .adv-text { margin: 0; height: 100%; overflow-y: auto; white-space: pre-wrap; word-break: break-all; line-break: anywhere; }   /* 어느 글자에서나 줄을 바꾼다(AdvLayout의 줄 수 계산과 같은 규칙) */

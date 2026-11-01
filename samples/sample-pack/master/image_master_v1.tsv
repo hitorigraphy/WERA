@@ -1,0 +1,7 @@
+image_code	kind	target_code	variation_number	file	memo
+1	Character	1	0	image/character/1_0.png	당신의 기본 이미지
+2	Character	1	1	image/character/1_1.png	당신의 변형 1(ADV 화자 variation_number 1)
+3	Character	7001	0	image/character/7001_0.png	용사
+4	CommonItem	3	0	image/item/3.png	약초
+5	Attribute	1	0	image/attribute/1.png	불 속성 아이콘
+6	Facility	2	0	image/facility/2.png	대장간

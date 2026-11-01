@@ -153,14 +153,14 @@ public static class Gauge
 
 /// <summary>
 /// 슬롯 4번째 줄의 속성 표시: 속성 아이콘 옆에 유리속성이면 ⭕, 불리속성이면 ❌.
-/// 속성 아이콘 이미지는 아직 경로 규칙이 없어 화면에서는 No Image로 그린다.
+/// 속성 아이콘은 이미지 마스터(ImageKind.Attribute)의 이미지로 그리고 없으면 No Image다.
 /// </summary>
 public sealed record AttributeBadge(long AttributeCode, string Name, bool Advantage)
 {
     public string Marker => Advantage ? "⭕" : "❌";
 }
 
-/// <summary>슬롯 4번째 줄의 상태이상 표시: 상태이상 아이콘(지금은 No Image)만 나온다.</summary>
+/// <summary>슬롯 4번째 줄의 상태이상 표시: 상태이상 아이콘(이미지 마스터의 ImageKind.StatusEffect 이미지, 없으면 No Image)만 나온다.</summary>
 public sealed record StatusBadge(long StatusEffectCode, string Name);
 
 /// <summary>
