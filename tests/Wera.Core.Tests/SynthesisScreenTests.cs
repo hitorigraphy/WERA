@@ -114,7 +114,7 @@ public class SynthesisScreenTests
     public void The_sample_pack_has_the_enhance_status_master()
     {
         var pack = SamplePack();
-        Assert.Equal(4, pack.UniqueItemEnhanceStatuses!.Count);
+        Assert.Equal(21, pack.UniqueItemEnhanceStatuses!.Count);                              // 강화 레벨 0~20
         Assert.Equal(new UniqueItemEnhanceStatus(8001, 40, 2, 12), pack.UniqueItemEnhanceStatuses[2]);
     }
 

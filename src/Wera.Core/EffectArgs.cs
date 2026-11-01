@@ -77,6 +77,26 @@ public static class EffectArgs
         }
     }
 
+    /// <summary>제련 흐름의 종류별 인자 검증: RandomToCache는 value_1이 cache_index, value_2(모수)가 1 이상이어야 하고, 나머지 제련 전용 종류는 값을 보지 않으며, 나머지는 <see cref="Check"/>를 따른다.</summary>
+    public static void CheckSmelt(string file, string where, SmeltFlowType type, long value1, long value2, long value3, EffectCheck check)
+    {
+        switch (type)
+        {
+            case SmeltFlowType.FocusSmeltTarget:
+            case SmeltFlowType.DeleteSmeltTarget:
+            case SmeltFlowType.ConsumeSmeltStone:
+                break;
+            case SmeltFlowType.RandomToCache:
+                CheckCacheIndex(file, where, value1, "value_1");
+                if (value2 < 1)
+                    throw new PackFormatException($"{file}: {where} value_2(모수) '{value2}'는 1 이상이어야 합니다.");
+                break;
+            default:
+                Check(file, where, (EffectType)(int)type, value1, value2, value3, check);
+                break;
+        }
+    }
+
     static void Known(string file, string where, CharacterAfterCreateEffectType type, IReadOnlySet<long>? codes, string masterPath, string kind, long code)
     {
         if (codes is null) throw new PackFormatException($"{file}: {where} {type}에는 {masterPath}가 필요합니다.");

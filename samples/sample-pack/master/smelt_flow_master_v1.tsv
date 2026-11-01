@@ -1,0 +1,14 @@
+execute_number	flow_type	value_1	value_2	value_3	memo
+1	ConsumeSmeltStone				제련석 1개 소모(결과와 상관없이)
+2	RandomToCache	0	100		0~99를 캐시 0에
+3	SetCacheValue	1	10		캐시 1 = 10
+4	JumpCacheLessThan	0	1	20	난수 < 10 (10%): 대실패로
+5	SetCacheValue	1	70		캐시 1 = 70
+6	JumpCacheLessThan	0	1	30	난수 < 70 (60%): 실패로
+7	FocusSmeltTarget				성공(30%): 타겟 포커스
+8	SetCacheValue	2	1		캐시 2 = 1
+9	CacheToFocusedItemModValue	8	2		강화 횟수(상태 8) +1
+10	Finish				
+20	DeleteSmeltTarget				대실패: 타겟 삭제
+21	Finish				
+30	Finish				실패: 제련석만 소모

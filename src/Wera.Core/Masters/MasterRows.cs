@@ -648,6 +648,17 @@ public record SynthesisFlowRow
     public required long Value3 { get; init; }
 }
 
+/// <summary>제련 흐름: 키는 execute_number 하나.</summary>
+[MemoryTable("smelt_flow"), MessagePackObject(true)]
+public record SmeltFlowRow
+{
+    [PrimaryKey] public required long ExecuteNumber { get; init; }
+    public required SmeltFlowType FlowType { get; init; }
+    public required long Value1 { get; init; }
+    public required long Value2 { get; init; }
+    public required long Value3 { get; init; }
+}
+
 /// <summary>피격 후 이펙트: 키는 execute_number 하나.</summary>
 [MemoryTable("after_hit_effect"), MessagePackObject(true)]
 public record AfterHitEffectRow

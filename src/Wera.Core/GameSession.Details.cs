@@ -189,15 +189,16 @@ public sealed partial class GameSession
     /// </summary>
     IReadOnlyList<ScreenEntry> EquipmentEnhanceEntries()
     {
-        var choosing = EnhanceMode == Wera.Core.EnhanceMode.Synthesis && SynthesisTarget is not null;
-        var candidates = choosing ? SacrificeCandidates(SynthesisTarget!).Select(i => i.InstanceId).ToHashSet() : [];
-        var complete = choosing && SynthesisSacrificeIds.Count >= Pack.SynthesisSacrificeCount;
+        var choosing = EnhanceMode is Wera.Core.EnhanceMode.Synthesis or Wera.Core.EnhanceMode.Smelt && SynthesisTarget is not null;
+        var smelting = EnhanceMode == Wera.Core.EnhanceMode.Smelt;
+        var candidates = choosing && !smelting ? SacrificeCandidates(SynthesisTarget!).Select(i => i.InstanceId).ToHashSet() : [];
+        var complete = choosing && (smelting || SynthesisSacrificeIds.Count >= Pack.SynthesisSacrificeCount);
         string Name(UniqueItemInstance i) => Pack.FindUniqueItem(i.ItemCode)?.ItemName ?? Text(i.ItemCode);
         var rows = OwnedUniqueItems.Select(i =>
         {
             var code = i.OrderNumber.ToString(CultureInfo.InvariantCulture);
             if (!choosing)
-                return new ScreenEntry(code, Name(i), EnhanceMode == Wera.Core.EnhanceMode.Synthesis ? Screen.EquipmentEnhance : Screen.EquipmentEnhanceTarget,
+                return new ScreenEntry(code, Name(i), EnhanceMode is Wera.Core.EnhanceMode.Synthesis or Wera.Core.EnhanceMode.Smelt ? Screen.EquipmentEnhance : Screen.EquipmentEnhanceTarget,
                     EntryAction.PickEnhanceEquipment, i.InstanceId, Enabled: CanPickForEnhance(i));
             var mark = i.InstanceId == EnhanceTargetId ? " (대상)" : SynthesisSacrificeIds.Contains(i.InstanceId) ? " (제물)" : "";
             return new ScreenEntry(code, Name(i) + mark, Screen.EquipmentEnhance, EntryAction.SelectSacrifice, i.InstanceId,
@@ -206,7 +207,7 @@ public sealed partial class GameSession
         ScreenEntry[] buttons = choosing
             ?
             [
-                new ScreenEntry(ExecuteEntryCode, "실행", Screen.EquipmentEnhance, EntryAction.ExecuteSynthesis, Enabled: complete),
+                new ScreenEntry(ExecuteEntryCode, "실행", Screen.EquipmentEnhance, smelting ? EntryAction.ExecuteSmelt : EntryAction.ExecuteSynthesis, Enabled: complete),
                 new ScreenEntry(CancelEntryCode, "취소", Screen.EquipmentEnhance, EntryAction.CancelSynthesis),
             ]
             :
@@ -248,11 +249,31 @@ public sealed partial class GameSession
         return $"합성했습니다: {name}";
     }
 
+    /// <summary>
+    /// 제련을 실행한다: 제련 흐름 서킷이 타겟으로 돌고(제련석 소모, 확률, 강화, 타겟 삭제는 흐름이 정한다), 흐름이 소모한 제련석을 인벤토리에서 빼고,
+    /// 결과(성공: 강화 횟수가 올랐다, 실패, 대실패: 타겟이 없어졌다)를 알린 뒤 타겟을 비운다.
+    /// </summary>
+    string ExecuteSmelt()
+    {
+        if (SynthesisTarget is not { } target || Pack.SmeltStoneItemCode is not { } stone) return "";
+        var before = target.Statuses?.GetValueOrDefault(GamePack.EnhanceCountStatusCode) ?? 0;
+        var circuit = new SmeltFlowCircuit(Pack, new UnitStore([], UniqueItemInstances), target, NextRandom);
+        var result = circuit.Execute();
+        if (circuit.StonesConsumed > 0) AddInventory(stone, -circuit.StonesConsumed);
+        RevalidateEquipment();
+        var name = Pack.FindUniqueItem(target.ItemCode)?.ItemName ?? Text(target.ItemCode);
+        ResetSynthesis();
+        if (result is null) return $"제련 대실패: {name}이(가) 사라졌습니다";
+        var after = result.Statuses?.GetValueOrDefault(GamePack.EnhanceCountStatusCode) ?? 0;
+        return after > before ? $"제련 성공: {name} +{after}" : $"제련 실패: {name}";
+    }
+
     /// <summary>골라 둔 작업이 있고, 합성이면 이 장비 말고, 장착하지 않은 같은 코드의 장비가 제물 수만큼 있다.</summary>
     bool CanPickForEnhance(UniqueItemInstance item) => EnhanceMode switch
     {
         null => false,
         Wera.Core.EnhanceMode.Synthesis => SacrificeCandidates(item).Count() >= Pack.SynthesisSacrificeCount,
+        Wera.Core.EnhanceMode.Smelt => Pack.SmeltStoneItemCode is { } stone && CountInventory(stone) >= 1,
         _ => true,
     };
 

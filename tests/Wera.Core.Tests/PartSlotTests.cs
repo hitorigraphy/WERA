@@ -232,7 +232,9 @@ public class PartSlotTests
         s.AddUniqueItem(8001);
         Assert.All(s.Entries.Where(e => e.Label == "철검"), e => Assert.True(e.Enabled));   // 안 낀 개체가 둘이면 모두 가능
 
-        s.Activate("902");                                                                  // 제련은 제물이 필요 없다
+        s.Activate("902");                                                                  // 제련은 제물 대신 제련석이 필요하다
+        Assert.All(s.Entries.Where(e => e.Action == EntryAction.PickEnhanceEquipment), e => Assert.False(e.Enabled));
+        s.AddInventory(5, 1);
         Assert.All(s.Entries.Where(e => e.Action == EntryAction.PickEnhanceEquipment), e => Assert.True(e.Enabled));
     }
 }

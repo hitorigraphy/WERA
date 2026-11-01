@@ -82,7 +82,7 @@ public class SynthesisFlowTests
         var once = new SynthesisFlowCircuit(pack, item).Execute();
         Assert.Equal(1, once.Statuses![GamePack.EnhanceCountStatusCode]);
         var capped = once with { Statuses = new Dictionary<long, long>(once.Statuses) { [GamePack.EnhanceCountStatusCode] = 99 } };
-        Assert.Equal(3, new SynthesisFlowCircuit(pack, capped).Execute().Statuses![GamePack.EnhanceCountStatusCode]);   // 강화 레벨 상한 3(샘플 팩의 EnhanceLevelMax)
+        Assert.Equal(20, new SynthesisFlowCircuit(pack, capped).Execute().Statuses![GamePack.EnhanceCountStatusCode]);   // 강화 레벨 상한 20(샘플 팩의 EnhanceLevelMax)
     }
 
     static UniqueItemInstance Item(GamePack pack, string id, long code = 8001) =>

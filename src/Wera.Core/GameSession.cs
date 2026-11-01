@@ -179,8 +179,10 @@ public enum EntryAction
     SelectSacrifice,
     /// <summary>합성을 실행한다(제물을 다 골랐을 때만 활성).</summary>
     ExecuteSynthesis,
-    /// <summary>합성의 타겟과 제물을 비운다.</summary>
+    /// <summary>합성/제련의 타겟과 제물을 비운다.</summary>
     CancelSynthesis,
+    /// <summary>제련을 실행한다.</summary>
+    ExecuteSmelt,
     /// <summary>골라 둔 합성/제련/개조로 진행할 장비를 고른다(Arg = 장비 인스턴스 ID).</summary>
     PickEnhanceEquipment,
 }
@@ -841,6 +843,9 @@ public sealed partial class GameSession
                 break;
             case EntryAction.ExecuteSynthesis:
                 Message = ExecuteSynthesis();
+                break;
+            case EntryAction.ExecuteSmelt:
+                Message = ExecuteSmelt();
                 break;
             case EntryAction.CancelSynthesis:
                 ResetSynthesis();

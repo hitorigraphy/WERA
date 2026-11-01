@@ -3,4 +3,5 @@ AttributeAdvantageMultiplier	Decimal		1.5		유리속성 배율
 AttributeDisadvantageMultiplier	Decimal		0.5		불리속성 배율
 ListPageSize	Long	20			목록 한 페이지 항목 수
 SynthesisSacrificeCount	Long	1			합성 제물 수
-EnhanceLevelMax	Long	3			강화 레벨 상한
+EnhanceLevelMax	Long	20			강화 레벨 상한
+SmeltStoneItemCode	Long	5			제련석 아이템(커먼 아이템 5)

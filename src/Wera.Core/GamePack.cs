@@ -212,6 +212,7 @@ public sealed partial class GamePack
         var afterLoadCharacterFlows = LoadAfterLoadCharacterFlows(zip, effectCheck);
         var afterLoadUniqueItemFlows = LoadAfterLoadUniqueItemFlows(zip, effectCheck);
         var synthesisFlows = LoadSynthesisFlows(zip, effectCheck);
+        var smeltFlows = LoadSmeltFlows(zip, effectCheck);
         var afterHitEffects = LoadAfterHitEffects(zip, effectCheck);
         var afterAttackEffects = LoadAfterAttackEffects(zip, effectCheck);
         var afterBattleWinEffects = LoadAfterBattleWinEffects(zip, effectCheck);
@@ -222,6 +223,9 @@ public sealed partial class GamePack
         var uniqueItemAfterCreateEffects = LoadUniqueItemAfterCreateEffects(zip, uniqueItems?.Select(u => u.ItemCode), effectCheck);
         var skillStatuses = LoadOwnerStatuses(zip, SkillStatusMasterPath, "skill_code", "스킬", SkillMasterPath, skills?.Select(s => s.Code), statuses);
         var uniqueItemStatuses = LoadOwnerStatuses(zip, UniqueItemStatusMasterPath, "item_code", "유니크 아이템", UniqueItemInventoryMasterPath, uniqueItems?.Select(u => u.ItemCode), statuses);
+
+        if (gameSettings?.FirstOrDefault(s => s.SettingType == GameSettingType.SmeltStoneItemCode) is { } stone && itemInventory?.Any(i => i.Code == stone.LongValue) != true)
+            throw new PackFormatException($"{GameSettingMasterPath}: 제련석 SmeltStoneItemCode '{stone.LongValue}'가 {CommonItemInventoryMasterPath}에 없습니다.");
 
         var pack = new GamePack
         {
@@ -281,6 +285,7 @@ public sealed partial class GamePack
             AfterLoadCharacterFlows = afterLoadCharacterFlows,
             AfterLoadUniqueItemFlows = afterLoadUniqueItemFlows,
             SynthesisFlows = synthesisFlows,
+            SmeltFlows = smeltFlows,
             UniqueItemEnhanceStatuses = LoadUniqueItemEnhanceStatuses(zip, uniqueItems?.Select(u => u.ItemCode), statuses, uniqueItemStatuses, GameSettingLevelMax(gameSettings)),
             AfterHitEffects = afterHitEffects,
             AfterAttackEffects = afterAttackEffects,
@@ -306,7 +311,7 @@ public sealed partial class GamePack
                 presetUnits, presetUnitEquips, presetUnitDrops, presetParties, battleEnemies,
                 tileEffects, dungeonTiles, dungeonMaps, dungeonEncounters,
                 skillSlots, characterSkillSlotTags, skills, skillTags, skillExecuteEffects, skillOrderEffects, skillAutoTargetEffects,
-                skillStatuses, uniqueItemStatuses, afterLoadCharacterFlows, afterLoadUniqueItemFlows, synthesisFlows,
+                skillStatuses, uniqueItemStatuses, afterLoadCharacterFlows, afterLoadUniqueItemFlows, synthesisFlows, smeltFlows,
                 afterHitEffects, afterAttackEffects, afterBattleWinEffects, afterBattleLoseEffects, afterBattleRunEffects,
                 characterAfterCreateEffects, uniqueItemAfterCreateEffects),
             EmbeddedEffects = embeddedEffects,
