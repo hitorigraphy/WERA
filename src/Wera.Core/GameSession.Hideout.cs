@@ -382,6 +382,7 @@ public sealed partial class GameSession
     /// <summary>
     /// 방어전에 등장할 적 파티를 정한다: priority가 작은 행부터 위협도가 min_threat 이상인 것만 chance(%) 확률로 검사해, 처음 통과한 행이 등장하고
     /// 그 consume_threat만큼 위협도가 줄어든다(0 아래로는 내려가지 않는다). 통과한 행이 없으면(평화로운 날) null.
+    /// 통과한 행의 프리셋 파티를 만들 수 없으면(<see cref="CanCreateEnemyParty"/>) 침입 실패로 null이고 위협도는 줄지 않는다.
     /// </summary>
     public DefenseEnemy? RollDefenseEnemy()
     {
@@ -389,9 +390,24 @@ public sealed partial class GameSession
         foreach (var enemy in (Pack.DefenseEnemies ?? []).OrderBy(e => e.Priority))
         {
             if (Threat < enemy.MinThreat || !RandomJump.Hit(enemy.Chance, RandomJump.Roll(100, NextRandom))) continue;
+            if (!CanCreateEnemyParty(enemy.PresetPartyCode)) return null;
             PlayerFlagOps.Set(PlayerFlags, flag, Math.Max(0, Threat - enemy.ConsumeThreat));
             return enemy;
         }
         return null;
+    }
+
+    /// <summary>
+    /// 프리셋 파티를 적으로 만들 수 있는가: 프리셋 유닛의 캐릭터 코드마다 (파티에 든 수 + 지금 보유한 수)가 그 캐릭터의 최대 보유 수(carry_limit)를 넘으면 만들지 않는다
+    /// (잡혀 와도 보유할 수 없는 캐릭터가 섞인 파티는 침입하지 못한다).
+    /// </summary>
+    public bool CanCreateEnemyParty(long presetPartyCode)
+    {
+        if (Pack.FindPresetParty(presetPartyCode) is not { } party) return false;
+        return party.UnitCodes.OfType<long>()
+            .Select(unit => Pack.FindPresetUnit(unit)?.CharacterCode)
+            .OfType<long>()
+            .GroupBy(code => code)
+            .All(g => OwnedCountOf(g.Key) + g.Count() <= CharacterLimitOf(g.Key));
     }
 }

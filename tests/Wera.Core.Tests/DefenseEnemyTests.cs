@@ -8,11 +8,11 @@ public class DefenseEnemyTests
 {
     const string Enemies = "code\tpreset_party_code\tmin_threat\tconsume_threat\tpriority\tchance\n";
 
-    static GameSession Session(string enemies = "1\t1\t10\t10\t2\t100\n2\t2\t50\t30\t1\t100\n", string settings = "ThreatFlagCode\tLong\t9\t\t\n")
+    static GameSession Session(string enemies = "1\t1\t10\t10\t2\t100\n2\t2\t50\t30\t1\t100\n", string settings = "ThreatFlagCode\tLong\t9\t\t\n", int heroLimit = 1)
     {
         var pack = GamePack.Load(CoreTests.PackZip(
             ("pack.tsv", "id\tdemo\ntitle\t데모\n"),
-            ("master/character_inventory_master_v1.tsv", "inventory_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n1\t당신\t1\t1\t2\n7001\t용사\t1\t1\t2\n"),
+            ("master/character_inventory_master_v1.tsv", "inventory_code\tcharacter_name\tcarry_limit\tadvantage_attribute_code\tdisadvantage_attribute_code\n1\t당신\t1\t1\t2\n7001\t용사\t" + heroLimit + "\t1\t2\n"),
             ("master/tag_master_v1.tsv", "tag_code\ttag_name\n1\t플레이어\n2\t리더\n3\t메인 통화\n"),
             ("master/character_tag_master_v1.tsv", "character_code\ttag_code\n1\t1\n"),
             ("master/common_item_inventory_master_v1.tsv", "inventory_code\titem_name\tcarry_limit\n2\t금화\t99999\n"),
@@ -24,9 +24,9 @@ public class DefenseEnemyTests
         return GameSession.NewGame(pack);
     }
 
-    static GameSession WithThreat(long threat, string enemies = "1\t1\t10\t10\t2\t100\n2\t2\t50\t30\t1\t100\n")
+    static GameSession WithThreat(long threat, string enemies = "1\t1\t10\t10\t2\t100\n2\t2\t50\t30\t1\t100\n", int heroLimit = 1)
     {
-        var s = Session(enemies);
+        var s = Session(enemies, heroLimit: heroLimit);
         s.PlayerFlags[9] = threat;
         s.NextRandom = _ => 0;                                   // 항상 가장 낮은 값: chance가 0보다 크면 늘 통과
         return s;
@@ -86,5 +86,22 @@ public class DefenseEnemyTests
         Assert.Contains("chance", Assert.Throws<PackFormatException>(() => Session("1\t1\t0\t0\t1\t101\n")).Message);
         Assert.Contains("priority", Assert.Throws<PackFormatException>(() => Session("1\t1\t0\t0\t1\t50\n2\t2\t0\t0\t1\t50\n")).Message);
         Assert.Contains("코드 '1'", Assert.Throws<PackFormatException>(() => Session("1\t1\t0\t0\t1\t50\n1\t2\t0\t0\t2\t50\n")).Message);
+    }
+
+    [Fact]
+    public void An_enemy_party_whose_characters_would_exceed_the_carry_limit_cannot_be_created_and_the_intrusion_fails_without_using_threat()
+    {
+        var s = WithThreat(60, "1\t1\t10\t10\t1\t100\n");
+        Assert.True(s.CanCreateEnemyParty(1));                                  // 용사 한도 1, 보유 0, 파티에 1명
+        s.AddCharacter(7001);
+        Assert.False(s.CanCreateEnemyParty(1));                                 // 이미 1명 보유: 1 + 1 > 1
+        Assert.Null(s.RollDefenseEnemy());
+        Assert.Equal(60, s.Threat);
+
+        var roomy = WithThreat(60, "1\t1\t10\t10\t1\t100\n", heroLimit: 2);
+        roomy.AddCharacter(7001);
+        Assert.Equal(1, roomy.RollDefenseEnemy()!.Code);                        // 한도 2: 1 + 1 <= 2
+        roomy.AddCharacter(7001);
+        Assert.False(roomy.CanCreateEnemyParty(1));
     }
 }
